@@ -17,8 +17,8 @@ jobs:
       IMAGE_TAG: dev_main
       GHCR_REGISTRY: ghcr.io
       GHCR_NAMESPACE: aiverify-foundation
-      ECR_REGISTRY: ${{ secrets.ECR_URI }}
-      ECR_REGISTRY_PC: ${{ secrets.ECR_URI_PC }}
+      # ECR_REGISTRY: ${{ secrets.ECR_URI }}
+      # ECR_REGISTRY_PC: ${{ secrets.ECR_URI_PC }}
       IMAGE_NAME_MS: moonshot
       IMAGE_NAME_PC: process_checks
 
@@ -44,8 +44,8 @@ jobs:
         username: ${{ github.actor }}
         password: ${{ secrets.GITHUB_TOKEN }}
 
-    - name: Login to Amazon ECR
-      uses: aws-actions/amazon-ecr-login@v2
+    # - name: Login to Amazon ECR
+    #   uses: aws-actions/amazon-ecr-login@v2
 
     # ---------- Moonshot ----------
     - name: Build and Push Moonshot
@@ -56,14 +56,14 @@ jobs:
         tags: |
           ghcr.io/${{ env.GHCR_NAMESPACE }}/${{ env.IMAGE_NAME_MS }}:${{ env.IMAGE_TAG }}
 
-    - name: Build and Push Moonshot
-      uses: docker/build-push-action@v5
-      with:
-        context: .
-        push: true
-        provenance: false
-        tags: |
-          ${{ env.ECR_REGISTRY }}:${{ env.IMAGE_TAG }}
+    # - name: Build and Push Moonshot
+    #   uses: docker/build-push-action@v5
+    #   with:
+    #     context: .
+    #     push: true
+    #     provenance: false
+    #     tags: |
+    #       ${{ env.ECR_REGISTRY }}:${{ env.IMAGE_TAG }}
 
     # ---------- Process Checks ----------
     - name: Build and Push Process Checks (Multi-arch to GHCR)
@@ -76,12 +76,12 @@ jobs:
         tags: |
           ghcr.io/${{ env.GHCR_NAMESPACE }}/process_checks:${{ env.IMAGE_TAG }}
 
-    - name: Build and Push Process Checks
-      uses: docker/build-push-action@v5
-      with:
-        context: .
-        file: Dockerfile_PC
-        push: true
-        provenance: false
-        tags: |
-          ${{ env.ECR_REGISTRY_PC }}:${{ env.IMAGE_TAG }}
+    # - name: Build and Push Process Checks
+    #   uses: docker/build-push-action@v5
+    #   with:
+    #     context: .
+    #     file: Dockerfile_PC
+    #     push: true
+    #     provenance: false
+    #     tags: |
+    #       ${{ env.ECR_REGISTRY_PC }}:${{ env.IMAGE_TAG }}

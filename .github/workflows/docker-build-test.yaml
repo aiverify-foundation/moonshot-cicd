@@ -29,8 +29,8 @@ jobs:
     env:
       GHCR_REGISTRY: ghcr.io
       GHCR_NAMESPACE: aiverify-foundation
-      ECR_REGISTRY: ${{ secrets.ECR_URI }}
-      ECR_REGISTRY_PC: ${{ secrets.ECR_URI_PC }}
+      # ECR_REGISTRY: ${{ secrets.ECR_URI }}
+      # ECR_REGISTRY_PC: ${{ secrets.ECR_URI_PC }}
       IMAGE_NAME_MS: moonshot
       IMAGE_NAME_PC: process_checks
 
@@ -56,8 +56,8 @@ jobs:
         username: ${{ github.actor }}
         password: ${{ secrets.GITHUB_TOKEN }}
 
-    - name: Login to Amazon ECR
-      uses: aws-actions/amazon-ecr-login@v2
+    # - name: Login to Amazon ECR
+    #   uses: aws-actions/amazon-ecr-login@v2
 
     # ---------- Moonshot ----------
     - name: Build and Push Moonshot for GHCR
@@ -69,15 +69,15 @@ jobs:
         tags: |
           ghcr.io/${{ env.GHCR_NAMESPACE }}/${{ env.IMAGE_NAME_MS }}:${{ inputs.moonshot_tag }}
 
-    - name: Build and Push Moonshot (Single arch to ECR for AWS Inspector)
-      if: ${{ inputs.moonshot_tag != '' }}
-      uses: docker/build-push-action@v5
-      with:
-        context: .
-        push: true
-        provenance: false
-        tags: |
-          ${{ env.ECR_REGISTRY }}:${{ inputs.moonshot_tag }}
+    # - name: Build and Push Moonshot (Single arch to ECR for AWS Inspector)
+    #   if: ${{ inputs.moonshot_tag != '' }}
+    #   uses: docker/build-push-action@v5
+    #   with:
+    #     context: .
+    #     push: true
+    #     provenance: false
+    #     tags: |
+    #       ${{ env.ECR_REGISTRY }}:${{ inputs.moonshot_tag }}
 
     # ---------- Process Checks ----------
     - name: Build and Push Process Checks (Multi-arch to GHCR)
@@ -91,13 +91,13 @@ jobs:
         tags: |
           ghcr.io/${{ env.GHCR_NAMESPACE }}/process_checks:${{ inputs.process_checks_tag }}
 
-    - name: Build and Push Process Checks (Single arch to ECR for AWS Inspector)
-      if: ${{ inputs.process_checks_tag != '' }}
-      uses: docker/build-push-action@v5
-      with:
-        context: .
-        file: Dockerfile_PC
-        push: true
-        provenance: false
-        tags: |
-          ${{ env.ECR_REGISTRY_PC }}:${{ inputs.process_checks_tag }}
+    # - name: Build and Push Process Checks (Single arch to ECR for AWS Inspector)
+    #   if: ${{ inputs.process_checks_tag != '' }}
+    #   uses: docker/build-push-action@v5
+    #   with:
+    #     context: .
+    #     file: Dockerfile_PC
+    #     push: true
+    #     provenance: false
+    #     tags: |
+    #       ${{ env.ECR_REGISTRY_PC }}:${{ inputs.process_checks_tag }}
