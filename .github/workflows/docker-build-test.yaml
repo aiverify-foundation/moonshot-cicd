@@ -1,0 +1,103 @@
+name: Docker Build and Push test
+
+on:
+  workflow_dispatch:
+    inputs:
+      branch:
+        description: 'Branch to checkout'
+        required: true
+        type: string
+      moonshot_tag:
+        description: 'Tag for Moonshot image (leave empty to skip)'
+        required: false
+        default: ''
+        type: string
+      process_checks_tag:
+        description: 'Tag for Process Checks image (leave empty to skip)'
+        required: false
+        default: ''
+        type: string
+
+jobs:
+  build-test-push:
+    permissions:
+      id-token: write
+      contents: read
+      packages: write
+    runs-on: ubuntu-latest
+
+    env:
+      GHCR_REGISTRY: ghcr.io
+      GHCR_NAMESPACE: aiverify-foundation
+      ECR_REGISTRY: ${{ secrets.ECR_URI }}
+      ECR_REGISTRY_PC: ${{ secrets.ECR_URI_PC }}
+      IMAGE_NAME_MS: moonshot
+      IMAGE_NAME_PC: process_checks
+
+    steps:
+    - name: Configure AWS credentials
+      uses: aws-actions/configure-aws-credentials@v4
+      with:
+        aws-region: ap-southeast-1
+        role-to-assume: ${{ secrets.AWS_ROLE_TO_ASSUME }}
+
+    - name: Checkout code
+      uses: actions/checkout@v4
+      with:
+        ref: ${{ inputs.branch }}
+
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v3
+
+    - name: Login to GHCR
+      uses: docker/login-action@v3
+      with:
+        registry: ${{ env.GHCR_REGISTRY }}
+        username: ${{ github.actor }}
+        password: ${{ secrets.GITHUB_TOKEN }}
+
+    - name: Login to Amazon ECR
+      uses: aws-actions/amazon-ecr-login@v2
+
+    # ---------- Moonshot ----------
+    - name: Build and Push Moonshot for GHCR
+      if: ${{ inputs.moonshot_tag != '' }}
+      uses: docker/build-push-action@v5
+      with:
+        context: .
+        push: true
+        tags: |
+          ghcr.io/${{ env.GHCR_NAMESPACE }}/${{ env.IMAGE_NAME_MS }}:${{ inputs.moonshot_tag }}
+
+    - name: Build and Push Moonshot (Single arch to ECR for AWS Inspector)
+      if: ${{ inputs.moonshot_tag != '' }}
+      uses: docker/build-push-action@v5
+      with:
+        context: .
+        push: true
+        provenance: false
+        tags: |
+          ${{ env.ECR_REGISTRY }}:${{ inputs.moonshot_tag }}
+
+    # ---------- Process Checks ----------
+    - name: Build and Push Process Checks (Multi-arch to GHCR)
+      if: ${{ inputs.process_checks_tag != '' }}
+      uses: docker/build-push-action@v5
+      with:
+        context: .
+        file: Dockerfile_PC
+        platforms: linux/amd64,linux/arm64
+        push: true
+        tags: |
+          ghcr.io/${{ env.GHCR_NAMESPACE }}/process_checks:${{ inputs.process_checks_tag }}
+
+    - name: Build and Push Process Checks (Single arch to ECR for AWS Inspector)
+      if: ${{ inputs.process_checks_tag != '' }}
+      uses: docker/build-push-action@v5
+      with:
+        context: .
+        file: Dockerfile_PC
+        push: true
+        provenance: false
+        tags: |
+          ${{ env.ECR_REGISTRY_PC }}:${{ inputs.process_checks_tag }}
