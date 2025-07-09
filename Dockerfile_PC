@@ -1,47 +1,27 @@
-# Use the official Python base image for building
-FROM python:3.12-slim AS build
+# --- Stage 1: Build a static Python app ---
+FROM python:3.12-slim as builder
 
-RUN apt-get update && apt-get -y upgrade && \
-    rm -rf /var/lib/apt/lists/*
-
-# Set the working directory
 WORKDIR /app
 
-# Copy the requirements file and README.md into the container
+# Install Poetry and dependencies
 COPY pyproject.toml poetry.lock README.md ./
-
-# Install the required packages
-RUN pip install poetry==2.1.2 --no-cache-dir && \
+RUN pip install poetry==1.8.2 && \
     poetry config virtualenvs.create false && \
-    poetry lock && \
     poetry install --only process_checks --no-root
 
-# Copy the rest of the application code into the container
+# Copy source code
 COPY process_check_app/ .
 
-# Final stage
-# FROM gcr.io/distroless/static-debian12
-
-FROM python:3.12-slim AS final
+# --- Stage 2: Static distroless ---
+FROM gcr.io/distroless/static-debian12
 
 WORKDIR /app
 
-# Copy Python interpreter and libraries
-COPY --from=build /usr/local/bin/python3.12 /usr/local/bin/python3.12
-COPY --from=build /usr/local/lib/python3.12 /usr/local/lib/python3.12
-COPY --from=build /usr/local/lib/python3.12/site-packages /usr/local/lib/python3.12/site-packages
-COPY --from=build /usr/local/lib/libpython3.12.so* /usr/local/lib/
+# Copy statically linked Python binary
+COPY --from=builder /usr/local/bin/python3.12 /usr/local/bin/python3.12
+COPY --from=builder /usr/local/lib/python3.12 /usr/local/lib/python3.12
+COPY --from=builder /usr/local/lib/python3.12/site-packages /usr/local/lib/python3.12/site-packages
 
-# Copy system libraries
-COPY --from=build /usr/local/bin /usr/local/bin
-COPY --from=build /lib/* /lib/
+COPY --from=builder /app /app
 
-# Copy application code
-COPY --from=build /app /app
-
-# Expose the port Streamlit will run on
-EXPOSE 8000
-EXPOSE 8501 
-
-# Command to run the Streamlit application
-CMD ["streamlit", "run", "streamlit_app.py"]
+CMD ["/usr/local/bin/python3.12", "streamlit_app.py"]
