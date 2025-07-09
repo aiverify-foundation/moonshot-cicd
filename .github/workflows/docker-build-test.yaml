@@ -25,7 +25,7 @@ jobs:
       contents: read
       packages: write
     # runs-on: ubuntu-24.04-arm
-    runs-on: macos-15
+    runs-on: ubuntu-latest
 
     env:
       GHCR_REGISTRY: ghcr.io
