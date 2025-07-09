@@ -132,13 +132,15 @@ jobs:
         IMAGE_NAME=ghcr.io/${{ env.GHCR_NAMESPACE }}/process_checks:test-arm
         docker tag my-test-image:arm $IMAGE_NAME
         docker push $IMAGE_NAME
-    # - name: Build and Push Process Checks (Single arch to ECR for AWS Inspector)
-    #   if: ${{ inputs.process_checks_tag != '' }}
-    #   uses: docker/build-push-action@v5
-    #   with:
-    #     context: .
-    #     file: Dockerfile_PC
-    #     push: true
-    #     provenance: false
-    #     tags: |
-    #       ${{ env.ECR_REGISTRY_PC }}:${{ inputs.process_checks_tag }}
+   
+    - name: Build and Push Process Checks (Single arch to ECR for AWS Inspector)
+      if: ${{ inputs.process_checks_tag != '' }}
+      uses: docker/build-push-action@v5
+      with:
+        context: .
+        file: Dockerfile_PC
+        push: true
+        platforms: linux/amd64
+        provenance: false
+        tags: |
+          ${{ env.ECR_REGISTRY_PC }}:${{ inputs.process_checks_tag }}
