@@ -1,47 +1,47 @@
-# ---------- Build stage ----------
+# Use the official Python base image for building
 FROM python:3.12-slim AS build
 
-# Install Poetry and dependencies
-RUN apt-get update && apt-get upgrade -y && \
-    apt-get install -y gcc libffi-dev build-essential && \
-    pip install poetry==2.1.2 --no-cache-dir && \
-    poetry config virtualenvs.create false
+RUN apt-get update && apt-get -y upgrade && \
+    rm -rf /var/lib/apt/lists/*
 
+# Set the working directory
 WORKDIR /app
 
-# Copy config and lock files
+# Copy the requirements file and README.md into the container
 COPY pyproject.toml poetry.lock README.md ./
 
-# Install only required dependencies
-RUN poetry install --only process_checks --no-root
+# Install the required packages
+RUN pip install poetry==2.1.2 --no-cache-dir && \
+    poetry config virtualenvs.create false && \
+    poetry lock && \
+    poetry install --only process_checks --no-root
 
-# Copy app code
+# Copy the rest of the application code into the container
 COPY process_check_app/ .
 
-# Find exact path of Python binary and lib
-RUN which python3.12 && find / -name "libpython3.12.so*" || true
-
-# ---------- Final stage ----------
-FROM gcr.io/distroless/static-debian12
+# Final stage
+FROM gcr.io/distroless/base-debian12
 
 WORKDIR /app
 
-# Copy Python runtime and required files from build
-COPY --from=build /usr/local/bin/python3.12 /usr/local/bin/
+# Copy Python interpreter and libraries
+COPY --from=build /usr/local/bin/python3.12 /usr/local/bin/python3.12
 COPY --from=build /usr/local/lib/python3.12 /usr/local/lib/python3.12
-COPY --from=build /usr/local/lib/libpython3.12.so* /usr/lib/
-
-# Set Python path and library path
-ENV PYTHONPATH=/usr/local/lib/python3.12
-ENV LD_LIBRARY_PATH=/usr/lib
-
-# Copy installed site-packages and app code
 COPY --from=build /usr/local/lib/python3.12/site-packages /usr/local/lib/python3.12/site-packages
+COPY --from=build /usr/local/lib/libpython3.12.so* /usr/local/lib/
+
+# Copy system libraries
+COPY --from=build /usr/local/bin /usr/local/bin
+COPY --from=build /lib/* /lib/
+
+# Copy application code
 COPY --from=build /app /app
 
-# Expose ports for Streamlit (optional)
+# Expose the port Streamlit will run on
 EXPOSE 8000
-EXPOSE 8501
+EXPOSE 8501 
 
-# Set the entrypoint
-ENTRYPOINT ["/usr/local/bin/python3.12", "-m", "streamlit", "run", "streamlit_app.py"]
+# Command to run the Streamlit application
+CMD ["streamlit", "run", "streamlit_app.py"]
+#CMD ["sleep", "infinity"]
+#CMD ["python", "-c", "while True: pass"]
