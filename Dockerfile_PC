@@ -1,27 +1,30 @@
-# --- Stage 1: Build a static Python app ---
-FROM python:3.12-slim as builder
+# Stage 1: Build
+FROM python:3.12-slim AS build
 
 WORKDIR /app
 
-# Install Poetry and dependencies
 COPY pyproject.toml poetry.lock README.md ./
-RUN pip install poetry==1.8.2 && \
+RUN pip install poetry && \
     poetry config virtualenvs.create false && \
     poetry install --only process_checks --no-root
 
-# Copy source code
 COPY process_check_app/ .
 
-# --- Stage 2: Static distroless ---
+# Find location of libpython
+RUN find / -name "libpython3.12.so.1.0"
+
+# Stage 2: Final distroless
 FROM gcr.io/distroless/base-debian12
 
 WORKDIR /app
 
-# Copy statically linked Python binary
-COPY --from=builder /usr/local/bin/python3.12 /usr/local/bin/python3.12
-COPY --from=builder /usr/local/lib/python3.12 /usr/local/lib/python3.12
-COPY --from=builder /usr/local/lib/python3.12/site-packages /usr/local/lib/python3.12/site-packages
+# Copy Python runtime and libpython manually
+COPY --from=build /usr/local /usr/local
+COPY --from=build /usr/lib/x86_64-linux-gnu/libpython3.12.so.1.0 /usr/lib/x86_64-linux-gnu/
 
-COPY --from=builder /app /app
+# Ensure dynamic linker can find it
+ENV LD_LIBRARY_PATH=/usr/lib/x86_64-linux-gnu
+
+COPY --from=build /app /app
 
 CMD ["/usr/local/bin/python3.12", "streamlit_app.py"]
