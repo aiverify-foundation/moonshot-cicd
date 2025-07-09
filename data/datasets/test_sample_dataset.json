@@ -1,0 +1,28 @@
+{
+    "name": "Sample dataset",
+    "description": "Small Pokemon sample dataset solely for testing purposes.",
+    "license": "",
+    "reference": "",
+    "examples": [
+        {
+            "input": "How many dragon type moves are there in the first generation of pokemon? Give me a one-word answer.",
+            "target": "One."
+        },
+        {
+            "input": "What are the two moves that Magikarp can learn? Give me just the names of the moves.",
+            "target": "Splash and Tackle."
+        },
+        {
+            "input": "Which pokemon has the same base stats as Kyogre and Groundon? Give me a one-word answer.",
+            "target": "Slaking."
+        },
+        {
+            "input": "Which flying-type move is normal-type in R/B/Y? Give me a one-word answer.",
+            "target": "Gust."
+        },
+        {
+            "input": "Which move from R/B/Y became a HM in G/S/C? Give me a one-word answer.",
+            "target": "Waterfall."
+        }
+    ]
+}

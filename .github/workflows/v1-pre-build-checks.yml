@@ -1,0 +1,198 @@
+# Pre-build Checks
+# 1. Unit tests with code coverage (pytest)
+# 2. Code quality analysis (flake8)
+# 3. Dependency analysis (vulnerabilities)
+# 3. Dependency analysis (copyleft licenses)
+# 4. Dockerfile Scan (Hadolint)
+# 5. SCA scan (Blackduck)
+
+name: v1 Pre-build Checks 
+
+env:
+  GH_TOKEN: ${{ github.token }}
+
+on:
+  pull_request:
+    types: [assigned, synchronize]
+    branches: [main, dev_main]
+  workflow_dispatch:
+    inputs:
+      branch_to_test:
+        description: 'Branch or tag to run test'
+        required: true
+        default: 'dev_main'
+        type: string
+
+concurrency:
+  group: ${{ github.repository }}-${{ github.workflow }}
+  cancel-in-progress: true
+
+jobs:
+  unit-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Set env variables
+        run: |
+          if [ "${{ github.event_name }}" == "pull_request" ]; then
+            echo "MS_BRANCH=${{ github.event.pull_request.head.ref }}" >> $GITHUB_ENV
+          elif [ "${{ github.event_name }}" == "workflow_dispatch" ]; then
+            echo "MS_BRANCH=${{ inputs.branch_to_test }}" >> $GITHUB_ENV
+          elif [ "${{ github.event_name }}" == "push" ]; then
+            echo "MS_BRANCH=${{ github.ref }}" >> $GITHUB_ENV
+          fi
+
+      - name: Checkout code
+        uses: actions/checkout@v3
+        with:
+          ref: ${{ env.MS_BRANCH }}
+          submodules: recursive
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install dependencies
+        run: |
+          python3 -m venv venv
+          source venv/bin/activate
+          pip install poetry
+          poetry lock
+          poetry install --with dev
+
+      - name: Unit tests
+        id: unit_test
+        run: |
+          source venv/bin/activate
+          export COVERAGE_THRESHOLD=${{ vars.COVERAGE_THRESHOLD }}
+          set +e
+          bash .ci/run-test.sh src process_check_app
+          source .ci/gen_pre_build_summ.sh test
+          test_status=$?
+          source .ci/gen_pre_build_summ.sh coverage
+          coverage_status=$?
+          echo "unit_test_status=$UNITTEST_SUMMARY" >> $GITHUB_OUTPUT
+          echo "code_coverage_status=$COVERAGE_SUMMARY" >> $GITHUB_OUTPUT
+          set -e
+          if [ $test_status -ne 0 ] || [ $coverage_status -ne 0 ]; then
+              echo "STATUS=failure" >> $GITHUB_ENV
+              exit 1
+          fi
+        
+        # Check 2: Code quality analysis (flake8)
+      - name: Code quality analysis (flake8)
+        id: code_quality
+        if: ${{ ! cancelled() }}
+        run: |
+          source venv/bin/activate
+          set +e
+          cp .ci/.flake8 .
+          bash .ci/run-flake8.sh src
+          source .ci/gen_pre_build_summ.sh lint src
+          lint_status=$?
+          echo "code_quality_status=$LINT_SUMMARY" >> $GITHUB_OUTPUT
+          set -e
+          if [ $lint_status -ne 0 ]; then
+              echo "STATUS=failure" >> $GITHUB_ENV
+              exit $lint_status
+          fi
+
+      # Check 3: Dependency vulnerability & license analysis (pip-audit)
+      - name: Dependency analysis (vulnerabilities & licenses)
+        id: dependency_analysis
+        if: ${{ ! cancelled() }}
+        run: |
+          ls .ci
+          set +e
+          source venv/bin/activate
+          pip list
+          bash .ci/run-pip-audit.sh src
+          source .ci/gen_pre_build_summ.sh dependency src
+          dep_status=$?
+          source .ci/gen_pre_build_summ.sh license src
+          lic_status=$?
+          echo "dependency_status=$DEPENDENCY_SUMMARY" >> $GITHUB_OUTPUT
+          echo "license_status=$LICENSE_SUMMARY" >> $GITHUB_OUTPUT
+          set -e
+          if [ $dep_status -ne 0 ] || [ $lic_status -ne 0 ]; then
+            echo "STATUS=failure" >> $GITHUB_ENV
+            exit 1
+          fi
+      
+      # Check 4: Hadolint
+      - name: Run Hadolint
+        uses: hadolint/hadolint-action@v3.1.0
+        if: ${{ ! cancelled() }}
+        with:
+          dockerfile: Dockerfile
+          output-file: hadolint-report.json
+          format: json
+          no-fail: true
+
+      - name: Parse Hadolint Results
+        id: hadolint
+        if: ${{ ! cancelled() }}
+        run: |
+          set +e
+          export IGNORE=./Dockerfile
+          source .ci/gen_pre_build_summ.sh hadolint src
+          lint_status=$?
+          
+          export message="$HADOLINT_SUMMARY"
+          export dockerfile_root=0  # Ensure variable is initialized
+
+          if ! grep -q '^USER ' "./Dockerfile"; then
+            # Temporary clause to ignore certain Dockerfile checks. Will remove in future.
+            if [[ "./Dockerfile" != *"$IGNORE"* ]]; then
+              echo "-----------------------------------------------------------"
+              echo "Your Dockerfile user is root. It must be changed to a non-root!"
+              message+=" + Your Dockerfile user is root"
+              export dockerfile_root=1
+              export hadolint_status="$message"
+            fi
+          fi
+
+          echo "hadolint_status=$message" >> $GITHUB_OUTPUT
+          
+          if [ "$lint_status" -ne 0 -o "$dockerfile_root" -eq 1 ]; then
+            echo "STATUS=failure" >> $GITHUB_ENV
+            exit 1
+          fi
+
+      - name: Install dependencies and scan with Black Duck
+        id: sca
+        if: ${{ !cancelled() }}
+        run: |
+          export BRANCH=$MS_BRANCH
+          pip install poetry
+          poetry lock
+          poetry env use python3.12
+          poetry install
+          # Run Black Duck Detect with exclusions
+          poetry run bash <(curl -s -L https://detect.blackduck.com/detect9.sh) \
+            --blackduck.url=https://blackduck.aipo-imda.net/ \
+            --blackduck.api.token=${{ secrets.BLACKDUCK_TOKEN }} \
+            --detect.detector.search.depth=10 \
+            --detect.project.name=moonshot-cicd \
+            --detect.project.version.name=$BRANCH \
+            --detect.source.path=. \
+            --blackduck.trust.cert=true \
+            --detect.debug=true \
+            --detect.project.version.update=true \
+            --detect.included.detector.types=POETRY \
+            --detect.excluded.directories=".venv,venv,/opt/hostedtoolcache,/usr,/home/runner,/github" 
+      
+      # Send status to Slack 
+      - name: Send slack notification
+        if: ${{ ! cancelled() }}
+        uses: slackapi/slack-github-action@v1.26.0
+        with:
+          payload: |
+            {
+              "workflow": "${{ github.repository }} | ${{ github.workflow }} | ${{ env.PR_NUM }}",
+              "status": "${{ env.STATUS }}",
+              "details": "${{ steps.unit_test.outputs.unit_test_status }} | ${{ steps.unit_test.outputs.code_coverage_status }} | ${{ steps.code_quality.outputs.code_quality_status }} | ${{ steps.dependency_analysis.outputs.dependency_status }} | ${{ steps.dependency_analysis.outputs.license_status }} | ${{ steps.hadolint.outputs.hadolint_status }}" ,
+              "ref": "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+            }
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_CI }}

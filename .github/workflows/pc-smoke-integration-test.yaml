@@ -1,0 +1,170 @@
+name: Process Checks Smoke/Integration Tests
+
+on:
+  workflow_dispatch:
+    inputs:
+      moonshot_branch:
+        description: 'Moonshot Branch / Tag Name'
+        required: true
+        default: 'dev_main'
+        type: string
+      smoke_test_branch:
+        description: 'Moonshot Smoke Test Branch Name'
+        required: true
+        default: 'main'
+        type: string
+      integration_test_branch:
+        description: 'Moonshot Integration Test Branch Name'
+        required: true
+        default: 'main'
+        type: string
+
+  pull_request:
+    branches: [main, dev_main]
+    paths:
+      - Dockerfile_PC
+      - process_check_app/**
+
+
+concurrency:
+  group: ${{ github.repository }}-${{ github.workflow }}
+  cancel-in-progress: true
+
+jobs:
+  tests:
+    runs-on: ubuntu-latest
+    timeout-minutes: 300
+    permissions:
+      id-token: write
+      contents: read
+
+    env:
+      STATUS_SMOKE: skipped
+      STATUS_INTEGRATION: skipped
+
+    steps:
+      - name: Checkout repo (PR or dispatch)
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.head_ref || inputs.moonshot_branch }}
+
+      - name: Setup Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.12'
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: 18
+
+      - name: Install dependencies and run Streamlit
+        run: |
+          python3 -m venv venv
+          source venv/bin/activate
+          pip install poetry
+          poetry lock
+          poetry install --with dev
+          cd process_check_app/
+          nohup streamlit run streamlit_app.py --server.headless true > streamlit.log 2>&1 &
+          sleep 10
+          curl -v http://localhost:8501
+
+      - name: Wait for Streamlit to start
+        run: |
+          for i in {1..10}; do
+            curl -sSf http://localhost:8501 && break
+            echo "Waiting for Streamlit..."
+            sleep 2
+          done
+
+      # Smoke test: only on PR to dev_main or workflow_dispatch
+      - name: Checkout Smoke Test
+        if: github.event_name == 'workflow_dispatch' || github.base_ref == 'dev_main'
+        uses: actions/checkout@v4
+        with:
+          repository: aiverify-foundation/moonshot-smoke-testing
+          path: moonshot-smoke-testing
+          ref: ${{inputs.smoke_test_branch}}
+
+      - name: Run Smoke Test
+        if: github.event_name == 'workflow_dispatch' || github.base_ref == 'dev_main'
+        id: smoke_test
+        run: |
+          set +e
+          bash .ci/run-smoke-integration-test.sh pc_smoke
+          exit_code=$?
+          if [ $exit_code -ne 0 ]; then
+            echo "STATUS_SMOKE=failure" >> $GITHUB_ENV
+            exit $exit_code
+          else
+            echo "STATUS_SMOKE=success" >> $GITHUB_ENV
+          fi
+
+      - name: Slack Notification - Smoke Test
+        if: always() && (github.event_name == 'workflow_dispatch' || github.base_ref == 'dev_main')
+        uses: slackapi/slack-github-action@v1.26.0
+        with:
+          payload: |
+            {
+              "workflow": "${{ github.repository }} | ${{ github.workflow }} | Smoke Test",
+              "status": "${{ env.STATUS_SMOKE }}",
+              "details": "pc_smoke",
+              "ref": "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+            }
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_CI }}
+
+
+      # Integration test: only on PR to main or workflow_dispatch
+      - name: Checkout Integration Test
+        if: github.event_name == 'workflow_dispatch' || github.base_ref == 'main'
+        uses: actions/checkout@v4
+        with:
+          repository: aiverify-foundation/moonshot-integration-testing
+          path: moonshot-integration-testing
+          ref: ${{inputs.integration_test_branch}}
+
+      - name: Run Integration Test
+        if: github.event_name == 'workflow_dispatch' || github.base_ref == 'main'
+        id: integration_test
+        run: |
+          set +e
+          bash .ci/run-smoke-integration-test.sh pc_integration
+          # touch /home/runner/work/moonshot-cicd/moonshot-integration-testing/moonshot-v1-process-checks-integration-testing/test-results/example.txt
+          exit_code=$?
+          if [ $exit_code -ne 0 ]; then
+            echo "STATUS_INTEGRATION=failure" >> $GITHUB_ENV
+            exit $exit_code
+          else
+            echo "STATUS_INTEGRATION=success" >> $GITHUB_ENV
+          fi
+
+      - name: Slack Notification - Integration Test
+        if: always() && (github.event_name == 'workflow_dispatch' || github.base_ref == 'main')
+        uses: slackapi/slack-github-action@v1.26.0
+        with:
+          payload: |
+            {
+              "workflow": "${{ github.repository }} | ${{ github.workflow }} | Integration Test",
+              "status": "${{ env.STATUS_INTEGRATION }}",
+              "details": "pc_integration",
+              "ref": "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+            }
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_CI }}
+
+      - name: Upload Playwright Traces Process Check
+        if: always() && (github.event_name == 'workflow_dispatch' || github.base_ref == 'main')
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-trace-integration-ui-test-process-check-${{ github.run_id }}
+          path: |
+            /home/runner/work/moonshot-cicd/moonshot-integration-testing/moonshot-v1-process-checks-integration-testing/test-results
+      
+      - name: Upload Streamlit logs if tests fail
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: streamlit-log
+          path: process_check_app/streamlit.log

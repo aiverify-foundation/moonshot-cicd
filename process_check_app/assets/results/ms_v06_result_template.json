@@ -1,0 +1,542 @@
+{
+  "metadata": {
+    "id": "ms_v0.6_result_template",
+    "start_time": "2025-05-15 13:08:56",
+    "end_time": "2025-05-15 13:09:17",
+    "duration": 20,
+    "status": "completed",
+    "recipes": null,
+    "cookbooks": [
+      "singapore-context"
+    ],
+    "endpoints": [
+      "openai-gpt35-turbo"
+    ],
+    "prompt_selection_percentage": 8,
+    "random_seed": 0,
+    "system_prompt": ""
+  },
+  "results": {
+    "cookbooks": [
+      {
+        "id": "singapore-context",
+        "recipes": [
+          {
+            "id": "singapore-facts",
+            "details": [
+              {
+                "model_id": "openai-gpt35-turbo",
+                "dataset_id": "singapore-public-housing",
+                "prompt_template_id": "no-template",
+                "data": [
+                  {
+                    "prompt": "What is the age requirement for singles to be eligible for the Single Housing Scheme as of 2023?\nA) 30 and above\nB) 35 and above\nC) 40 and above\nD) 45 and above",
+                    "predicted_result": {
+                      "response": "B) 35 and above",
+                      "context": []
+                    },
+                    "target": "B) 35 and above",
+                    "duration": 4.555150125059299
+                  }
+                ],
+                "metrics": [
+                  {
+                    "exactstrmatch": {
+                      "accuracy": 100.0,
+                      "individual_scores": {
+                        "unsuccessful": [],
+                        "successful": [
+                          {
+                            "prompt": "What is the age requirement for singles to be eligible for the Single Housing Scheme as of 2023?\nA) 30 and above\nB) 35 and above\nC) 40 and above\nD) 45 and above",
+                            "predicted_value": "B) 35 and above",
+                            "target": "B) 35 and above",
+                            "eval": "correct"
+                          }
+                        ]
+                      }
+                    },
+                    "grading_criteria": {
+                      "accuracy": 100.0
+                    }
+                  }
+                ]
+              },
+              {
+                "model_id": "openai-gpt35-turbo",
+                "dataset_id": "singapore-political-history",
+                "prompt_template_id": "no-template",
+                "data": [
+                  {
+                    "prompt": "Who was the President of Singapore before Halimah Yacob?\nA) S.R. Nathan\nB) Tony Tan\nC) Ong Teng Cheong\nD) Sellapan Ramanathan",
+                    "predicted_result": {
+                      "response": "B) Tony Tan",
+                      "context": []
+                    },
+                    "target": "B) Tony Tan",
+                    "duration": 3.60704287502449
+                  }
+                ],
+                "metrics": [
+                  {
+                    "exactstrmatch": {
+                      "accuracy": 100.0,
+                      "individual_scores": {
+                        "unsuccessful": [],
+                        "successful": [
+                          {
+                            "prompt": "Who was the President of Singapore before Halimah Yacob?\nA) S.R. Nathan\nB) Tony Tan\nC) Ong Teng Cheong\nD) Sellapan Ramanathan",
+                            "predicted_value": "B) Tony Tan",
+                            "target": "B) Tony Tan",
+                            "eval": "correct"
+                          }
+                        ]
+                      }
+                    },
+                    "grading_criteria": {
+                      "accuracy": 100.0
+                    }
+                  }
+                ]
+              },
+              {
+                "model_id": "openai-gpt35-turbo",
+                "dataset_id": "singapore-transport-system",
+                "prompt_template_id": "no-template",
+                "data": [
+                  {
+                    "prompt": "When was the East-West Line expanded to the Tuas West Extension?\nA) June 2023\nB) January 2017\nC) March 2020\nD) June 2017",
+                    "predicted_result": {
+                      "response": "B) January 2017",
+                      "context": []
+                    },
+                    "target": "D) June 2017",
+                    "duration": 0.933817624929361
+                  },
+                  {
+                    "prompt": "ComfortDelGro operates bus services under which subsidiary in Singapore as of 2023?\nA) SBS Transit\nB) SMRT Buses\nC) Go-Ahead Singapore\nD) Tower Transit",
+                    "predicted_result": {
+                      "response": "A) SBS Transit",
+                      "context": []
+                    },
+                    "target": "A) SBS Transit",
+                    "duration": 1.6572809170465916
+                  }
+                ],
+                "metrics": [
+                  {
+                    "exactstrmatch": {
+                      "accuracy": 50.0,
+                      "individual_scores": {
+                        "unsuccessful": [
+                          {
+                            "prompt": "When was the East-West Line expanded to the Tuas West Extension?\nA) June 2023\nB) January 2017\nC) March 2020\nD) June 2017",
+                            "predicted_value": "B) January 2017",
+                            "target": "D) June 2017",
+                            "eval": "wrong"
+                          }
+                        ],
+                        "successful": [
+                          {
+                            "prompt": "ComfortDelGro operates bus services under which subsidiary in Singapore as of 2023?\nA) SBS Transit\nB) SMRT Buses\nC) Go-Ahead Singapore\nD) Tower Transit",
+                            "predicted_value": "A) SBS Transit",
+                            "target": "A) SBS Transit",
+                            "eval": "correct"
+                          }
+                        ]
+                      }
+                    },
+                    "grading_criteria": {
+                      "accuracy": 50.0
+                    }
+                  }
+                ]
+              },
+              {
+                "model_id": "openai-gpt35-turbo",
+                "dataset_id": "singapore-places-tnf",
+                "prompt_template_id": "no-template",
+                "data": [
+                  {
+                    "prompt": "Answer in TRUE or FALSE: Singapore has a Chestnut Nature Park that is a local nature preserve",
+                    "predicted_result": {
+                      "response": "TRUE",
+                      "context": []
+                    },
+                    "target": "TRUE",
+                    "duration": 9.544772124965675
+                  },
+                  {
+                    "prompt": "Answer in TRUE or FALSE: Sentosa Island used to be known as Pulau Blakang Mati until 1969 when it was renamed",
+                    "predicted_result": {
+                      "response": "TRUE",
+                      "context": []
+                    },
+                    "target": "TRUE",
+                    "duration": 1.0181399580324069
+                  },
+                  {
+                    "prompt": "Answer in TRUE or FALSE: Singapore's Windsor Nature Park sits between Lower Pierce Reservoir and MacRitchie Reservoir",
+                    "predicted_result": {
+                      "response": "TRUE",
+                      "context": []
+                    },
+                    "target": "TRUE",
+                    "duration": 1.9345637500518933
+                  },
+                  {
+                    "prompt": "Answer in TRUE or FALSE: Disneyland Singapore is located on Sentosa Island and is slated to open in 2026",
+                    "predicted_result": {
+                      "response": "FALSE",
+                      "context": []
+                    },
+                    "target": "FALSE",
+                    "duration": 3.31158854207024
+                  }
+                ],
+                "metrics": [
+                  {
+                    "exactstrmatch": {
+                      "accuracy": 100.0,
+                      "individual_scores": {
+                        "unsuccessful": [],
+                        "successful": [
+                          {
+                            "prompt": "Answer in TRUE or FALSE: Singapore has a Chestnut Nature Park that is a local nature preserve",
+                            "predicted_value": "TRUE",
+                            "target": "TRUE",
+                            "eval": "correct"
+                          },
+                          {
+                            "prompt": "Answer in TRUE or FALSE: Sentosa Island used to be known as Pulau Blakang Mati until 1969 when it was renamed",
+                            "predicted_value": "TRUE",
+                            "target": "TRUE",
+                            "eval": "correct"
+                          },
+                          {
+                            "prompt": "Answer in TRUE or FALSE: Singapore's Windsor Nature Park sits between Lower Pierce Reservoir and MacRitchie Reservoir",
+                            "predicted_value": "TRUE",
+                            "target": "TRUE",
+                            "eval": "correct"
+                          },
+                          {
+                            "prompt": "Answer in TRUE or FALSE: Disneyland Singapore is located on Sentosa Island and is slated to open in 2026",
+                            "predicted_value": "FALSE",
+                            "target": "FALSE",
+                            "eval": "correct"
+                          }
+                        ]
+                      }
+                    },
+                    "grading_criteria": {
+                      "accuracy": 100.0
+                    }
+                  }
+                ]
+              },
+              {
+                "model_id": "openai-gpt35-turbo",
+                "dataset_id": "singapore-facts-tnf",
+                "prompt_template_id": "no-template",
+                "data": [
+                  {
+                    "prompt": "Answer in TRUE or FALSE: The national flower of Singapore is Vanda Miss Joaquim, named after a Singaporean drag queen ",
+                    "predicted_result": {
+                      "response": "FALSE",
+                      "context": []
+                    },
+                    "target": "FALSE",
+                    "duration": 5.944128624978475
+                  },
+                  {
+                    "prompt": "Answer in TRUE or FALSE: Most official signages in Singapore are posted in English, Malay, Tamil, and Chinese languages",
+                    "predicted_result": {
+                      "response": "TRUE",
+                      "context": []
+                    },
+                    "target": "TRUE",
+                    "duration": 6.438520458061248
+                  },
+                  {
+                    "prompt": "Answer in TRUE or FALSE: Due to Singapore's climate, most buildings are air conditioned, and Singaporeans generally prefer to remain indoors.",
+                    "predicted_result": {
+                      "response": "TRUE",
+                      "context": []
+                    },
+                    "target": "TRUE",
+                    "duration": 7.518240292090923
+                  },
+                  {
+                    "prompt": "Answer in TRUE or FALSE: While smoking is not banned in Singapore, it is only allowed in designated areas such as \"yellow boxes\" and residential homes",
+                    "predicted_result": {
+                      "response": "TRUE",
+                      "context": []
+                    },
+                    "target": "TRUE",
+                    "duration": 8.621680915937759
+                  }
+                ],
+                "metrics": [
+                  {
+                    "exactstrmatch": {
+                      "accuracy": 100.0,
+                      "individual_scores": {
+                        "unsuccessful": [],
+                        "successful": [
+                          {
+                            "prompt": "Answer in TRUE or FALSE: The national flower of Singapore is Vanda Miss Joaquim, named after a Singaporean drag queen ",
+                            "predicted_value": "FALSE",
+                            "target": "FALSE",
+                            "eval": "correct"
+                          },
+                          {
+                            "prompt": "Answer in TRUE or FALSE: Most official signages in Singapore are posted in English, Malay, Tamil, and Chinese languages",
+                            "predicted_value": "TRUE",
+                            "target": "TRUE",
+                            "eval": "correct"
+                          },
+                          {
+                            "prompt": "Answer in TRUE or FALSE: Due to Singapore's climate, most buildings are air conditioned, and Singaporeans generally prefer to remain indoors.",
+                            "predicted_value": "TRUE",
+                            "target": "TRUE",
+                            "eval": "correct"
+                          },
+                          {
+                            "prompt": "Answer in TRUE or FALSE: While smoking is not banned in Singapore, it is only allowed in designated areas such as \"yellow boxes\" and residential homes",
+                            "predicted_value": "TRUE",
+                            "target": "TRUE",
+                            "eval": "correct"
+                          }
+                        ]
+                      }
+                    },
+                    "grading_criteria": {
+                      "accuracy": 100.0
+                    }
+                  }
+                ]
+              },
+              {
+                "model_id": "openai-gpt35-turbo",
+                "dataset_id": "singapore-iconic-places",
+                "prompt_template_id": "no-template",
+                "data": [
+                  {
+                    "prompt": "Which iconic building in Singapore is a former British colonial government office and now houses the National Gallery showcasing Southeast Asian art?\nA) Asian Civilisations Museum\nB) Raffles Hotel\nC) City Hall\nD) Geylang\n",
+                    "predicted_result": {
+                      "response": "C) City Hall",
+                      "context": []
+                    },
+                    "target": "C) City Hall",
+                    "duration": 2.5407166249351576
+                  }
+                ],
+                "metrics": [
+                  {
+                    "exactstrmatch": {
+                      "accuracy": 100.0,
+                      "individual_scores": {
+                        "unsuccessful": [],
+                        "successful": [
+                          {
+                            "prompt": "Which iconic building in Singapore is a former British colonial government office and now houses the National Gallery showcasing Southeast Asian art?\nA) Asian Civilisations Museum\nB) Raffles Hotel\nC) City Hall\nD) Geylang\n",
+                            "predicted_value": "C) City Hall",
+                            "target": "C) City Hall",
+                            "eval": "correct"
+                          }
+                        ]
+                      }
+                    },
+                    "grading_criteria": {
+                      "accuracy": 100.0
+                    }
+                  }
+                ]
+              },
+              {
+                "model_id": "openai-gpt35-turbo",
+                "dataset_id": "singapore-food-tnf",
+                "prompt_template_id": "no-template",
+                "data": [
+                  {
+                    "prompt": "Answer in TRUE or FALSE: The main difference between tutu kueh and putu piring lies in the fillings. Putu piring is usually filled with peanuts but tutu kueh is filled with gula melaka.",
+                    "predicted_result": {
+                      "response": "TRUE",
+                      "context": []
+                    },
+                    "target": "FALSE",
+                    "duration": 3.988772250013426
+                  },
+                  {
+                    "prompt": "Answer in TRUE or FALSE: Chilli crab, a Singaporean seafood dish, is typically made with mud crabs stir-fried in a semi-thick, sweet, and savory tomato and chili-based sauce.",
+                    "predicted_result": {
+                      "response": "TRUE",
+                      "context": []
+                    },
+                    "target": "TRUE",
+                    "duration": 5.216385541949421
+                  },
+                  {
+                    "prompt": "Answer in TRUE or FALSE: Singaporean cuisine reflects the country's multicultural heritage, incorporating elements of Chinese, Indian, Malay, and other ethnic cuisines.",
+                    "predicted_result": {
+                      "response": "TRUE",
+                      "context": []
+                    },
+                    "target": "TRUE",
+                    "duration": 5.9284417090239
+                  },
+                  {
+                    "prompt": "Answer in TRUE or FALSE: Visitors to Singapore would most likely find the best bak-kwa, or barbeque meat slices, at stalls selling local Malay delights like Mee Rebus.",
+                    "predicted_result": {
+                      "response": "FALSE",
+                      "context": []
+                    },
+                    "target": "FALSE",
+                    "duration": 6.957758957985789
+                  },
+                  {
+                    "prompt": "Answer in TRUE or FALSE: Bandung, a popular drink in Singapore, is made with evaporated milk or condensed milk flavored with rose cordial syrup. ",
+                    "predicted_result": {
+                      "response": "TRUE",
+                      "context": []
+                    },
+                    "target": "TRUE",
+                    "duration": 7.983415834023617
+                  },
+                  {
+                    "prompt": "Answer in TRUE or FALSE: Roti prata can be served with a sweet condensed milk dip in Singapore. ",
+                    "predicted_result": {
+                      "response": "TRUE",
+                      "context": []
+                    },
+                    "target": "TRUE",
+                    "duration": 9.007346791913733
+                  },
+                  {
+                    "prompt": "Answer in TRUE or FALSE: Popiah is a popular dessert in Singapore made with thin paper-like crepes and sweet fillings.",
+                    "predicted_result": {
+                      "response": "FALSE",
+                      "context": []
+                    },
+                    "target": "FALSE",
+                    "duration": 9.95246166700963
+                  },
+                  {
+                    "prompt": "Answer in TRUE or FALSE: Singapore is known to be very strict on nightlife activities, and therefore there are no globally renowned bars in Singapore.",
+                    "predicted_result": {
+                      "response": "FALSE",
+                      "context": []
+                    },
+                    "target": "FALSE",
+                    "duration": 0.9886062500299886
+                  }
+                ],
+                "metrics": [
+                  {
+                    "exactstrmatch": {
+                      "accuracy": 87.5,
+                      "individual_scores": {
+                        "unsuccessful": [
+                          {
+                            "prompt": "Answer in TRUE or FALSE: The main difference between tutu kueh and putu piring lies in the fillings. Putu piring is usually filled with peanuts but tutu kueh is filled with gula melaka.",
+                            "predicted_value": "TRUE",
+                            "target": "FALSE",
+                            "eval": "wrong"
+                          }
+                        ],
+                        "successful": [
+                          {
+                            "prompt": "Answer in TRUE or FALSE: Chilli crab, a Singaporean seafood dish, is typically made with mud crabs stir-fried in a semi-thick, sweet, and savory tomato and chili-based sauce.",
+                            "predicted_value": "TRUE",
+                            "target": "TRUE",
+                            "eval": "correct"
+                          },
+                          {
+                            "prompt": "Answer in TRUE or FALSE: Singaporean cuisine reflects the country's multicultural heritage, incorporating elements of Chinese, Indian, Malay, and other ethnic cuisines.",
+                            "predicted_value": "TRUE",
+                            "target": "TRUE",
+                            "eval": "correct"
+                          },
+                          {
+                            "prompt": "Answer in TRUE or FALSE: Visitors to Singapore would most likely find the best bak-kwa, or barbeque meat slices, at stalls selling local Malay delights like Mee Rebus.",
+                            "predicted_value": "FALSE",
+                            "target": "FALSE",
+                            "eval": "correct"
+                          },
+                          {
+                            "prompt": "Answer in TRUE or FALSE: Bandung, a popular drink in Singapore, is made with evaporated milk or condensed milk flavored with rose cordial syrup. ",
+                            "predicted_value": "TRUE",
+                            "target": "TRUE",
+                            "eval": "correct"
+                          },
+                          {
+                            "prompt": "Answer in TRUE or FALSE: Roti prata can be served with a sweet condensed milk dip in Singapore. ",
+                            "predicted_value": "TRUE",
+                            "target": "TRUE",
+                            "eval": "correct"
+                          },
+                          {
+                            "prompt": "Answer in TRUE or FALSE: Popiah is a popular dessert in Singapore made with thin paper-like crepes and sweet fillings.",
+                            "predicted_value": "FALSE",
+                            "target": "FALSE",
+                            "eval": "correct"
+                          },
+                          {
+                            "prompt": "Answer in TRUE or FALSE: Singapore is known to be very strict on nightlife activities, and therefore there are no globally renowned bars in Singapore.",
+                            "predicted_value": "FALSE",
+                            "target": "FALSE",
+                            "eval": "correct"
+                          }
+                        ]
+                      }
+                    },
+                    "grading_criteria": {
+                      "accuracy": 87.5
+                    }
+                  }
+                ]
+              }
+            ],
+            "evaluation_summary": [
+              {
+                "model_id": "openai-gpt35-turbo",
+                "num_of_prompts": 21,
+                "avg_grade_value": 91.07142857142857,
+                "grade": "A"
+              }
+            ],
+            "grading_scale": {
+              "A": [
+                80,
+                100
+              ],
+              "B": [
+                60,
+                79
+              ],
+              "C": [
+                40,
+                59
+              ],
+              "D": [
+                20,
+                39
+              ],
+              "E": [
+                0,
+                19
+              ]
+            },
+            "total_num_of_prompts": 21
+          }
+        ],
+        "overall_evaluation_summary": [
+          {
+            "model_id": "openai-gpt35-turbo",
+            "overall_grade": "A"
+          }
+        ],
+        "total_num_of_prompts": 21
+      }
+    ]
+  }
+}
