@@ -49,13 +49,13 @@ In the rapidly evolving landscape of Generative AI, ensuring the safety, reliabi
 
 ## 🔑 Key Features
 
-- **Benchmark Tests** that align with the four risk areas (i.e., _Hallucination_, _Undesirable Content_, _Data Disclosure_, and _Vulnerability to Adversarial Prompts_) as outlined in the [LLM Starter Kit for Safety Testing of LLM-Based Applications](https://www.imda.gov.sg/-/media/imda/files/about/emerging-tech-and-research/artificial-intelligence/large-language-model-starter-kit.pdf) recently released by IMDA. To understand more about the tests available, you can check out the `Test Methodology` section [here](https://github.com/aiverify-foundation/ms-v1/wiki).
-- **Powerful Automated Red Teaming Agents** that are easily customizable to your application use case. To understand more about customizing the Red Teaming Agents for your application use case, you can check out [this guide](https://github.com/aiverify-foundation/ms-v1/wiki/Moonshot-Configurations).
+- **Benchmark Tests** that align with the four risk areas (i.e., _Hallucination_, _Undesirable Content_, _Data Disclosure_, and _Vulnerability to Adversarial Prompts_) as outlined in the [LLM Starter Kit for Safety Testing of LLM-Based Applications](https://www.imda.gov.sg/-/media/imda/files/about/emerging-tech-and-research/artificial-intelligence/large-language-model-starter-kit.pdf) recently released by IMDA. To understand more about the tests available, you can check out the `Test Methodology` section [here](https://github.com/aiverify-foundation/moonshot-cicd/wiki).
+- **Powerful Automated Red Teaming Agents** that are easily customizable to your application use case. To understand more about customizing the Red Teaming Agents for your application use case, you can check out [this guide](https://github.com/aiverify-foundation/moonshot-cicd/wiki/Moonshot-Configurations).
 - **Comprehensive Test Result** in the widely-accepted `.json` format for easy read/write. Moonshot's result files are also compatible with the [AI Verify Testing Framework](https://aiverifyfoundation.sg/what-is-ai-verify/) and can be used to generate a business-ready summary report for internal compliance.
-- **Fully Containerized** as a Docker Image for easy download and deployment into your CI/CD pipelines or MLOps workflow. To understand how you can deploy Moonshot into your pipelines, you can check out [this guide](https://github.com/aiverify-foundation/ms-v1/wiki/How-to-Deploy-and-Run-Moonshot-in-CI-CD).
+- **Fully Containerized** as a Docker Image for easy download and deployment into your CI/CD pipelines or MLOps workflow. To understand how you can deploy Moonshot into your pipelines, you can check out [this guide](https://github.com/aiverify-foundation/moonshot-cicd/wiki/Onboarding-Guide-for-CI-CD-Deployment).
 - **Native S3 Support** for easy read/write from your buckets.
-- **Streamlined Experience** to run any combination of tests with just a **_single_** `moonshot run` command. To understand how you can use a simple command to run tests in Moonshot, you can check out [this guide](https://github.com/aiverify-foundation/ms-v1/wiki/Running-Tests-on-Moonshot).
-- **Extensible & Modular Design** for easy extension and integration with your LLM-based AI applications, benchmarks, and attack techniques. To understand how you can run Moonshot tests on your LLM-based AI applications, you can check out [this guide](https://github.com/aiverify-foundation/ms-v1/wiki/Create-Custom-Moonshot-Connectors).
+- **Streamlined Experience** to run any combination of tests with just a **_single_** `moonshot run` command. To understand how you can use a simple command to run tests in Moonshot, you can check out [this guide](https://github.com/aiverify-foundation/moonshot-cicd/wiki/Running-Moonshot-Tests).
+- **Extensible & Modular Design** for easy extension and integration with your LLM-based AI applications, benchmarks, and attack techniques. To understand how you can run Moonshot tests on your LLM-based AI applications, you can check out [this guide](https://github.com/aiverify-foundation/moonshot-cicd/wiki/Create-Custom-Connectors).
 
 </br>
 
@@ -64,52 +64,52 @@ In the rapidly evolving landscape of Generative AI, ensuring the safety, reliabi
 
 Before jumping straight into the technical guides, below are some user personas that we think Moonshot will be helpful towards. Do take a moment to consider which user persona you belong to!
 
-Alternatively, you can go straight to our [guides here](https://github.com/aiverify-foundation/ms-v1/wiki) to get started!
+Alternatively, you can go straight to our [guides here](https://github.com/aiverify-foundation/moonshot-cicd/wiki) to get started!
 
 <br/>
 
 ## What is your User Persona?
 ### 🤖 CI/CD Developer
 If you are a CI/CD developer tasked to run safety tests on your LLM-based AI applications as part of your CI/CD workflow before production, you've come to the right place!
-- Check out this [deployment guide](https://github.com/aiverify-foundation/ms-v1/wiki/How-to-Deploy-and-Run-Moonshot-in-CI-CD) to understand how you can easily deploy Moonshot in any CI/CD pipelines.
-- For organizations using **_AWS CodeBuild_**, you can check out this [guide](https://github.com/aiverify-foundation/ms-v1/wiki/How-to-Deploy-and-Run-Moonshot-in-AWS-CodeBuild) instead.
+- Check out this [deployment guide](https://github.com/aiverify-foundation/moonshot-cicd/wiki/Onboarding-Guide-for-CI-CD-Deployment) to understand how you can easily deploy Moonshot in any CI/CD pipelines.
+- For organizations using **_AWS CodeBuild_**, you can check out this [guide](https://github.com/aiverify-foundation/moonshot-cicd/wiki/Onboarding-Guide-for-AWS-CodeBuild-Deployment) instead.
     - If you are interested to contribute guides for other CI/CD platforms, kindly contact our Support Team at [info@aiverify.sg](mailto:info@aiverify.sg).
-- There will be certain configurations required to operationalize Moonshot in your pipeline, so be sure to check out the [configuration guide here](https://github.com/aiverify-foundation/ms-v1/wiki/Moonshot-Configurations) and [user guide to run Moonshot test](https://github.com/aiverify-foundation/ms-v1/wiki/Running-Tests-on-Moonshot).
+- There will be certain configurations required to operationalize Moonshot in your pipeline, so be sure to check out the [configuration guide here](https://github.com/aiverify-foundation/moonshot-cicd/wiki/Moonshot-Configurations) and [user guide to run Moonshot test](https://github.com/aiverify-foundation/moonshot-cicd/wiki/Running-Moonshot-Tests).
 <br/>
 
 ### 📲 Application Owner
 As an Application Owner, ensuring the safety of your LLM-based AI applications for your users will be an utmost priority. But we know that choosing the right safety tests for the right application use case can be immensely challenging -- and getting it wrong carries real reputational and even financial risks!
 
 As such, the first batch of tests we've included are meant for testing Q&A-type applications -- if your application use case is for users to input a question and the LLM to generate an output, the tests here will be right up your alley!
-- For a start, check out the `Test Methodology` section in our [Wiki here](https://github.com/aiverify-foundation/ms-v1/wiki) to understand the different test cases for each of the four risk areas listed below, as well as the methodology for deriving the corresponding tests:
-    - [Hallucination](https://github.com/aiverify-foundation/ms-v1/wiki/Hallucination-for-Q&A)
-    - [Undesirable Content](https://github.com/aiverify-foundation/ms-v1/wiki/Undesirable-Content-for-Q&A)
-    - [Data Disclosure](https://github.com/aiverify-foundation/ms-v1/wiki/Data-Disclosure-for-Q&A)
-    - [Vulnerability to Adversarial Prompts](https://github.com/aiverify-foundation/ms-v1/wiki/Security-for-Q&A)
-- You can also check out this [developer guide](https://github.com/aiverify-foundation/ms-v1/wiki/Local-Repo-Setup) to understand how you can quickly `git clone` our repository and test out the tool!
+- For a start, check out the `Test Methodology` section in our [Wiki here](https://github.com/aiverify-foundation/moonshot-cicd/wiki) to understand the different test cases for each of the four risk areas listed below, as well as the methodology for deriving the corresponding tests:
+    - [Hallucination](https://github.com/aiverify-foundation/moonshot-cicd/wiki/Hallucination-for-Q&A)
+    - [Undesirable Content](https://github.com/aiverify-foundation/moonshot-cicd/wiki/Undesirable-Content-for-Q&A)
+    - [Data Disclosure](https://github.com/aiverify-foundation/moonshot-cicd/wiki/Data-Disclosure-for-Q&A)
+    - [Vulnerability to Adversarial Prompts](https://github.com/aiverify-foundation/moonshot-cicd/wiki/Security-for-Q&A)
+- You can also check out this [developer guide](https://github.com/aiverify-foundation/moonshot-cicd/wiki/Local-Repo-Setup) to understand how you can quickly `git clone` our repository and test out the tool!
 - We've made it simple for you to use Moonshot and configure the tests to fit your use case:
-    - To connect to your application end point, you can check out this [create custom endpoint guide](https://github.com/aiverify-foundation/ms-v1/wiki/Create-Custom-Moonshot-Connectors).
-    - To configure your tests, you can check out this [configuration guide](https://github.com/aiverify-foundation/ms-v1/wiki/Moonshot-Configurations).
-    - To run the tests, you can check out this [user guide](https://github.com/aiverify-foundation/ms-v1/wiki/Running-Tests-on-Moonshot).
+    - To connect to your application end point, you can check out this [create custom endpoint guide](https://github.com/aiverify-foundation/moonshot-cicd/wiki/Create-Custom-Connectors).
+    - To configure your tests, you can check out this [configuration guide](https://github.com/aiverify-foundation/moonshot-cicd/wiki/Moonshot-Configurations).
+    - To run the tests, you can check out this [user guide](https://github.com/aiverify-foundation/moonshot-cicd/wiki/Running-Moonshot-Tests).
 <br/>
 
 ### 🧑🏻‍🔬 Test Developer
 Are you an AI practitioner tasked to develop tests specific to the application use case in your organization? We've created the following to assist you:
-- [Expert Guide](https://github.com/aiverify-foundation/ms-v1/wiki/Create-Custom-Moonshot-Tests) to develop your own Moonshot-compatible custom benchmark tests and red teaming agents.
-- Every test requires proper evaluation to be effective, so be sure to check out this [guide](https://github.com/aiverify-foundation/ms-v1/wiki/Create-Custom-Moonshot-Metrics).
+- [Expert Guide](https://github.com/aiverify-foundation/moonshot-cicd/wiki/Create-Custom-Moonshot-Tests) to develop your own Moonshot-compatible custom benchmark tests and red teaming agents.
+- Every test requires proper evaluation to be effective, so be sure to check out this [guide](https://github.com/aiverify-foundation/moonshot-cicd/wiki/Create-Custom-Evaluation-Metrics).
 - Other guides that you may find helpful:
-    - To connect to your application end point, you can check out this [create custom endpoint guide](https://github.com/aiverify-foundation/ms-v1/wiki/Create-Custom-Moonshot-Connectors).
-    - To configure your tests, you can check out this [configuration guide](https://github.com/aiverify-foundation/ms-v1/wiki/Moonshot-Configurations).
-    - To run the tests, you can check out this [user guide](https://github.com/aiverify-foundation/ms-v1/wiki/Running-Tests-on-Moonshot).
+    - To connect to your application end point, you can check out this [create custom endpoint guide](https://github.com/aiverify-foundation/moonshot-cicd/wiki/Create-Custom-Connectors).
+    - To configure your tests, you can check out this [configuration guide](https://github.com/aiverify-foundation/moonshot-cicd/wiki/Moonshot-Configurations).
+    - To run the tests, you can check out this [user guide](https://github.com/aiverify-foundation/moonshot-cicd/wiki/Running-Moonshot-Tests).
 <br/>
 
 ### 🧑🏻‍🔬 AI Compliance
 For folks from the audit or internal compliance team, you are not left out! We have also developed a web-based application that is aligned with the AI Verify Testing Framework -- Process Checks for Generative AI. This application enables you to assess the responsible implementation of AI system against 11 internationally recognised AI governance principles and generate a summary report for audit and validation. For more information, be sure to check out the [framework here](https://aiverifyfoundation.sg/what-is-ai-verify/). This application is available as a separate Docker image that compliance folks can easily download and deploy in your laptop.
 
-- To understand how you can use the Process Checks application, you can check out this [onboarding guide](https://github.com/aiverify-foundation/ms-v1/wiki/Process-Checks-Onboarding-Guide).
+- To understand how you can use the Process Checks application, you can check out this [onboarding guide](https://github.com/aiverify-foundation/moonshot-cicd/wiki/Process-Checks-Onboarding-Guide).
 - Other guides that you may find helpful:
-    - [A quick start guide](https://github.com/aiverify-foundation/ms-v1/wiki/Process-Checks-Quick-Start-Guide) to get you up and running.
-    - If you face common problems, be sure to check out our [FAQ](https://github.com/aiverify-foundation/ms-v1/wiki/Process-Checks-FAQ).
+    - [A quick start guide](https://github.com/aiverify-foundation/moonshot-cicd/wiki/Process-Checks-Quick-Start-Guide) to get you up and running.
+    - If you face common problems, be sure to check out our [FAQ](https://github.com/aiverify-foundation/moonshot-cicd/wiki/Process-Checks-FAQ).
 
 </br>
 
