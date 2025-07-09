@@ -7,11 +7,11 @@ on:
         description: 'Branch to checkout'
         required: true
         type: string
-      moonshot_tag:
-        description: 'Tag for Moonshot image (leave empty to skip)'
-        required: false
-        default: ''
-        type: string
+      # moonshot_tag:
+      #   description: 'Tag for Moonshot image (leave empty to skip)'
+      #   required: false
+      #   default: ''
+      #   type: string
       process_checks_tag:
         description: 'Tag for Process Checks image (leave empty to skip)'
         required: false
@@ -24,13 +24,13 @@ jobs:
       id-token: write
       contents: read
       packages: write
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04-arm
 
     env:
       GHCR_REGISTRY: ghcr.io
       GHCR_NAMESPACE: aiverify-foundation
-      # ECR_REGISTRY: ${{ secrets.ECR_URI }}
-      # ECR_REGISTRY_PC: ${{ secrets.ECR_URI_PC }}
+      ECR_REGISTRY: ${{ secrets.ECR_URI }}
+      ECR_REGISTRY_PC: ${{ secrets.ECR_URI_PC }}
       IMAGE_NAME_MS: moonshot
       IMAGE_NAME_PC: process_checks
 
@@ -46,8 +46,14 @@ jobs:
       with:
         ref: ${{ inputs.branch }}
 
+    - name: Set up QEMU
+      uses: docker/setup-qemu-action@v3
+
     - name: Set up Docker Buildx
       uses: docker/setup-buildx-action@v3
+      with:
+        install: true
+        driver-opts: image=moby/buildkit:latest
 
     - name: Login to GHCR
       uses: docker/login-action@v3
@@ -56,18 +62,18 @@ jobs:
         username: ${{ github.actor }}
         password: ${{ secrets.GITHUB_TOKEN }}
 
-    # - name: Login to Amazon ECR
-    #   uses: aws-actions/amazon-ecr-login@v2
+    - name: Login to Amazon ECR
+      uses: aws-actions/amazon-ecr-login@v2
 
-    # ---------- Moonshot ----------
-    - name: Build and Push Moonshot for GHCR
-      if: ${{ inputs.moonshot_tag != '' }}
-      uses: docker/build-push-action@v5
-      with:
-        context: .
-        push: true
-        tags: |
-          ghcr.io/${{ env.GHCR_NAMESPACE }}/${{ env.IMAGE_NAME_MS }}:${{ inputs.moonshot_tag }}
+    # # ---------- Moonshot ----------
+    # - name: Build and Push Moonshot for GHCR
+    #   if: ${{ inputs.moonshot_tag != '' }}
+    #   uses: docker/build-push-action@v5
+    #   with:
+    #     context: .
+    #     push: true
+    #     tags: |
+    #       ghcr.io/${{ env.GHCR_NAMESPACE }}/${{ env.IMAGE_NAME_MS }}:${{ inputs.moonshot_tag }}
 
     # - name: Build and Push Moonshot (Single arch to ECR for AWS Inspector)
     #   if: ${{ inputs.moonshot_tag != '' }}
@@ -79,17 +85,30 @@ jobs:
     #     tags: |
     #       ${{ env.ECR_REGISTRY }}:${{ inputs.moonshot_tag }}
 
-    # ---------- Process Checks ----------
-    - name: Build and Push Process Checks (Multi-arch to GHCR)
-      if: ${{ inputs.process_checks_tag != '' }}
-      uses: docker/build-push-action@v5
-      with:
-        context: .
-        file: Dockerfile_PC
-        platforms: linux/amd64,linux/arm64
-        push: true
-        tags: |
-          ghcr.io/${{ env.GHCR_NAMESPACE }}/process_checks:${{ inputs.process_checks_tag }}
+    # # ---------- Process Checks ----------
+    # - name: Build and Push Process Checks (Multi-arch to GHCR)
+    #   if: ${{ inputs.process_checks_tag != '' }}
+    #   uses: docker/build-push-action@v5
+    #   with:
+    #     context: .
+    #     file: Dockerfile_PC
+    #     platforms: linux/amd64,linux/arm64
+    #     push: true
+    #     tags: |
+    #       ghcr.io/${{ env.GHCR_NAMESPACE }}/process_checks:${{ inputs.process_checks_tag }}
+
+    - name: Build image for linux
+      run: |
+        docker buildx build \
+          --platform linux/amd64,linux/arm64 \
+          --file Dockerfile_PC \
+          -t my-test-image:latest \
+          .
+
+    - name: Run container from built image
+      run: |
+        docker run --rm my-test-image:latest
+
 
     # - name: Build and Push Process Checks (Single arch to ECR for AWS Inspector)
     #   if: ${{ inputs.process_checks_tag != '' }}
