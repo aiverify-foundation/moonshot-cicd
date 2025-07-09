@@ -100,7 +100,7 @@ jobs:
     - name: Build image for linux/amd64 (load locally)
       run: |
         docker buildx build \
-          --platform linux/amd64,linux/arm64 \
+          --platform linux/arm64 \
           --file Dockerfile_PC \
           --load \
           -t my-test-image:latest \
