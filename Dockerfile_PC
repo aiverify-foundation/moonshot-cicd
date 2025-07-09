@@ -13,7 +13,7 @@ RUN pip install poetry==1.8.2 && \
 COPY process_check_app/ .
 
 # --- Stage 2: Static distroless ---
-FROM gcr.io/distroless/static-debian12
+FROM gcr.io/distroless/base-debian12
 
 WORKDIR /app
 
