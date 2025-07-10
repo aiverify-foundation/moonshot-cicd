@@ -43,5 +43,3 @@ EXPOSE 8501
 
 # Command to run the Streamlit application
 CMD ["streamlit", "run", "streamlit_app.py"]
-#CMD ["sleep", "infinity"]
-#CMD ["python", "-c", "while True: pass"]
