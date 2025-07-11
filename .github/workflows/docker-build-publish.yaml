@@ -41,6 +41,8 @@ jobs:
     - name: Checkout code
       uses: actions/checkout@v4
 
+    
+
     - name: Set up Docker Buildx
       uses: docker/setup-buildx-action@v3
 
@@ -55,16 +57,28 @@ jobs:
     #   uses: aws-actions/amazon-ecr-login@v2
 
     # ----- Moonshot Steps -----
-    - name: Build & Push Moonshot to GHCR
-      if: ${{ inputs.moonshot_version_tag != '' }}
-      uses: docker/build-push-action@v5
-      with:
-        context: .
-        push: true
-        platforms: linux/amd64,linux/arm64
-        tags: |
-          ghcr.io/${{ env.GHCR_NAMESPACE }}/${{ env.IMAGE_NAME_MS }}:${{ inputs.moonshot_version_tag }}
-          ghcr.io/${{ env.GHCR_NAMESPACE }}/${{ env.IMAGE_NAME_MS }}:latest
+    # - name: Build & Push Moonshot to GHCR
+    #   if: ${{ inputs.moonshot_version_tag != '' }}
+    #   uses: docker/build-push-action@v5
+    #   with:
+    #     context: .
+    #     push: true
+    #     platforms: linux/amd64,linux/arm64
+    #     tags: |
+    #       ghcr.io/${{ env.GHCR_NAMESPACE }}/${{ env.IMAGE_NAME_MS }}:${{ inputs.moonshot_version_tag }}
+    #       ghcr.io/${{ env.GHCR_NAMESPACE }}/${{ env.IMAGE_NAME_MS }}:latest
+
+    - name: Build Moonshot Docker image
+      if: ${{ inputs.moonshot_tag != '' }}
+      run: |
+        docker build -t moonshot:${{ inputs.moonshot_tag }} .
+
+    - name: Push Moonshot Image to GitHub CR
+      if: ${{ inputs.moonshot_tag != '' }}
+      run: |
+        docker login --username ${{ github.actor }} --password ${{ secrets.GITHUB_TOKEN }} ghcr.io
+        docker tag moonshot:${{ inputs.moonshot_tag }} ghcr.io/aiverify-foundation/moonshot:${{ inputs.moonshot_tag }}
+        docker push ghcr.io/aiverify-foundation/moonshot:${{ inputs.moonshot_tag }}
 
     # - name: Build & Push Moonshot ECR
     #   if: ${{ inputs.moonshot_version_tag != '' }}
