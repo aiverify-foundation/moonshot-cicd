@@ -49,16 +49,15 @@ jobs:
 
     # ---------- Moonshot ----------
     - name: Build Moonshot Docker image
-      if: ${{ inputs.moonshot_tag != '' }}
       run: |
-        docker build -t moonshot:${{ inputs.moonshot_tag }} .
+        docker build -t moonshot:dev_main .
 
     - name: Push Moonshot Image to GitHub CR
       if: ${{ inputs.moonshot_tag != '' }}
       run: |
         docker login --username ${{ github.actor }} --password ${{ secrets.GITHUB_TOKEN }} ghcr.io
-        docker tag moonshot:${{ inputs.moonshot_tag }} ghcr.io/aiverify-foundation/moonshot:${{ inputs.moonshot_tag }}
-        docker push ghcr.io/aiverify-foundation/moonshot:${{ inputs.moonshot_tag }}
+        docker tag moonshot:dev_main ghcr.io/aiverify-foundation/moonshot:dev_main
+        docker push ghcr.io/aiverify-foundation/moonshot:dev_main
 
     # - name: Build and Push Moonshot
     #   uses: docker/build-push-action@v5
