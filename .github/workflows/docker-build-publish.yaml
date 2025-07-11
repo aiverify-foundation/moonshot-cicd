@@ -58,16 +58,16 @@ jobs:
 
     # ----- Moonshot Steps -----
     - name: Build Moonshot Docker image
-      if: ${{ inputs.moonshot_tag != '' }}
+      if: ${{ inputs.moonshot_version_tag != '' }}
       run: |
-        docker build -t moonshot:${{ inputs.moonshot_tag }} .
+        docker build -t moonshot:${{ inputs.moonshot_version_tag }} .
 
     - name: Push Moonshot Image to GitHub CR
-      if: ${{ inputs.moonshot_tag != '' }}
+      if: ${{ inputs.moonshot_version_tag != '' }}
       run: |
         docker login --username ${{ github.actor }} --password ${{ secrets.GITHUB_TOKEN }} ghcr.io
-        docker tag moonshot:${{ inputs.moonshot_tag }} ghcr.io/aiverify-foundation/moonshot:${{ inputs.moonshot_tag }}
-        docker push ghcr.io/aiverify-foundation/moonshot:${{ inputs.moonshot_tag }}
+        docker tag moonshot:${{ inputs.moonshot_version_tag }} ghcr.io/aiverify-foundation/moonshot:${{ inputs.moonshot_version_tag }}
+        docker push ghcr.io/aiverify-foundation/moonshot:${{ inputs.moonshot_version_tag }}
 
     # - name: Build & Push Moonshot ECR
     #   if: ${{ inputs.moonshot_version_tag != '' }}
