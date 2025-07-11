@@ -60,14 +60,17 @@ jobs:
     #   uses: aws-actions/amazon-ecr-login@v2
 
     # ---------- Moonshot ----------
-    - name: Build and Push Moonshot for GHCR
+    - name: Build Moonshot Docker image
       if: ${{ inputs.moonshot_tag != '' }}
-      uses: docker/build-push-action@v5
-      with:
-        context: .
-        push: true
-        tags: |
-          ghcr.io/${{ env.GHCR_NAMESPACE }}/${{ env.IMAGE_NAME_MS }}:${{ inputs.moonshot_tag }}
+      run: |
+        docker build -t moonshot:${{ inputs.moonshot_tag }} .
+
+    - name: Push Moonshot Image to GitHub CR
+      if: ${{ inputs.moonshot_tag != '' }}
+      run: |
+        docker login --username ${{ github.actor }} --password ${{ secrets.GITHUB_TOKEN }} ghcr.io
+        docker tag moonshot:${{ inputs.moonshot_tag }} ghcr.io/aiverify-foundation/moonshot:${{ inputs.moonshot_tag }}
+        docker push ghcr.io/aiverify-foundation/moonshot:${{ inputs.moonshot_tag }}
 
     # - name: Build and Push Moonshot (Single arch to ECR for AWS Inspector)
     #   if: ${{ inputs.moonshot_tag != '' }}
