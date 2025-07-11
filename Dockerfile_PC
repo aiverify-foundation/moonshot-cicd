@@ -20,7 +20,7 @@ RUN pip install poetry==2.1.2 --no-cache-dir && \
 COPY process_check_app/ .
 
 # Final stage
-FROM gcr.io/distroless/static-debian12
+FROM gcr.io/distroless/base-debian12
 
 WORKDIR /app
 

@@ -91,6 +91,7 @@ jobs:
         tags: |
           ghcr.io/${{ env.GHCR_NAMESPACE }}/process_checks:${{ inputs.process_checks_tag }}
 
+   
     # - name: Build and Push Process Checks (Single arch to ECR for AWS Inspector)
     #   if: ${{ inputs.process_checks_tag != '' }}
     #   uses: docker/build-push-action@v5
@@ -98,6 +99,7 @@ jobs:
     #     context: .
     #     file: Dockerfile_PC
     #     push: true
+    #     platforms: linux/amd64
     #     provenance: false
     #     tags: |
     #       ${{ env.ECR_REGISTRY_PC }}:${{ inputs.process_checks_tag }}
