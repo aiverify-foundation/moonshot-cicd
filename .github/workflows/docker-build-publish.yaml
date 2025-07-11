@@ -67,8 +67,9 @@ jobs:
       run: |
         docker login --username ${{ github.actor }} --password ${{ secrets.GITHUB_TOKEN }} ghcr.io
         docker tag moonshot:${{ inputs.moonshot_version_tag }} ghcr.io/aiverify-foundation/moonshot:${{ inputs.moonshot_version_tag }}
+        docker tag moonshot:${{ inputs.moonshot_version_tag }} ghcr.io/aiverify-foundation/moonshot:latest
         docker push ghcr.io/aiverify-foundation/moonshot:${{ inputs.moonshot_version_tag }}
-
+        docker push ghcr.io/aiverify-foundation/moonshot:latest
     # - name: Build & Push Moonshot ECR
     #   if: ${{ inputs.moonshot_version_tag != '' }}
     #   uses: docker/build-push-action@v5
