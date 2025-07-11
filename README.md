@@ -104,8 +104,11 @@ Are you an AI practitioner tasked with developing tests specific to the applicat
 <br/>
 
 ### 🧑🏻‍🔬 AI Compliance
-For folks from the audit or internal compliance team, you are not left out! We have also developed a web-based application that is aligned with the AI Verify Testing Framework -- Process Checks for Generative AI. This application enables you to assess the responsible implementation of AI system against 11 internationally recognised AI governance principles and generate a summary report for audit and validation. For more information, check out the [framework here](https://aiverifyfoundation.sg/what-is-ai-verify/). This application is available as a separate Docker image that the compliance team can easily download and deploy on the laptop.
+For folks from the audit or internal compliance team, you are not left out! We have also developed a web-based application that is aligned with the AI Verify Testing Framework -- Process Checks for Generative AI. This application enables you to assess the responsible implementation of AI system against 11 internationally recognised AI governance principles and generate a summary report for audit and validation.
 
+For more information, check out the [framework here](https://aiverifyfoundation.sg/what-is-ai-verify/).
+
+This application is available as a separate Docker image that the compliance team can easily download and deploy on the laptop.
 - To understand how you can use the Process Checks application, you can check out this [onboarding guide](https://github.com/aiverify-foundation/moonshot-cicd/wiki/Process-Checks-Onboarding-Guide).
 - Alternatively, you can download the [Quick Start Guide here](https://github.com/aiverify-foundation/moonshot-cicd/wiki/Process-Checks-Quick-Start-Guide) to get yourself up and running.
 
