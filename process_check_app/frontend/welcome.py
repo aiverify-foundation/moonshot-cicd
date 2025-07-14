@@ -169,7 +169,7 @@ def welcome():
         The processes in the testing framework are mapped to the following international frameworks:
         - [U.S. National Institute of Standards and Technology  Artificial Intelligence Risk Management Framework: Generative Artificial Intelligence Profile (US NIST AI RMF)](https://go.gov.sg/crosswalk-aivtfxairmf-genaiprofile)
         - [ISO/IEC 42001: 2023 - AI Management System](https://go.gov.sg/crosswalk-aivtf-iso42001)
-        - [Hiroshima Process International Code of Conduct for Organizations Developing Advanced AI Systems (Hiroshima Process CoC)](https://go.gov.sg/crosswalk-aivtf-coc)
+        - [G7 Hiroshima Process International Code of Conduct for Organizations Developing Advanced AI Systems (Hiroshima Process CoC)](https://go.gov.sg/crosswalk-aivtf-coc)
     """  # noqa: E501
     )
 
