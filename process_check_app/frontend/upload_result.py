@@ -421,8 +421,8 @@ def upload_result():
 
     st.markdown(
         f"""
-        - If you are using Moonshot CI/CD, you can download the sample result {download_link_1}.
         - If you are using Moonshot, you can download the sample result {download_link_2}.
+        - If you are using Moonshot CI/CD, you can download the sample result {download_link_1}.
         """,
         unsafe_allow_html=True,
     )
