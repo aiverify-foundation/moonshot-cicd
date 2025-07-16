@@ -1,0 +1,345 @@
+from domain.entities.connector_response_entity import ConnectorResponseEntity
+import pytest
+
+from unittest.mock import AsyncMock, MagicMock, patch
+from anthropic import AsyncAnthropic
+
+from adapters.connector.anthropic_adapter import AnthropicAdapter
+from domain.entities.connector_entity import ConnectorEntity
+
+
+# ================================
+# Fixtures
+# ================================
+@pytest.fixture
+def connector_entity() -> ConnectorEntity:
+    """
+    Create a test connector entity for Anthropic.
+
+    Returns:
+        ConnectorEntity: A test connector entity with complete Anthropic configuration.
+    """
+    return ConnectorEntity(
+        connector_adapter="anthropic_adapter",
+        model="claude-sonnet-4-20250514",
+        model_endpoint="",
+        params={
+            "max_tokens": 1024
+        },
+        connector_pre_prompt="",
+        connector_post_prompt="",
+        system_prompt=""
+    )
+
+
+@pytest.fixture
+def anthropic_adapter() -> AnthropicAdapter:
+    """
+    Create an Anthropic adapter instance.
+
+    Returns:
+        AnthropicAdapter: A fresh Anthropic adapter instance for testing.
+    """
+    return AnthropicAdapter()
+
+
+@pytest.fixture
+def mock_anthropic_client() -> MagicMock:
+    """
+    Create a mock AsyncAnthropic client.
+
+    Returns:
+        AsyncMock: A mock instance of AsyncAnthropic client.
+    """
+    mock_anthropic_client_response = MagicMock()
+    mock_anthropic_client_response.content = [MagicMock]
+    mock_anthropic_client_response.content[0].text = "Test response from Anthropic client."
+
+    mock_anthropic_client = MagicMock()
+    mock_anthropic_client.messages.create = AsyncMock(return_value=mock_anthropic_client_response)
+
+    return mock_anthropic_client
+
+
+# ================================
+# Test configuration of Anthropic Adapter
+# ================================
+def test_configure_with_api_key_and_endpoint(anthropic_adapter: AnthropicAdapter,
+                                             connector_entity: ConnectorEntity):
+    """
+    Test successful configuration with API key and custom endpoint.
+    API Key is retrieved from environment variable ANTHROPIC_API_KEY.
+
+    Args:
+        anthropic_adapter: Anthropic adapter fixture.
+        connector_entity: Test connector entity fixture.
+    """
+    with patch('adapters.connector.openai_adapter.os.getenv') as mock_getenv:
+        mock_getenv.return_value = "test-api-key"
+        connector_entity.model_endpoint = "https://api.testendpoint.com"
+
+        anthropic_adapter.configure(connector_entity)
+
+        assert anthropic_adapter.connector_entity == connector_entity
+        assert isinstance(anthropic_adapter._client, AsyncAnthropic)
+        assert anthropic_adapter._client.api_key == "test-api-key"
+        assert anthropic_adapter._client.base_url == "https://api.testendpoint.com"
+
+
+def test_configure_with_empty_api_key(anthropic_adapter: AnthropicAdapter,
+                                      connector_entity: ConnectorEntity):
+    """
+    Test configuration with empty API key and empty model endpoint. If no API key is defined in
+    environment variable "ANTHROPIC_API_KEY", it should default to empty string. If not endpoint is
+    provided to Anthropic client, it would default to https://api.anthropic.com.
+
+    Args:
+        anthropic_adapter: Anthropic adapter fixture.
+        connector_entity: Connector entity fixture with test configuration.
+    """
+    with patch('adapters.connector.openai_adapter.os.getenv') as mock_getenv:
+        mock_getenv.return_value = None
+
+        anthropic_adapter.configure(connector_entity)
+
+        assert isinstance(anthropic_adapter._client, AsyncAnthropic)
+        assert anthropic_adapter._client.api_key == ""
+
+
+def test_configure_with_no_endpoint(anthropic_adapter: AnthropicAdapter,
+                                    connector_entity: ConnectorEntity):
+    """
+    Test configuration with empty model endpoint.
+    If not endpoint is provided to Anthropic client, it would default to https://api.anthropic.com.
+
+    Args:
+        anthropic_adapter: Anthropic adapter fixture.
+        connector_entity: Connector entity fixture with test configuration.
+    """
+    connector_entity.model_endpoint = ""
+
+    anthropic_adapter.configure(connector_entity)
+
+    assert isinstance(anthropic_adapter._client, AsyncAnthropic)
+    assert anthropic_adapter._client.base_url == "https://api.anthropic.com"
+
+
+@pytest.mark.parametrize("test_scenarios", [
+    {
+        "name": "no_max_token",
+        "params": {},
+        "expected_error_message": "AnthropicAdapter.configure::Max tokens not specified/valid."
+    },
+    {
+        "name": "invalid_max_token",
+        "params": {"max_tokens": "one"},
+        "expected_error_message": 'AnthropicAdapter.configure::Max tokens must be >=1, "one" provided.'
+    },
+    {
+        "name": "zero_max_token",
+        "params": {"max_tokens": 0},
+        "expected_error_message": 'AnthropicAdapter.configure::Max tokens must be >=1, "0" provided.'
+    },
+    {
+        "name": "less_than_one_max_token",
+        "params": {"max_tokens": -1},
+        "expected_error_message": 'AnthropicAdapter.configure::Max tokens must be >=1, "-1" provided.'
+    },
+])
+def test_configure_with_invalid_max_tokens(anthropic_adapter: AnthropicAdapter,
+                                           connector_entity: ConnectorEntity,
+                                           test_scenarios: dict):
+    """
+    Test configuration with no/invalid max tokens defined in params attribute, which Assert Error is thrown.
+
+    Args:
+        anthropic_adapter: Anthropic adapter fixture.
+        connector_entity: Connector entity fixture with test configuration.
+    """
+    connector_entity.params = test_scenarios["params"]
+
+    with pytest.raises(AssertionError, match=test_scenarios["expected_error_message"]):
+        anthropic_adapter.configure(connector_entity)
+
+
+def test_configure_with_no_model(anthropic_adapter: AnthropicAdapter, connector_entity: ConnectorEntity):
+    """
+    Test configuration with empty model name as model name is a required parameter. Assert error is thrown if
+    model is not specified.
+
+    Args:
+        anthropic_adapter: Anthropic adapter fixture.
+        connector_entity: Connector entity fixture with test configuration.
+    """
+    connector_entity.model = ""
+
+    with pytest.raises(AssertionError, match="AnthropicAdapter.configure::Model not specified."):
+        anthropic_adapter.configure(connector_entity)
+
+
+# ================================
+# Test getting prompt response with Anthropic Adapter
+# ================================
+@pytest.mark.asyncio
+async def test_get_response_with_required_parameters(mock_anthropic_client: MagicMock,
+                                                     anthropic_adapter: AnthropicAdapter,
+                                                     connector_entity: ConnectorEntity):
+    """
+    Ensure model, max_tokens, and messages are included in the request parameters.
+
+    Args:
+        mock_anthropic_client: Mocked Anthropic client.
+        anthropic_adapter: Anthropic adapter fixture.
+        connector_entity: Connector entity fixture with test configuration.
+    """
+    with patch('adapters.connector.anthropic_adapter.AsyncAnthropic') as mock_anthropic_class:
+        mock_anthropic_class.return_value = mock_anthropic_client
+        connector_entity.model = "test model name"
+
+        anthropic_adapter.configure(connector_entity)
+        await anthropic_adapter.get_response("Test prompt")
+        result_params = mock_anthropic_client.messages.create.call_args.kwargs
+
+        assert "model" in result_params
+        assert "max_tokens" in result_params
+        assert "messages" in result_params
+
+
+@pytest.mark.asyncio
+async def test_get_response_success_with_system_prompt(mock_anthropic_client: MagicMock,
+                                                       anthropic_adapter: AnthropicAdapter,
+                                                       connector_entity: ConnectorEntity):
+    """
+    Test successful response with system prompt.
+    Will check if system prompt was included in the request parameters and content of reponse text.
+
+    Args:
+        anthropic_adapter: Anthropic adapter fixture.
+        connector_entity: Connector entity fixture with test configuration.
+    """
+    with patch('adapters.connector.anthropic_adapter.AsyncAnthropic') as mock_anthropic_class:
+        mock_anthropic_class.return_value = mock_anthropic_client
+        connector_entity.system_prompt = "You are a helpful assistant."
+
+        anthropic_adapter.configure(connector_entity)
+        result = await anthropic_adapter.get_response("Test prompt")
+        result_system_prompt = mock_anthropic_client.messages.create.call_args.kwargs['system']
+        result_prompt = mock_anthropic_client.messages.create.call_args.kwargs['messages']
+
+        assert result_system_prompt == "You are a helpful assistant."
+        assert result_prompt == [{"role": "user", "content": "Test prompt"}]
+        assert isinstance(result, ConnectorResponseEntity) and result.response == "Test response from Anthropic client."
+
+
+@pytest.mark.asyncio
+async def test_get_response_success_without_system_prompt(mock_anthropic_client: MagicMock,
+                                                          anthropic_adapter: AnthropicAdapter,
+                                                          connector_entity: ConnectorEntity):
+    """
+    Test successful response without system prompt.
+    Will check if system prompt is empty string in the request parameters and content of reponse
+    text.
+
+    Args:
+        anthropic_adapter: Anthropic adapter fixture.
+        connector_entity: Connector entity fixture with test configuration.
+    """
+    with patch('adapters.connector.anthropic_adapter.AsyncAnthropic') as mock_anthropic_class:
+        mock_anthropic_class.return_value = mock_anthropic_client
+
+        connector_entity.system_prompt = ""
+
+        anthropic_adapter.configure(connector_entity)
+        result = await anthropic_adapter.get_response("Test prompt")
+        result_system_prompt = mock_anthropic_client.messages.create.call_args.kwargs['system']
+        result_prompt = mock_anthropic_client.messages.create.call_args.kwargs['messages']
+
+        assert result_system_prompt == ""
+        assert result_prompt == [{"role": "user", "content": "Test prompt"}]
+        assert isinstance(result, ConnectorResponseEntity) and result.response == "Test response from Anthropic client."
+
+
+@pytest.mark.asyncio
+async def test_get_response_with_pre_post_prompts(mock_anthropic_client: MagicMock,
+                                                  anthropic_adapter: AnthropicAdapter,
+                                                  connector_entity: ConnectorEntity):
+    """
+    Test response with pre and post prompts.
+
+    Args:
+        anthropic_adapter: Anthropic adapter fixture.
+        connector_entity: Connector entity fixture with test configuration.
+    """
+    with patch('adapters.connector.anthropic_adapter.AsyncAnthropic') as mock_anthropic_class:
+        mock_anthropic_class.return_value = mock_anthropic_client
+
+        connector_entity.connector_pre_prompt = "<Pre>"
+        connector_entity.connector_post_prompt = "<Post>"
+
+        anthropic_adapter.configure(connector_entity)
+        result = await anthropic_adapter.get_response("Test prompt")
+        result_prompt = mock_anthropic_client.messages.create.call_args.kwargs['messages']
+
+        expected_prompt = "<Pre>" + "Test prompt" + "<Post>"
+        assert result_prompt == [{"role": "user", "content": expected_prompt}]
+        assert isinstance(result, ConnectorResponseEntity) and result.response == "Test response from Anthropic client."
+
+
+@pytest.mark.asyncio
+async def test_get_response_with_valid_max_token(mock_anthropic_client: MagicMock,
+                                                 anthropic_adapter: AnthropicAdapter,
+                                                 connector_entity: ConnectorEntity):
+    """
+    Test configuration with >1 max tokens defined in params attribute.
+
+    Args:
+        anthropic_adapter: Anthropic adapter fixture.
+        connector_entity: Connector entity fixture with test configuration.
+    """
+    with patch('adapters.connector.anthropic_adapter.AsyncAnthropic') as mock_anthropic_class:
+        mock_anthropic_class.return_value = mock_anthropic_client
+        connector_entity.params = {"max_tokens": 10000}
+
+        anthropic_adapter.configure(connector_entity)
+        await anthropic_adapter.get_response("Test prompt")
+
+        assert mock_anthropic_client.messages.create.call_args.kwargs['max_tokens'] == 10000
+
+
+@pytest.mark.asyncio
+async def test_get_response_additional_params(mock_anthropic_client: MagicMock,
+                                              anthropic_adapter: AnthropicAdapter,
+                                              connector_entity: ConnectorEntity):
+    """
+    Test response with additional Anthropic parameters.
+
+    Args:
+        anthropic_adapter: Anthropic adapter fixture.
+        connector_entity: Connector entity fixture with test configuration.
+    """
+    with patch('adapters.connector.anthropic_adapter.AsyncAnthropic') as mock_anthropic_class:
+        mock_anthropic_class.return_value = mock_anthropic_client
+        connector_entity.params["temperature"] = 0.6
+
+        anthropic_adapter.configure(connector_entity)
+        await anthropic_adapter.get_response("Test prompt")
+
+        assert mock_anthropic_client.messages.create.call_args.kwargs['temperature'] == 0.6
+
+
+@pytest.mark.asyncio
+@pytest.mark.skip(reason="Need more research on how to test error handling.")
+async def test_get_response_api_exception(anthropic_adapter: AnthropicAdapter,
+                                          connector_entity: ConnectorEntity):
+    """
+    Test handling of Anthropic API exceptions.
+
+    Args:
+        anthropic_adapter: Anthropic adapter fixture.
+        connector_entity: Connector entity fixture with test configuration.
+    """
+    with patch('adapters.connector.anthropic_adapter.AnthropicAdapter.get_response',
+               side_effect=Exception('mocked error')):
+        with pytest.raises(Exception, match="mocked error3"):
+            anthropic_adapter.configure(connector_entity)
+            await anthropic_adapter.get_response("Test prompt")
