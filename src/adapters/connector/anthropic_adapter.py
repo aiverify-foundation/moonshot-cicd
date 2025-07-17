@@ -94,7 +94,7 @@ class AnthropicAdapter(ConnectorPort):
                          + "stack trace: \"%s\"", e.__cause__, traceback.format_exc())
             raise e
 
-        except (anthropic.BadRequestError, 
+        except (anthropic.BadRequestError,
                 anthropic.AuthenticationError,
                 anthropic.PermissionDeniedError,
                 anthropic.NotFoundError,
