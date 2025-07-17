@@ -28,7 +28,12 @@ class AnthropicAdapter(ConnectorPort):
         _client (Anthropic): The Anthropic API client.
     """
 
-    REQUIRED_PARAMETERS = ["model", "max_tokens", "messages"]
+    PARAM_MODEL = "model"
+    PARAM_MAX_TOKENS = "max_tokens"
+    PARAM_MESSAGES = "messages"
+    PARAM_SYSTEM_PROMPT = "system"
+    PARAM_API_KEY_ENV = "ANTHROPIC_API_KEY"
+    REQUIRED_PARAMETERS = [PARAM_MODEL, PARAM_MAX_TOKENS, PARAM_MESSAGES]
 
     def configure(self, connector_entity: ConnectorEntity):
         """
@@ -40,18 +45,18 @@ class AnthropicAdapter(ConnectorPort):
         assert (
             connector_entity and connector_entity.params
             and 'max_tokens' in connector_entity.params
-            ), "AnthropicAdapter.configure::Max tokens not specified/valid."
+            ), "[AnthropicAdapter].[configure] Max tokens not specified/valid."
 
-        max_tokens = connector_entity.params['max_tokens']
-        assert isinstance(connector_entity.params['max_tokens'], int) and max_tokens >= 1, \
-            f'AnthropicAdapter.configure::Max tokens must be >=1, "{max_tokens}" provided.'
+        max_tokens = connector_entity.params[self.PARAM_MAX_TOKENS]
+        assert isinstance(connector_entity.params[self.PARAM_MAX_TOKENS], int) and max_tokens >= 1, \
+            f'[AnthropicAdapter].[configure] Max tokens must be >=1, "{max_tokens}" provided.'
 
-        assert connector_entity.model, "AnthropicAdapter.configure::Model not specified."
+        assert connector_entity.model, "[AnthropicAdapter].[configure] Model not specified."
 
         self.connector_entity = connector_entity
         self._client = AsyncAnthropic(
-            api_key=os.getenv("ANTHROPIC_API_KEY") or "",
-            base_url=self.connector_entity.model_endpoint or None,
+            api_key=os.getenv(self.PARAM_API_KEY_ENV) or "",
+            base_url=self.connector_entity.model_endpoint or None
         )
 
     async def get_response(self, prompt: Any) -> ConnectorResponseEntity:
@@ -70,27 +75,41 @@ class AnthropicAdapter(ConnectorPort):
         try:
             func_params = {
                 **self.connector_entity.params,
-                "model": self.connector_entity.model,
-                "system": self.connector_entity.system_prompt,
-                "messages": [{"role": "user", "content": connector_prompt}]
+                self.PARAM_MODEL: self.connector_entity.model,
+                self.PARAM_SYSTEM_PROMPT: self.connector_entity.system_prompt,
+                self.PARAM_MESSAGES: [{"role": "user", "content": connector_prompt}]
             }
 
-            assert all([param in func_params for param in self.REQUIRED_PARAMETERS]), \
-                "AnthropicAdapter.get_response::Required parameters are missing."
+            assert self._is_all_required_params_present(given_params=func_params, 
+                                                        required_params=self.REQUIRED_PARAMETERS), \
+                " [AnthropicAdapter].[get_response] Required parameters are missing."
 
             messages = await self._client.messages.create(**func_params)
 
             return ConnectorResponseEntity(response=messages.content[0].text)
 
         except anthropic.APIConnectionError as e:
-            logger.error("AnthropicAdapter.get_response::The server could not be reached: %s", e.__cause__)
+            logger.error(" [AnthropicAdapter].[get_response] The server could not be reached: %s", e.__cause__)
             raise e
         except anthropic.AuthenticationError as e:
-            logger.error("AnthropicAdapter.get_response::HTTP 401 - Authentication failed: %s", e.__cause__)
+            logger.error(" [AnthropicAdapter].[get_response] HTTP 401 - Authentication failed: %s", e.__cause__)
             raise e
         except anthropic.RateLimitError as e:
-            logger.error("AnthropicAdapter.get_response::HTTP 429 - Rate limit exceeded: %s", e.__cause__)
+            logger.error(" [AnthropicAdapter].[get_response] HTTP 429 - Rate limit exceeded: %s", e.__cause__)
             raise e
         except Exception as e:
-            logger.error("AnthropicAdapter.get_response::Error processing prompt: %s", e.__cause__)
+            logger.error(" [AnthropicAdapter].[get_response] Error processing prompt: %s", e.__cause__)
             raise e
+
+    def _is_all_required_params_present(self, given_params: dict, required_params: list) -> bool:
+        """
+        Check if all required Anthropic parameters are present in the given parameters.
+
+        Args:
+            given_params (dict): The parameters to check.
+            required_params (list): The list of required parameters to check against.
+
+        Returns:
+            bool: True if all required parameters are present, False otherwise.
+        """
+        return all([required_param in given_params for required_param in required_params])

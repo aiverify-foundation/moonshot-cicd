@@ -128,22 +128,22 @@ def test_configure_with_no_endpoint(anthropic_adapter: AnthropicAdapter,
     {
         "name": "no_max_token",
         "params": {},
-        "expected_error_message": "AnthropicAdapter.configure::Max tokens not specified/valid."
+        "expected_error_message": r"\[AnthropicAdapter\].\[configure\] Max tokens not specified/valid."
     },
     {
         "name": "invalid_max_token",
         "params": {"max_tokens": "one"},
-        "expected_error_message": 'AnthropicAdapter.configure::Max tokens must be >=1, "one" provided.'
+        "expected_error_message": r"\[AnthropicAdapter\].\[configure\] Max tokens must be >=1, \"one\" provided."
     },
     {
         "name": "zero_max_token",
         "params": {"max_tokens": 0},
-        "expected_error_message": 'AnthropicAdapter.configure::Max tokens must be >=1, "0" provided.'
+        "expected_error_message": r"\[AnthropicAdapter\].\[configure\] Max tokens must be >=1, \"0\" provided."
     },
     {
         "name": "less_than_one_max_token",
         "params": {"max_tokens": -1},
-        "expected_error_message": 'AnthropicAdapter.configure::Max tokens must be >=1, "-1" provided.'
+        "expected_error_message": r"\[AnthropicAdapter\].\[configure\] Max tokens must be >=1, \"-1\" provided."
     },
 ])
 def test_configure_with_invalid_max_tokens(anthropic_adapter: AnthropicAdapter,
@@ -173,7 +173,7 @@ def test_configure_with_no_model(anthropic_adapter: AnthropicAdapter, connector_
     """
     connector_entity.model = ""
 
-    with pytest.raises(AssertionError, match="AnthropicAdapter.configure::Model not specified."):
+    with pytest.raises(AssertionError, match=r"\[AnthropicAdapter\].\[configure\] Model not specified."):
         anthropic_adapter.configure(connector_entity)
 
 
@@ -343,3 +343,31 @@ async def test_get_response_api_exception(anthropic_adapter: AnthropicAdapter,
         with pytest.raises(Exception, match="mocked error3"):
             anthropic_adapter.configure(connector_entity)
             await anthropic_adapter.get_response("Test prompt")
+
+# ================================
+# Test function to check required parameters
+# ================================
+def test_is_all_required_params_present(anthropic_adapter: AnthropicAdapter):
+    """
+    Test the method that checks if all required parameters are present in the request.
+
+    Args:
+        None
+    """
+    required_params = ["model", "max_tokens", "messages"]
+
+    # Happy flow: Test with all required parameters
+    params = {"model": None, "max_tokens": None, "messages": None}
+    assert AnthropicAdapter()._is_all_required_params_present(params, required_params) is True
+
+    # Test with more given parameters than required parameters
+    params = {"system": None, "model": None, "max_tokens": None, "messages": None}
+    assert AnthropicAdapter()._is_all_required_params_present(params, required_params) is True
+
+    # Test with missing required parameter
+    params = {"max_tokens": None, "messages": None}
+    assert AnthropicAdapter()._is_all_required_params_present(params, required_params) is False
+
+    # Test with no required parameter
+    params = {}
+    assert AnthropicAdapter()._is_all_required_params_present(params, required_params) is False
