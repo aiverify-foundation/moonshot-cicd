@@ -49,6 +49,15 @@ connectors_configurations:
     params:
       timeout: 300
 
+  - name: sample-anthropic-adapter
+    connector_adapter: anthropic_adapter
+    model: claude-sonnet-4-20250514
+    params:
+      max_tokens: 1024
+    # system_prompt: ""
+    # connector_pre_prompt: ""
+    # connector_post_prompt: ""
+
 # These are the configurations for the attack modules
 # Each attack module utilizes a prompt generator LLM to generate prompts for the attack
 # The default prompt generator LLM is OpenAI's gpt-4o
