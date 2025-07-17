@@ -1,11 +1,14 @@
-from domain.entities.connector_response_entity import ConnectorResponseEntity
+import re
+import anthropic
 import pytest
+import adapters
 
 from unittest.mock import AsyncMock, MagicMock, patch
 from anthropic import AsyncAnthropic
 
 from adapters.connector.anthropic_adapter import AnthropicAdapter
 from domain.entities.connector_entity import ConnectorEntity
+from domain.entities.connector_response_entity import ConnectorResponseEntity
 
 
 # ================================
@@ -327,23 +330,6 @@ async def test_get_response_additional_params(mock_anthropic_client: MagicMock,
         assert mock_anthropic_client.messages.create.call_args.kwargs['temperature'] == 0.6
 
 
-@pytest.mark.asyncio
-@pytest.mark.skip(reason="Need more research on how to test error handling.")
-async def test_get_response_api_exception(anthropic_adapter: AnthropicAdapter,
-                                          connector_entity: ConnectorEntity):
-    """
-    Test handling of Anthropic API exceptions.
-
-    Args:
-        anthropic_adapter: Anthropic adapter fixture.
-        connector_entity: Connector entity fixture with test configuration.
-    """
-    with patch('adapters.connector.anthropic_adapter.AnthropicAdapter.get_response',
-               side_effect=Exception('mocked error')):
-        with pytest.raises(Exception, match="mocked error3"):
-            anthropic_adapter.configure(connector_entity)
-            await anthropic_adapter.get_response("Test prompt")
-
 # ================================
 # Test function to check required parameters
 # ================================
@@ -371,3 +357,103 @@ def test_is_all_required_params_present(anthropic_adapter: AnthropicAdapter):
     # Test with no required parameter
     params = {}
     assert AnthropicAdapter()._is_all_required_params_present(params, required_params) is False
+
+
+# ================================
+# Test exception handling in get_response
+# ================================
+@pytest.mark.asyncio
+async def test_get_response_raises_api_connection_error(anthropic_adapter: AnthropicAdapter,
+                                                        connector_entity: ConnectorEntity):
+    """
+    Test that get_response raises APIConnectionError and logs error.
+    """
+    with patch('adapters.connector.anthropic_adapter.AsyncAnthropic') as mock_anthropic_class, \
+            patch.object(adapters.connector.anthropic_adapter.logger, 'error') as mock_error_logger:
+
+        # Arrange: mock AsyncAnthropic to raise APIConnectionError when create() is called.
+        mock_client = MagicMock()
+        mock_client.messages.create = AsyncMock(
+            side_effect=anthropic.APIConnectionError(message="Connection error.", request=None))
+        mock_anthropic_class.return_value = mock_client
+
+        # Act: call get_response and expect it to raise APIConnectionError.
+        anthropic_adapter.configure(connector_entity)
+        with pytest.raises(expected_exception=anthropic.APIConnectionError) as exception_info:
+            await anthropic_adapter.get_response("Prompt")
+        result_logger_error_string = mock_error_logger.call_args_list[0][0][0]
+
+        # Assert: anthropic.APIConnectionError is raised and error is logged.
+        expected_error_log = re.compile(r"\[AnthropicAdapter\].\[get_response\] The server could not be reached, "
+                                        + r"cause: \"%s\", stack trace: \"%s\"")
+        assert expected_error_log.match(result_logger_error_string)
+        assert exception_info.value.message == "Connection error."
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("test_scenarios", [
+    {"status_code": 400, "exception_class": anthropic.BadRequestError},
+    {"status_code": 401, "exception_class": anthropic.AuthenticationError},
+    {"status_code": 403, "exception_class": anthropic.PermissionDeniedError},
+    {"status_code": 404, "exception_class": anthropic.NotFoundError},
+    {"status_code": 422, "exception_class": anthropic.UnprocessableEntityError},
+    {"status_code": 429, "exception_class": anthropic.RateLimitError},
+    {"status_code": 500, "exception_class": anthropic.InternalServerError},
+])
+async def test_get_response_raises_http_related_error(anthropic_adapter: AnthropicAdapter,
+                                                      connector_entity: ConnectorEntity,
+                                                      test_scenarios: dict):
+    """
+    Test that get_response raises HTTP related error and logs error.
+    """
+    with patch('adapters.connector.anthropic_adapter.AsyncAnthropic') as mock_anthropic_class, \
+            patch.object(adapters.connector.anthropic_adapter.logger, 'error') as mock_error_logger:
+
+        # Arrange: mock AsyncAnthropic to raise APIConnectionError when create() is called.
+        mock_response = MagicMock()
+        mock_response.status_code = test_scenarios["status_code"]
+        mock_client = MagicMock()
+        mock_client.messages.create = AsyncMock(
+            side_effect=test_scenarios["exception_class"](message=None, response=mock_response, body=None))
+        mock_anthropic_class.return_value = mock_client
+
+        # Act: call get_response and expect it to raise APIConnectionError.
+        anthropic_adapter.configure(connector_entity)
+        with pytest.raises(expected_exception=test_scenarios["exception_class"]) as exception_info:
+            await anthropic_adapter.get_response("Prompt")
+        result_logger_error_string = mock_error_logger.call_args_list[0][0][0]
+
+        # Assert: anthropic.APIConnectionError is raised and error is logged.
+        expected_error_log = re.compile(r"\[AnthropicAdapter\].\[get_response\] Error getting a reponse from Anthropic,"
+                                        + r" status code: \"%s\", response: \"%s\", stack trace: \"%s\"")
+        assert expected_error_log.match(result_logger_error_string)
+        assert exception_info.value.status_code == test_scenarios["status_code"]
+
+
+@pytest.mark.asyncio
+async def test_get_response_raises_exception(anthropic_adapter: AnthropicAdapter,
+                                             connector_entity: ConnectorEntity):
+    """
+    Test that get_response raises Exception and logs error.
+    """
+    with patch('adapters.connector.anthropic_adapter.AsyncAnthropic') as mock_anthropic_class, \
+            patch.object(adapters.connector.anthropic_adapter.logger, 'error') as mock_error_logger:
+
+        # Arrange: mock AsyncAnthropic to raise APIConnectionError when create() is called.
+        mock_client = MagicMock()
+        mock_client.messages.create = AsyncMock(
+            side_effect=Exception("Something went wrong."))
+        mock_anthropic_class.return_value = mock_client
+
+        # Act: call get_response and expect it to raise APIConnectionError.
+        anthropic_adapter.configure(connector_entity)
+        with pytest.raises(expected_exception=Exception) as exception_info:
+            await anthropic_adapter.get_response("Prompt")
+        result_logger_error_string = mock_error_logger.call_args_list[0][0][0]
+
+        # Assert: anthropic.APIConnectionError is raised and error is logged.
+        print(result_logger_error_string)
+        expected_error_log = re.compile(r"\[AnthropicAdapter\].\[get_response\] Error processing prompt, "
+                                        + r"stack trace: %s")
+        assert expected_error_log.match(result_logger_error_string)
+        assert str(exception_info.value) == "Something went wrong."

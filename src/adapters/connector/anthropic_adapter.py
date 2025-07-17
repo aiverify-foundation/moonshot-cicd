@@ -1,4 +1,5 @@
 import os
+import traceback
 import anthropic
 
 from typing import Any
@@ -80,7 +81,7 @@ class AnthropicAdapter(ConnectorPort):
                 self.PARAM_MESSAGES: [{"role": "user", "content": connector_prompt}]
             }
 
-            assert self._is_all_required_params_present(given_params=func_params, 
+            assert self._is_all_required_params_present(given_params=func_params,
                                                         required_params=self.REQUIRED_PARAMETERS), \
                 " [AnthropicAdapter].[get_response] Required parameters are missing."
 
@@ -89,16 +90,25 @@ class AnthropicAdapter(ConnectorPort):
             return ConnectorResponseEntity(response=messages.content[0].text)
 
         except anthropic.APIConnectionError as e:
-            logger.error(" [AnthropicAdapter].[get_response] The server could not be reached: %s", e.__cause__)
+            logger.error("[AnthropicAdapter].[get_response] The server could not be reached, cause: \"%s\", "
+                         + "stack trace: \"%s\"", e.__cause__, traceback.format_exc())
             raise e
-        except anthropic.AuthenticationError as e:
-            logger.error(" [AnthropicAdapter].[get_response] HTTP 401 - Authentication failed: %s", e.__cause__)
+
+        except (anthropic.BadRequestError, 
+                anthropic.AuthenticationError,
+                anthropic.PermissionDeniedError,
+                anthropic.NotFoundError,
+                anthropic.UnprocessableEntityError,
+                anthropic.RateLimitError,
+                anthropic.InternalServerError) as e:
+            logger.error("[AnthropicAdapter].[get_response] Error getting a reponse from Anthropic, "
+                         + "status code: \"%s\", response: \"%s\", stack trace: \"%s\"",
+                         e.status_code, e.response, traceback.format_exc())
             raise e
-        except anthropic.RateLimitError as e:
-            logger.error(" [AnthropicAdapter].[get_response] HTTP 429 - Rate limit exceeded: %s", e.__cause__)
-            raise e
+
         except Exception as e:
-            logger.error(" [AnthropicAdapter].[get_response] Error processing prompt: %s", e.__cause__)
+            logger.error("[AnthropicAdapter].[get_response] Error processing prompt, stack trace: %s",
+                         traceback.format_exc())
             raise e
 
     def _is_all_required_params_present(self, given_params: dict, required_params: list) -> bool:
