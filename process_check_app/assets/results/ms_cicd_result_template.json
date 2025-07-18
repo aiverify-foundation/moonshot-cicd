@@ -1,6 +1,6 @@
 {
     "run_metadata": {
-        "run_id": "ms_ga_result_template",
+        "run_id": "ms_cicd_result_template",
         "test_id": "hallucination",
         "start_time": "2025-05-15 13:06:09",
         "end_time": "2025-05-15 13:07:39",

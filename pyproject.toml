@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "moonshot-cicd"
-version = "1.0.0"
+version = "1.1.0"
 description = "A simple and modular tool to evaluate and red-team any LLM application."
 authors = ["The Moonshot Team <our.moonshot.team@gmail.com>"]
 readme = "README.md"
@@ -16,6 +16,7 @@ python = "^3.12"
 boto3 = "^1.38.23"
 pydantic = "^2.11.5"
 openai = "^1.82.0"
+anthropic = "^0.57.0"
 click = "^8.2.1"
 toml = "^0.10.2"
 wonderwords = "^2.2.0"

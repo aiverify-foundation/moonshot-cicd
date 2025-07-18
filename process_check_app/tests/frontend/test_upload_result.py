@@ -3,10 +3,10 @@ import os
 
 import pytest
 from frontend.upload_result import (
-    GA_SAMPLE_REPORT_NAME,
-    GA_SAMPLE_REPORT_PATH,
-    V06_SAMPLE_REPORT_NAME,
-    V06_SAMPLE_REPORT_PATH,
+    MS_CICD_SAMPLE_REPORT_NAME,
+    MS_CICD_SAMPLE_REPORT_PATH,
+    MS_SAMPLE_REPORT_NAME,
+    MS_SAMPLE_REPORT_PATH,
     apply_custom_styles,
     click_back_button,
     click_next_button,
@@ -377,17 +377,17 @@ class TestConstants:
 
     def test_sample_report_constants(self):
         """Test that sample report constants are properly defined."""
-        assert GA_SAMPLE_REPORT_NAME == "ms_ga_result_template.json"
-        assert V06_SAMPLE_REPORT_NAME == "ms_v06_result_template.json"
+        assert MS_CICD_SAMPLE_REPORT_NAME == "ms_cicd_result_template.json"
+        assert MS_SAMPLE_REPORT_NAME == "ms_result_template.json"
 
         # Verify paths are constructed correctly
-        assert "assets" in GA_SAMPLE_REPORT_PATH
-        assert "results" in GA_SAMPLE_REPORT_PATH
-        assert GA_SAMPLE_REPORT_NAME in GA_SAMPLE_REPORT_PATH
+        assert "assets" in MS_CICD_SAMPLE_REPORT_PATH
+        assert "results" in MS_CICD_SAMPLE_REPORT_PATH
+        assert MS_CICD_SAMPLE_REPORT_NAME in MS_CICD_SAMPLE_REPORT_PATH
 
-        assert "assets" in V06_SAMPLE_REPORT_PATH
-        assert "results" in V06_SAMPLE_REPORT_PATH
-        assert V06_SAMPLE_REPORT_NAME in V06_SAMPLE_REPORT_PATH
+        assert "assets" in MS_SAMPLE_REPORT_PATH
+        assert "results" in MS_SAMPLE_REPORT_PATH
+        assert MS_SAMPLE_REPORT_NAME in MS_SAMPLE_REPORT_PATH
 
 
 class TestUploadResultCoverageImprovement:

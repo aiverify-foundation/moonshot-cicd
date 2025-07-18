@@ -7,11 +7,11 @@ import streamlit as st
 from backend.report_validation import validate_json
 from backend.workspace import initialize, save_workspace
 
-GA_SAMPLE_REPORT_NAME = "ms_ga_result_template.json"
-GA_SAMPLE_REPORT_PATH = os.path.join("assets", "results", GA_SAMPLE_REPORT_NAME)
+MS_CICD_SAMPLE_REPORT_NAME = "ms_cicd_result_template.json"
+MS_CICD_SAMPLE_REPORT_PATH = os.path.join("assets", "results", MS_CICD_SAMPLE_REPORT_NAME)
 
-V06_SAMPLE_REPORT_NAME = "ms_v06_result_template.json"
-V06_SAMPLE_REPORT_PATH = os.path.join("assets", "results", V06_SAMPLE_REPORT_NAME)
+MS_SAMPLE_REPORT_NAME = "ms_result_template.json"
+MS_SAMPLE_REPORT_PATH = os.path.join("assets", "results", MS_SAMPLE_REPORT_NAME)
 
 
 def click_back_button() -> None:
@@ -411,18 +411,18 @@ def upload_result():
         href = f'<a href="data:application/json;base64,{b64}" download="{filename}">{link_text}</a>'
         return href
 
-    with open(GA_SAMPLE_REPORT_PATH, "r") as sample_file:
+    with open(MS_CICD_SAMPLE_REPORT_PATH, "r") as sample_file:
         sample_data = sample_file.read()
-        download_link_1 = get_download_link(sample_data, GA_SAMPLE_REPORT_NAME, "here")
+        download_link_1 = get_download_link(sample_data, MS_CICD_SAMPLE_REPORT_NAME, "here")
 
-    with open(V06_SAMPLE_REPORT_PATH, "r") as sample_file:
+    with open(MS_SAMPLE_REPORT_PATH, "r") as sample_file:
         sample_data = sample_file.read()
-        download_link_2 = get_download_link(sample_data, V06_SAMPLE_REPORT_NAME, "here")
+        download_link_2 = get_download_link(sample_data, MS_SAMPLE_REPORT_NAME, "here")
 
     st.markdown(
         f"""
-        - If you are using Moonshot version 1.0, you can download the sample result {download_link_1}.
-        - If you are using Moonshot version 0.6.3, you can download the sample result {download_link_2}.
+        - If you are using Moonshot, you can download the sample result {download_link_2}.
+        - If you are using Moonshot CI/CD, you can download the sample result {download_link_1}.
         """,
         unsafe_allow_html=True,
     )
