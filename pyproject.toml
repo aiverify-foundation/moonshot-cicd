@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "moonshot-cicd"
-version = "1.0.0"
+version = "1.1.0"
 description = "A simple and modular tool to evaluate and red-team any LLM application."
 authors = ["The Moonshot Team <our.moonshot.team@gmail.com>"]
 readme = "README.md"

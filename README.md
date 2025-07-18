@@ -2,7 +2,7 @@
 
 ![image](https://github.com/user-attachments/assets/ed578918-e26a-4ad6-9d33-307712127ce5)
 
-**Version 1.0.0**
+**Version 1.1.0**
 
 A simple and modular tool to evaluate any LLM-based AI applications.
 
