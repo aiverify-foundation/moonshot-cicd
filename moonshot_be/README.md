@@ -13,7 +13,7 @@ A simple and modular tool to evaluate any LLM-based AI applications.
 
 # ANNOUNCING PROJECT MOONSHOT (GA)
 
-We are thrilled to announce the general availability version of Project Moonshot, a transformative update that redefines validation and governance of LLM-based AI applications, setting a new standard for the industry. Packed with groundbreaking enhancements, this powerful release delivers game-changing upgrades -- unlocking unmatched flexibility, efficiency, and scalability for your AI workflows. Most importantly, this version is designed for you to operationalize in your existing environment as seamlessly as possible.
+We are thrilled to announce the general availability version of Project Moonshot, a transformative update that redefines validation and governance of LLM-based AI applications, setting a new standard for the industry. Packed with groundbreaking enhanFcements, this powerful release delivers game-changing upgrades -- unlocking unmatched flexibility, efficiency, and scalability for your AI workflows. Most importantly, this version is designed for you to operationalize in your existing environment as seamlessly as possible.
 
 We’re also excited to introduce the Process Checks (GenAI) web application, a dedicated tool aligned with the [AI Verify Testing Framework](https://aiverifyfoundation.sg/what-is-ai-verify/) to help companies assess the responsible implementation of their LLM-based AI applications against 11 internationally recognised AI governance principles.
 
