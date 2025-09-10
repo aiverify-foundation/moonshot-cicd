@@ -60,7 +60,7 @@ jobs:
     - name: Build Moonshot Docker image
       if: ${{ inputs.moonshot_version_tag != '' }}
       run: |
-        docker build -t moonshot:${{ inputs.moonshot_version_tag }} .
+        docker build -t moonshot:${{ inputs.moonshot_version_tag }} -f moonshot_be/Dockerfile moonshot_be
 
     - name: Push Moonshot Image to GitHub CR
       if: ${{ inputs.moonshot_version_tag != '' }}

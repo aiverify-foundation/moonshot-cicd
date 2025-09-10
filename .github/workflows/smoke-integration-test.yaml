@@ -61,7 +61,7 @@ jobs:
 
     - name: Build Docker image
       run: |
-        docker build -t moonshot:test . 
+        docker build -t moonshot:test -f moonshot_be/Dockerfile moonshot_be 
 
     - name: Checkout Smoke Test
       uses: actions/checkout@v4
@@ -167,7 +167,7 @@ jobs:
 
     - name: Build Docker image
       run: |
-        docker build -t moonshot:test . 
+        docker build -t moonshot:test -f moonshot_be/Dockerfile moonshot_be
 
     - name: Checkout Integration Test
       uses: actions/checkout@v4
