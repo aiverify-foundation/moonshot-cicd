@@ -101,19 +101,19 @@ jobs:
             echo "STATUS_SMOKE=success" >> $GITHUB_ENV
           fi
 
-      - name: Slack Notification - Smoke Test
-        if: always() && (github.event_name == 'workflow_dispatch' || github.base_ref == 'dev_main')
-        uses: slackapi/slack-github-action@v1.26.0
-        with:
-          payload: |
-            {
-              "workflow": "${{ github.repository }} | ${{ github.workflow }} | Smoke Test",
-              "status": "${{ env.STATUS_SMOKE }}",
-              "details": "pc_smoke",
-              "ref": "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
-            }
-        env:
-          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_CI }}
+      # - name: Slack Notification - Smoke Test
+      #   if: always() && (github.event_name == 'workflow_dispatch' || github.base_ref == 'dev_main')
+      #   uses: slackapi/slack-github-action@v1.26.0
+      #   with:
+      #     payload: |
+      #       {
+      #         "workflow": "${{ github.repository }} | ${{ github.workflow }} | Smoke Test",
+      #         "status": "${{ env.STATUS_SMOKE }}",
+      #         "details": "pc_smoke",
+      #         "ref": "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+      #       }
+      #   env:
+      #     SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_CI }}
 
 
       # Integration test: only on PR to main or workflow_dispatch
@@ -140,19 +140,19 @@ jobs:
             echo "STATUS_INTEGRATION=success" >> $GITHUB_ENV
           fi
 
-      - name: Slack Notification - Integration Test
-        if: always() && (github.event_name == 'workflow_dispatch' || github.base_ref == 'main')
-        uses: slackapi/slack-github-action@v1.26.0
-        with:
-          payload: |
-            {
-              "workflow": "${{ github.repository }} | ${{ github.workflow }} | Integration Test",
-              "status": "${{ env.STATUS_INTEGRATION }}",
-              "details": "pc_integration",
-              "ref": "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
-            }
-        env:
-          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_CI }}
+      # - name: Slack Notification - Integration Test
+      #   if: always() && (github.event_name == 'workflow_dispatch' || github.base_ref == 'main')
+      #   uses: slackapi/slack-github-action@v1.26.0
+      #   with:
+      #     payload: |
+      #       {
+      #         "workflow": "${{ github.repository }} | ${{ github.workflow }} | Integration Test",
+      #         "status": "${{ env.STATUS_INTEGRATION }}",
+      #         "details": "pc_integration",
+      #         "ref": "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+      #       }
+      #   env:
+      #     SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_CI }}
 
       - name: Upload Playwright Traces Process Check
         if: always() && (github.event_name == 'workflow_dispatch' || github.base_ref == 'main')
