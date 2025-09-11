@@ -185,30 +185,6 @@ jobs:
             --detect.detector.search.depth=10 \
             --detect.project.name=moonshot-cicd \
             --detect.project.version.name=$BRANCH \
-            --detect.source.path=. \
-            --blackduck.trust.cert=true \
-            --detect.debug=true \
-            --detect.project.version.update=true \
-            --detect.included.detector.types=POETRY \
-            --detect.excluded.directories=".venv,venv,/opt/hostedtoolcache,/usr,/home/runner,/github" 
-
-      - name: Install dependencies and scan with Black Duck (process_check_app)
-        id: sca_moonshot_process_check_app
-        if: ${{ !cancelled() }}
-        run: |
-          export BRANCH=$MS_BRANCH
-          pip install poetry
-          cd process_check_app
-          poetry lock
-          poetry env use python3.12
-          poetry install
-          # Run Black Duck Detect with exclusions
-          poetry run bash <(curl -s -L https://detect.blackduck.com/detect9.sh) \
-            --blackduck.url=https://blackduck.aipo-imda.net/ \
-            --blackduck.api.token=${{ secrets.BLACKDUCK_TOKEN }} \
-            --detect.detector.search.depth=10 \
-            --detect.project.name=moonshot-cicd \
-            --detect.project.version.name=$BRANCH \
             --detect.source.path=moonshot_be \
             --blackduck.trust.cert=true \
             --detect.debug=true \
@@ -222,6 +198,7 @@ jobs:
         run: |
           export BRANCH=$MS_BRANCH
           pip install poetry
+          cd process_check_app
           poetry lock
           poetry env use python3.12
           poetry install
