@@ -217,7 +217,7 @@ jobs:
             --detect.excluded.directories=".venv,venv,/opt/hostedtoolcache,/usr,/home/runner,/github" 
 
       - name: Install dependencies and scan with Black Duck (process_check_app)
-        id: sca
+        id: sca_moonshot_process_check_app
         if: ${{ !cancelled() }}
         run: |
           export BRANCH=$MS_BRANCH
