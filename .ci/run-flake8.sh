@@ -2,7 +2,7 @@
 
 # Code quality analysis 
 
-source_dir=${1:src}
+source_dir=${1:moonshot_be/src}
 
 echo "#############################################################################"
 echo "###                                                                       ###"
