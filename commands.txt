@@ -1,2 +1,0 @@
-conda activate moonshotv1test
-docker build -t moonshot-cicd -f Dockerfile . > dockeroutput.log 2>&1

@@ -1,7 +1,0 @@
-{
-  "inputs": {
-    "moonshot_branch": "gitactions-moon-535",
-    "smoke_test_branch": "gitactions-moon-535",
-    "integration_test_branch": "gitactions-moon-535"
-  }
-}
