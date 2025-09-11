@@ -185,7 +185,7 @@ jobs:
             --detect.detector.search.depth=10 \
             --detect.project.name=moonshot-cicd \
             --detect.project.version.name=$BRANCH \
-            --detect.source.path=moonshot_be \
+            --detect.source.path=. \
             --blackduck.trust.cert=true \
             --detect.debug=true \
             --detect.project.version.update=true \
@@ -209,7 +209,7 @@ jobs:
             --detect.detector.search.depth=10 \
             --detect.project.name=moonshot-cicd \
             --detect.project.version.name=$BRANCH \
-            --detect.source.path=process_check_app \
+            --detect.source.path=. \
             --blackduck.trust.cert=true \
             --detect.debug=true \
             --detect.project.version.update=true \
