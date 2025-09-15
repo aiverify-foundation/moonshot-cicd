@@ -87,7 +87,7 @@ jobs:
       uses: docker/build-push-action@v5
       with:
         context: .
-        file: Dockerfile_PC
+        file: process_check_app/Dockerfile
         push: true
         platforms: linux/amd64,linux/arm64
         tags: |
