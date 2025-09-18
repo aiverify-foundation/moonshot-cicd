@@ -204,6 +204,7 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: write
+      security-events: write
     steps:
       - name: Set env variables
         run: |
