@@ -6,7 +6,7 @@
 # 4. Dockerfile Scan (Hadolint)
 # 5. SCA scan (Blackduck)
 
-name: v1 Pre-build Checks 
+name: v1 Pre-build Checks Core
 
 env:
   GH_TOKEN: ${{ github.token }}
