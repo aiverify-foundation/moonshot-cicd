@@ -30,7 +30,7 @@ read_coverage() {
 # Function to generate unit test summary status
 read_test() {
   # Fail fast if test fails
-  testJson=$(jq '.report.summary' moonshot_be-test-report.json)
+  testJson=$(jq '.report.summary' moonshot_core-test-report.json)
   testPassed=$(echo "$testJson" | jq '.passed // 0')
   testFailed=$(echo "$testJson" | jq '.failed // 0')
   message="Unit tests passed: $testPassed, failed: $testFailed"

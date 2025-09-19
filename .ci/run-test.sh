@@ -1,4 +1,4 @@
-source_dirs="${@:-moonshot_be process_check_app}"
+source_dirs="${@:-moonshot_core process_check_app}"
 
 export PYTHONPATH=$(pwd)
 echo "Testing source dirs: $source_dirs"

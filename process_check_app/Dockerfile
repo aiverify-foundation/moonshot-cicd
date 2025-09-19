@@ -1,5 +1,5 @@
 # Use the official Python base image for building
-FROM python:3.12-slim AS build
+FROM python:3.12-slim-bookworm AS build
 
 RUN apt-get update && apt-get -y upgrade && \
     rm -rf /var/lib/apt/lists/*
@@ -17,7 +17,7 @@ RUN pip install poetry==2.1.2 --no-cache-dir && \
     poetry install --only process_checks --no-root
 
 # Copy the rest of the application code into the container
-COPY process_check_app/ .
+COPY . .
 
 # Final stage
 FROM gcr.io/distroless/base-debian12
