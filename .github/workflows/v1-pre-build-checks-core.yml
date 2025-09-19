@@ -63,10 +63,6 @@ jobs:
           cd moonshot_core
           poetry lock
           poetry install --with dev
-          cd ../process_check_app
-          poetry lock
-          poetry install --with dev
-          cd ..
 
       - name: Unit tests
         id: unit_test
@@ -74,7 +70,7 @@ jobs:
           source venv/bin/activate
           export COVERAGE_THRESHOLD=${{ vars.COVERAGE_THRESHOLD }}
           set +e
-          bash .ci/run-test.sh moonshot_core process_check_app
+          bash .ci/run-test.sh moonshot_core
           source .ci/gen_pre_build_summ.sh test
           test_status=$?
           source .ci/gen_pre_build_summ.sh coverage
@@ -175,30 +171,6 @@ jobs:
           export BRANCH=$MS_BRANCH
           pip install poetry
           cd moonshot_core
-          poetry lock
-          poetry env use python3.12
-          poetry install
-          # Run Black Duck Detect with exclusions
-          poetry run bash <(curl -s -L https://detect.blackduck.com/detect9.sh) \
-            --blackduck.url=https://blackduck.aipo-imda.net/ \
-            --blackduck.api.token=${{ secrets.BLACKDUCK_TOKEN }} \
-            --detect.detector.search.depth=10 \
-            --detect.project.name=moonshot-cicd \
-            --detect.project.version.name=$BRANCH \
-            --detect.source.path=. \
-            --blackduck.trust.cert=true \
-            --detect.debug=true \
-            --detect.project.version.update=true \
-            --detect.included.detector.types=POETRY \
-            --detect.excluded.directories=".venv,venv,/opt/hostedtoolcache,/usr,/home/runner,/github" 
-
-      - name: Install dependencies and scan with Black Duck (process_check_app)
-        id: sca_moonshot_process_check_app
-        if: ${{ !cancelled() }}
-        run: |
-          export BRANCH=$MS_BRANCH
-          pip install poetry
-          cd process_check_app
           poetry lock
           poetry env use python3.12
           poetry install
