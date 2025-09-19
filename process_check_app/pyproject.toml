@@ -1,34 +1,14 @@
 [tool.poetry]
-name = "moonshot-cicd"
+name = "process-check-app"
 version = "1.1.0"
-description = "A simple and modular tool to evaluate and red-team any LLM application."
-authors = ["The Moonshot Team <our.moonshot.team@gmail.com>"]
+description = "This tool helps you assess and document the responsible AI practices you have implemented in deploying your Generative AI application, and generates a summary report."
+authors = ["AI Verify Foundation <info@aiverify.sg>"]
 readme = "README.md"
 license = "Apache-2.0"
-packages = [
-    { include = "entrypoints", from = "src" },
-    { include = "domain", from = "src" },
-    { include = "adapters", from = "src" }
-]
+package-mode = false
 
 [tool.poetry.dependencies]
 python = "^3.12"
-boto3 = "^1.38.23"
-pydantic = "^2.11.5"
-openai = "^1.82.0"
-anthropic = "^0.57.0"
-click = "^8.2.1"
-toml = "^0.10.2"
-wonderwords = "^2.2.0"
-ragas = "^0.2.15"
-langchain-openai = "^0.3.18"
-rich = "^14.0.0"
-aiohttp = "^3.12.4"
-requests = "^2.32.4"
-urllib3 = "^2.5.0"
-pillow = "11.3.0"
-
-[tool.poetry.group.process_checks.dependencies]
 streamlit = "^1.45.1"
 openpyxl = "^3.1.5"
 bleach = "^6.2.0"
@@ -36,9 +16,6 @@ reportlab = "^4.4.1"
 matplotlib = "^3.10.3"
 pydantic = "^2.11.5"
 streamlit-scroll-to-top = "^0.0.4"
-
-[tool.poetry.scripts]
-moonshot = "entrypoints.cli.cli:cli"
 
 [tool.poetry.group.dev.dependencies]
 anybadge = "^1.14.0"
