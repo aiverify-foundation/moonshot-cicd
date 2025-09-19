@@ -50,7 +50,7 @@ jobs:
     # ---------- Moonshot ----------
     - name: Build Moonshot Docker image
       run: |
-        docker build -t moonshot:dev_main -f moonshot_be/Dockerfile moonshot_be
+        docker build -t moonshot:dev_main -f moonshot_core/Dockerfile moonshot_core
 
     - name: Push Moonshot Image to GitHub CR
       run: |
