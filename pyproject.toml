@@ -27,6 +27,9 @@ aiohttp = "^3.12.4"
 requests = "^2.32.4"
 urllib3 = "^2.5.0"
 pillow = "11.3.0"
+azure-storage-blob = "^12.26.0"
+azure-core = "^1.35.1"
+azure-identity = "^1.25.0"
 
 [tool.poetry.group.process_checks.dependencies]
 streamlit = "^1.45.1"
