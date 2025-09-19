@@ -2,7 +2,7 @@
 name = "moonshot-cicd"
 version = "1.1.0"
 description = "A simple and modular tool to evaluate and red-team any LLM application."
-authors = ["The Moonshot Team <our.moonshot.team@gmail.com>"]
+authors = ["AI Verify Foundation <info@aiverify.sg>"]
 readme = "README.md"
 license = "Apache-2.0"
 packages = [
@@ -27,15 +27,6 @@ aiohttp = "^3.12.4"
 requests = "^2.32.4"
 urllib3 = "^2.5.0"
 pillow = "11.3.0"
-
-[tool.poetry.group.process_checks.dependencies]
-streamlit = "^1.45.1"
-openpyxl = "^3.1.5"
-bleach = "^6.2.0"
-reportlab = "^4.4.1"
-matplotlib = "^3.10.3"
-pydantic = "^2.11.5"
-streamlit-scroll-to-top = "^0.0.4"
 
 [tool.poetry.scripts]
 moonshot = "entrypoints.cli.cli:cli"
