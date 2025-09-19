@@ -62,6 +62,10 @@ jobs:
           pip install poetry
           cd moonshot_core
           poetry lock
+          # This is a temporary fix to avoid poetry's AttributeError: 'Metadata' object has no attribute 'license_expression' on first install
+          set +e
+          poetry install --with dev
+          set -e
           poetry install --with dev
 
       - name: Unit tests
