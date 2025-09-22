@@ -11,12 +11,12 @@ RUN addgroup -S appgroup && adduser -S -u 1001 -G appgroup appuser
 # Install build dependencies including Rust
 RUN apk update && apk upgrade --no-cache && \
     apk add --no-cache \
-    rust \
-    cargo \
-    gcc \
-    musl-dev \
-    libffi-dev \
-    openssl-dev
+    rust=1.87.0-r0 \
+    cargo=1.87.0-r0 \
+    gcc=14.2.0-r6 \
+    musl-dev=1.2.5-r10 \
+    libffi-dev=3.4.8-r0 \
+    openssl-dev=3.5.2-r0
 
 # Copy all code into /app
 COPY . .
