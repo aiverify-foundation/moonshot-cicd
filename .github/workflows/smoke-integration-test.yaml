@@ -31,11 +31,11 @@ jobs:
       id-token: write
       contents: read
     steps:
-    - name: Configure AWS credentials
-      uses: aws-actions/configure-aws-credentials@v4
-      with:
-        aws-region: ap-southeast-1
-        role-to-assume: ${{ secrets.AWS_ROLE_TO_ASSUME }}
+    # - name: Configure AWS credentials
+    #   uses: aws-actions/configure-aws-credentials@v4
+    #   with:
+    #     aws-region: ap-southeast-1
+    #     role-to-assume: ${{ secrets.AWS_ROLE_TO_ASSUME }}
 
     - name: Checkout Moonshot V1 (Pull Request Review)
       uses: actions/checkout@v4
@@ -112,19 +112,19 @@ jobs:
         fi
 
 
-    - name: Send Slack Notification
-      if: always()  # ensure it runs even if the test fails
-      uses: slackapi/slack-github-action@v1.26.0
-      with:
-        payload: |
-            {
-              "workflow": "${{ github.repository }} | ${{ github.workflow }} | Smoke Test",
-              "status": "${{ env.STATUS }}",
-              "details": "smoke-integration-tests",
-              "ref": "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
-            }
-      env:
-        SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_CI }}
+    # - name: Send Slack Notification
+    #   if: always()  # ensure it runs even if the test fails
+    #   uses: slackapi/slack-github-action@v1.26.0
+    #   with:
+    #     payload: |
+    #         {
+    #           "workflow": "${{ github.repository }} | ${{ github.workflow }} | Smoke Test",
+    #           "status": "${{ env.STATUS }}",
+    #           "details": "smoke-integration-tests",
+    #           "ref": "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+    #         }
+    #   env:
+    #     SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_CI }}
 
 
 
