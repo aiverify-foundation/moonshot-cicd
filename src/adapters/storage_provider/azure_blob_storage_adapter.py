@@ -85,8 +85,9 @@ class AzureBlobStorageAdapter(StorageProviderPort):
 
             local_path = os.path.join(local_dir, f"{file_id}.py")
             downloaded_path = self.download_file(container_name, f"{blob_name}.py", local_path)
-
-            instance = get_instance(file_path, downloaded_path)
+            
+            module_name = file_id.replace("-", "_")
+            instance = get_instance(module_name, downloaded_path)
             if instance is None:
                 raise Exception(f"Failed to load module from path {complete_path}")
             return instance, file_id
