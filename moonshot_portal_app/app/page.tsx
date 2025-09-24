@@ -13,6 +13,14 @@ export default function Home() {
             This is a Next.js application with TypeScript and Tailwind CSS.
           </p>
         </div>
+        <div className="mt-6">
+          <a 
+            href="/view-bundle" 
+            className="inline-block px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+          >
+            Go to New Page
+          </a>
+        </div>
       </div>
     </main>
   )
