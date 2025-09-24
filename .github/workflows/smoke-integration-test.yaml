@@ -82,7 +82,7 @@ jobs:
         #MS_CONFIG_PATH: ${{ secrets.MS_CONFIG_PATH_SMOKE }}
       run: |
         set +e
-        echo pwd
+        pwd
         output=$(docker run --rm \
           -e OPENAI_TOKEN="${{ secrets.OPENAI_TOKEN }}" \
           -e AWS_ACCESS_KEY_ID="$AWS_ACCESS_KEY_ID" \
