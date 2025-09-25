@@ -3,7 +3,7 @@ FastAPI application for Moonshot CI/CD.
 This module provides a REST API interface for the Moonshot benchmarking system.
 """
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse, FileResponse
 from fastapi.staticfiles import StaticFiles
 from typing import Dict, Any
@@ -31,6 +31,22 @@ async def root():
     else:
         print(f"Index file not found at: {index_file}")
         return {"message": "Welcome to Moonshot CI/CD API"}
+
+
+@app.api_route("/{file_path:path}", methods=["GET", "HEAD"])
+async def serve_static_files(file_path: str):
+    """Serve static files from the build directory."""
+    build_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), "..", "build")
+    file_path = os.path.join(build_dir, file_path)
+    
+    # Security check: ensure the file is within the build directory
+    if not os.path.abspath(file_path).startswith(os.path.abspath(build_dir)):
+        return JSONResponse({"error": "Access denied"}, status_code=403)
+    
+    if os.path.exists(file_path) and os.path.isfile(file_path):
+        return FileResponse(file_path)
+    else:
+        return JSONResponse({"error": "File not found"}, status_code=404)
 
 
 @app.get("/health")
@@ -62,9 +78,9 @@ if os.path.exists(build_dir):
     if os.path.exists(next_static_dir):
         app.mount("/_next", StaticFiles(directory=next_static_dir), name="next_static")
         print(f"Next.js static files mounted from: {next_static_dir}")
-    # Also mount general static files at /static/ path
-    app.mount("/static", StaticFiles(directory=build_dir), name="static")
-    print(f"General static files mounted from: {build_dir}")
+    
+    print(f"Build directory found at: {build_dir}")
+    print("Static files will be served via the catch-all route handler")
 else:
     print(f"Build directory not found at: {build_dir}")
 
