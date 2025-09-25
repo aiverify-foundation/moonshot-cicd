@@ -76,17 +76,17 @@ jobs:
         MOON_V1_CLI_DIR: "/app"
         AWS_ACCESS_KEY_ID: ${{ env.AWS_ACCESS_KEY_ID }}
         AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-        AWS_SESSION_TOKEN: ${{ secrets.AWS_SESSION_TOKEN }}
         AWS_REGION: ${{ env.AWS_REGION }}
+        S3_BUCKET_NAME: ${{ env.S3_BUCKET_NAME }}
       run: |
         set +e
         output=$(docker run --rm \
           -e OPENAI_API_KEY \
-          -e AWS_ACCESS_KEY_ID="$AWS_ACCESS_KEY_ID" \
-          -e MOON_V1_CLI_DIR="$MOON_V1_CLI_DIR" \
-          -e AWS_SECRET_ACCESS_KEY="$AWS_SECRET_ACCESS_KEY" \
-          -e AWS_SESSION_TOKEN="$AWS_SESSION_TOKEN" \
+          -e MOON_V1_CLI_DIR \
+          -e AWS_ACCESS_KEY_ID \
+          -e AWS_SECRET_ACCESS_KEY \
           -e AWS_REGION="$AWS_REGION" \
+          -e S3_BUCKET_NAME \
           --entrypoint "" \
           -v "${{ github.workspace }}/moonshot-smoke-testing:/app/moonshot-smoke-testing/" \
           -v "${{ github.workspace }}/.ci:/app/.ci/" \
