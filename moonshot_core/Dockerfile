@@ -16,7 +16,7 @@ RUN apk update && apk upgrade --no-cache && \
     gcc=14.2.0-r6 \
     musl-dev=1.2.5-r10 \
     libffi-dev=3.4.8-r0 \
-    openssl-dev=3.5.2-r0
+    openssl-dev=3.5.3-r0
 
 # Copy all code into /app
 COPY . .
