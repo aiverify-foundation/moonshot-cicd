@@ -72,18 +72,16 @@ jobs:
     - name: Run smoke test
       id: smoke_test
       env:
-        OPENAI_TOKEN: ${{ secrets.OPENAI_TOKEN }}
+        OPENAI_API_KEY: ${{ secrets.OPENAI_TOKEN }}
         MOON_V1_CLI_DIR: "/app"
         AWS_ACCESS_KEY_ID: ${{ env.AWS_ACCESS_KEY_ID }}
         AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
         AWS_SESSION_TOKEN: ${{ secrets.AWS_SESSION_TOKEN }}
         AWS_REGION: ${{ env.AWS_REGION }}
-        #MS_TEST_CONFIG_PATH: ${{ secrets.MS_TEST_CONFIG_PATH_SMOKE }}
-        #MS_CONFIG_PATH: ${{ secrets.MS_CONFIG_PATH_SMOKE }}
       run: |
         set +e
         output=$(docker run --rm \
-          -e OPENAI_TOKEN="${{ secrets.OPENAI_TOKEN }}" \
+          -e OPENAI_API_KEY \
           -e AWS_ACCESS_KEY_ID="$AWS_ACCESS_KEY_ID" \
           -e MOON_V1_CLI_DIR="$MOON_V1_CLI_DIR" \
           -e AWS_SECRET_ACCESS_KEY="$AWS_SECRET_ACCESS_KEY" \
