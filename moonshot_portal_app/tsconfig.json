@@ -13,9 +13,7 @@
     "isolatedModules": true,
     "jsx": "preserve",
     "incremental": true,
-    // Base URL for module resolution - allows absolute imports from project root
     "baseUrl": ".",
-    // Path mapping for import aliases - enables @/ imports to resolve to ./src/
     "paths": {
       "@/*": ["./src/*"]
     },
