@@ -74,10 +74,10 @@ jobs:
       env:
         OPENAI_API_KEY: ${{ secrets.OPENAI_TOKEN }}
         MOON_V1_CLI_DIR: "/app"
-        AWS_ACCESS_KEY_ID: ${{ env.AWS_ACCESS_KEY_ID }}
+        AWS_ACCESS_KEY_ID: ${{ vars.AWS_ACCESS_KEY_ID }}
         AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-        AWS_REGION: ${{ env.AWS_REGION }}
-        S3_BUCKET_NAME: ${{ env.S3_BUCKET_NAME }}
+        AWS_REGION: ${{ vars.AWS_REGION }}
+        S3_BUCKET_NAME: ${{ vars.S3_BUCKET_NAME }}
       run: |
         set +e
         output=$(docker run --rm \
