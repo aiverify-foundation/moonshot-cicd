@@ -1,15 +1,18 @@
-import js from '@eslint/js';
-import tsPlugin from '@typescript-eslint/eslint-plugin';
-import tsParser from '@typescript-eslint/parser';
-import { FlatCompat } from '@eslint/eslintrc';
+const js = require('@eslint/js');
+const tsPlugin = require('@typescript-eslint/eslint-plugin');
+const tsParser = require('@typescript-eslint/parser');
+const { FlatCompat } = require('@eslint/eslintrc');
 
 const compat = new FlatCompat({
-  baseDirectory: import.meta.dirname,
+  baseDirectory: __dirname,
 });
 
-export default [
+module.exports = [
   js.configs.recommended,
   ...compat.extends('next/core-web-vitals'),
+  {
+    ignores: ['src/components/ui/**/*', 'src/hooks/**/*'],
+  },
   {
     files: ['**/*.ts', '**/*.tsx'],
     languageOptions: {

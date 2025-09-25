@@ -1,3 +1,5 @@
+import { Button } from "@/components/ui/button"
+
 export default function Home() {
   return (
     <main className="flex min-h-screen flex-col items-center justify-center p-24">
@@ -12,6 +14,12 @@ export default function Home() {
           <p className="text-blue-800">
             This is a Next.js application with TypeScript and Tailwind CSS.
           </p>
+        </div>
+        <div className="mt-8 flex gap-4">
+          <Button>Default Button</Button>
+          <Button variant="secondary">Secondary Button</Button>
+          <Button variant="outline">Outline Button</Button>
+          <Button variant="destructive">Destructive Button</Button>
         </div>
       </div>
     </main>
