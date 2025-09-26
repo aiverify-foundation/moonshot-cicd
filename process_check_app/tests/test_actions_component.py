@@ -226,7 +226,7 @@ class TestActionsComponent:
                     "app_description": "A test application",
                     "key": "actions_component",
                 },
-                "process_check_app/tests/assets/actions_component.html",
+                "tests/assets/actions_component.html",
             ),
             # No-excel component test
             (
@@ -239,7 +239,7 @@ class TestActionsComponent:
                     "app_description": "A test application",
                     "key": "actions_component",
                 },
-                "process_check_app/tests/assets/actions_component_no_excel.html",
+                "tests/assets/actions_component_no_excel.html",
             ),
         ],
     )
@@ -293,7 +293,7 @@ class TestActionsComponent:
                     "app_description": "A test application",
                     "key": "actions_component",
                 },
-                "process_check_app/tests/assets/actions_component.html",
+                "tests/assets/actions_component.html",
             ),
             # No-excel component test
             (
@@ -306,7 +306,7 @@ class TestActionsComponent:
                     "app_description": "A test application",
                     "key": "actions_component",
                 },
-                "process_check_app/tests/assets/actions_component_no_excel.html",
+                "tests/assets/actions_component_no_excel.html",
             ),
         ],
     )

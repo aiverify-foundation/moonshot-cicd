@@ -60,7 +60,7 @@ jobs:
     - name: Build Moonshot Docker image
       if: ${{ inputs.moonshot_version_tag != '' }}
       run: |
-        docker build -t moonshot:${{ inputs.moonshot_version_tag }} .
+        docker build -t moonshot:${{ inputs.moonshot_version_tag }} -f moonshot_core/Dockerfile moonshot_core
 
     - name: Push Moonshot Image to GitHub CR
       if: ${{ inputs.moonshot_version_tag != '' }}
@@ -87,7 +87,7 @@ jobs:
       uses: docker/build-push-action@v5
       with:
         context: .
-        file: Dockerfile_PC
+        file: process_check_app/Dockerfile
         push: true
         platforms: linux/amd64,linux/arm64
         tags: |
