@@ -200,7 +200,7 @@ class TestCardsComponent:
 
         # Mock file operations - simulate existing file with same content
         # Read the actual HTML content from the test file to match exactly
-        with open("process_check_app/tests/assets/cards_component.html", "r") as f:
+        with open("tests/assets/cards_component.html", "r") as f:
             actual_html_content = f.read()
 
         mock_file = mock_open(read_data=actual_html_content)
@@ -247,7 +247,7 @@ class TestCardsComponent:
 
         # Mock file operations - simulate existing file with different content
         # Read the actual HTML content from the test file and modify it to be different
-        with open("process_check_app/tests/assets/cards_component.html", "r") as f:
+        with open("tests/assets/cards_component.html", "r") as f:
             actual_html_content = f.read()
 
         # Create different content by modifying the actual HTML

@@ -31,11 +31,11 @@ jobs:
       id-token: write
       contents: read
     steps:
-    - name: Configure AWS credentials
-      uses: aws-actions/configure-aws-credentials@v4
-      with:
-        aws-region: ap-southeast-1
-        role-to-assume: ${{ secrets.AWS_ROLE_TO_ASSUME }}
+    # - name: Configure AWS credentials
+    #   uses: aws-actions/configure-aws-credentials@v4
+    #   with:
+    #     aws-region: ap-southeast-1
+    #     role-to-assume: ${{ secrets.AWS_ROLE_TO_ASSUME }}
 
     - name: Checkout Moonshot V1 (Pull Request Review)
       uses: actions/checkout@v4
@@ -61,7 +61,7 @@ jobs:
 
     - name: Build Docker image
       run: |
-        docker build -t moonshot:test . 
+        docker build -t moonshot:test -f moonshot_core/Dockerfile moonshot_core 
 
     - name: Checkout Smoke Test
       uses: actions/checkout@v4
@@ -72,25 +72,24 @@ jobs:
     - name: Run smoke test
       id: smoke_test
       env:
-        OPENAI_TOKEN: ${{ secrets.OPENAI_TOKEN }}
+        OPENAI_API_KEY: ${{ secrets.OPENAI_TOKEN }}
         MOON_V1_CLI_DIR: "/app"
-        AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+        AWS_ACCESS_KEY_ID: ${{ vars.AWS_ACCESS_KEY_ID }}
         AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-        AWS_SESSION_TOKEN: ${{ secrets.AWS_SESSION_TOKEN }}
-        AWS_REGION: ${{ secrets.AWS_REGION }}
-        #MS_TEST_CONFIG_PATH: ${{ secrets.MS_TEST_CONFIG_PATH_SMOKE }}
-        #MS_CONFIG_PATH: ${{ secrets.MS_CONFIG_PATH_SMOKE }}
+        AWS_REGION: ${{ vars.AWS_REGION }}
+        S3_BUCKET_NAME: ${{ vars.S3_BUCKET_NAME }}
       run: |
         set +e
         output=$(docker run --rm \
-          -e OPENAI_TOKEN="${{ secrets.OPENAI_TOKEN }}" \
-          -e AWS_ACCESS_KEY_ID="$AWS_ACCESS_KEY_ID" \
-          -e MOON_V1_CLI_DIR="$MOON_V1_CLI_DIR" \
-          -e AWS_SECRET_ACCESS_KEY="$AWS_SECRET_ACCESS_KEY" \
-          -e AWS_SESSION_TOKEN="$AWS_SESSION_TOKEN" \
+          -e OPENAI_API_KEY \
+          -e MOON_V1_CLI_DIR \
+          -e AWS_ACCESS_KEY_ID \
+          -e AWS_SECRET_ACCESS_KEY \
           -e AWS_REGION="$AWS_REGION" \
+          -e S3_BUCKET_NAME \
           --entrypoint "" \
           -v "${{ github.workspace }}/moonshot-smoke-testing:/app/moonshot-smoke-testing/" \
+          -v "${{ github.workspace }}/.ci:/app/.ci/" \
           moonshot:test sh -c "sh .ci/run-smoke-integration-test.sh smoke" 2>&1)
 
         exit_code=$?
@@ -112,19 +111,19 @@ jobs:
         fi
 
 
-    - name: Send Slack Notification
-      if: always()  # ensure it runs even if the test fails
-      uses: slackapi/slack-github-action@v1.26.0
-      with:
-        payload: |
-            {
-              "workflow": "${{ github.repository }} | ${{ github.workflow }} | Smoke Test",
-              "status": "${{ env.STATUS }}",
-              "details": "smoke-integration-tests",
-              "ref": "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
-            }
-      env:
-        SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_CI }}
+    # - name: Send Slack Notification
+    #   if: always()  # ensure it runs even if the test fails
+    #   uses: slackapi/slack-github-action@v1.26.0
+    #   with:
+    #     payload: |
+    #         {
+    #           "workflow": "${{ github.repository }} | ${{ github.workflow }} | Smoke Test",
+    #           "status": "${{ env.STATUS }}",
+    #           "details": "smoke-integration-tests",
+    #           "ref": "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+    #         }
+    #   env:
+    #     SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_CI }}
 
 
 
@@ -167,7 +166,7 @@ jobs:
 
     - name: Build Docker image
       run: |
-        docker build -t moonshot:test . 
+        docker build -t moonshot:test -f moonshot_core/Dockerfile moonshot_core
 
     - name: Checkout Integration Test
       uses: actions/checkout@v4

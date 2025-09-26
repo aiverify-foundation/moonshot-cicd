@@ -46,7 +46,7 @@ jobs:
     
           - name: Build Docker image
             run: |
-              docker build -t moonshot:test .
+              docker build -t moonshot:test -f moonshot_core/Dockerfile moonshot_core
 
           - name: Run Smoke Tests on Moonshot Image
             run: |

@@ -6,7 +6,7 @@
 # 4. Dockerfile Scan (Hadolint)
 # 5. SCA scan (Blackduck)
 
-name: v1 Pre-build Checks 
+name: v1 Pre-build Checks PC
 
 env:
   GH_TOKEN: ${{ github.token }}
@@ -60,8 +60,10 @@ jobs:
           python3 -m venv venv
           source venv/bin/activate
           pip install poetry
+          cd process_check_app
           poetry lock
           poetry install --with dev
+          cd ..
 
       - name: Unit tests
         id: unit_test
@@ -69,7 +71,7 @@ jobs:
           source venv/bin/activate
           export COVERAGE_THRESHOLD=${{ vars.COVERAGE_THRESHOLD }}
           set +e
-          bash .ci/run-test.sh src process_check_app
+          bash .ci/run-test.sh process_check_app
           source .ci/gen_pre_build_summ.sh test
           test_status=$?
           source .ci/gen_pre_build_summ.sh coverage
@@ -123,11 +125,11 @@ jobs:
           fi
       
       # Check 4: Hadolint
-      - name: Run Hadolint
+      - name: Run Hadolint (process_check_app)
         uses: hadolint/hadolint-action@v3.1.0
         if: ${{ ! cancelled() }}
         with:
-          dockerfile: Dockerfile
+          dockerfile: process_check_app/Dockerfile
           output-file: hadolint-report.json
           format: json
           no-fail: true
@@ -143,10 +145,11 @@ jobs:
           
           export message="$HADOLINT_SUMMARY"
           export dockerfile_root=0  # Ensure variable is initialized
+          export DOCKERFILE_PATH="process_check_app/Dockerfile"
 
-          if ! grep -q '^USER ' "./Dockerfile"; then
+          if ! grep -q '^USER ' "$DOCKERFILE_PATH"; then
             # Temporary clause to ignore certain Dockerfile checks. Will remove in future.
-            if [[ "./Dockerfile" != *"$IGNORE"* ]]; then
+            if [[ "$DOCKERFILE_PATH" != *"$IGNORE"* ]]; then
               echo "-----------------------------------------------------------"
               echo "Your Dockerfile user is root. It must be changed to a non-root!"
               message+=" + Your Dockerfile user is root"
@@ -162,12 +165,13 @@ jobs:
             exit 1
           fi
 
-      - name: Install dependencies and scan with Black Duck
-        id: sca
+      - name: Install dependencies and scan with Black Duck (process_check_app)
+        id: sca_moonshot_process_check_app
         if: ${{ !cancelled() }}
         run: |
           export BRANCH=$MS_BRANCH
           pip install poetry
+          cd process_check_app
           poetry lock
           poetry env use python3.12
           poetry install
@@ -185,7 +189,7 @@ jobs:
             --detect.included.detector.types=POETRY \
             --detect.excluded.directories=".venv,venv,/opt/hostedtoolcache,/usr,/home/runner,/github" 
       
-      # Send status to Slack 
+
       - name: Send slack notification
         if: ${{ ! cancelled() }}
         uses: slackapi/slack-github-action@v1.26.0

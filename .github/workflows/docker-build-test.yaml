@@ -35,11 +35,11 @@ jobs:
       IMAGE_NAME_PC: process_checks
 
     steps:
-    - name: Configure AWS credentials
-      uses: aws-actions/configure-aws-credentials@v4
-      with:
-        aws-region: ap-southeast-1
-        role-to-assume: ${{ secrets.AWS_ROLE_TO_ASSUME }}
+    # - name: Configure AWS credentials
+    #   uses: aws-actions/configure-aws-credentials@v4
+    #   with:
+    #     aws-region: ap-southeast-1
+    #     role-to-assume: ${{ secrets.AWS_ROLE_TO_ASSUME }}
 
     - name: Checkout code
       uses: actions/checkout@v4
@@ -63,7 +63,7 @@ jobs:
     - name: Build Moonshot Docker image
       if: ${{ inputs.moonshot_tag != '' }}
       run: |
-        docker build -t moonshot:${{ inputs.moonshot_tag }} .
+        docker build -t moonshot:${{ inputs.moonshot_tag }} -f moonshot_core/Dockerfile moonshot_core
 
     - name: Push Moonshot Image to GitHub CR
       if: ${{ inputs.moonshot_tag != '' }}
