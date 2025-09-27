@@ -50,6 +50,13 @@ export default function Home() {
             Read our docs
           </a>
         </div>
+          {/* Link to View Bundles page */}
+          <a
+            className="rounded-full border border-solid border-blue-500 transition-colors flex items-center justify-center bg-blue-500 text-white gap-2 hover:bg-blue-700 font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 sm:w-auto mt-4"
+            href="/view_bundles"
+          >
+            View Bundles
+          </a>
       </main>
       <footer className="row-start-3 flex gap-[24px] flex-wrap items-center justify-center">
         <a
