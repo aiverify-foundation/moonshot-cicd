@@ -55,8 +55,8 @@ jobs:
     - name: Push Moonshot Image to GitHub CR
       run: |
         docker login --username ${{ github.actor }} --password ${{ secrets.GITHUB_TOKEN }} ghcr.io
-        docker tag moonshot:dev_main ghcr.io/aiverify-foundation/moonshot:dev_main
-        docker push ghcr.io/aiverify-foundation/moonshot:dev_main
+        docker tag moonshot:dev_main ghcr.io/${{ env.GHCR_NAMESPACE }}/moonshot:${{ env.IMAGE_TAG }}
+        docker push ghcr.io/${{ env.GHCR_NAMESPACE }}/moonshot:${{ env.IMAGE_TAG }}
 
     # - name: Build and Push Moonshot
     #   uses: docker/build-push-action@v5
@@ -71,7 +71,7 @@ jobs:
     - name: Build and Push Process Checks (Multi-arch to GHCR)
       uses: docker/build-push-action@v5
       with:
-        context: .
+        context: process_check_app
         file: process_check_app/Dockerfile
         platforms: linux/amd64,linux/arm64
         push: true
