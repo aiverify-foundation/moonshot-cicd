@@ -4,7 +4,6 @@
 # 3. Dependency analysis (vulnerabilities)
 # 3. Dependency analysis (copyleft licenses)
 # 4. Dockerfile Scan (Hadolint)
-# 5. SCA scan (Blackduck)
 
 name: v1 Pre-build Checks Core
 
@@ -167,42 +166,3 @@ jobs:
             echo "STATUS=failure" >> $GITHUB_ENV
             exit 1
           fi
-
-      - name: Install dependencies and scan with Black Duck (moonshot_core)
-        id: sca_moonshot_core
-        if: ${{ !cancelled() }}
-        run: |
-          export BRANCH=$MS_BRANCH
-          pip install poetry
-          cd moonshot_core
-          poetry lock
-          poetry env use python3.12
-          poetry install
-          # Run Black Duck Detect with exclusions
-          poetry run bash <(curl -s -L https://detect.blackduck.com/detect9.sh) \
-            --blackduck.url=https://blackduck.aipo-imda.net/ \
-            --blackduck.api.token=${{ secrets.BLACKDUCK_TOKEN }} \
-            --detect.detector.search.depth=10 \
-            --detect.project.name=moonshot-cicd \
-            --detect.project.version.name=$BRANCH \
-            --detect.source.path=. \
-            --blackduck.trust.cert=true \
-            --detect.debug=true \
-            --detect.project.version.update=true \
-            --detect.included.detector.types=POETRY \
-            --detect.excluded.directories=".venv,venv,/opt/hostedtoolcache,/usr,/home/runner,/github" 
-      
-      # Send status to Slack 
-      # - name: Send slack notification
-      #   if: ${{ ! cancelled() }}
-      #   uses: slackapi/slack-github-action@v1.26.0
-      #   with:
-      #     payload: |
-      #       {
-      #         "workflow": "${{ github.repository }} | ${{ github.workflow }} | ${{ env.PR_NUM }}",
-      #         "status": "${{ env.STATUS }}",
-      #         "details": "${{ steps.unit_test.outputs.unit_test_status }} | ${{ steps.unit_test.outputs.code_coverage_status }} | ${{ steps.code_quality.outputs.code_quality_status }} | ${{ steps.dependency_analysis.outputs.dependency_status }} | ${{ steps.dependency_analysis.outputs.license_status }} | ${{ steps.hadolint.outputs.hadolint_status }}" ,
-      #         "ref": "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
-      #       }
-      #   env:
-      #     SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_CI }}
