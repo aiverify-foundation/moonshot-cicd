@@ -22,7 +22,7 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  Black-Duck-Polaris-Security-Scans:
+  Black-Duck-Polaris-Security-Scans-Moonshot-Core:
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -44,6 +44,25 @@ jobs:
           ref: ${{ env.MS_BRANCH }}
           submodules: recursive
 
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install dependencies
+        run: |
+          python3 -m venv venv
+          source venv/bin/activate
+          pip install poetry
+          cd moonshot_core
+          poetry lock
+          # This is a temporary fix to avoid poetry's AttributeError: 'Metadata' object has no attribute 'license_expression' on first install
+          set +e
+          poetry install --with dev
+          set -e
+          poetry install --with dev
+          cd ..
+
       - name: Polaris SCA/SAST Scan
         id: polaris-sca-sast-scan
         if: ${{ ! cancelled() }}
@@ -53,10 +72,12 @@ jobs:
           polaris_server_url: ${{ vars.POLARIS_SERVER_URL }}
           polaris_access_token: ${{ secrets.POLARIS_ACCESS_TOKEN }}
           polaris_assessment_types: "SCA,SAST"
+          project_directory: "moonshot_core"
+          project_source_excludes: "tests"
           
           ### SCANNING: Optional fields
-          polaris_application_name: 'Moonshot CI/CD'
-          polaris_project_name: 'moonshot-cicd'
+          polaris_application_name: "Moonshot CI/CD"
+          polaris_project_name: "moonshot-cicd"
 
           ## PULL REQUEST COMMENTS: Uncomment below to enable
           polaris_prComment_enabled: true 
@@ -67,10 +88,10 @@ jobs:
           polaris_upload_sarif_report: true
 
           ### Signature scan
-          polaris_test_sca_type: "SCA-SIGNATURE"
+          polaris_test_sca_type: "SCA-PACKAGE"
 
           ### Mark build status if policy violating issues are found
-          mark_build_status: 'success'
+          mark_build_status: "success"
 
       ### Uncomment below configuration to add custom logic based on return status
       - name: cmdLine
