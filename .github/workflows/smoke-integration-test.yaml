@@ -13,9 +13,8 @@ on:
         type: string
   pull_request:
     branches: [dev_main, main]
-    paths-ignore:
-      - Dockerfile_PC
-      - process_check_app/**
+    paths:
+      - moonshot_core/**
 
 # Allow one concurrent deployment
 concurrency:

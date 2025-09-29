@@ -22,7 +22,6 @@ on:
   pull_request:
     branches: [main, dev_main]
     paths:
-      - Dockerfile_PC
       - process_check_app/**
 
 
@@ -41,34 +40,43 @@ jobs:
     env:
       STATUS_SMOKE: skipped
       STATUS_INTEGRATION: skipped
+      IMAGE_NAME_TAG: process_checks:test
+      CONTAINER_NAME: process_checks_test
 
     steps:
       - name: Checkout repo (PR or dispatch)
         uses: actions/checkout@v4
         with:
+          repository: ${{ github.repository}}
           ref: ${{ github.head_ref || inputs.moonshot_branch }}
 
-      - name: Setup Python
-        uses: actions/setup-python@v4
-        with:
-          python-version: '3.12'
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
 
-      - name: Setup Node.js
-        uses: actions/setup-node@v3
-        with:
-          node-version: 18
-
-      - name: Install dependencies and run Streamlit
+      - name: Build Docker image
         run: |
-          python3 -m venv venv
-          source venv/bin/activate
-          cd process_check_app
-          pip install poetry
-          poetry lock
-          poetry install --with dev
-          nohup streamlit run streamlit_app.py --server.headless true > streamlit.log 2>&1 &
-          sleep 10
-          curl -v http://localhost:8501
+          docker build -t ${{ env.IMAGE_NAME_TAG }} -f process_check_app/Dockerfile process_check_app 
+
+      - name: Run Process Checks container
+        run: |
+          docker run -d -p 8501:8501 -p 8000:8000 -e TZ=Asia/Singapore --name ${{ env.CONTAINER_NAME }} ${{ env.IMAGE_NAME_TAG }}
+
+      # - name: Setup Python
+      #   uses: actions/setup-python@v4
+      #   with:
+      #     python-version: '3.12'
+
+      # - name: Install dependencies and run Streamlit
+      #   run: |
+      #     python3 -m venv venv
+      #     source venv/bin/activate
+      #     cd process_check_app
+      #     pip install poetry
+      #     poetry lock
+      #     poetry install --with dev
+      #     nohup streamlit run streamlit_app.py --server.headless true > streamlit.log 2>&1 &
+      #     sleep 10
+      #     curl -v http://localhost:8501
 
       - name: Wait for Streamlit to start
         run: |
@@ -77,6 +85,11 @@ jobs:
             echo "Waiting for Streamlit..."
             sleep 2
           done
+
+      - name: Setup Node.js for Smoke Test/Integration Test
+        uses: actions/setup-node@v3
+        with:
+          node-version: 18
 
       # Smoke test: only on PR to dev_main or workflow_dispatch
       - name: Checkout Smoke Test
@@ -100,21 +113,6 @@ jobs:
           else
             echo "STATUS_SMOKE=success" >> $GITHUB_ENV
           fi
-
-      # - name: Slack Notification - Smoke Test
-      #   if: always() && (github.event_name == 'workflow_dispatch' || github.base_ref == 'dev_main')
-      #   uses: slackapi/slack-github-action@v1.26.0
-      #   with:
-      #     payload: |
-      #       {
-      #         "workflow": "${{ github.repository }} | ${{ github.workflow }} | Smoke Test",
-      #         "status": "${{ env.STATUS_SMOKE }}",
-      #         "details": "pc_smoke",
-      #         "ref": "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
-      #       }
-      #   env:
-      #     SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_CI }}
-
 
       # Integration test: only on PR to main or workflow_dispatch
       - name: Checkout Integration Test
@@ -140,20 +138,6 @@ jobs:
             echo "STATUS_INTEGRATION=success" >> $GITHUB_ENV
           fi
 
-      # - name: Slack Notification - Integration Test
-      #   if: always() && (github.event_name == 'workflow_dispatch' || github.base_ref == 'main')
-      #   uses: slackapi/slack-github-action@v1.26.0
-      #   with:
-      #     payload: |
-      #       {
-      #         "workflow": "${{ github.repository }} | ${{ github.workflow }} | Integration Test",
-      #         "status": "${{ env.STATUS_INTEGRATION }}",
-      #         "details": "pc_integration",
-      #         "ref": "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
-      #       }
-      #   env:
-      #     SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_CI }}
-
       - name: Upload Playwright Traces Process Check
         if: always() && (github.event_name == 'workflow_dispatch' || github.base_ref == 'main')
         uses: actions/upload-artifact@v4
@@ -164,7 +148,8 @@ jobs:
       
       - name: Upload Streamlit logs if tests fail
         if: failure()
+        - run: docker logs ${{ env.CONTAINER_NAME }} &> streamlit.log
         uses: actions/upload-artifact@v4
         with:
           name: streamlit-log
-          path: process_check_app/streamlit.log
+          path: streamlit.log
