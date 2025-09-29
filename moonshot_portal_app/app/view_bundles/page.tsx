@@ -13,11 +13,15 @@ import { Checkbox } from "@/components/ui/checkbox"
 import { Button } from "@/components/ui/button"
 import { Separator } from "@/components/ui/separator"
 import { FileTerminal } from 'lucide-react';
-import { useState } from 'react';
+import { Provider } from 'react-redux';
+import store, { setBundleSelected } from '../../store';
+import { useAppSelector, useAppDispatch } from '../../hooks/reduxHooks';
 //<FileTerminal />
 
-export default function ViewBundles() {
-  const [option1, setOption1] = useState(false);
+// ...existing code...
+function ViewBundlesInner() {
+  const bundleSelection = useAppSelector((state) => state.bundleSelection);
+  const dispatch = useAppDispatch();
 
   interface CardProps {
     bundle_name: string;
@@ -25,7 +29,7 @@ export default function ViewBundles() {
     recipe_list: string[];
   }
 
-  function CheckboxToggleButton({ children, checked, onCheckedChange, ...props }) {
+  function CheckboxToggleButton({ children, checked, onCheckedChange, ...props }: { children: React.ReactNode; checked: boolean; onCheckedChange: (checked: boolean) => void; [key: string]: any }) {
   return (
     <Button
       variant={checked ? "secondary" : "outline"}
@@ -45,6 +49,7 @@ export default function ViewBundles() {
   }
 
   function renderCard({ bundle_name, description, recipe_list }: CardProps) {
+    const selected = bundleSelection[bundle_name] || false;
     return (
       <Card style={{ width: '400px', height: '450px', display: 'flex', flexDirection: 'column' }}>
         <CardHeader>
@@ -94,9 +99,9 @@ export default function ViewBundles() {
           </ul>
         </CardContent>
         <CardFooter className="flex items-center justify-between gap-2">
-          <CheckboxToggleButton 
-            checked={option1} 
-            onCheckedChange={setOption1}
+          <CheckboxToggleButton
+            checked={selected}
+            onCheckedChange={(checked: boolean) => dispatch(setBundleSelected({ bundleId: bundle_name, selected: checked }))}
           >
             selected
           </CheckboxToggleButton>
@@ -144,3 +149,11 @@ export default function ViewBundles() {
     </main>
   );
 }
+
+const ViewBundles = () => (
+  <Provider store={store}>
+    <ViewBundlesInner />
+  </Provider>
+);
+
+export default ViewBundles;
