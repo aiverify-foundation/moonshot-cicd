@@ -148,7 +148,7 @@ jobs:
       
       - name: Upload Streamlit logs if tests fail
         if: failure()
-        - run: docker logs ${{ env.CONTAINER_NAME }} &> streamlit.log
+        run: docker logs ${{ env.CONTAINER_NAME }} &> streamlit.log
         uses: actions/upload-artifact@v4
         with:
           name: streamlit-log
