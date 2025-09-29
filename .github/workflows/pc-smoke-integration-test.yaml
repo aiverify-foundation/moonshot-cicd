@@ -146,9 +146,11 @@ jobs:
           path: |
             /home/runner/work/moonshot-cicd/moonshot-integration-testing/moonshot-v1-process-checks-integration-testing/test-results
       
+      - name: Get Streamlit logs from docker container
+        run: docker logs ${{ env.CONTAINER_NAME }} &> streamlit.log
+
       - name: Upload Streamlit logs if tests fail
         if: failure()
-        run: docker logs ${{ env.CONTAINER_NAME }} &> streamlit.log
         uses: actions/upload-artifact@v4
         with:
           name: streamlit-log
