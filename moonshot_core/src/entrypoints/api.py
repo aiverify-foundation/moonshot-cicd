@@ -3,12 +3,13 @@ FastAPI application for Moonshot CI/CD.
 This module provides a REST API interface for the Moonshot benchmarking system.
 """
 
-from fastapi import FastAPI, Request
+from fastapi import FastAPI, Request, HTTPException
 from fastapi.responses import JSONResponse, FileResponse
 from fastapi.staticfiles import StaticFiles
 from typing import Dict, Any
 import os
 from pathlib import Path
+from urllib.parse import urlparse
 from domain.services.app_config import AppConfig
 from domain.services.logger import configure_logger
 
@@ -38,6 +39,38 @@ def get_build_directory() -> Path:
     return Path(build_dir_config)
 
 
+def is_valid_request(request: Request) -> bool:
+    """
+    Validate if the request is coming from the application and not direct access.
+    This prevents users from accessing static files directly through the address bar.
+    """
+    # Check if request has a referer header (indicates it came from a page)
+    referer = request.headers.get("referer")
+    if not referer:
+        logger.warning(f"Direct access attempt to {request.url} - no referer header")
+        return False
+    
+    # Parse the referer URL to get the host
+    try:
+        referer_parsed = urlparse(referer)
+        request_parsed = urlparse(str(request.url))
+        
+        # Check if referer host matches request host (same origin)
+        if referer_parsed.netloc != request_parsed.netloc:
+            logger.warning(f"Cross-origin access attempt to {request.url} from {referer}")
+            return False
+            
+        # Check if referer is from the main application (not a direct file access)
+        if not referer_parsed.path or referer_parsed.path == "/" or referer_parsed.path.startswith("/"):
+            return True
+            
+    except Exception as e:
+        logger.error(f"Error parsing referer header: {e}")
+        return False
+    
+    return True
+
+
 @app.get("/")
 async def root():
     """Root endpoint that serves the main HTML file or returns a welcome message."""
@@ -53,21 +86,36 @@ async def root():
 
 
 @app.api_route("/{file_path:path}", methods=["GET", "HEAD"])
-async def serve_static_files(file_path: str):
-    """Serve static files from the build directory."""
+async def serve_static_files(file_path: str, request: Request):
+    """Serve static files from the build directory with access control."""
+    # Validate that the request is coming from the application, not direct access
+    if not is_valid_request(request):
+        logger.warning(f"Blocked direct access attempt to: {file_path}")
+        raise HTTPException(status_code=403, detail="Direct access to static files is not allowed")
+    
+    # Security check: detect path traversal attempts in the raw URL path
+    raw_path = request.url.path
+    if ".." in raw_path or "//" in raw_path:
+        logger.warning(f"Path traversal attempt blocked in raw path: {raw_path}")
+        raise HTTPException(status_code=403, detail="Access denied")
+    
     build_dir = get_build_directory()
+    
     requested_file = build_dir / file_path
     
-    # Security check: ensure the file is within the build directory
+    # Additional security check: ensure the file is within the build directory
     try:
         requested_file.resolve().relative_to(build_dir.resolve())
     except ValueError:
-        return JSONResponse({"error": "Access denied"}, status_code=403)
+        logger.warning(f"Path traversal attempt blocked: {file_path}")
+        raise HTTPException(status_code=403, detail="Access denied")
     
     if requested_file.exists() and requested_file.is_file():
+        logger.info(f"Serving static file: {file_path}")
         return FileResponse(str(requested_file))
     else:
-        return JSONResponse({"error": "File not found"}, status_code=404)
+        logger.warning(f"Static file not found: {file_path}")
+        raise HTTPException(status_code=404, detail="File not found")
 
 # -------------------------------------------------------------------------------------------------
 # This part assumes that the build directory is configured in moonshot_config.yaml
@@ -78,14 +126,15 @@ async def serve_static_files(file_path: str):
 # Mount static files from configured build directory
 build_dir = get_build_directory()
 if build_dir.exists():
-    # Mount Next.js static files at /_next/ path
+    # Note: Next.js static files are now served through the catch-all route handler
+    # with access control to prevent direct URL access
     next_static_dir = build_dir / "_next"
     if next_static_dir.exists():
-        app.mount("/_next", StaticFiles(directory=str(next_static_dir)), name="next_static")
-        logger.info(f"Next.js static files mounted from: {next_static_dir}")
+        logger.info(f"Next.js static files directory found at: {next_static_dir}")
+        logger.info("Next.js static files will be served via the catch-all route handler with access control")
     
     logger.info(f"Build directory found at: {build_dir}")
-    logger.info("Static files will be served via the catch-all route handler")
+    logger.info("Static files will be served via the catch-all route handler with access control")
 else:
     logger.warning(f"Build directory not found at: {build_dir}")
 

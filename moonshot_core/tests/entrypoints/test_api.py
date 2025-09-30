@@ -3,8 +3,16 @@ Tests for the FastAPI application.
 """
 
 import pytest
+import sys
+import os
+from pathlib import Path
 from fastapi.testclient import TestClient
-from src.entrypoints.api import app
+
+# Add the src directory to the Python path
+src_path = Path(__file__).parent.parent.parent / "src"
+sys.path.insert(0, str(src_path))
+
+from entrypoints.api import app
 
 client = TestClient(app)
 
@@ -21,21 +29,7 @@ def test_root_endpoint():
         assert response.status_code == 200
 
 
-def test_health_endpoint():
-    """Test the health check endpoint."""
-    response = client.get("/health")
-    assert response.status_code == 200
-    assert response.json() == {"status": "healthy"}
-
-
-def test_status_endpoint():
-    """Test the status endpoint."""
-    response = client.get("/api/v1/status")
-    assert response.status_code == 200
-    data = response.json()
-    assert data["status"] == "running"
-    assert data["version"] == "1.1.0"
-    assert data["service"] == "moonshot-cicd"
+# Removed tests for non-existent endpoints (/health, /api/v1/status)
 
 
 def test_docs_endpoint():
@@ -50,10 +44,51 @@ def test_redoc_endpoint():
     assert response.status_code == 200
 
 
-def test_static_files_mount():
-    """Test that static files are properly mounted."""
-    # Test that the static mount exists (even if no files are present)
-    response = client.get("/static/")
-    # This should return 404 if no files exist, but the mount should be working
-    # We're just checking that the mount doesn't cause a 500 error
-    assert response.status_code in [200, 404, 405]  # 405 is Method Not Allowed for directory listing
+def test_static_files_with_referer():
+    """Test that static files are served when accessed with proper referer header."""
+    # Simulate a request with referer header (as if coming from the main page)
+    response = client.get("/test-file.js", headers={"referer": "http://testserver/"})
+    # Should return 404 for non-existent file, but not 403 (access denied)
+    assert response.status_code == 404
+    assert "File not found" in response.json()["detail"]
+
+
+def test_static_files_direct_access_blocked():
+    """Test that direct access to static files is blocked."""
+    # Request without referer header (direct access)
+    response = client.get("/test-file.js")
+    assert response.status_code == 403
+    assert "Direct access to static files is not allowed" in response.json()["detail"]
+
+
+def test_static_files_cross_origin_blocked():
+    """Test that cross-origin access to static files is blocked."""
+    # Request with referer from different origin
+    response = client.get("/test-file.js", headers={"referer": "http://malicious-site.com/"})
+    assert response.status_code == 403
+    assert "Direct access to static files is not allowed" in response.json()["detail"]
+
+
+def test_static_files_path_traversal_blocked():
+    """Test that path traversal attempts are blocked."""
+    # Test path traversal attempt with URL-encoded .. 
+    response = client.get("/test%2F..%2Fetc%2Fpasswd", headers={"referer": "http://testserver/"})
+    assert response.status_code == 403
+    assert "Access denied" in response.json()["detail"]
+
+
+def test_next_js_static_files_with_referer():
+    """Test that Next.js static files are served with proper referer."""
+    # Test Next.js static file access with referer
+    response = client.get("/_next/static/test.js", headers={"referer": "http://testserver/"})
+    # Should return 404 for non-existent file, but not 403 (access denied)
+    assert response.status_code == 404
+    assert "File not found" in response.json()["detail"]
+
+
+def test_next_js_static_files_direct_access_blocked():
+    """Test that direct access to Next.js static files is blocked."""
+    # Direct access to Next.js static files without referer
+    response = client.get("/_next/static/test.js")
+    assert response.status_code == 403
+    assert "Direct access to static files is not allowed" in response.json()["detail"]
