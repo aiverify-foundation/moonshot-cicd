@@ -119,12 +119,21 @@ async def serve_static_files(file_path: str, request: Request):
         logger.warning(f"Path traversal attempt blocked: {file_path}")
         raise HTTPException(status_code=403, detail="Access denied")
 
+    # Check if the requested file exists
     if requested_file.exists() and requested_file.is_file():
         logger.info(f"Serving static file: {file_path}")
         return FileResponse(str(requested_file))
-    else:
-        logger.warning(f"Static file not found: {file_path}")
-        raise HTTPException(status_code=404, detail="File not found")
+    
+    # Check if it's a directory and has an index.html file (Next.js static export structure)
+    elif requested_file.exists() and requested_file.is_dir():
+        index_file = requested_file / "index.html"
+        if index_file.exists():
+            logger.info(f"Serving directory index file: {file_path}/index.html")
+            return FileResponse(str(index_file))
+    
+    # If neither file nor directory with index.html exists, return 404
+    logger.warning(f"Static file not found: {file_path}")
+    raise HTTPException(status_code=404, detail="File not found")
 
 # -------------------------------------------------------------------------------------------------
 # This part assumes that the build directory is configured in moonshot_config.yaml
