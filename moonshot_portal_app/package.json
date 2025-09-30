@@ -4,8 +4,7 @@
   "private": true,
   "scripts": {
     "dev": "next dev --turbopack",
-    "build": "next build --turbopack && npm run move-build",
-    "move-build": "rm -rf ../build && mv out ../build",
+    "build": "next build --turbopack",
     "start": "next start",
     "lint": "eslint"
   },
@@ -27,7 +26,6 @@
   },
   "devDependencies": {
     "@eslint/eslintrc": "^3",
-    "@playwright/test": "^1.40.0",
     "@tailwindcss/postcss": "^4",
     "@types/jest": "^29.5.8",
     "@types/node": "^22",
