@@ -29,7 +29,7 @@ function ViewBundlesInner() {
     recipe_list: string[];
   }
 
-  function CheckboxToggleButton({ children, checked, onCheckedChange, ...props }: { children: React.ReactNode; checked: boolean; onCheckedChange: (checked: boolean) => void; [key: string]: any }) {
+  function CheckboxToggleButton({ children, checked, onCheckedChange, ...props }: { children: React.ReactNode; checked: boolean; onCheckedChange: (checked: boolean) => void; [key: string]: unknown }) {
   return (
     <Button
       variant={checked ? "secondary" : "outline"}
