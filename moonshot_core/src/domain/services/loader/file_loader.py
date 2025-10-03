@@ -5,6 +5,7 @@ from domain.services.loader.factory.storage_provider_factory import (
     StorageProviderFactory,
 )
 from domain.services.loader.loader_types.config_loader import ConfigLoader
+from domain.services.loader.loader_types.data_loader import DataLoader
 from domain.services.loader.loader_types.dataset_loader import DatasetLoader
 from domain.services.loader.loader_types.test_config_loader import TestConfigLoader
 from domain.services.logger import configure_logger
@@ -26,6 +27,7 @@ class FileLoader:
         "dataset": DatasetLoader,
         "test_config": TestConfigLoader,
         "config": ConfigLoader,
+        "data": DataLoader,
     }
 
     # Error message for unknown file types

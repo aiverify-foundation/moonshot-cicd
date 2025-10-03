@@ -52,6 +52,8 @@ class AppConfig:
         "[AppConfig] Error loading attack_module configuration: {error}"
     )
     FILE_NOT_FOUND_ERROR = "[AppConfig] File not found: {file_name}"
+    BENCHMARK_SOURCE_ENV_VAR = f"{DEFAULT_DATA_PATH}/test_configs"
+    DEFAULT_BENCHMARK_SOURCE = "shared.yaml"
 
     _instance: Optional[AppConfig] = None
     _config: Optional[AppConfigEntity] = None
@@ -283,3 +285,12 @@ class AppConfig:
             self.TEST_CONFIG_PATH_ENV_VAR, self.DEFAULT_TEST_CONFIGS_FILE
         )
         return test_config_filepath
+
+    def get_benchmark_source(self) -> str:
+        """
+        Retrieve the benchmark source.
+
+        Returns:
+            str: The benchmark source.
+        """
+        return os.getenv(self.BENCHMARK_SOURCE_ENV_VAR, self.DEFAULT_BENCHMARK_SOURCE)

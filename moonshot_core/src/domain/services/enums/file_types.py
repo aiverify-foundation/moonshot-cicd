@@ -14,3 +14,6 @@ class FileTypes(Enum):
 
     # Represents a test file
     TEST_CONFIG = "test_config"
+
+    # Represents a data file
+    DATA = "data"
