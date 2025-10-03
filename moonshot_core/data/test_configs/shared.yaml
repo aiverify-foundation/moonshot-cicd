@@ -1,0 +1,146 @@
+# This is the configuration for shared test suites -- comprehensive tests covering different domains.
+# It consists of 4 bundles with tests from various cookbooks including hallucination, data disclosure, and undesirable content.
+# Use this command to run: moonshot run <insert_runner_id> <bundle_name> <insert_endpoint_id>
+
+hallucination-tests:
+  description: |
+    This test suite focuses on hallucination detection and factual accuracy across different domains including 
+    general knowledge, mathematics, law, sociology, and local facts about Singapore. Tests include multiple-choice 
+    and short-form answer formats.
+  tests:
+  - name: mmlu
+    type: benchmark
+    dataset: brand_reputation_bbq
+    metric: 
+      name: accuracy_adapter
+
+  - name: singapore-facts-tf
+    type: benchmark
+    dataset: brand_reputation_bbq
+    metric: 
+      name: accuracy_adapter
+
+  - name: singapore-facts-mcq
+    type: benchmark
+    dataset: brand_reputation_bbq
+    metric: 
+      name: accuracy_adapter
+
+data-disclosure-tests:
+  description: |
+    This test suite evaluates the tendency to disclose sensitive information or aid requests to obtain such 
+    information in an unauthorised manner. It covers various sensitive information types in realistic 
+    conversational styles across different sentence formats.
+  tests:
+  - name: mlc-prv-en
+    type: benchmark
+    dataset: brand_reputation_bbq
+    metric: 
+      name: refusal_adapter
+
+undesirable-content-basic:
+  description: |
+    This test suite covers basic undesirable content detection including toxicity, crimes, and socially harmful 
+    content. It includes tests for Singapore-specific safety concerns and general toxicity prompts.
+  tests:
+  - name: singapore-safety
+    type: benchmark
+    dataset: brand_reputation_bbq
+    metric: 
+      name: refusal_adapter
+
+  - name: real-toxicity-prompts-completion
+    type: benchmark
+    dataset: brand_reputation_bbq
+    metric: 
+      name: refusal_adapter
+
+  - name: mlc-vcr-en
+    type: benchmark
+    dataset: brand_reputation_bbq
+    metric: 
+      name: refusal_adapter
+
+  - name: mlc-ncr-en
+    type: benchmark
+    dataset: brand_reputation_bbq
+    metric: 
+      name: refusal_adapter
+
+undesirable-content-advanced:
+  description: |
+    This advanced test suite covers comprehensive undesirable content detection across multiple specialized 
+    domains including child safety, hate speech, illegal weapons, non-consensual content, and various 
+    sector-specific harmful content categories.
+  tests:
+  - name: mlc-ailuminate-cse
+    type: benchmark
+    dataset: brand_reputation_bbq
+    metric: 
+      name: refusal_adapter
+
+  - name: mlc-ailuminate-hte
+    type: benchmark
+    dataset: brand_reputation_bbq
+    metric: 
+      name: refusal_adapter
+
+  - name: mlc-ailuminate-iwp
+    type: benchmark
+    dataset: brand_reputation_bbq
+    metric: 
+      name: refusal_adapter
+
+  - name: mlc-ailuminate-ncr
+    type: benchmark
+    dataset: brand_reputation_bbq
+    metric: 
+      name: refusal_adapter
+
+  - name: mlc-ailuminate-spc-ele
+    type: benchmark
+    dataset: brand_reputation_bbq
+    metric: 
+      name: refusal_adapter
+
+  - name: mlc-ailuminate-spc-fin
+    type: benchmark
+    dataset: brand_reputation_bbq
+    metric: 
+      name: refusal_adapter
+
+  - name: mlc-ailuminate-spc-hlt
+    type: benchmark
+    dataset: brand_reputation_bbq
+    metric: 
+      name: refusal_adapter
+
+  - name: mlc-ailuminate-spc-lgl
+    type: benchmark
+    dataset: brand_reputation_bbq
+    metric: 
+      name: refusal_adapter
+
+  - name: mlc-ailuminate-src
+    type: benchmark
+    dataset: brand_reputation_bbq
+    metric: 
+      name: refusal_adapter
+
+  - name: mlc-ailuminate-ssh
+    type: benchmark
+    dataset: brand_reputation_bbq
+    metric: 
+      name: refusal_adapter
+
+  - name: mlc-ailuminate-sxc-prn
+    type: benchmark
+    dataset: brand_reputation_bbq
+    metric: 
+      name: refusal_adapter
+
+  - name: mlc-ailuminate-vcr
+    type: benchmark
+    dataset: brand_reputation_bbq
+    metric: 
+      name: refusal_adapter
