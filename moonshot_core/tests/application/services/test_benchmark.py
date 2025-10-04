@@ -1,0 +1,559 @@
+import pytest
+from unittest.mock import Mock, MagicMock, patch
+from typing import List
+
+from application.services.benchmark import BenchmarkService
+from application.dto.bundle_dto import BundleDTO
+from application.dto.benchmark_test_dto import BenchmarkTestDTO
+from application.dto.dataset_dto import DatasetDTO
+from domain.entities.bundle_entity import BundleEntity
+from domain.entities.benchmark_test_entity import BenchmarkTestEntity
+from domain.entities.dataset_entity import DatasetEntity
+
+
+class TestBenchmarkService:
+    """Test class for BenchmarkService"""
+
+    @pytest.fixture
+    def mock_benchmark_repository(self):
+        """Create a mock benchmark repository"""
+        return Mock()
+
+    @pytest.fixture
+    def mock_dataset_repository(self):
+        """Create a mock dataset repository"""
+        return Mock()
+
+    @pytest.fixture
+    def benchmark_service(self, mock_benchmark_repository, mock_dataset_repository):
+        """Create a BenchmarkService instance with mocked dependencies"""
+        return BenchmarkService(mock_benchmark_repository, mock_dataset_repository)
+
+    @pytest.fixture
+    def sample_dataset_entity(self):
+        """Create a sample DatasetEntity for testing"""
+        return DatasetEntity(
+            id="test_dataset_1",
+            name="Test Dataset",
+            description="A test dataset",
+            examples=[{"input": "test", "output": "result"}],
+            num_of_dataset_prompts=10,
+            created_date="2023-12-01",
+            reference="https://example.com",
+            license="MIT"
+        )
+
+    @pytest.fixture
+    def sample_benchmark_test_entity(self, sample_dataset_entity):
+        """Create a sample BenchmarkTestEntity for testing"""
+        return BenchmarkTestEntity(
+            name="test_benchmark",
+            dataset=sample_dataset_entity,
+            metric={"name": "accuracy", "threshold": 0.8},
+            description="Test benchmark"
+        )
+
+    @pytest.fixture
+    def sample_bundle_entity(self, sample_benchmark_test_entity):
+        """Create a sample BundleEntity for testing"""
+        return BundleEntity(
+            name="test_bundle",
+            description="Test bundle",
+            tests=[sample_benchmark_test_entity]
+        )
+
+    def test_initialization_with_repositories(self, mock_benchmark_repository, mock_dataset_repository):
+        """Test BenchmarkService initialization with provided repositories"""
+        # Act
+        service = BenchmarkService(mock_benchmark_repository, mock_dataset_repository)
+
+        # Assert
+        assert service.benchmark_repository == mock_benchmark_repository
+        assert service.dataset_repository == mock_dataset_repository
+
+    def test_initialization_with_none_repositories(self):
+        """Test BenchmarkService initialization with None repositories"""
+        # Act
+        service = BenchmarkService(None, None)
+
+        # Assert
+        assert service.benchmark_repository is not None
+        assert service.dataset_repository is not None
+        assert isinstance(service.benchmark_repository, type(service.benchmark_repository))
+        assert isinstance(service.dataset_repository, type(service.dataset_repository))
+
+    def test_get_bundle_by_id_success(self, benchmark_service, mock_benchmark_repository, sample_bundle_entity):
+        """Test successful bundle retrieval by ID"""
+        # Arrange
+        bundle_id = "test_bundle_1"
+        mock_benchmark_repository.get_bundle_by_id.return_value = sample_bundle_entity
+
+        # Act
+        result = benchmark_service.get_bundle_by_id(bundle_id)
+
+        # Assert
+        mock_benchmark_repository.get_bundle_by_id.assert_called_once_with(bundle_id)
+        assert isinstance(result, BundleDTO)
+        assert result.name == sample_bundle_entity.name
+        assert result.description == sample_bundle_entity.description
+        assert len(result.tests) == len(sample_bundle_entity.tests)
+
+    def test_get_bundle_by_id_not_found(self, benchmark_service, mock_benchmark_repository):
+        """Test bundle retrieval when bundle is not found"""
+        # Arrange
+        bundle_id = "nonexistent_bundle"
+        mock_benchmark_repository.get_bundle_by_id.side_effect = KeyError("Bundle not found")
+
+        # Act & Assert
+        with pytest.raises(KeyError):
+            benchmark_service.get_bundle_by_id(bundle_id)
+
+    def test_get_dataset_by_id_success(self, benchmark_service, mock_dataset_repository, sample_dataset_entity):
+        """Test successful dataset retrieval by ID"""
+        # Arrange
+        dataset_id = "test_dataset_1"
+        mock_dataset_repository.get_dataset_by_id.return_value = sample_dataset_entity
+
+        # Act
+        result = benchmark_service.get_dataset_by_id(dataset_id)
+
+        # Assert
+        mock_dataset_repository.get_dataset_by_id.assert_called_once_with(dataset_id)
+        assert isinstance(result, DatasetDTO)
+        assert result.id == sample_dataset_entity.id
+        assert result.name == sample_dataset_entity.name
+        assert result.description == sample_dataset_entity.description
+        assert result.num_of_dataset_prompts == sample_dataset_entity.num_of_dataset_prompts
+
+    def test_get_dataset_by_id_not_found(self, benchmark_service, mock_dataset_repository):
+        """Test dataset retrieval when dataset is not found"""
+        # Arrange
+        dataset_id = "nonexistent_dataset"
+        mock_dataset_repository.get_dataset_by_id.side_effect = Exception("Dataset not found")
+
+        # Act & Assert
+        with pytest.raises(Exception):
+            benchmark_service.get_dataset_by_id(dataset_id)
+
+    def test_get_test_config_by_id_success(self, benchmark_service, mock_benchmark_repository, sample_benchmark_test_entity):
+        """Test successful test config retrieval by ID"""
+        # Arrange
+        test_config_id = "test_config_1"
+        mock_benchmark_repository.get_benchmark_test_by_id.return_value = sample_benchmark_test_entity
+
+        # Act
+        result = benchmark_service.get_test_config_by_id(test_config_id)
+
+        # Assert
+        mock_benchmark_repository.get_benchmark_test_by_id.assert_called_once_with(test_config_id)
+        assert isinstance(result, BenchmarkTestDTO)
+        assert result.name == sample_benchmark_test_entity.name
+        assert result.metric == sample_benchmark_test_entity.metric
+        assert result.description == sample_benchmark_test_entity.description
+
+    def test_get_test_config_by_id_not_found(self, benchmark_service, mock_benchmark_repository):
+        """Test test config retrieval when config is not found"""
+        # Arrange
+        test_config_id = "nonexistent_config"
+        mock_benchmark_repository.get_benchmark_test_by_id.side_effect = KeyError("Test config not found")
+
+        # Act & Assert
+        with pytest.raises(KeyError):
+            benchmark_service.get_test_config_by_id(test_config_id)
+
+    def test_get_all_test_configs_success(self, benchmark_service, mock_benchmark_repository, sample_benchmark_test_entity):
+        """Test successful retrieval of all test configs"""
+        # Arrange
+        test_entities = [sample_benchmark_test_entity]
+        mock_benchmark_repository.get_all_benchmark_tests.return_value = test_entities
+
+        # Act
+        result = benchmark_service.get_all_test_configs()
+
+        # Assert
+        mock_benchmark_repository.get_all_benchmark_tests.assert_called_once()
+        assert isinstance(result, list)
+        assert len(result) == 1
+        assert isinstance(result[0], BenchmarkTestDTO)
+        assert result[0].name == sample_benchmark_test_entity.name
+
+    def test_get_all_test_configs_empty(self, benchmark_service, mock_benchmark_repository):
+        """Test retrieval of all test configs when none exist"""
+        # Arrange
+        mock_benchmark_repository.get_all_benchmark_tests.return_value = []
+
+        # Act
+        result = benchmark_service.get_all_test_configs()
+
+        # Assert
+        assert isinstance(result, list)
+        assert len(result) == 0
+
+    def test_get_total_test_list_prompts_success(self, benchmark_service, mock_dataset_repository):
+        """Test calculation of total test list prompts"""
+        # Arrange
+        dataset_entity_1 = DatasetEntity(
+            id="dataset_1",
+            name="Dataset 1",
+            description="First dataset",
+            examples=[]
+        )
+        dataset_entity_1.num_of_dataset_prompts = 5
+        
+        dataset_entity_2 = DatasetEntity(
+            id="dataset_2",
+            name="Dataset 2",
+            description="Second dataset",
+            examples=[]
+        )
+        dataset_entity_2.num_of_dataset_prompts = 10
+        
+        mock_dataset_repository.get_dataset_by_id.side_effect = lambda x: dataset_entity_1 if x == "dataset_1" else dataset_entity_2
+        
+        # Create test configs with just dataset IDs
+        dataset_dto_1 = DatasetDTO(
+            id="dataset_1",
+            name="Dataset 1",
+            description="First dataset",
+            examples=[]
+        )
+        dataset_dto_2 = DatasetDTO(
+            id="dataset_2",
+            name="Dataset 2",
+            description="Second dataset",
+            examples=[]
+        )
+        
+        test_configs = [
+            BenchmarkTestDTO(name="test1", dataset=dataset_dto_1, metric={}, description=""),
+            BenchmarkTestDTO(name="test2", dataset=dataset_dto_2, metric={}, description="")
+        ]
+
+        # Act
+        result = benchmark_service.get_total_test_list_prompts(test_configs)
+
+        # Assert
+        assert result == 15  # 5 + 10
+
+    def test_get_total_test_list_prompts_with_none_dataset(self, benchmark_service):
+        """Test calculation of total test list prompts with None dataset"""
+        # Arrange
+        test_configs = [
+            BenchmarkTestDTO(name="test1", dataset=None, metric={}, description=""),
+            BenchmarkTestDTO(name="test2", dataset=None, metric={}, description="")
+        ]
+
+        # Act
+        result = benchmark_service.get_total_test_list_prompts(test_configs)
+
+        # Assert
+        assert result == 0
+
+    def test_get_all_bundles_success(self, benchmark_service, mock_benchmark_repository, sample_bundle_entity):
+        """Test successful retrieval of all bundles"""
+        # Arrange
+        bundle_entities = [sample_bundle_entity]
+        mock_benchmark_repository.get_all_bundles.return_value = bundle_entities
+
+        # Act
+        result = benchmark_service.get_all_bundles()
+
+        # Assert
+        mock_benchmark_repository.get_all_bundles.assert_called_once()
+        assert isinstance(result, list)
+        assert len(result) == 1
+        assert isinstance(result[0], BundleDTO)
+        assert result[0].name == sample_bundle_entity.name
+
+    def test_get_all_bundles_empty(self, benchmark_service, mock_benchmark_repository):
+        """Test retrieval of all bundles when none exist"""
+        # Arrange
+        mock_benchmark_repository.get_all_bundles.return_value = []
+
+        # Act
+        result = benchmark_service.get_all_bundles()
+
+        # Assert
+        assert isinstance(result, list)
+        assert len(result) == 0
+
+    def test_get_total_test_list_recipes(self, benchmark_service):
+        """Test calculation of total test list recipes"""
+        # Arrange
+        test_configs = [
+            BenchmarkTestDTO(name="test1", dataset=None, metric={}, description=""),
+            BenchmarkTestDTO(name="test2", dataset=None, metric={}, description=""),
+            BenchmarkTestDTO(name="test3", dataset=None, metric={}, description="")
+        ]
+
+        # Act
+        result = benchmark_service.get_total_test_list_recipes(test_configs)
+
+        # Assert
+        assert result == 3
+
+    def test_get_total_test_list_recipes_empty(self, benchmark_service):
+        """Test calculation of total test list recipes with empty list"""
+        # Arrange
+        test_configs = []
+
+        # Act
+        result = benchmark_service.get_total_test_list_recipes(test_configs)
+
+        # Assert
+        assert result == 0
+
+    def test_convert_dataset_entity_to_dto(self, benchmark_service, sample_dataset_entity):
+        """Test conversion of DatasetEntity to DatasetDTO"""
+        # Act
+        result = benchmark_service._convert_dataset_entity_to_dto(sample_dataset_entity)
+
+        # Assert
+        assert isinstance(result, DatasetDTO)
+        assert result.id == sample_dataset_entity.id
+        assert result.name == sample_dataset_entity.name
+        assert result.description == sample_dataset_entity.description
+        assert result.examples == sample_dataset_entity.examples
+        assert result.num_of_dataset_prompts == sample_dataset_entity.num_of_dataset_prompts
+        assert result.created_date == sample_dataset_entity.created_date
+        assert result.reference == sample_dataset_entity.reference
+        assert result.license == sample_dataset_entity.license
+
+    def test_convert_dataset_entity_to_dto_with_iterable_examples(self, benchmark_service):
+        """Test conversion of DatasetEntity to DatasetDTO with iterable examples"""
+        # Arrange
+        dataset_entity = DatasetEntity(
+            id="test_id",
+            name="Test Name",
+            description="Test Description",
+            examples=iter([{"input": "test", "output": "result"}])
+        )
+
+        # Act
+        result = benchmark_service._convert_dataset_entity_to_dto(dataset_entity)
+
+        # Assert
+        assert isinstance(result.examples, list)
+        assert len(result.examples) == 1
+
+    def test_convert_benchmark_test_entity_to_dto_with_dataset(self, benchmark_service, sample_benchmark_test_entity):
+        """Test conversion of BenchmarkTestEntity to BenchmarkTestDTO with dataset"""
+        # Act
+        result = benchmark_service._convert_benchmark_test_entity_to_dto(sample_benchmark_test_entity)
+
+        # Assert
+        assert isinstance(result, BenchmarkTestDTO)
+        assert result.name == sample_benchmark_test_entity.name
+        assert result.metric == sample_benchmark_test_entity.metric
+        assert result.description == sample_benchmark_test_entity.description
+        assert result.dataset is not None
+        assert isinstance(result.dataset, DatasetDTO)
+
+    def test_convert_benchmark_test_entity_to_dto_without_dataset(self, benchmark_service):
+        """Test conversion of BenchmarkTestEntity to BenchmarkTestDTO without dataset"""
+        # Arrange
+        benchmark_test_entity = BenchmarkTestEntity(
+            name="test_benchmark",
+            dataset=None,
+            metric={"name": "accuracy", "threshold": 0.8},
+            description="Test benchmark"
+        )
+
+        # Act
+        result = benchmark_service._convert_benchmark_test_entity_to_dto(benchmark_test_entity)
+
+        # Assert
+        assert isinstance(result, BenchmarkTestDTO)
+        assert result.name == benchmark_test_entity.name
+        assert result.metric == benchmark_test_entity.metric
+        assert result.description == benchmark_test_entity.description
+        assert result.dataset is None
+
+    def test_convert_bundle_entity_to_dto(self, benchmark_service, sample_bundle_entity):
+        """Test conversion of BundleEntity to BundleDTO"""
+        # Act
+        result = benchmark_service._convert_bundle_entity_to_dto(sample_bundle_entity)
+
+        # Assert
+        assert isinstance(result, BundleDTO)
+        assert result.name == sample_bundle_entity.name
+        assert result.description == sample_bundle_entity.description
+        assert len(result.tests) == len(sample_bundle_entity.tests)
+        assert isinstance(result.tests[0], BenchmarkTestDTO)
+
+    def test_convert_bundle_entity_to_dto_empty_tests(self, benchmark_service):
+        """Test conversion of BundleEntity to BundleDTO with empty tests"""
+        # Arrange
+        bundle_entity = BundleEntity(
+            name="empty_bundle",
+            description="Empty bundle",
+            tests=[]
+        )
+
+        # Act
+        result = benchmark_service._convert_bundle_entity_to_dto(bundle_entity)
+
+        # Assert
+        assert isinstance(result, BundleDTO)
+        assert result.name == bundle_entity.name
+        assert result.description == bundle_entity.description
+        assert len(result.tests) == 0
+
+    def test_repository_exception_handling(self, mock_benchmark_repository, mock_dataset_repository):
+        """Test exception handling in repository calls"""
+        # Arrange
+        mock_benchmark_repository.get_bundle_by_id.side_effect = Exception("Repository error")
+        service = BenchmarkService(mock_benchmark_repository, mock_dataset_repository)
+
+        # Act & Assert
+        with pytest.raises(Exception):
+            service.get_bundle_by_id("test_id")
+
+    def test_multiple_test_configs_conversion(self, benchmark_service, mock_benchmark_repository):
+        """Test conversion of multiple test configs"""
+        # Arrange
+        dataset_entity = DatasetEntity(
+            id="dataset_1",
+            name="Dataset 1",
+            description="Test dataset",
+            examples=[{"input": "test", "output": "result"}],
+            num_of_dataset_prompts=5
+        )
+        
+        test_entities = [
+            BenchmarkTestEntity(
+                name="test1",
+                dataset=dataset_entity,
+                metric={"name": "accuracy"},
+                description="Test 1"
+            ),
+            BenchmarkTestEntity(
+                name="test2",
+                dataset=dataset_entity,
+                metric={"name": "precision"},
+                description="Test 2"
+            )
+        ]
+        mock_benchmark_repository.get_all_benchmark_tests.return_value = test_entities
+
+        # Act
+        result = benchmark_service.get_all_test_configs()
+
+        # Assert
+        assert len(result) == 2
+        assert result[0].name == "test1"
+        assert result[1].name == "test2"
+        assert result[0].dataset.num_of_dataset_prompts == 5
+        assert result[1].dataset.num_of_dataset_prompts == 5
+
+    def test_edge_case_empty_strings(self, benchmark_service):
+        """Test edge cases with empty strings"""
+        # Arrange
+        dataset_entity = DatasetEntity(
+            id="",
+            name="",
+            description="",
+            examples=[],
+            num_of_dataset_prompts=0,
+            created_date="",
+            reference="",
+            license=""
+        )
+
+        # Act
+        result = benchmark_service._convert_dataset_entity_to_dto(dataset_entity)
+
+        # Assert
+        assert result.id == ""
+        assert result.name == ""
+        assert result.description == ""
+        assert result.examples == []
+        assert result.num_of_dataset_prompts == 0
+
+    def test_large_dataset_conversion(self, benchmark_service):
+        """Test conversion of large dataset"""
+        # Arrange
+        large_examples = [{"example": i} for i in range(1000)]
+        dataset_entity = DatasetEntity(
+            id="large_dataset",
+            name="Large Dataset",
+            description="Large dataset for testing",
+            examples=large_examples,
+            num_of_dataset_prompts=1000
+        )
+
+        # Act
+        result = benchmark_service._convert_dataset_entity_to_dto(dataset_entity)
+
+        # Assert
+        assert len(result.examples) == 1000
+        assert result.num_of_dataset_prompts == 1000
+
+    def test_complex_metric_conversion(self, benchmark_service):
+        """Test conversion with complex metric structure"""
+        # Arrange
+        complex_metric = {
+            "name": "complex_metric",
+            "threshold": 0.85,
+            "weights": {"precision": 0.6, "recall": 0.4},
+            "categories": ["category1", "category2"],
+            "nested": {"config": {"value": 42}}
+        }
+        
+        benchmark_test_entity = BenchmarkTestEntity(
+            name="complex_test",
+            dataset=None,
+            metric=complex_metric,
+            description="Complex test"
+        )
+
+        # Act
+        result = benchmark_service._convert_benchmark_test_entity_to_dto(benchmark_test_entity)
+
+        # Assert
+        assert result.metric == complex_metric
+        assert result.metric["nested"]["config"]["value"] == 42
+
+    @pytest.mark.parametrize("num_prompts", [0, 1, 100, 1000, 999999])
+    def test_various_prompt_counts(self, benchmark_service, mock_dataset_repository, num_prompts):
+        """Test various prompt count scenarios"""
+        # Arrange
+        dataset_entity = DatasetEntity(
+            id="test_dataset",
+            name="Test Dataset",
+            description="Test dataset",
+            examples=[]
+        )
+        dataset_entity.num_of_dataset_prompts = num_prompts
+        
+        mock_dataset_repository.get_dataset_by_id.return_value = dataset_entity
+        
+        dataset_dto = DatasetDTO(
+            id="test_dataset",
+            name="Test Dataset",
+            description="Test dataset",
+            examples=[]
+        )
+        
+        test_configs = [BenchmarkTestDTO(name="test", dataset=dataset_dto, metric={}, description="")]
+
+        # Act
+        result = benchmark_service.get_total_test_list_prompts(test_configs)
+
+        # Assert
+        assert result == num_prompts
+
+    @pytest.mark.parametrize("num_recipes", [0, 1, 5, 10, 100])
+    def test_various_recipe_counts(self, benchmark_service, num_recipes):
+        """Test various recipe count scenarios"""
+        # Arrange
+        test_configs = [
+            BenchmarkTestDTO(name=f"test_{i}", dataset=None, metric={}, description="")
+            for i in range(num_recipes)
+        ]
+
+        # Act
+        result = benchmark_service.get_total_test_list_recipes(test_configs)
+
+        # Assert
+        assert result == num_recipes
