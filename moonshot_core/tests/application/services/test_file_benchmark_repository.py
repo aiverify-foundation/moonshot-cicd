@@ -673,3 +673,191 @@ class TestFileBenchmarkRepository:
                 assert result.description == "Test bundle description"
                 # Verify that test_names from wrapper were used
                 assert len(result.tests) == len(bundles["bundle_1"].test_names)
+
+    def test_get_all_bundles_dataset_resolution(self):
+        """Test that get_all_bundles properly resolves dataset information for each test"""
+        # Arrange
+        # Create mock test wrappers
+        test1_wrapper = Mock(spec=BenchmarkTestEntityWrapper)
+        test1_wrapper.name = "test_1"
+        test1_wrapper.dataset_name = "dataset_1"
+        test1_wrapper.metric = {"name": "accuracy"}
+        test1_wrapper.description = "Test 1"
+        
+        test2_wrapper = Mock(spec=BenchmarkTestEntityWrapper)
+        test2_wrapper.name = "test_2"
+        test2_wrapper.dataset_name = "dataset_2"
+        test2_wrapper.metric = {"name": "refusal"}
+        test2_wrapper.description = "Test 2"
+        
+        test_configs = {
+            "test_1": test1_wrapper,
+            "test_2": test2_wrapper
+        }
+        
+        # Create mock bundle wrapper
+        bundle_wrapper = Mock(spec=BundleEntityWrapper)
+        bundle_wrapper.name = "test_bundle"
+        bundle_wrapper.description = "Test bundle"
+        bundle_wrapper.test_names = ["test_1", "test_2"]
+        
+        bundles = {
+            "bundle_1": bundle_wrapper
+        }
+        
+        sample_test_configs_and_bundles = (test_configs, bundles)
+        
+        # Mock dataset entities
+        dataset1 = DatasetEntity(
+            id="dataset_1",
+            name="Dataset 1",
+            description="First dataset",
+            examples=[{"input": "test1", "output": "result1"}],
+            num_of_dataset_prompts=10,
+            created_date="2023-12-01",
+            reference="https://example.com",
+            license="MIT"
+        )
+        
+        dataset2 = DatasetEntity(
+            id="dataset_2",
+            name="Dataset 2", 
+            description="Second dataset",
+            examples=[{"input": "test2", "output": "result2"}],
+            num_of_dataset_prompts=20,
+            created_date="2023-12-02",
+            reference="https://example2.com",
+            license="Apache"
+        )
+        
+        with patch('application.services.file_benchmark_repository.load_module') as mock_load_module:
+            mock_load_module.return_value = sample_test_configs_and_bundles
+            
+            with patch.object(FileBenchmarkRepository, 'get_dataset_by_id') as mock_get_dataset:
+                mock_get_dataset.side_effect = lambda dataset_id: {
+                    "dataset_1": dataset1,
+                    "dataset_2": dataset2
+                }[dataset_id]
+                
+                repository = FileBenchmarkRepository()
+                
+                # Act
+                result = repository.get_all_bundles()
+                
+                # Assert
+                assert len(result) == 1
+                bundle = result[0]
+                assert bundle.name == "test_bundle"
+                assert len(bundle.tests) == 2
+                
+                # Verify first test has proper dataset resolution
+                test1 = bundle.tests[0]
+                assert test1.name == "test_1"
+                assert test1.dataset is not None
+                assert test1.dataset.id == "dataset_1"
+                assert test1.dataset.name == "Dataset 1"
+                assert test1.dataset.num_of_dataset_prompts == 10
+                
+                # Verify second test has proper dataset resolution
+                test2 = bundle.tests[1]
+                assert test2.name == "test_2"
+                assert test2.dataset is not None
+                assert test2.dataset.id == "dataset_2"
+                assert test2.dataset.name == "Dataset 2"
+                assert test2.dataset.num_of_dataset_prompts == 20
+                
+                # Verify get_dataset_by_id was called for each test
+                assert mock_get_dataset.call_count == 2
+                mock_get_dataset.assert_any_call("dataset_1")
+                mock_get_dataset.assert_any_call("dataset_2")
+
+    def test_get_all_bundles_dataset_resolution_error_handling(self):
+        """Test that get_all_bundles handles dataset loading errors gracefully"""
+        # Arrange
+        test1_wrapper = Mock(spec=BenchmarkTestEntityWrapper)
+        test1_wrapper.name = "test_1"
+        test1_wrapper.dataset_name = "missing_dataset"
+        test1_wrapper.metric = {"name": "accuracy"}
+        test1_wrapper.description = "Test 1"
+        
+        test_configs = {
+            "test_1": test1_wrapper
+        }
+        
+        bundle_wrapper = Mock(spec=BundleEntityWrapper)
+        bundle_wrapper.name = "test_bundle"
+        bundle_wrapper.description = "Test bundle"
+        bundle_wrapper.test_names = ["test_1"]
+        
+        bundles = {
+            "bundle_1": bundle_wrapper
+        }
+        
+        sample_test_configs_and_bundles = (test_configs, bundles)
+        
+        with patch('application.services.file_benchmark_repository.load_module') as mock_load_module:
+            mock_load_module.return_value = sample_test_configs_and_bundles
+            
+            with patch.object(FileBenchmarkRepository, 'get_dataset_by_id') as mock_get_dataset:
+                mock_get_dataset.side_effect = Exception("Dataset not found")
+                
+                repository = FileBenchmarkRepository()
+                
+                # Act & Assert
+                with pytest.raises(Exception, match="Dataset not found"):
+                    repository.get_all_bundles()
+
+    def test_get_all_bundles_with_missing_test_configs(self):
+        """Test that get_all_bundles handles missing test configurations gracefully"""
+        # Arrange
+        test1_wrapper = Mock(spec=BenchmarkTestEntityWrapper)
+        test1_wrapper.name = "test_1"
+        test1_wrapper.dataset_name = "dataset_1"
+        test1_wrapper.metric = {"name": "accuracy"}
+        test1_wrapper.description = "Test 1"
+        
+        test_configs = {
+            "test_1": test1_wrapper
+        }
+        
+        bundle_wrapper = Mock(spec=BundleEntityWrapper)
+        bundle_wrapper.name = "test_bundle"
+        bundle_wrapper.description = "Test bundle"
+        bundle_wrapper.test_names = ["test_1", "missing_test"]  # missing_test is not in test_configs
+        
+        bundles = {
+            "bundle_1": bundle_wrapper
+        }
+        
+        sample_test_configs_and_bundles = (test_configs, bundles)
+        
+        dataset1 = DatasetEntity(
+            id="dataset_1",
+            name="Dataset 1",
+            description="First dataset",
+            examples=[],
+            num_of_dataset_prompts=10,
+            created_date="2023-12-01",
+            reference="https://example.com",
+            license="MIT"
+        )
+        
+        with patch('application.services.file_benchmark_repository.load_module') as mock_load_module:
+            mock_load_module.return_value = sample_test_configs_and_bundles
+            
+            with patch.object(FileBenchmarkRepository, 'get_dataset_by_id') as mock_get_dataset:
+                mock_get_dataset.return_value = dataset1
+                
+                repository = FileBenchmarkRepository()
+                
+                # Act
+                result = repository.get_all_bundles()
+                
+                # Assert
+                assert len(result) == 1
+                bundle = result[0]
+                assert bundle.name == "test_bundle"
+                # Only test_1 should be included, missing_test should be skipped
+                assert len(bundle.tests) == 1
+                assert bundle.tests[0].name == "test_1"
+                assert bundle.tests[0].dataset.id == "dataset_1"

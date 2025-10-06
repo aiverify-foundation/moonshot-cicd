@@ -10,7 +10,7 @@ from pathlib import Path
 from urllib.parse import urlparse
 from domain.services.app_config import AppConfig
 from domain.services.logger import configure_logger
-from domain.services.app_config import AppConfig
+from application.services.benchmark import BenchmarkService
 
 # Configure the logger for this module
 logger = configure_logger(__name__)
@@ -88,6 +88,26 @@ async def root():
     else:
         logger.warning(f"Index file not found at: {index_file}")
         return {"message": "Welcome to Moonshot CI/CD API"}
+
+
+# Initialize the benchmark service
+benchmark_service = BenchmarkService(None, None)
+
+
+@app.get("/api/bundles")
+async def view_all_bundles():
+    """
+    Get all available bundles.
+    Returns a list of all bundles with their associated test configurations.
+    """
+    try:
+        logger.info("Fetching all bundles")
+        bundles = benchmark_service.get_all_bundles()
+        logger.info(f"Successfully retrieved {len(bundles)} bundles")
+        return {"bundles": bundles}
+    except Exception as e:
+        logger.error(f"Error fetching bundles: {e}")
+        raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
 
 
 @app.api_route("/{file_path:path}", methods=["GET", "HEAD"])

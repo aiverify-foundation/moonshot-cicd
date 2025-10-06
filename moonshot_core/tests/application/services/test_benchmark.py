@@ -557,3 +557,148 @@ class TestBenchmarkService:
 
         # Assert
         assert result == num_recipes
+
+    def test_get_all_bundles_with_dataset_resolution(self, mock_benchmark_repository, mock_dataset_repository):
+        """Test that get_all_bundles properly resolves dataset information"""
+        # Arrange
+        dataset_entity = DatasetEntity(
+            id="test_dataset_1",
+            name="Test Dataset",
+            description="A test dataset",
+            examples=[{"input": "test", "output": "result"}],
+            num_of_dataset_prompts=10,
+            created_date="2023-12-01",
+            reference="https://example.com",
+            license="MIT"
+        )
+        
+        benchmark_test_entity = BenchmarkTestEntity(
+            name="test_benchmark",
+            dataset=dataset_entity,
+            metric={"name": "accuracy", "threshold": 0.8},
+            description="Test benchmark"
+        )
+        
+        bundle_entity = BundleEntity(
+            name="test_bundle",
+            description="Test bundle",
+            tests=[benchmark_test_entity]
+        )
+        
+        mock_benchmark_repository.get_all_bundles.return_value = [bundle_entity]
+        
+        service = BenchmarkService(mock_benchmark_repository, mock_dataset_repository)
+
+        # Act
+        result = service.get_all_bundles()
+
+        # Assert
+        assert isinstance(result, list)
+        assert len(result) == 1
+        assert isinstance(result[0], BundleDTO)
+        assert result[0].name == "test_bundle"
+        assert len(result[0].tests) == 1
+        
+        # Verify dataset information is properly included
+        test_dto = result[0].tests[0]
+        assert test_dto.dataset is not None
+        assert test_dto.dataset.id == "test_dataset_1"
+        assert test_dto.dataset.name == "Test Dataset"
+        assert test_dto.dataset.description == "A test dataset"
+        assert test_dto.dataset.num_of_dataset_prompts == 10
+
+    def test_get_all_bundles_with_null_datasets(self, mock_benchmark_repository, mock_dataset_repository):
+        """Test that get_all_bundles handles null datasets properly"""
+        # Arrange
+        benchmark_test_entity = BenchmarkTestEntity(
+            name="test_benchmark",
+            dataset=None,
+            metric={"name": "accuracy", "threshold": 0.8},
+            description="Test benchmark"
+        )
+        
+        bundle_entity = BundleEntity(
+            name="test_bundle",
+            description="Test bundle",
+            tests=[benchmark_test_entity]
+        )
+        
+        mock_benchmark_repository.get_all_bundles.return_value = [bundle_entity]
+        
+        service = BenchmarkService(mock_benchmark_repository, mock_dataset_repository)
+
+        # Act
+        result = service.get_all_bundles()
+
+        # Assert
+        assert isinstance(result, list)
+        assert len(result) == 1
+        test_dto = result[0].tests[0]
+        assert test_dto.dataset is None
+
+    def test_get_all_bundles_multiple_tests_with_datasets(self, mock_benchmark_repository, mock_dataset_repository):
+        """Test get_all_bundles with multiple tests having different datasets"""
+        # Arrange
+        dataset1 = DatasetEntity(
+            id="dataset_1",
+            name="Dataset 1",
+            description="First dataset",
+            examples=[],
+            num_of_dataset_prompts=5,
+            created_date="2023-12-01",
+            reference="https://example.com",
+            license="MIT"
+        )
+        
+        dataset2 = DatasetEntity(
+            id="dataset_2",
+            name="Dataset 2",
+            description="Second dataset",
+            examples=[],
+            num_of_dataset_prompts=15,
+            created_date="2023-12-02",
+            reference="https://example2.com",
+            license="Apache"
+        )
+        
+        test1 = BenchmarkTestEntity(
+            name="test_1",
+            dataset=dataset1,
+            metric={"name": "accuracy"},
+            description="First test"
+        )
+        
+        test2 = BenchmarkTestEntity(
+            name="test_2",
+            dataset=dataset2,
+            metric={"name": "refusal"},
+            description="Second test"
+        )
+        
+        bundle_entity = BundleEntity(
+            name="multi_test_bundle",
+            description="Bundle with multiple tests",
+            tests=[test1, test2]
+        )
+        
+        mock_benchmark_repository.get_all_bundles.return_value = [bundle_entity]
+        
+        service = BenchmarkService(mock_benchmark_repository, mock_dataset_repository)
+
+        # Act
+        result = service.get_all_bundles()
+
+        # Assert
+        assert len(result) == 1
+        bundle_dto = result[0]
+        assert len(bundle_dto.tests) == 2
+        
+        # Verify first test dataset
+        assert bundle_dto.tests[0].dataset.id == "dataset_1"
+        assert bundle_dto.tests[0].dataset.name == "Dataset 1"
+        assert bundle_dto.tests[0].dataset.num_of_dataset_prompts == 5
+        
+        # Verify second test dataset
+        assert bundle_dto.tests[1].dataset.id == "dataset_2"
+        assert bundle_dto.tests[1].dataset.name == "Dataset 2"
+        assert bundle_dto.tests[1].dataset.num_of_dataset_prompts == 15

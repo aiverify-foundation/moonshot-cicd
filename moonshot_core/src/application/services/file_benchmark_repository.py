@@ -96,10 +96,29 @@ class FileBenchmarkRepository(BenchmarkRepository):
             
             bundle_list = []
             for bundle_id, bundle in bundles.items():
+                test_list = []
+                
+                # Make sure to only include benchmark tests
+                # Use test_names from the wrapper
+                for test_name in bundle.test_names:
+                    if test_name in test_configs:
+                        test_wrapper = test_configs[test_name]
+                        # Get the dataset entity using the dataset name from the wrapper
+                        dataset_entity = self.get_dataset_by_id(test_wrapper.dataset_name)
+                        # Create BenchmarkTestEntity with the resolved dataset
+                        benchmark_test_entity = BenchmarkTestEntity(
+                            name=test_wrapper.name,
+                            dataset=dataset_entity,
+                            metric=test_wrapper.metric,
+                            description=test_wrapper.description,
+                        )
+                        test_list.append(benchmark_test_entity)
+                
+                # Create and return the bundle with calculated metrics
                 bundle_entity = BundleEntity(
                     name=bundle.name,
                     description=bundle.description,
-                    tests=bundle.tests
+                    tests=test_list
                 )
                 bundle_list.append(bundle_entity)
             
