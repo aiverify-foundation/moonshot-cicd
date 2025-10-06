@@ -1,0 +1,28 @@
+{
+  "name": "moonshot-integration-tests",
+  "version": "1.0.0",
+  "description": "Integration tests for Moonshot CI/CD using Playwright",
+  "main": "index.js",
+  "scripts": {
+    "test": "playwright test",
+    "test:headed": "playwright test --headed",
+    "test:ui": "playwright test --ui",
+    "test:debug": "playwright test --debug",
+    "test:report": "playwright show-report",
+    "install": "playwright install"
+  },
+  "keywords": [
+    "playwright",
+    "integration-tests",
+    "e2e",
+    "testing"
+  ],
+  "author": "",
+  "license": "MIT",
+  "devDependencies": {
+    "@playwright/test": "^1.40.0"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}

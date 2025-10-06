@@ -10,6 +10,7 @@ from pathlib import Path
 from urllib.parse import urlparse
 from domain.services.app_config import AppConfig
 from domain.services.logger import configure_logger
+from domain.services.app_config import AppConfig
 
 # Configure the logger for this module
 logger = configure_logger(__name__)
