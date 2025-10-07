@@ -11,7 +11,7 @@ import {
 import { Button } from "@/components/ui/button"
 import { Separator } from "@/components/ui/separator"
 import { Spinner } from "@/components/ui/spinner"
-import { FileTerminal, RefreshCw, AlertCircle, CheckSquare, Square, ArrowRight } from 'lucide-react';
+import { FileTerminal, RefreshCw, AlertCircle, CheckSquare, Square } from 'lucide-react';
 import { Provider } from 'react-redux';
 import store, { setBundleSelected } from '../../store';
 import { useAppSelector, useAppDispatch } from '../../hooks/reduxHooks';
