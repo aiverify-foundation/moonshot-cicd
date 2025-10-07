@@ -1,6 +1,5 @@
 "use client"
 import React from 'react';
-import Link from 'next/link';
 import {
   Card,
   CardContent,
@@ -9,7 +8,6 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card"
-import { Checkbox } from "@/components/ui/checkbox"
 import { Button } from "@/components/ui/button"
 import { Separator } from "@/components/ui/separator"
 import { Spinner } from "@/components/ui/spinner"
@@ -25,20 +23,8 @@ function ViewBundlesInner() {
   const dispatch = useAppDispatch();
   const { bundles, loading, error, refetch } = useBundles();
 
-  interface CardProps {
-    name: string;
-    description: string;
-    tests: Array<{
-      name: string;
-      dataset: {
-        id: string;
-        name: string;
-        description: string;
-      };
-    }>;
-  }
 
-  function CheckboxToggleButton({ children, checked, onCheckedChange, ...props }: { children: React.ReactNode; checked: boolean; onCheckedChange: (checked: boolean) => void; [key: string]: unknown }) {
+  function CheckboxToggleButton({ checked, onCheckedChange, ...props }: { checked: boolean; onCheckedChange: (checked: boolean) => void; [key: string]: unknown }) {
   return (
     <Button
       variant={checked ? "default" : "outline"}
@@ -56,7 +42,19 @@ function ViewBundlesInner() {
   );
   }
 
-  function renderCard(bundle: any) {
+  function renderCard(bundle: {
+    name: string;
+    description: string;
+    tests: Array<{
+      name: string;
+      dataset: {
+        id: string;
+        name: string;
+        description: string;
+      };
+    }>;
+    prompt_count?: number;
+  }) {
     const { name, description, tests, prompt_count } = bundle;
     const selected = bundleSelection[name] || false;
     return (
@@ -85,7 +83,14 @@ function ViewBundlesInner() {
         <CardContent style={{ flex: 1 }}>
           <div style={{ marginBottom: '1rem' }}>Includes:</div>
           <ul style={{ padding: 0, margin: 0 }}>
-            {tests.slice(0, 2).map((test: any, idx: number) => (
+            {tests.slice(0, 2).map((test: {
+              name: string;
+              dataset: {
+                id: string;
+                name: string;
+                description: string;
+              };
+            }, idx: number) => (
               <li
                 key={name + '-' + test.name + '-' + idx}
                 style={{
