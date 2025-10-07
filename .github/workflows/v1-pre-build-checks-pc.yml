@@ -167,8 +167,6 @@ jobs:
 
       - name: SCA/SAST Scan (Black Duck Polaris)
         id: polaris-scascan-process_check_app
-        env:
-          BRIDGE_PROJECT_DIRECTORY: 'process_check_app'
         if: ${{ ! cancelled() }}
         uses: blackduck-inc/black-duck-security-scan@v2
         with:
@@ -176,7 +174,7 @@ jobs:
           polaris_server_url: ${{ vars.POLARIS_SERVER_URL }}
           polaris_access_token: ${{ secrets.POLARIS_ACCESS_TOKEN }}
           polaris_assessment_types: "SCA"
-          project_directory: "process_check_app "
+          project_directory: "process_check_app"
           project_source_excludes: "tests"
           
           ### SCANNING: Optional fields
@@ -201,8 +199,6 @@ jobs:
 
       - name: SAST Scan (Black Duck Polaris)
         id: polaris-sast-scan-process_check_app
-        env:
-          BRIDGE_PROJECT_DIRECTORY: 'process_check_app'
         if: ${{ ! cancelled() }}
         uses: blackduck-inc/black-duck-security-scan@v2
         with:

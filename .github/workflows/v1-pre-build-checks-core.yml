@@ -170,8 +170,6 @@ jobs:
 
       - name: SCA Scan (Black Duck Polaris)
         id: polaris-sca-scan-moonshot-core
-        env:
-          BRIDGE_PROJECT_DIRECTORY: 'moonshot_core'
         if: ${{ ! cancelled() }}
         uses: blackduck-inc/black-duck-security-scan@v2
         with:
@@ -204,8 +202,6 @@ jobs:
 
       - name: SAST Scan (Black Duck Polaris)
         id: polaris-sast-scan-moonshot-core
-        env:
-          BRIDGE_PROJECT_DIRECTORY: 'moonshot_core'
         if: ${{ ! cancelled() }}
         uses: blackduck-inc/black-duck-security-scan@v2
         with:
