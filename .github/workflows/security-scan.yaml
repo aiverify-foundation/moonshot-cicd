@@ -73,7 +73,7 @@ jobs:
           polaris_access_token: ${{ secrets.POLARIS_ACCESS_TOKEN }}
           polaris_assessment_types: "SCA"
           project_directory: "moonshot_core"
-          project_source_excludes: ["tests/**", "moonshot_core/tests/**"]
+          project_source_excludes: "tests/**,moonshot_core/tests/**"
           
           ### SCANNING: Optional fields
           polaris_application_name: "Moonshot CI/CD"
@@ -105,7 +105,7 @@ jobs:
           polaris_access_token: ${{ secrets.POLARIS_ACCESS_TOKEN }}
           polaris_assessment_types: "SAST"
           project_directory: "moonshot_core"
-          project_source_excludes: ["tests/**", "moonshot_core/tests/**"]
+          project_source_excludes: "tests/**,moonshot_core/tests/**"
           
           ### SCANNING: Optional fields
           polaris_application_name: "Moonshot CI/CD"
@@ -167,7 +167,7 @@ jobs:
           polaris_access_token: ${{ secrets.POLARIS_ACCESS_TOKEN }}
           polaris_assessment_types: "SCA"
           project_directory: "process_check_app"
-          project_source_excludes: ["tests/**", "process_check_app/tests/**"]
+          project_source_excludes: "tests/**,process_check_app/tests/**"]
           
           ### SCANNING: Optional fields
           polaris_application_name: "Moonshot CI/CD"
@@ -199,7 +199,7 @@ jobs:
           polaris_access_token: ${{ secrets.POLARIS_ACCESS_TOKEN }}
           polaris_assessment_types: "SAST"
           project_directory: "process_check_app"
-          project_source_excludes: ["tests/**", "process_check_app/tests/**"]
+          project_source_excludes: "tests/**,process_check_app/tests/**"]
           
           ### SCANNING: Optional fields
           polaris_application_name: "Moonshot CI/CD"
