@@ -11,11 +11,12 @@ import {
 import { Button } from "@/components/ui/button"
 import { Separator } from "@/components/ui/separator"
 import { Spinner } from "@/components/ui/spinner"
-import { FileTerminal, RefreshCw, AlertCircle, CheckSquare, Square } from 'lucide-react';
+import { FileTerminal, RefreshCw, AlertCircle, CheckSquare, Square, ArrowRight } from 'lucide-react';
 import { Provider } from 'react-redux';
 import store, { setBundleSelected } from '../../store';
 import { useAppSelector, useAppDispatch } from '../../hooks/reduxHooks';
 import { useBundles } from '../../hooks/useBundles';
+import Link from 'next/link';
 
 // ...existing code...
 function ViewBundlesInner() {
@@ -159,10 +160,6 @@ function ViewBundlesInner() {
           <h1 className="text-2xl font-bold">View Bundles</h1>
           <p className="text-gray-600">Select bundles to run benchmark tests</p>
         </div>
-        <Button onClick={refetch} variant="outline" className="flex items-center gap-2">
-          <RefreshCw className="h-4 w-4" />
-          Refresh
-        </Button>
       </div>
       
       {bundles.length === 0 ? (
@@ -172,10 +169,6 @@ function ViewBundlesInner() {
           <p className="text-gray-500 text-center max-w-md">
             No bundles were found. Make sure the API backend is running and has bundles configured.
           </p>
-          <Button onClick={refetch} className="flex items-center gap-2">
-            <RefreshCw className="h-4 w-4" />
-            Refresh
-          </Button>
         </div>
       ) : (
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '1.5rem' }}>
@@ -185,8 +178,24 @@ function ViewBundlesInner() {
             </React.Fragment>
           ))}
         </div>
-      )}
-    </main>
+        )}
+        <div className="flex justify-end pt-6">
+          {Object.values(bundleSelection).some(selected => selected) ? (
+            <Link href="/select_model">
+              <Button className="flex items-center gap-2">
+                Configure and Run Benchmark Tests
+              </Button>
+            </Link>
+          ) : (
+            <Button 
+              className="flex items-center gap-2"
+              disabled={true}
+            >
+              Configure and Run Benchmark Tests
+            </Button>
+          )}
+        </div>
+      </main>
   );
 }
 
