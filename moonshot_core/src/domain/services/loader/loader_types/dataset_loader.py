@@ -77,7 +77,7 @@ class DatasetLoader(Loader):
 
             file_content, complete_path = self._read_file_content_and_path(loader_name)
             json_data = self._deserialize_content(complete_path, file_content)
-            json_data["id"] = json_data.get("name", "default_id")
+            json_data["id"] = loader_name  # Use the filename as the ID, not the name field
             json_data["num_of_dataset_prompts"] = len(json_data.get("examples", []))
 
             creation_datetime = self._get_creation_datetime(complete_path)

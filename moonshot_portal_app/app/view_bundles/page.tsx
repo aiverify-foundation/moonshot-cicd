@@ -12,61 +12,70 @@ import {
 import { Checkbox } from "@/components/ui/checkbox"
 import { Button } from "@/components/ui/button"
 import { Separator } from "@/components/ui/separator"
-import { FileTerminal } from 'lucide-react';
+import { Spinner } from "@/components/ui/spinner"
+import { FileTerminal, RefreshCw, AlertCircle, CheckSquare, Square } from 'lucide-react';
 import { Provider } from 'react-redux';
 import store, { setBundleSelected } from '../../store';
 import { useAppSelector, useAppDispatch } from '../../hooks/reduxHooks';
-//<FileTerminal />
+import { useBundles } from '../../hooks/useBundles';
 
 // ...existing code...
 function ViewBundlesInner() {
   const bundleSelection = useAppSelector((state) => state.bundleSelection);
   const dispatch = useAppDispatch();
+  const { bundles, loading, error, refetch } = useBundles();
 
   interface CardProps {
-    bundle_name: string;
+    name: string;
     description: string;
-    recipe_list: string[];
+    tests: Array<{
+      name: string;
+      dataset: {
+        id: string;
+        name: string;
+        description: string;
+      };
+    }>;
   }
 
   function CheckboxToggleButton({ children, checked, onCheckedChange, ...props }: { children: React.ReactNode; checked: boolean; onCheckedChange: (checked: boolean) => void; [key: string]: unknown }) {
   return (
     <Button
-      variant={checked ? "secondary" : "outline"}
+      variant={checked ? "default" : "outline"}
       onClick={() => onCheckedChange(!checked)}
-      className="flex items-center gap-2 px-4 py-2"
+      className="gap-2 w-28 justify-start"
       {...props}
     >
-      <Checkbox 
-        checked={checked}
-        onCheckedChange={onCheckedChange}
-        onClick={(e) => e.stopPropagation()} // Prevent double toggle
-        className="pointer-events-none" // Let button handle the click
-      />
-      {children}
+      <div className="flex items-center">
+        {checked ? <CheckSquare className="h-4 w-4" /> : <Square className="h-4 w-4" />}
+      </div>
+      <div className="flex items-center">
+        {checked ? "Selected" : "Select"}
+      </div>
     </Button>
   );
   }
 
-  function renderCard({ bundle_name, description, recipe_list }: CardProps) {
-    const selected = bundleSelection[bundle_name] || false;
+  function renderCard(bundle: any) {
+    const { name, description, tests, prompt_count } = bundle;
+    const selected = bundleSelection[name] || false;
     return (
       <Card style={{ width: '400px', height: '450px', display: 'flex', flexDirection: 'column' }}>
         <CardHeader>
-          <CardTitle>{bundle_name}</CardTitle>
+          <CardTitle>{name}</CardTitle>
           <CardDescription>
             <div className="line-clamp-2">
               {description}
             </div>
             <div className="grid grid-cols-3 gap-2 p-0 mt-2">
               {/* First Row - Text */}
-              <div className="text-left">Recipes</div>
+              <div className="text-left">Tests</div>
               <div className="text-left">Prompts</div>
               <div></div>
 
               {/* Second Row - Numbers */}
-              <div className="text-left">123</div>
-              <div className="text-left">456</div>
+              <div className="text-left">{tests.length}</div>
+              <div className="text-left">{prompt_count || 0}</div>
               <div></div>
             </div>
           </CardDescription>
@@ -76,9 +85,9 @@ function ViewBundlesInner() {
         <CardContent style={{ flex: 1 }}>
           <div style={{ marginBottom: '1rem' }}>Includes:</div>
           <ul style={{ padding: 0, margin: 0 }}>
-            {recipe_list.slice(0, 2).map((item, idx) => (
+            {tests.slice(0, 2).map((test: any, idx: number) => (
               <li
-                key={bundle_name + '-' + item + '-' + idx}
+                key={name + '-' + test.name + '-' + idx}
                 style={{
                   display: 'flex',
                   alignItems: 'center',
@@ -88,12 +97,12 @@ function ViewBundlesInner() {
                 }}
               >
                 <FileTerminal />
-                <span>{item}</span>
+                <span>{test.name}</span>
               </li>
             ))}
-            {recipe_list.length > 2 && (
+            {tests.length > 2 && (
               <li style={{ listStyle: 'none', color: '#888', marginLeft: '2rem' }}>
-                + {recipe_list.length - 2} more
+                + {tests.length - 2} more
               </li>
             )}
           </ul>
@@ -101,7 +110,7 @@ function ViewBundlesInner() {
         <CardFooter className="flex items-center justify-between gap-2">
           <CheckboxToggleButton
             checked={selected}
-            onCheckedChange={(checked: boolean) => dispatch(setBundleSelected({ bundleId: bundle_name, selected: checked }))}
+            onCheckedChange={(checked: boolean) => dispatch(setBundleSelected({ bundleId: name, selected: checked }))}
           >
             selected
           </CheckboxToggleButton>
@@ -111,41 +120,67 @@ function ViewBundlesInner() {
     );
   }
 
-  const cards = [
-    {
-      bundle_name: "Card Title 1",
-      description: "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Integer a sodales dui. Ut et nisl non sapien mattis vehicula. Maecenas malesuada sagittis tellus eget vehicula. Ut aliquet aliquam arcu, ut sollicitudin augue porta sed. Duis lobortis odio ante, non dignissim elit lacinia a. Curabitur dictum lacus non augue tincidunt, ut ultricies ex posuere. Quisque volutpat consequat metus facilisis faucibus. Praesent pharetra enim vitae fringilla vulputate. Nulla imperdiet lectus quis est fringilla consectetur. Aliquam at massa tortor. Etiam et leo purus. Sed at cursus lorem. Class aptent taciti sociosqu ad litora torquent per conubia nostra, per inceptos himenaeos. Fusce eu sollicitudin enim. Proin turpis lorem, sollicitudin at posuere vel, varius ac orci. Donec nec facilisis dolor, non dictum tellus. ",
-      recipe_list: ["Recipe 1", "Recipe 2", "Recipe 3"]
-    },
-    {
-      bundle_name: "Card Title 2",
-      description: "Card Description 2",
-      recipe_list: ["Recipe 4", "Recipe 5", "Recipe 6"]
-    },
-    {
-      bundle_name: "Card Title 3",
-      description: "Card Description 3",
-      recipe_list: ["Recipe 7", "Recipe 8", "Recipe 9"]
-    },
-    {
-      bundle_name: "Card Title 4",
-      description: "Card Description 4",
-      recipe_list: ["Recipe 10", "Recipe 11", "Recipe 12"]
-    }
-  ];
+  if (loading) {
+    return (
+      <main className="p-8">
+        <div className="flex flex-col items-center justify-center min-h-[400px] gap-4">
+          <Spinner className="h-12 w-12" />
+          <p className="text-lg text-gray-600">Loading bundles...</p>
+        </div>
+      </main>
+    );
+  }
+
+  if (error) {
+    return (
+      <main className="p-8">
+        <div className="flex flex-col items-center justify-center min-h-[400px] gap-4">
+          <AlertCircle className="h-16 w-16 text-red-500" />
+          <h2 className="text-xl font-semibold text-red-600">Error Loading Bundles</h2>
+          <p className="text-gray-600 text-center max-w-md">{error}</p>
+          <Button onClick={refetch} className="flex items-center gap-2">
+            <RefreshCw className="h-4 w-4" />
+            Try Again
+          </Button>
+        </div>
+      </main>
+    );
+  }
 
   return (
     <main className="p-8">
-      <h1 className="text-2xl font-bold mb-4">View Bundles</h1>
-      <p>This is the View Bundles page.</p>
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '1.5rem' }}>
-        {cards.map((card, idx) => (
-          <React.Fragment key={card.bundle_name + '-' + idx}>
-            {renderCard(card)}
-          </React.Fragment>
-        ))}
+      <div className="flex items-center justify-between mb-6">
+        <div>
+          <h1 className="text-2xl font-bold">View Bundles</h1>
+          <p className="text-gray-600">Select bundles to run benchmark tests</p>
+        </div>
+        <Button onClick={refetch} variant="outline" className="flex items-center gap-2">
+          <RefreshCw className="h-4 w-4" />
+          Refresh
+        </Button>
       </div>
-      <Link href="/">Back to Home</Link>
+      
+      {bundles.length === 0 ? (
+        <div className="flex flex-col items-center justify-center min-h-[400px] gap-4">
+          <FileTerminal className="h-16 w-16 text-gray-400" />
+          <h2 className="text-xl font-semibold text-gray-600">No Bundles Available</h2>
+          <p className="text-gray-500 text-center max-w-md">
+            No bundles were found. Make sure the API backend is running and has bundles configured.
+          </p>
+          <Button onClick={refetch} className="flex items-center gap-2">
+            <RefreshCw className="h-4 w-4" />
+            Refresh
+          </Button>
+        </div>
+      ) : (
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '1.5rem' }}>
+          {bundles.map((bundle, idx) => (
+            <React.Fragment key={bundle.name + '-' + idx}>
+              {renderCard(bundle)}
+            </React.Fragment>
+          ))}
+        </div>
+      )}
     </main>
   );
 }

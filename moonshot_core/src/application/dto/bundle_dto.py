@@ -16,6 +16,7 @@ class BundleDTO(BaseModel):
         name (str): The name of bundle.
         description (str): The description of bundle.
         tests (List[BenchmarkTestDTO]): The tests in the bundle.
+        prompt_count (int): The total number of prompts across all tests in the bundle.
     """
 
     class Config:
@@ -29,6 +30,9 @@ class BundleDTO(BaseModel):
 
     # List of test DTOs in the bundle
     tests: List[BenchmarkTestDTO] = []
+
+    # Total number of prompts across all tests in the bundle
+    prompt_count: int = 0
 
     def __str__(self) -> str:
         """String representation for debugging."""
@@ -46,6 +50,7 @@ class BundleDTO(BaseModel):
             f"BundleDTO(\n"
             f"  name: '{self.name}'\n"
             f"  description: '{self.description[:100]}{'...' if len(self.description) > 100 else ''}'\n"
+            f"  prompt_count: {self.prompt_count}\n"
             f"{tests_info}"
             f")"
         )

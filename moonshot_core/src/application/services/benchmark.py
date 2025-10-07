@@ -94,9 +94,13 @@ class BenchmarkService:
             test_dto = self._convert_benchmark_test_entity_to_dto(test_entity)
             test_dtos.append(test_dto)
         
+        # Calculate total prompt count across all tests in the bundle
+        prompt_count = self.get_total_test_list_prompts(test_dtos)
+        
         return BundleDTO(
             name=bundle_entity.name,
             description=bundle_entity.description,
-            tests=test_dtos
+            tests=test_dtos,
+            prompt_count=prompt_count
         )
     
