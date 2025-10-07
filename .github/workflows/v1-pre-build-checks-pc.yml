@@ -4,6 +4,7 @@
 # 3. Dependency analysis (vulnerabilities)
 # 3. Dependency analysis (copyleft licenses)
 # 4. Dockerfile Scan (Hadolint)
+# 5. SCA/SAST scan (Blackduck)
 
 name: v1 Pre-build Checks PC
 
@@ -165,7 +166,7 @@ jobs:
           fi
 
       - name: SCA/SAST Scan (Black Duck Polaris)
-        id: polaris-sca-sast-scan-process_check_app
+        id: polaris-scascan-process_check_app
         if: ${{ ! cancelled() }}
         uses: blackduck-inc/black-duck-security-scan@v2
         with:
@@ -197,7 +198,7 @@ jobs:
           mark_build_status: "success"
 
       - name: SAST Scan (Black Duck Polaris)
-        id: polaris-sca-sast-scan-process_check_app
+        id: polaris-sast-scan-process_check_app
         if: ${{ ! cancelled() }}
         uses: blackduck-inc/black-duck-security-scan@v2
         with:

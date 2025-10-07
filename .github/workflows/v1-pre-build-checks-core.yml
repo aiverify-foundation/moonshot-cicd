@@ -169,7 +169,7 @@ jobs:
           fi
 
       - name: SCA Scan (Black Duck Polaris)
-        id: polaris-sca-sast-scan-moonshot-core
+        id: polaris-sca-scan-moonshot-core
         if: ${{ ! cancelled() }}
         uses: blackduck-inc/black-duck-security-scan@v2
         with:
@@ -201,7 +201,7 @@ jobs:
           mark_build_status: "success"
 
       - name: SAST Scan (Black Duck Polaris)
-        id: polaris-sca-sast-scan-moonshot-core
+        id: polaris-sast-scan-moonshot-core
         if: ${{ ! cancelled() }}
         uses: blackduck-inc/black-duck-security-scan@v2
         with:
