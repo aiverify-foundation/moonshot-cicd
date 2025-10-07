@@ -11,7 +11,7 @@ import {
 import { Button } from "@/components/ui/button"
 import { Separator } from "@/components/ui/separator"
 import { Spinner } from "@/components/ui/spinner"
-import { FileTerminal, RefreshCw, AlertCircle, CheckSquare, Square } from 'lucide-react';
+import { FileTerminal, RefreshCw, AlertCircle, CheckSquare, Square, ArrowRight } from 'lucide-react';
 import { Provider } from 'react-redux';
 import store, { setBundleSelected } from '../../store';
 import { useAppSelector, useAppDispatch } from '../../hooks/reduxHooks';
@@ -117,6 +117,7 @@ function ViewBundlesInner() {
           <CheckboxToggleButton
             checked={selected}
             onCheckedChange={(checked: boolean) => dispatch(setBundleSelected({ bundleId: name, selected: checked }))}
+            data-testid={`toggle-${name}`}
           >
             selected
           </CheckboxToggleButton>
@@ -182,7 +183,7 @@ function ViewBundlesInner() {
         <div className="flex justify-end pt-6">
           {Object.values(bundleSelection).some(selected => selected) ? (
             <Link href="/select_model">
-              <Button className="flex items-center gap-2">
+              <Button className="flex items-center gap-2" data-testid="configure-and-run-benchmark-tests">
                 Configure and Run Benchmark Tests
               </Button>
             </Link>
@@ -190,6 +191,7 @@ function ViewBundlesInner() {
             <Button 
               className="flex items-center gap-2"
               disabled={true}
+              data-testid="configure-and-run-benchmark-tests"
             >
               Configure and Run Benchmark Tests
             </Button>
