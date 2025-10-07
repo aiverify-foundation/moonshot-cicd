@@ -1,0 +1,221 @@
+name: Security Scan
+
+env:
+  GH_TOKEN: ${{ github.token }}
+
+on:
+  pull_request:
+    types: [assigned, synchronize]
+    branches: [main, dev_main]
+  push:
+    branches: [main, dev_main]
+  workflow_dispatch:
+    inputs:
+      branch_to_test:
+        description: 'Branch or tag to run test'
+        required: true
+        default: 'dev_main'
+        type: string
+
+concurrency:
+  group: ${{ github.repository }}-${{ github.workflow }}
+  cancel-in-progress: true
+
+jobs:
+  Security-SCA-SAST-Scans-Moonshot-Core:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      security-events: write
+    steps:
+      - name: Set env variables
+        run: |
+          if [ "${{ github.event_name }}" == "pull_request" ]; then
+            echo "MS_BRANCH=${{ github.event.pull_request.head.ref }}" >> $GITHUB_ENV
+          elif [ "${{ github.event_name }}" == "workflow_dispatch" ]; then
+            echo "MS_BRANCH=${{ inputs.branch_to_test }}" >> $GITHUB_ENV
+          elif [ "${{ github.event_name }}" == "push" ]; then
+            echo "MS_BRANCH=${{ github.ref }}" >> $GITHUB_ENV
+          fi
+
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ env.MS_BRANCH }}
+          submodules: recursive
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Create Virtual Environment and Install dependencies
+        run: |
+          python3 -m venv venv_moonshot_core
+          source venv_moonshot_core/bin/activate
+          pip install poetry
+          cd moonshot_core
+          poetry lock
+          # This is a temporary fix to avoid poetry's AttributeError: 'Metadata' object has no attribute 'license_expression' on first install
+          set +e
+          poetry install --with dev
+          set -e
+          poetry install --with dev
+          cd ..
+
+      - name: Polaris SCA Scan
+        id: polaris-sca-scan-moonshot-core
+        if: ${{ ! cancelled() }}
+        uses: blackduck-inc/black-duck-security-scan@v2
+        with:
+          ### SCANNING: Required fields
+          polaris_server_url: ${{ vars.POLARIS_SERVER_URL }}
+          polaris_access_token: ${{ secrets.POLARIS_ACCESS_TOKEN }}
+          polaris_assessment_types: "SCA"
+          project_directory: "moonshot_core"
+          project_source_excludes: 
+            - "tests/**"
+            - "moonshot_core/tests/**"
+          
+          ### SCANNING: Optional fields
+          polaris_application_name: "Moonshot CI/CD"
+          polaris_project_name: "moonshot-cicd"
+          polaris_branch_name: ${{ env.MS_BRANCH }}
+          polaris_branch_parent_name: "main"
+
+          ## PULL REQUEST COMMENTS: Uncomment below to enable
+          polaris_prComment_enabled: true 
+          github_token: ${{ secrets.GITHUB_TOKEN }} # Required when PR comments is enabled
+
+          ### SARIF report parameters
+          polaris_reports_sarif_create: true
+          polaris_upload_sarif_report: true
+
+          ### Signature scan
+          polaris_test_sca_type: "SCA-PACKAGE,SCA-SIGNATURE"
+
+          ### Mark build status if policy violating issues are found
+          mark_build_status: "success"
+
+      - name: Polaris SAST Scan
+        id: polaris-sast-scan-moonshot-core
+        if: ${{ ! cancelled() }}
+        uses: blackduck-inc/black-duck-security-scan@v2
+        with:
+          ### SCANNING: Required fields
+          polaris_server_url: ${{ vars.POLARIS_SERVER_URL }}
+          polaris_access_token: ${{ secrets.POLARIS_ACCESS_TOKEN }}
+          polaris_assessment_types: "SAST"
+          project_directory: "moonshot_core"
+          project_source_excludes: "tests"
+          
+          ### SCANNING: Optional fields
+          polaris_application_name: "Moonshot CI/CD"
+          polaris_project_name: "moonshot-cicd"
+          polaris_branch_name: ${{ env.MS_BRANCH }}
+          polaris_branch_parent_name: "main"
+
+          ## PULL REQUEST COMMENTS: Uncomment below to enable
+          polaris_prComment_enabled: true 
+          github_token: ${{ secrets.GITHUB_TOKEN }} # Required when PR comments is enabled
+
+          ### SARIF report parameters
+          polaris_reports_sarif_create: true
+          polaris_upload_sarif_report: true
+
+          ### Mark build status if policy violating issues are found
+          mark_build_status: "success"
+
+  Security-SCA-SAST-Scans-Process-Check-App:
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write
+      contents: read
+    steps:
+      - name: Set env variables
+        run: |
+          if [ "${{ github.event_name }}" == "pull_request" ]; then
+            echo "MS_BRANCH=${{ github.event.pull_request.head.ref }}" >> $GITHUB_ENV
+          elif [ "${{ github.event_name }}" == "workflow_dispatch" ]; then
+            echo "MS_BRANCH=${{ inputs.branch_to_test }}" >> $GITHUB_ENV
+          elif [ "${{ github.event_name }}" == "push" ]; then
+            echo "MS_BRANCH=${{ github.ref }}" >> $GITHUB_ENV
+          fi
+
+      - name: Checkout code
+        uses: actions/checkout@v3
+        with:
+          ref: ${{ env.MS_BRANCH }}
+          submodules: recursive
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install dependencies
+        run: |
+          python3 -m venv venv_process_check_app
+          source venv_process_check_app/bin/activate
+          pip install poetry
+
+      - name: SCA/SAST Scan (Black Duck Polaris)
+        id: polaris-sca-scan-process_check_app
+        if: ${{ ! cancelled() }}
+        uses: blackduck-inc/black-duck-security-scan@v2
+        with:
+          ### SCANNING: Required fields
+          polaris_server_url: ${{ vars.POLARIS_SERVER_URL }}
+          polaris_access_token: ${{ secrets.POLARIS_ACCESS_TOKEN }}
+          polaris_assessment_types: "SCA"
+          project_directory: "process_check_app"
+          project_source_excludes: "tests"
+          
+          ### SCANNING: Optional fields
+          polaris_application_name: "Moonshot CI/CD"
+          polaris_project_name: "Process Check App"
+          polaris_branch_name: ${{ env.MS_BRANCH }}
+          polaris_branch_parent_name: "main"
+
+          ## PULL REQUEST COMMENTS: Uncomment below to enable
+          polaris_prComment_enabled: true 
+          github_token: ${{ secrets.GITHUB_TOKEN }} # Required when PR comments is enabled
+
+          ### SARIF report parameters
+          polaris_reports_sarif_create: true
+          polaris_upload_sarif_report: true
+
+          ### Signature scan
+          polaris_test_sca_type: "SCA-PACKAGE"
+
+          ### Mark build status if policy violating issues are found
+          mark_build_status: "success"
+
+      - name: SAST Scan (Black Duck Polaris)
+        id: polaris-sast-scan-process_check_app
+        if: ${{ ! cancelled() }}
+        uses: blackduck-inc/black-duck-security-scan@v2
+        with:
+          ### SCANNING: Required fields
+          polaris_server_url: ${{ vars.POLARIS_SERVER_URL }}
+          polaris_access_token: ${{ secrets.POLARIS_ACCESS_TOKEN }}
+          polaris_assessment_types: "SAST"
+          project_directory: "process_check_app"
+          project_source_excludes: "tests"
+          
+          ### SCANNING: Optional fields
+          polaris_application_name: "Moonshot CI/CD"
+          polaris_project_name: "Process Check App"
+          polaris_branch_name: ${{ env.MS_BRANCH }}
+          polaris_branch_parent_name: "main"
+
+          ## PULL REQUEST COMMENTS: Uncomment below to enable
+          polaris_prComment_enabled: true 
+          github_token: ${{ secrets.GITHUB_TOKEN }} # Required when PR comments is enabled
+
+          ### SARIF report parameters
+          polaris_reports_sarif_create: true
+          polaris_upload_sarif_report: true
+
+          ### Mark build status if policy violating issues are found
+          mark_build_status: "success"
