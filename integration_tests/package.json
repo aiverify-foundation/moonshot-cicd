@@ -9,6 +9,11 @@
     "test:ui": "playwright test --ui",
     "test:debug": "playwright test --debug",
     "test:report": "playwright show-report",
+    "test:dev-script": "playwright test tests/run_dev_script.spec.js",
+    "test:dev-script:headed": "playwright test tests/run_dev_script.spec.js --headed",
+    "test:dev-script:debug": "playwright test tests/run_dev_script.spec.js --debug",
+    "test:example": "playwright test tests/example.spec.js",
+    "test:example:headed": "playwright test tests/example.spec.js --headed",
     "install": "playwright install"
   },
   "keywords": [
