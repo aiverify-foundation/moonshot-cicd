@@ -82,11 +82,12 @@ class TestBenchmarkService:
         assert isinstance(service.benchmark_repository, type(service.benchmark_repository))
         assert isinstance(service.dataset_repository, type(service.dataset_repository))
 
-    def test_get_bundle_by_id_success(self, benchmark_service, mock_benchmark_repository, sample_bundle_entity):
+    def test_get_bundle_by_id_success(self, benchmark_service, mock_benchmark_repository, mock_dataset_repository, sample_bundle_entity, sample_dataset_entity):
         """Test successful bundle retrieval by ID"""
         # Arrange
         bundle_id = "test_bundle_1"
         mock_benchmark_repository.get_bundle_by_id.return_value = sample_bundle_entity
+        mock_dataset_repository.get_dataset_by_id.return_value = sample_dataset_entity
 
         # Act
         result = benchmark_service.get_bundle_by_id(bundle_id)
@@ -135,11 +136,12 @@ class TestBenchmarkService:
         with pytest.raises(Exception):
             benchmark_service.get_dataset_by_id(dataset_id)
 
-    def test_get_test_config_by_id_success(self, benchmark_service, mock_benchmark_repository, sample_benchmark_test_entity):
+    def test_get_test_config_by_id_success(self, benchmark_service, mock_benchmark_repository, mock_dataset_repository, sample_benchmark_test_entity, sample_dataset_entity):
         """Test successful test config retrieval by ID"""
         # Arrange
         test_config_id = "test_config_1"
         mock_benchmark_repository.get_benchmark_test_by_id.return_value = sample_benchmark_test_entity
+        mock_dataset_repository.get_dataset_by_id.return_value = sample_dataset_entity
 
         # Act
         result = benchmark_service.get_test_config_by_id(test_config_id)
@@ -161,11 +163,12 @@ class TestBenchmarkService:
         with pytest.raises(KeyError):
             benchmark_service.get_test_config_by_id(test_config_id)
 
-    def test_get_all_test_configs_success(self, benchmark_service, mock_benchmark_repository, sample_benchmark_test_entity):
+    def test_get_all_test_configs_success(self, benchmark_service, mock_benchmark_repository, mock_dataset_repository, sample_benchmark_test_entity, sample_dataset_entity):
         """Test successful retrieval of all test configs"""
         # Arrange
         test_entities = [sample_benchmark_test_entity]
         mock_benchmark_repository.get_all_benchmark_tests.return_value = test_entities
+        mock_dataset_repository.get_dataset_by_id.return_value = sample_dataset_entity
 
         # Act
         result = benchmark_service.get_all_test_configs()
@@ -249,11 +252,12 @@ class TestBenchmarkService:
         # Assert
         assert result == 0
 
-    def test_get_all_bundles_success(self, benchmark_service, mock_benchmark_repository, sample_bundle_entity):
+    def test_get_all_bundles_success(self, benchmark_service, mock_benchmark_repository, mock_dataset_repository, sample_bundle_entity, sample_dataset_entity):
         """Test successful retrieval of all bundles"""
         # Arrange
         bundle_entities = [sample_bundle_entity]
         mock_benchmark_repository.get_all_bundles.return_value = bundle_entities
+        mock_dataset_repository.get_dataset_by_id.return_value = sample_dataset_entity
 
         # Act
         result = benchmark_service.get_all_bundles()
@@ -369,8 +373,11 @@ class TestBenchmarkService:
         assert result.description == benchmark_test_entity.description
         assert result.dataset is None
 
-    def test_convert_bundle_entity_to_dto(self, benchmark_service, sample_bundle_entity):
+    def test_convert_bundle_entity_to_dto(self, benchmark_service, mock_dataset_repository, sample_bundle_entity, sample_dataset_entity):
         """Test conversion of BundleEntity to BundleDTO"""
+        # Arrange
+        mock_dataset_repository.get_dataset_by_id.return_value = sample_dataset_entity
+        
         # Act
         result = benchmark_service._convert_bundle_entity_to_dto(sample_bundle_entity)
 
@@ -586,6 +593,7 @@ class TestBenchmarkService:
         )
         
         mock_benchmark_repository.get_all_bundles.return_value = [bundle_entity]
+        mock_dataset_repository.get_dataset_by_id.return_value = dataset_entity
         
         service = BenchmarkService(mock_benchmark_repository, mock_dataset_repository)
 
@@ -682,6 +690,16 @@ class TestBenchmarkService:
         )
         
         mock_benchmark_repository.get_all_bundles.return_value = [bundle_entity]
+        
+        # Mock dataset repository to return datasets by ID
+        def mock_get_dataset_by_id(dataset_id):
+            if dataset_id == "dataset_1":
+                return dataset1
+            elif dataset_id == "dataset_2":
+                return dataset2
+            return None
+        
+        mock_dataset_repository.get_dataset_by_id.side_effect = mock_get_dataset_by_id
         
         service = BenchmarkService(mock_benchmark_repository, mock_dataset_repository)
 

@@ -1,7 +1,7 @@
 import pytest
 from pydantic import ValidationError
 
-from src.domain.entities.test_config_entity import TestConfigEntity
+from domain.entities.test_config_entity import TestConfigEntity
 from domain.services.enums.test_types import TestTypes
 
 
@@ -456,7 +456,8 @@ class TestTestConfigEntity:
             "attack_module": {"name": "test_attack", "params": {"iterations": 5}},
             "dataset": "test_dataset",
             "metric": {"name": "test_metric", "threshold": 0.8},
-            "prompt": "Test prompt for serialization"
+            "prompt": "Test prompt for serialization",
+            "description": ""
         }
         assert serialized == expected
 
