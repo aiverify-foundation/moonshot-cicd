@@ -11,8 +11,8 @@ RUN addgroup -S appgroup && adduser -S -u 1001 -G appgroup appuser
 # Install build dependencies including Rust
 RUN apk update && apk upgrade --no-cache && \
     apk add --no-cache \
-    rust>=1.87 \
-    cargo>=1.87 
+    rust=1.87.0-r0 \
+    cargo=1.87.0-r0 
 
 # Copy all code into /app
 COPY . .
