@@ -46,7 +46,7 @@ test.describe('Moonshot Integration Tests', () => {
     await expect(configureButton).toBeDisabled();
     
     // Verify the page content is still there
-    await expect(page.locator('h1')).toContainText('View Bundles');
+    await expect(page.locator('h1')).toContainText('Select bundles');
   });
 
   test('configure button becomes enabled after selecting a bundle', async ({ page }) => {
@@ -163,6 +163,109 @@ test.describe('Moonshot Integration Tests', () => {
       }
     }
     
+  });
+
+  test('GIVEN as a user WHEN load Select Bundles page THEN display all required elements', async ({ page }) => {
+    // Navigate to the view bundles page
+    await navigateToViewBundles(page);
+    
+    // Wait for the page to fully load
+    await page.waitForLoadState('networkidle');
+    
+    // 1. Verify "Back to Home Page" button exists and links to landing page
+    const backToHomeButton = page.locator('[data-testid="back-to-home-button"]');
+    await expect(backToHomeButton).toBeVisible();
+    await expect(backToHomeButton).toContainText('Back to Home Page');
+    
+    // Verify the button links to landing page (check href attribute or click and verify navigation)
+    const backToHomeLink = page.locator('[data-testid="back-to-home-button"]');
+    await expect(backToHomeLink).toHaveAttribute('href', '/');
+    
+    // 2. Verify "Configure and run benchmark test" button is disabled
+    const configureButton = page.locator('[data-testid="configure-and-run-benchmark-tests"]');
+    await expect(configureButton).toBeVisible();
+    await expect(configureButton).toBeDisabled();
+    await expect(configureButton).toContainText('Configure and Run Benchmark Tests');
+    
+    // 3. Verify page header and description text
+    const pageHeader = page.locator('h1');
+    await expect(pageHeader).toContainText('Select bundles');
+    
+    const descriptionText = page.locator('[data-testid="select-bundles-description"]');
+    await expect(descriptionText).toContainText('Select suitable bundles for your benchmark test');
+    
+    // 4. Wait for bundle cards to load
+    await page.waitForSelector('[data-testid^="bundle-card-"]', { timeout: 10000 });
+    
+    // Get all bundle cards
+    const bundleCards = page.locator('[data-testid^="bundle-card-"]');
+    const cardCount = await bundleCards.count();
+    
+    // Verify at least one bundle card exists
+    await expect(cardCount).toBeGreaterThan(0);
+    
+    // 5. Verify each bundle card contains all required elements
+    for (let i = 0; i < Math.min(cardCount, 3); i++) { // Check first 3 cards to avoid long test execution
+      const card = bundleCards.nth(i);
+      
+      // Test Bundle Group text (e.g. IMDA's Starter Kit)
+      const bundleGroup = card.locator('[data-testid="bundle-group"]');
+      await expect(bundleGroup).toBeVisible();
+      await expect(bundleGroup).not.toBeEmpty();
+      
+      // Test Bundle Name text
+      const bundleName = card.locator('[data-testid="bundle-name"]');
+      await expect(bundleName).toBeVisible();
+      await expect(bundleName).not.toBeEmpty();
+      
+      // Test Bundle Description text
+      const bundleDescription = card.locator('[data-testid="bundle-description"]');
+      await expect(bundleDescription).toBeVisible();
+      await expect(bundleDescription).not.toBeEmpty();
+      
+      // Number of Tests
+      const numberOfTests = card.locator('[data-testid="number-of-tests"]');
+      await expect(numberOfTests).toBeVisible();
+      await expect(numberOfTests).toContainText(/\d+/); // Should contain at least one digit
+      
+      // Number of Prompts
+      const numberOfPrompts = card.locator('[data-testid="number-of-prompts"]');
+      await expect(numberOfPrompts).toBeVisible();
+      await expect(numberOfPrompts).toContainText(/\d+/); // Should contain at least one digit
+      
+      // List at most 2 Test names
+      const testNames = card.locator('[data-testid^="test-name-"]');
+      const testNameCount = await testNames.count();
+      await expect(testNameCount).toBeLessThanOrEqual(2);
+      
+      // Verify test names are not empty
+      for (let j = 0; j < testNameCount; j++) {
+        const testName = testNames.nth(j);
+        await expect(testName).toBeVisible();
+        await expect(testName).not.toBeEmpty();
+      }
+      
+      // "+{x} more" text if more than 2 Tests
+      if (testNameCount === 2) {
+        const moreTestsText = card.locator('[data-testid="more-tests-text"]');
+        await expect(moreTestsText).toBeVisible();
+        await expect(moreTestsText).toContainText(/\+.*more/);
+      }
+      
+      // "Select" checkbox
+      const selectCheckbox = card.locator('[data-testid^="toggle-"]');
+      await expect(selectCheckbox).toBeVisible();
+      await expect(selectCheckbox).toContainText('Select');
+      // cannot explicitly verify if a checkbox exists
+      
+      // "Learn more" text (to add hyperlink in View Tests for Bundle story)
+      const learnMoreText = card.locator('[data-testid="learn-more-link"]');
+      await expect(learnMoreText).toBeVisible();
+      await expect(learnMoreText).toContainText('Learn more');
+      
+      // Verify learn more is a clickable link
+      await expect(learnMoreText).toHaveAttribute('href');
+    }
   });
 
 });

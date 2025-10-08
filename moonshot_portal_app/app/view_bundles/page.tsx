@@ -8,10 +8,12 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card"
+import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Separator } from "@/components/ui/separator"
 import { Spinner } from "@/components/ui/spinner"
 import { FileTerminal, RefreshCw, AlertCircle, CheckSquare, Square } from 'lucide-react';
+import { Breadcrumb, BreadcrumbList, BreadcrumbItem, BreadcrumbPage, BreadcrumbSeparator } from '@/components/ui/breadcrumb';
 import { Provider } from 'react-redux';
 import store, { setBundleSelected } from '../../store';
 import { useAppSelector, useAppDispatch } from '../../hooks/reduxHooks';
@@ -59,11 +61,19 @@ function ViewBundlesInner() {
     const { name, description, tests, prompt_count } = bundle;
     const selected = bundleSelection[name] || false;
     return (
-      <Card style={{ width: '400px', height: '450px', display: 'flex', flexDirection: 'column' }}>
+      <Card style={{ width: '400px', height: '470px', display: 'flex', flexDirection: 'column' }} data-testid={`bundle-card-${name}`}>
         <CardHeader>
-          <CardTitle>{name}</CardTitle>
+          <div data-testid="bundle-group" className="mb-3">
+            <Badge
+              className="h-6 min-w-5 rounded-full px-2 tabular-nums"
+              variant="outline"
+            >
+            {"IMDA's Starter Kit"}
+            </Badge>
+          </div>
+          <CardTitle data-testid="bundle-name">{name}</CardTitle>
           <CardDescription>
-            <div className="line-clamp-2">
+            <div className="line-clamp-2" data-testid="bundle-description">
               {description}
             </div>
             <div className="grid grid-cols-3 gap-2 p-0 mt-2">
@@ -73,8 +83,8 @@ function ViewBundlesInner() {
               <div></div>
 
               {/* Second Row - Numbers */}
-              <div className="text-left">{tests.length}</div>
-              <div className="text-left">{prompt_count || 0}</div>
+              <div className="text-left" data-testid="number-of-tests">{tests.length}</div>
+              <div className="text-left" data-testid="number-of-prompts">{prompt_count || 0}</div>
               <div></div>
             </div>
           </CardDescription>
@@ -101,13 +111,14 @@ function ViewBundlesInner() {
                   marginBottom: '1rem',
                   listStyle: 'none'
                 }}
+                data-testid={`test-name-${idx}`}
               >
                 <FileTerminal />
                 <span>{test.name}</span>
               </li>
             ))}
             {tests.length > 2 && (
-              <li style={{ listStyle: 'none', color: '#888', marginLeft: '2rem' }}>
+              <li style={{ listStyle: 'none', color: '#888', marginLeft: '2rem' }} data-testid="more-tests-text">
                 + {tests.length - 2} more
               </li>
             )}
@@ -121,7 +132,7 @@ function ViewBundlesInner() {
           >
             selected
           </CheckboxToggleButton>
-          <p className="ml-auto">Learn More</p>
+          <a href="#" className="ml-auto" data-testid="learn-more-link">Learn more</a>
         </CardFooter>
       </Card>
     );
@@ -156,10 +167,21 @@ function ViewBundlesInner() {
 
   return (
     <main className="p-8">
-      <div className="flex items-center justify-between mb-6">
+      <Breadcrumb data-testid="Breadcrumb">
+        <BreadcrumbList>
+          <BreadcrumbItem>
+            <BreadcrumbPage>New Benchmark Test</BreadcrumbPage>
+          </BreadcrumbItem>
+          <BreadcrumbSeparator />
+          <BreadcrumbItem>
+            <BreadcrumbPage>Select Recipes Or Bundles</BreadcrumbPage>
+          </BreadcrumbItem>
+        </BreadcrumbList>
+      </Breadcrumb>
+      <div className="flex items-center justify-between mb-6 mt-6">
         <div>
-          <h1 className="text-2xl font-bold">View Bundles</h1>
-          <p className="text-gray-600">Select bundles to run benchmark tests</p>
+          <h1 className="text-2xl font-bold">Select bundles</h1>
+          <p className="text-gray-600" data-testid="select-bundles-description">Select suitable bundles for your benchmark test</p>
         </div>
       </div>
       
@@ -180,7 +202,15 @@ function ViewBundlesInner() {
           ))}
         </div>
         )}
-        <div className="flex justify-end pt-6">
+        <div className="flex justify-between pt-6">
+          <Link href="/" data-testid="back-to-home-button">
+            <Button 
+              variant="outline" 
+              className="flex items-center gap-2"
+            >
+              Back to Home Page
+            </Button>
+          </Link>
           {Object.values(bundleSelection).some(selected => selected) ? (
             <Link href="/select_model">
               <Button className="flex items-center gap-2" data-testid="configure-and-run-benchmark-tests">

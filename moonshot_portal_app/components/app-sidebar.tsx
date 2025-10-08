@@ -17,6 +17,7 @@ const items = [
     title: "Home",
     url: "/",
     icon: Home,
+    testId: "sidebar-back-to-home-button",
   },
 ]
 
@@ -31,7 +32,7 @@ export function AppSidebar() {
               {items.map((item) => (
                 <SidebarMenuItem key={item.title}>
                   <SidebarMenuButton asChild>
-                    <a href={item.url}>
+                    <a href={item.url} data-testid={item.testId}>
                       <item.icon />
                       <span>{item.title}</span>
                     </a>
