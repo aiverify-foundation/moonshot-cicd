@@ -81,7 +81,7 @@ function ViewBundlesInner() {
                     {description}
                   </div>
                 </TooltipTrigger>
-                <TooltipContent>
+                <TooltipContent side="bottom">
                   <p className="max-w-xs">{description}</p>
                 </TooltipContent>
               </Tooltip>
