@@ -12,6 +12,7 @@ import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Separator } from "@/components/ui/separator"
 import { Spinner } from "@/components/ui/spinner"
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 import { FileTerminal, RefreshCw, AlertCircle, CheckSquare, Square } from 'lucide-react';
 import { Breadcrumb, BreadcrumbList, BreadcrumbItem, BreadcrumbPage, BreadcrumbSeparator } from '@/components/ui/breadcrumb';
 import { Provider } from 'react-redux';
@@ -73,9 +74,18 @@ function ViewBundlesInner() {
           </div>
           <CardTitle data-testid="bundle-name">{name}</CardTitle>
           <CardDescription>
-            <div className="line-clamp-2" data-testid="bundle-description">
-              {description}
-            </div>
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <div className="line-clamp-2 cursor-help" data-testid="bundle-description">
+                    {description}
+                  </div>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p className="max-w-xs">{description}</p>
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
             <div className="grid grid-cols-3 gap-2 p-0 mt-2">
               {/* First Row - Text */}
               <div className="text-left">Tests</div>
@@ -170,7 +180,7 @@ function ViewBundlesInner() {
       <Breadcrumb data-testid="Breadcrumb">
         <BreadcrumbList>
           <BreadcrumbItem>
-            <BreadcrumbPage>New Benchmark Test</BreadcrumbPage>
+            New Benchmark Test
           </BreadcrumbItem>
           <BreadcrumbSeparator />
           <BreadcrumbItem>
