@@ -26,7 +26,7 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  Security-SCA-SAST-Scans-Moonshot-Core:
+  Moonshot-Core:
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -130,7 +130,7 @@ jobs:
           ### Mark build status if policy violating issues are found
           mark_build_status: "success"
 
-  Security-SCA-SAST-Scans-Process-Check-App:
+  Process-Check-App:
     runs-on: ubuntu-latest
     permissions:
       id-token: write
