@@ -3,6 +3,7 @@ common:
   max_concurrency: 5
   max_calls_per_minute: 60
   max_attempts: 3
+  frontend_build_directory: "../moonshot_portal_app/out"
 
 # These are the configurations for your endpoints
 # Each endpoint has its own endpoint_id (e.g., my-gpt-4o, my-gpt-4o-mini, my-gpt-o1, my-gpt-o1-mini)
