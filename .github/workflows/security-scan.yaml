@@ -33,7 +33,6 @@ jobs:
       security-events: write
     concurrency:
       group: BlackDuckPolaris-SCA-SAST-Scan
-      cancel-in-progress: true
     steps:
       - name: Set env variables
         run: |
@@ -138,7 +137,6 @@ jobs:
       contents: read
     concurrency:
       group: BlackDuckPolaris-SCA-SAST-Scan
-      cancel-in-progress: true
     steps:
       - name: Set env variables
         run: |
