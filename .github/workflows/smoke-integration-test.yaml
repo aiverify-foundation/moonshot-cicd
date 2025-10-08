@@ -13,9 +13,8 @@ on:
         type: string
   pull_request:
     branches: [dev_main, main]
-    paths-ignore:
-      - Dockerfile_PC
-      - process_check_app/**
+    paths:
+      - moonshot_core/**
 
 # Allow one concurrent deployment
 concurrency:
@@ -31,12 +30,6 @@ jobs:
       id-token: write
       contents: read
     steps:
-    # - name: Configure AWS credentials
-    #   uses: aws-actions/configure-aws-credentials@v4
-    #   with:
-    #     aws-region: ap-southeast-1
-    #     role-to-assume: ${{ secrets.AWS_ROLE_TO_ASSUME }}
-
     - name: Checkout Moonshot V1 (Pull Request Review)
       uses: actions/checkout@v4
       if: github.event_name == 'pull_request'
@@ -110,23 +103,6 @@ jobs:
           echo "STATUS=success" >> $GITHUB_ENV
         fi
 
-
-    # - name: Send Slack Notification
-    #   if: always()  # ensure it runs even if the test fails
-    #   uses: slackapi/slack-github-action@v1.26.0
-    #   with:
-    #     payload: |
-    #         {
-    #           "workflow": "${{ github.repository }} | ${{ github.workflow }} | Smoke Test",
-    #           "status": "${{ env.STATUS }}",
-    #           "details": "smoke-integration-tests",
-    #           "ref": "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
-    #         }
-    #   env:
-    #     SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_CI }}
-
-
-
   integration-test:
     if: github.event_name == 'workflow_dispatch' || github.base_ref == 'main'
     runs-on: ubuntu-latest
@@ -135,12 +111,6 @@ jobs:
       id-token: write
       contents: read
     steps:
-    - name: Configure AWS credentials
-      uses: aws-actions/configure-aws-credentials@v4
-      with:
-        aws-region: ap-southeast-1
-        role-to-assume: ${{ secrets.AWS_ROLE_TO_ASSUME }}
-
     - name: Checkout Moonshot V1 (Pull Request Review)
       uses: actions/checkout@v4
       if: github.event_name == 'pull_request'
@@ -194,4 +164,3 @@ jobs:
         --entrypoint "" \
         -v "${{ github.workspace }}/moonshot-integration-testing:/app/moonshot-integration-testing/" \
         moonshot:test sh -c "sh .ci/run-smoke-integration-test.sh integration"
-

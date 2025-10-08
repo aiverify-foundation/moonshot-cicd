@@ -32,16 +32,8 @@ jobs:
       IMAGE_NAME_PC: process_checks
 
     steps:
-    # - name: Configure AWS credentials
-    #   uses: aws-actions/configure-aws-credentials@v4
-    #   with:
-    #     aws-region: ap-southeast-1
-    #     role-to-assume: ${{ secrets.AWS_ROLE_TO_ASSUME }}
-
     - name: Checkout code
       uses: actions/checkout@v4
-
-    
 
     - name: Set up Docker Buildx
       uses: docker/setup-buildx-action@v3
@@ -52,9 +44,6 @@ jobs:
         registry: ${{ env.GHCR_REGISTRY }}
         username: ${{ github.actor }}
         password: ${{ secrets.GITHUB_TOKEN }}
-
-    # - name: Login to AWS ECR
-    #   uses: aws-actions/amazon-ecr-login@v2
 
     # ----- Moonshot Steps -----
     - name: Build Moonshot Docker image
@@ -70,16 +59,6 @@ jobs:
         docker tag moonshot:${{ inputs.moonshot_version_tag }} ghcr.io/aiverify-foundation/moonshot:latest
         docker push ghcr.io/aiverify-foundation/moonshot:${{ inputs.moonshot_version_tag }}
         docker push ghcr.io/aiverify-foundation/moonshot:latest
-    # - name: Build & Push Moonshot ECR
-    #   if: ${{ inputs.moonshot_version_tag != '' }}
-    #   uses: docker/build-push-action@v5
-    #   with:
-    #     context: .
-    #     push: true
-    #     provenance: false
-    #     tags: |
-    #       ${{ env.ECR_REGISTRY }}:${{ inputs.moonshot_version_tag }}
-    #       ${{ env.ECR_REGISTRY }}:latest
 
     # ----- Process Checks Steps -----
     - name: Build & Push Process Checks Multi-arch to GHCR
@@ -93,15 +72,3 @@ jobs:
         tags: |
           ghcr.io/${{ env.GHCR_NAMESPACE }}/process_checks:${{ inputs.process_checks_version_tag }}
           ghcr.io/${{ env.GHCR_NAMESPACE }}/process_checks:latest
-
-    # - name: Build & Push Process Checks ECR
-    #   if: ${{ inputs.process_checks_version_tag != '' }}
-    #   uses: docker/build-push-action@v5
-    #   with:
-    #     context: .
-    #     file: Dockerfile_PC
-    #     push: true
-    #     provenance: false
-    #     tags: |
-    #       ${{ env.ECR_REGISTRY_PC }}:${{ inputs.process_checks_version_tag }}
-    #       ${{ env.ECR_REGISTRY_PC }}:latest
