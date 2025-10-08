@@ -61,23 +61,6 @@ jobs:
         run: |
           docker run -d -p 8501:8501 -p 8000:8000 -e TZ=Asia/Singapore --name ${{ env.CONTAINER_NAME }} ${{ env.IMAGE_NAME_TAG }}
 
-      # - name: Setup Python
-      #   uses: actions/setup-python@v4
-      #   with:
-      #     python-version: '3.12'
-
-      # - name: Install dependencies and run Streamlit
-      #   run: |
-      #     python3 -m venv venv
-      #     source venv/bin/activate
-      #     cd process_check_app
-      #     pip install poetry
-      #     poetry lock
-      #     poetry install --with dev
-      #     nohup streamlit run streamlit_app.py --server.headless true > streamlit.log 2>&1 &
-      #     sleep 10
-      #     curl -v http://localhost:8501
-
       - name: Wait for Streamlit to start
         run: |
           for i in {1..10}; do

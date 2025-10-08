@@ -30,12 +30,6 @@ jobs:
       id-token: write
       contents: read
     steps:
-    # - name: Configure AWS credentials
-    #   uses: aws-actions/configure-aws-credentials@v4
-    #   with:
-    #     aws-region: ap-southeast-1
-    #     role-to-assume: ${{ secrets.AWS_ROLE_TO_ASSUME }}
-
     - name: Checkout Moonshot V1 (Pull Request Review)
       uses: actions/checkout@v4
       if: github.event_name == 'pull_request'
@@ -170,4 +164,3 @@ jobs:
         --entrypoint "" \
         -v "${{ github.workspace }}/moonshot-integration-testing:/app/moonshot-integration-testing/" \
         moonshot:test sh -c "sh .ci/run-smoke-integration-test.sh integration"
-
