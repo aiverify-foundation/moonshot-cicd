@@ -165,7 +165,7 @@ jobs:
           source venv_process_check_app/bin/activate
           pip install poetry
 
-      - name: SCA/SAST Scan (Black Duck Polaris)
+      - name: Polaris SCA Scan
         id: polaris-sca-scan-process_check_app
         if: ${{ ! cancelled() }}
         uses: blackduck-inc/black-duck-security-scan@v2
@@ -197,7 +197,7 @@ jobs:
           ### Mark build status if policy violating issues are found
           mark_build_status: "success"
 
-      - name: SAST Scan (Black Duck Polaris)
+      - name: Polaris SAST Scan
         id: polaris-sast-scan-process_check_app
         if: ${{ ! cancelled() }}
         uses: blackduck-inc/black-duck-security-scan@v2
