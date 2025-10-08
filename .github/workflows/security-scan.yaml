@@ -9,8 +9,8 @@ env:
 
 on:
   pull_request:
-    # types: [assigned, synchronize]
-    # branches: [main, dev_main]
+    types: [assigned, synchronize]
+    branches: [main, dev_main]
   push:
     branches: [main, dev_main]
   workflow_dispatch:
