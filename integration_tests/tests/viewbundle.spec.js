@@ -165,7 +165,7 @@ test.describe('Moonshot Integration Tests', () => {
     
   });
 
-  test('GIVEN as a user WHEN load Select Bundles page THEN display all required elements', async ({ page }) => {
+  test('Ensure all elements are displayed on the Select Bundles page with the correct content', async ({ page }) => {
     // Navigate to the view bundles page
     await navigateToViewBundles(page);
     
@@ -194,7 +194,13 @@ test.describe('Moonshot Integration Tests', () => {
     const descriptionText = page.locator('[data-testid="select-bundles-description"]');
     await expect(descriptionText).toContainText('Select suitable bundles for your benchmark test');
     
-    // 4. Wait for bundle cards to load
+    // 4. Verify breadcrumb navigation
+    const breadcrumb = page.locator('[data-testid="Breadcrumb"]');
+    await expect(breadcrumb).toBeVisible();
+    await expect(breadcrumb).toContainText('New Benchmark Test');
+    await expect(breadcrumb).toContainText('Select Recipes Or Bundles');
+    
+    // 5. Wait for bundle cards to load
     await page.waitForSelector('[data-testid^="bundle-card-"]', { timeout: 10000 });
     
     // Get all bundle cards
@@ -204,7 +210,7 @@ test.describe('Moonshot Integration Tests', () => {
     // Verify at least one bundle card exists
     await expect(cardCount).toBeGreaterThan(0);
     
-    // 5. Verify each bundle card contains all required elements
+    // 6. Verify each bundle card contains all required elements
     for (let i = 0; i < Math.min(cardCount, 3); i++) { // Check first 3 cards to avoid long test execution
       const card = bundleCards.nth(i);
       
