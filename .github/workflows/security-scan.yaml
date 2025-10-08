@@ -1,3 +1,7 @@
+# Notes:
+# - Polaris workflow's polaris_assessment_types fieldsupports "SCA,SAST" in a single step but SAST may timeout so this Workflow split into two steps for SCA and SAST.
+# - Same timeout reason as above, Security-SCA-SAST-Scans-Moonshot-Core and Security-SCA-SAST-Scans-Process-Check-App run will not be concurrent.
+
 name: Security Scan
 
 env:
@@ -27,6 +31,9 @@ jobs:
     permissions:
       contents: write
       security-events: write
+    concurrency:
+      group: BlackDuckPolaris-SCA-SAST-Scan
+      cancel-in-progress: true
     steps:
       - name: Set env variables
         run: |
@@ -129,6 +136,9 @@ jobs:
     permissions:
       id-token: write
       contents: read
+    concurrency:
+      group: BlackDuckPolaris-SCA-SAST-Scan
+      cancel-in-progress: true
     steps:
       - name: Set env variables
         run: |
@@ -217,3 +227,4 @@ jobs:
 
           ### Mark build status if policy violating issues are found
           mark_build_status: "success"
+          
