@@ -169,9 +169,6 @@ test.describe('Moonshot Integration Tests', () => {
     // Navigate to the view bundles page
     await navigateToViewBundles(page);
     
-    // Wait for the page to fully load
-    await page.waitForLoadState('networkidle');
-    
     // 1. Verify "Back to Home Page" button exists and links to landing page
     const backToHomeButton = page.locator('[data-testid="back-to-home-button"]');
     await expect(backToHomeButton).toBeVisible();
@@ -272,6 +269,48 @@ test.describe('Moonshot Integration Tests', () => {
       // Verify learn more is a clickable link
       await expect(learnMoreText).toHaveAttribute('href');
     }
+  });
+
+  test('hover over bundle description shows full description in tooltip', async ({ page }) => {
+    // Navigate to the view bundles page
+    await navigateToViewBundles(page);
+    
+    // Wait for bundle cards to load
+    await page.waitForSelector('[data-testid^="bundle-card-"]', { timeout: 10000 });
+    
+    // Get the first bundle card
+    const bundleCards = page.locator('[data-testid^="bundle-card-"]');
+    const firstCard = bundleCards.first();
+    
+    // Get the bundle description element
+    const bundleDescription = firstCard.locator('[data-testid="bundle-description"]');
+    await expect(bundleDescription).toBeVisible();
+    
+    // Get the full description text for comparison
+    const descriptionText = await bundleDescription.textContent();
+    
+    // Hover over the description element
+    await bundleDescription.hover();
+    
+    // Wait for tooltip to appear
+    await page.waitForTimeout(500);
+    
+    // Check that the tooltip content is visible and contains the full description
+    const tooltipContent = page.locator('[role="tooltip"] p');
+    await expect(tooltipContent).toBeVisible();
+    
+    // Verify the tooltip contains the same text as the description
+    const tooltipText = await tooltipContent.textContent();
+    expect(tooltipText.trim()).toBe(descriptionText.trim());
+    
+    // Move mouse away to hide tooltip
+    await page.mouse.move(-100, -100);
+    
+    // Wait for tooltip to disappear
+    await page.waitForTimeout(500);
+    
+    // Verify tooltip is no longer visible
+    await expect(tooltipContent).not.toBeVisible();
   });
 
 });
