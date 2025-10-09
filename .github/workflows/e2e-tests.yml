@@ -1,0 +1,133 @@
+name: Build and Run Applications
+
+on:
+  # Run this workflow manually from Actions tab
+  workflow_dispatch:
+    inputs:
+      moonshot_branch:
+        description: 'Moonshot Branch / Tag Name'
+        required: true
+        default: 'dev_main'
+        type: string
+  pull_request:
+    branches: [dev_main, main]
+    paths:
+      - moonshot_core/**
+
+# Allow one concurrent deployment
+concurrency:
+  group: ${{ github.repository }}-${{ github.workflow }}
+  cancel-in-progress: true
+
+jobs:
+  e2e-tests:
+    if: github.event_name == 'workflow_dispatch' || github.base_ref == 'dev_main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 100
+    permissions:
+      id-token: write
+      contents: read
+    
+    steps:
+      - name: Set env variables
+        run: |
+          if [ "${{ github.event_name }}" == "pull_request" ]; then
+            echo "MS_BRANCH=${{ github.event.pull_request.head.ref }}" >> $GITHUB_ENV
+          elif [ "${{ github.event_name }}" == "workflow_dispatch" ]; then
+            echo "MS_BRANCH=${{ inputs.moonshot_branch }}" >> $GITHUB_ENV
+          elif [ "${{ github.event_name }}" == "push" ]; then
+            echo "MS_BRANCH=${{ github.ref }}" >> $GITHUB_ENV
+          fi
+
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ env.MS_BRANCH }}
+          submodules: recursive
+
+      # Setup Node.js for moonshot_portal_app
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
+          cache-dependency-path: moonshot_portal_app/package-lock.json
+
+      # Build moonshot_portal_app
+      - name: Install dependencies for moonshot_portal_app
+        run: |
+          cd moonshot_portal_app
+          npm install
+
+      - name: Build moonshot_portal_app
+        run: |
+          cd moonshot_portal_app
+          npm run build
+
+      # Setup Python for moonshot_core
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Create Virtual Environment and Install dependencies
+        run: |
+          python3 -m venv venv_moonshot_core
+          source venv_moonshot_core/bin/activate
+          pip install poetry
+          cd moonshot_core
+          poetry lock
+          # This is a temporary fix to avoid poetry's AttributeError: 'Metadata' object has no attribute 'license_expression' on first install
+          set +e
+          poetry install --with dev
+          set -e
+          poetry install --with dev
+
+      # Run FastAPI server and Integration Tests
+      - name: Run FastAPI server and integration tests
+        run: |
+          # Start FastAPI server in background
+          source venv_moonshot_core/bin/activate
+          cd moonshot_core
+          python run_api.py &
+          FASTAPI_PID=$!
+          
+          # Wait for server to start
+          echo "Waiting for FastAPI server to start..."
+          sleep 15
+          
+          # Check if server is running
+          if ! kill -0 $FASTAPI_PID 2>/dev/null; then
+            echo "FastAPI server failed to start"
+            exit 1
+          fi
+          
+          # Run system tests
+          cd ../system_test
+          npm install
+          npx playwright install-deps
+          npm run test
+          TEST_EXIT_CODE=$?
+          
+          # Stop FastAPI server
+          kill $FASTAPI_PID 2>/dev/null || true
+          
+          # Set status based on test results
+          if [ $TEST_EXIT_CODE -ne 0 ]; then
+            echo "STATUS_INTEGRATION=failure" >> $GITHUB_ENV
+            exit $TEST_EXIT_CODE
+          else
+            echo "STATUS_INTEGRATION=success" >> $GITHUB_ENV
+          fi
+        env:
+          PYTHONPATH: ${{ github.workspace }}/moonshot_core
+
+      - name: Upload Playwright Traces Process Check
+        if: always() && (github.event_name == 'workflow_dispatch' || github.base_ref == 'main')
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-trace-integration-ui-test-process-check-${{ github.run_id }}
+          path: |
+            /home/runner/work/moonshot-cicd/moonshot-integration-testing/moonshot-v1-process-checks-integration-testing/test-results
+  
+
