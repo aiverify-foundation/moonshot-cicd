@@ -45,7 +45,7 @@ test.describe('Moonshot Integration Tests', () => {
     await expect(configureButton).toBeDisabled();
     
     // Verify the page content is still there
-    await expect(page.locator('h1')).toContainText('Select bundles');
+    await expect(page.locator('[data-testid="select-bundles-header"]')).toContainText('Select bundles');
   });
 
   test('configure button becomes enabled after selecting a bundle', async ({ page }) => {
