@@ -22,7 +22,7 @@ import { useBundles } from '../../hooks/useBundles';
 import Link from 'next/link';
 
 // ...existing code...
-function ViewBundlesInner() {
+function BenchmarkInner() {
   const bundleSelection = useAppSelector((state) => state.bundleSelection);
   const dispatch = useAppDispatch();
   const { bundles, loading, error, refetch } = useBundles();
@@ -241,10 +241,10 @@ function ViewBundlesInner() {
   );
 }
 
-const ViewBundles = () => (
+const Benchmark = () => (
   <Provider store={store}>
-    <ViewBundlesInner />
+    <BenchmarkInner />
   </Provider>
 );
 
-export default ViewBundles;
+export default Benchmark;

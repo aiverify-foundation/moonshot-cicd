@@ -1,20 +1,20 @@
 const { test, expect } = require('@playwright/test');
 
-// Helper function for navigating to view bundles page
-async function navigateToViewBundles(page) {
+// Helper function for navigating to benchmark page
+async function navigateToBenchmark(page) {
   await page.goto('/');
   
   // Wait for the page to load
   await page.waitForLoadState('networkidle');
   
-  // Click on the "View Bundles" link using data-testid
-  await page.click('[data-testid="view-bundles-link"]');
+  // Click on the "Benchmark" link using data-testid
+  await page.click('[data-testid="benchmark-link"]');
   
   // Wait for navigation to complete
   await page.waitForLoadState('networkidle');
   
   // Verify we're on the bundles page by checking the URL
-  await expect(page).toHaveURL(/.*\/view_bundles/);
+  await expect(page).toHaveURL(/.*\/benchmark/);
 }
 
 // Helper function to toggle all toggle buttons
@@ -36,8 +36,8 @@ async function toggleAllButtons(page) {
 
 test.describe('Moonshot Integration Tests', () => {
 
-  test('navigate to view bundles page', async ({ page }) => {
-    await navigateToViewBundles(page);
+  test('navigate to benchmark page', async ({ page }) => {
+    await navigateToBenchmark(page);
     
     // Check that the configure button is disabled (no bundles selected)
     const configureButton = page.locator('[data-testid="configure-and-run-benchmark-tests"]');
@@ -49,7 +49,7 @@ test.describe('Moonshot Integration Tests', () => {
   });
 
   test('configure button becomes enabled after selecting a bundle', async ({ page }) => {
-    await navigateToViewBundles(page);
+    await navigateToBenchmark(page);
     
     // Check that the configure button is initially disabled
     const configureButton = page.locator('[data-testid="configure-and-run-benchmark-tests"]');
@@ -82,7 +82,7 @@ test.describe('Moonshot Integration Tests', () => {
   });
 
   test('configure button becomes disabled after toggling off all bundles', async ({ page }) => {
-    await navigateToViewBundles(page);
+    await navigateToBenchmark(page);
     
     // Check that the configure button is initially disabled
     const configureButton = page.locator('[data-testid="configure-and-run-benchmark-tests"]');
@@ -119,7 +119,7 @@ test.describe('Moonshot Integration Tests', () => {
   });
 
   test('configure button becomes disabled after toggling off all bundles(Multiple bundles)', async ({ page }) => {
-    await navigateToViewBundles(page);
+    await navigateToBenchmark(page);
     
     // Check that the configure button is initially disabled
     const configureButton = page.locator('[data-testid="configure-and-run-benchmark-tests"]');
@@ -164,8 +164,8 @@ test.describe('Moonshot Integration Tests', () => {
   });
 
   test('Ensure all elements are displayed on the Select Bundles page with the correct content', async ({ page }) => {
-    // Navigate to the view bundles page
-    await navigateToViewBundles(page);
+    // Navigate to the benchmark page
+    await navigateToBenchmark(page);
     
     // 1. Verify "Back to Home Page" button exists and links to landing page
     const backToHomeButton = page.locator('[data-testid="back-to-home-button"]');
@@ -270,8 +270,8 @@ test.describe('Moonshot Integration Tests', () => {
   });
 
   test('hover over bundle description shows full description in tooltip', async ({ page }) => {
-    // Navigate to the view bundles page
-    await navigateToViewBundles(page);
+    // Navigate to the benchmark page
+    await navigateToBenchmark(page);
     
     // Wait for bundle cards to load
     await page.waitForSelector('[data-testid^="bundle-card-"]', { timeout: 10000 });
