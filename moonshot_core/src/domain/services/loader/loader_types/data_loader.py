@@ -78,7 +78,7 @@ class DataLoader(Loader):
             
             file_content, complete_path = self._read_file_content_and_path(loader_name)
             yaml_data = self._deserialize_content(complete_path, file_content)
-            benchmark_test_entities = {}
+            benchmark_test_wrapper_entities = {}
             bundle_wrapper_entities = {}
             # Iterate over all top-level keys in the YAML data
             for key, config_data in yaml_data.items():
@@ -105,7 +105,7 @@ class DataLoader(Loader):
                         )
                         wrapper = BenchmarkTestEntityWrapper(benchmark_test_entity)
                         wrapper.dataset_name = test.get("dataset", "")
-                        benchmark_test_entities[test.get("name")] = wrapper
+                        benchmark_test_wrapper_entities[test.get("name")] = wrapper
                     if isBundle:
                         # add the bundles to the bundle_entities
                         # Create BenchmarkTestEntity objects for the bundle
@@ -124,7 +124,7 @@ class DataLoader(Loader):
                             tests=bundle_tests,
                             description=description,    
                         )
-            return (benchmark_test_entities, bundle_wrapper_entities)
+            return (benchmark_test_wrapper_entities, bundle_wrapper_entities)
         except FileExistsError:
             raise FileNotFoundError
         except Exception as e:
