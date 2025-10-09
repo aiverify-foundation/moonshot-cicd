@@ -190,7 +190,7 @@ function ViewBundlesInner() {
       </Breadcrumb>
       <div className="flex items-center justify-between mb-6 mt-6">
         <div>
-          <h1 className="text-2xl font-bold">Select bundles</h1>
+          <h1 className="text-2xl font-bold" data-testid="select-bundles-header">Select bundles</h1>
           <p className="text-gray-600" data-testid="select-bundles-description">Select suitable bundles for your benchmark test</p>
         </div>
       </div>
