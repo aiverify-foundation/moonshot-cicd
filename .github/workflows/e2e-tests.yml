@@ -126,7 +126,7 @@ jobs:
         if: always() && (github.event_name == 'workflow_dispatch' || github.base_ref == 'main')
         uses: actions/upload-artifact@v4
         with:
-          name: playwright-trace-integration-ui-test-process-check-${{ github.run_id }}
+          name: playwright-trace-system-test-check-${{ github.run_id }}
           path: |
             /home/runner/work/moonshot-cicd/moonshot-integration-testing/moonshot-v1-process-checks-integration-testing/test-results
   
