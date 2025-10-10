@@ -1,11 +1,11 @@
-from domain.entities.bundle_entity import BundleEntity
+from domain.entities.test_bundle_entity import TestBundleEntity
 
-class BundleEntityWrapper:
-    def __init__(self, bundle_entity: BundleEntity = None, name: str = "", tests: list = None, description: str = "", category: str = "", id: str = ""):
+class TestBundleEntityWrapper:
+    def __init__(self, bundle_entity: TestBundleEntity = None, name: str = "", tests: list = None, description: str = "", category: str = "", id: str = ""):
         if bundle_entity:
             self.bundle_entity = bundle_entity
         else:
-            self.bundle_entity = BundleEntity(
+            self.bundle_entity = TestBundleEntity(
                 name=name,
                 tests=tests or [],
                 description=description,
@@ -15,7 +15,7 @@ class BundleEntityWrapper:
         # Store test names for repository logic
         self.test_names: list[str] = [test.name for test in (tests or [])]
 
-    def get_bundle_entity(self) -> BundleEntity:
+    def get_bundle_entity(self) -> TestBundleEntity:
         return self.bundle_entity
     
     # Delegate properties to the wrapped entity

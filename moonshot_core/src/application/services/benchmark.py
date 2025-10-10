@@ -1,4 +1,4 @@
-from domain.entities.bundle_entity import BundleEntity
+from domain.entities.test_bundle_entity import TestBundleEntity
 from domain.entities.test_config_entity import TestConfigEntity
 from domain.entities.dataset_entity import DatasetEntity
 from domain.entities.benchmark_test_entity import BenchmarkTestEntity
@@ -88,8 +88,8 @@ class BenchmarkService:
             description=benchmark_test_entity.description
         )
     
-    def _convert_bundle_entity_to_dto(self, bundle_entity: BundleEntity) -> BundleDTO:
-        """Convert BundleEntity to BundleDTO."""
+    def _convert_bundle_entity_to_dto(self, bundle_entity: TestBundleEntity) -> BundleDTO:
+        """Convert TestBundleEntity to BundleDTO."""
         test_dtos = []
         for test_entity in bundle_entity.tests:
             test_dto = self._convert_benchmark_test_entity_to_dto(test_entity)

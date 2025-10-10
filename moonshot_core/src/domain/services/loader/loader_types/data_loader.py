@@ -8,8 +8,8 @@ from domain.services.loader.loader_types.loader import Loader
 from domain.services.logger import configure_logger
 from domain.entities.test_config_entity import TestConfigEntity
 from domain.entities.benchmark_test_entity import BenchmarkTestEntity
-from domain.entities.bundle_entity import BundleEntity
-from application.services.wrappers.bundle_entity_wrapper import BundleEntityWrapper
+from domain.entities.test_bundle_entity import TestBundleEntity
+from application.services.wrappers.bundle_entity_wrapper import TestBundleEntityWrapper
 from application.services.wrappers.benchmark_test_entity_wrapper import BenchmarkTestEntityWrapper
 
 # Initialize a logger for this module
@@ -51,7 +51,7 @@ class DataLoader(Loader):
         self.storage_adapter = storage_adapter
         self._set_data_prefix()
 
-    def load(self, loader_name: str) -> tuple[Dict[str, List[BundleEntityWrapper]], Dict[str, List[BenchmarkTestEntityWrapper]]]:
+    def load(self, loader_name: str) -> tuple[Dict[str, List[TestBundleEntityWrapper]], Dict[str, List[BenchmarkTestEntityWrapper]]]:
         """
         Load a data configuration module from the specified file name.
 
@@ -113,7 +113,7 @@ class DataLoader(Loader):
                     bundle_tests.append(benchmark_test_entity)
                 
                 # Create bundle wrapper entity
-                bundle_wrapper = BundleEntityWrapper(
+                bundle_wrapper = TestBundleEntityWrapper(
                     name=name,
                     tests=bundle_tests,
                     description=description,
