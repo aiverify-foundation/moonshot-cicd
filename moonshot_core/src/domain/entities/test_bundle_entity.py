@@ -5,9 +5,9 @@ from pydantic import BaseModel
 
 from domain.entities.benchmark_test_entity import BenchmarkTestEntity
 
-class BundleEntity(BaseModel):
+class TestBundleEntity(BaseModel):
     """
-    BundleEntity represents the configuration for a bundle of tests.
+    TestBundleEntity represents the configuration for a bundle of tests.
 
     Attributes:
         name (str): The name of bundle.

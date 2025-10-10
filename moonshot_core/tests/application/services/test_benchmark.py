@@ -6,7 +6,7 @@ from application.services.benchmark import BenchmarkService
 from application.dto.bundle_dto import BundleDTO
 from application.dto.benchmark_test_dto import BenchmarkTestDTO
 from application.dto.dataset_dto import DatasetDTO
-from domain.entities.bundle_entity import BundleEntity
+from domain.entities.test_bundle_entity import TestBundleEntity
 from domain.entities.benchmark_test_entity import BenchmarkTestEntity
 from domain.entities.dataset_entity import DatasetEntity
 
@@ -56,8 +56,8 @@ class TestBenchmarkService:
 
     @pytest.fixture
     def sample_bundle_entity(self, sample_benchmark_test_entity):
-        """Create a sample BundleEntity for testing"""
-        return BundleEntity(
+        """Create a sample TestBundleEntity for testing"""
+        return TestBundleEntity(
             name="test_bundle",
             description="Test bundle",
             tests=[sample_benchmark_test_entity],
@@ -385,7 +385,7 @@ class TestBenchmarkService:
         assert result.dataset is None
 
     def test_convert_bundle_entity_to_dto(self, benchmark_service, mock_dataset_repository, sample_bundle_entity, sample_dataset_entity):
-        """Test conversion of BundleEntity to BundleDTO"""
+        """Test conversion of TestBundleEntity to BundleDTO"""
         # Arrange
         mock_dataset_repository.get_dataset_by_id.return_value = sample_dataset_entity
         
@@ -402,9 +402,9 @@ class TestBenchmarkService:
         assert isinstance(result.tests[0], BenchmarkTestDTO)
 
     def test_convert_bundle_entity_to_dto_empty_tests(self, benchmark_service):
-        """Test conversion of BundleEntity to BundleDTO with empty tests"""
+        """Test conversion of TestBundleEntity to BundleDTO with empty tests"""
         # Arrange
-        bundle_entity = BundleEntity(
+        bundle_entity = TestBundleEntity(
             name="empty_bundle",
             description="Empty bundle",
             tests=[],
@@ -607,7 +607,7 @@ class TestBenchmarkService:
             description="Test benchmark"
         )
         
-        bundle_entity = BundleEntity(
+        bundle_entity = TestBundleEntity(
             name="test_bundle",
             description="Test bundle",
             tests=[benchmark_test_entity],
@@ -649,7 +649,7 @@ class TestBenchmarkService:
             description="Test benchmark"
         )
         
-        bundle_entity = BundleEntity(
+        bundle_entity = TestBundleEntity(
             name="test_bundle",
             description="Test bundle",
             tests=[benchmark_test_entity],
@@ -711,7 +711,7 @@ class TestBenchmarkService:
             description="Second test"
         )
         
-        bundle_entity = BundleEntity(
+        bundle_entity = TestBundleEntity(
             name="multi_test_bundle",
             description="Bundle with multiple tests",
             tests=[test1, test2],

@@ -1,10 +1,10 @@
 from typing import Any, Dict, List, Optional
 from application.ports.benchmark_repository import BenchmarkRepository
 from application.ports.dataset_repository import DatasetRepository
-from application.services.wrappers.bundle_entity_wrapper import BundleEntityWrapper
+from application.services.wrappers.bundle_entity_wrapper import TestBundleEntityWrapper
 from domain.entities.test_config_entity import TestConfigEntity
 from domain.entities.benchmark_test_entity import BenchmarkTestEntity
-from domain.entities.bundle_entity import BundleEntity
+from domain.entities.test_bundle_entity import TestBundleEntity
 from domain.services.loader.file_loader import FileLoader, FileTypes
 from application.services.utils import load_module
 from domain.services.app_config import AppConfig
@@ -29,7 +29,7 @@ class FileBenchmarkRepository(BenchmarkRepository):
             self.benchmark_source = AppConfig().get_benchmark_source()
         
         self.logger.info(f"Loading test config from {self.benchmark_source}")
-        # tuple[Dict[str, List[BundleEntityWrapper]], Dict[str, List[BenchmarkTestEntityWrapper]]]
+        # tuple[Dict[str, List[TestBundleEntityWrapper]], Dict[str, List[BenchmarkTestEntityWrapper]]]
         # The first dictionary contains the bundle wrapper entities with their id as the key
         # The second dictionary contains the benchmark test wrapperentities with their id as the key
         self.test_configs = load_module(
@@ -40,7 +40,7 @@ class FileBenchmarkRepository(BenchmarkRepository):
             "ERROR_LOADING_TEST_CONFIG"
         )
 
-    def get_bundle_by_id(self, bundle_id: str) -> BundleEntity:
+    def get_bundle_by_id(self, bundle_id: str) -> TestBundleEntity:
         """
         Get a bundle by its ID.
         
@@ -48,7 +48,7 @@ class FileBenchmarkRepository(BenchmarkRepository):
             bundle_id (str): The ID of the bundle to retrieve
             
         Returns:
-            BundleEntity: The requested bundle
+            TestBundleEntity: The requested bundle
             
         Raises:
             KeyError: If the bundle_id is not found
@@ -81,7 +81,7 @@ class FileBenchmarkRepository(BenchmarkRepository):
                 test_list.append(benchmark_test_entity)
         
         # Create and return the bundle with calculated metrics
-        return BundleEntity(
+        return TestBundleEntity(
             id=bundle_id,
             name=bundle.name,
             description=bundle.description,
@@ -89,12 +89,12 @@ class FileBenchmarkRepository(BenchmarkRepository):
             tests=test_list
         )
     
-    def get_all_bundles(self) -> list[BundleEntity]:
+    def get_all_bundles(self) -> list[TestBundleEntity]:
         """
         Get all available bundles.
         
         Returns:
-            list[BundleEntity]: List of all bundles
+            list[TestBundleEntity]: List of all bundles
         """
         try:
             # Load test configs and bundles
@@ -122,7 +122,7 @@ class FileBenchmarkRepository(BenchmarkRepository):
                         test_list.append(benchmark_test_entity)
                 
                 # Create and return the bundle with calculated metrics
-                bundle_entity = BundleEntity(
+                bundle_entity = TestBundleEntity(
                     id=bundle_id,
                     name=bundle.name,
                     description=bundle.description,

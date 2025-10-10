@@ -1,6 +1,6 @@
 from abc import ABC, abstractmethod
 from typing import Any, Dict, List, Optional
-from domain.entities.bundle_entity import BundleEntity
+from domain.entities.test_bundle_entity import TestBundleEntity
 from domain.entities.benchmark_test_entity import BenchmarkTestEntity
 from domain.entities.dataset_entity import DatasetEntity
 from domain.entities.benchmark_test_entity import BenchmarkTestEntity
@@ -16,7 +16,7 @@ class BenchmarkRepository(ABC):
         self.benchmark_source = benchmark_source
     
     @abstractmethod
-    def get_bundle_by_id(self, bundle_id: str) -> BundleEntity:
+    def get_bundle_by_id(self, bundle_id: str) -> TestBundleEntity:
         """
         Get a bundle by its ID.
         
@@ -24,17 +24,17 @@ class BenchmarkRepository(ABC):
             bundle_id (str): The ID of the bundle to retrieve
             
         Returns:
-            BundleEntity: The requested bundle
+            TestBundleEntity: The requested bundle
         """
         pass
     
     @abstractmethod
-    def get_all_bundles(self) -> list[BundleEntity]:
+    def get_all_bundles(self) -> list[TestBundleEntity]:
         """
         Get all available bundles.
         
         Returns:
-            list[BundleEntity]: List of all bundles
+            list[TestBundleEntity]: List of all bundles
         """
         pass
 

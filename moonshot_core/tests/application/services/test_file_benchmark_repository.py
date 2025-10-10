@@ -3,11 +3,11 @@ from unittest.mock import Mock, MagicMock, patch
 from typing import Dict, List
 
 from application.services.file_benchmark_repository import FileBenchmarkRepository
-from application.services.wrappers.bundle_entity_wrapper import BundleEntityWrapper
+from application.services.wrappers.bundle_entity_wrapper import TestBundleEntityWrapper
 from application.services.wrappers.benchmark_test_entity_wrapper import BenchmarkTestEntityWrapper
 from domain.entities.test_config_entity import TestConfigEntity
 from domain.entities.benchmark_test_entity import BenchmarkTestEntity
-from domain.entities.bundle_entity import BundleEntity
+from domain.entities.test_bundle_entity import TestBundleEntity
 from domain.entities.dataset_entity import DatasetEntity
 from domain.services.enums.test_types import TestTypes
 from domain.services.enums.file_types import FileTypes
@@ -63,8 +63,8 @@ class TestFileBenchmarkRepository:
 
     @pytest.fixture
     def sample_bundle_entity(self, sample_benchmark_test_entity):
-        """Create a sample BundleEntity for testing"""
-        return BundleEntity(
+        """Create a sample TestBundleEntity for testing"""
+        return TestBundleEntity(
             id="test_bundle",
             name="test_bundle",
             description="Test bundle",
@@ -74,8 +74,8 @@ class TestFileBenchmarkRepository:
 
     @pytest.fixture
     def sample_bundle_wrapper(self):
-        """Create a sample BundleEntityWrapper for testing"""
-        wrapper = BundleEntityWrapper(
+        """Create a sample TestBundleEntityWrapper for testing"""
+        wrapper = TestBundleEntityWrapper(
             name="test_bundle",
             description="Test bundle",
             tests=[],
@@ -163,7 +163,7 @@ class TestFileBenchmarkRepository:
         result = repository.get_bundle_by_id("test_bundle")
 
         # Assert
-        assert isinstance(result, BundleEntity)
+        assert isinstance(result, TestBundleEntity)
         assert result.name == "test_bundle"
         assert result.description == "Test bundle"
         assert len(result.tests) == 1
@@ -194,7 +194,7 @@ class TestFileBenchmarkRepository:
         result = repository.get_bundle_by_id("test_bundle")
 
         # Assert
-        assert isinstance(result, BundleEntity)
+        assert isinstance(result, TestBundleEntity)
         assert result.name == "test_bundle"
         assert len(result.tests) == 0  # No tests because test config is missing
 
@@ -212,7 +212,7 @@ class TestFileBenchmarkRepository:
         # Assert
         assert isinstance(result, list)
         assert len(result) == 1
-        assert isinstance(result[0], BundleEntity)
+        assert isinstance(result[0], TestBundleEntity)
         assert result[0].name == "test_bundle"
 
     @patch('application.services.file_benchmark_repository.load_module')
@@ -536,10 +536,10 @@ class TestFileBenchmarkRepository:
         )
         test_wrapper2.dataset_name = "dataset2"
 
-        bundle_wrapper1 = BundleEntityWrapper(name="bundle1", description="Bundle 1", tests=[], category="test_category", id="bundle1")
+        bundle_wrapper1 = TestBundleEntityWrapper(name="bundle1", description="Bundle 1", tests=[], category="test_category", id="bundle1")
         bundle_wrapper1.test_names = ["test1"]
 
-        bundle_wrapper2 = BundleEntityWrapper(name="bundle2", description="Bundle 2", tests=[], category="test_category", id="bundle2")
+        bundle_wrapper2 = TestBundleEntityWrapper(name="bundle2", description="Bundle 2", tests=[], category="test_category", id="bundle2")
         bundle_wrapper2.test_names = ["test2"]
 
         test_configs = {
@@ -592,7 +592,7 @@ class TestFileBenchmarkRepository:
         )
         test_wrapper2.dataset_name = "dataset2"
 
-        bundle_wrapper = BundleEntityWrapper(name="multi_bundle", description="Multi bundle", tests=[], category="test_category", id="multi_bundle")
+        bundle_wrapper = TestBundleEntityWrapper(name="multi_bundle", description="Multi bundle", tests=[], category="test_category", id="multi_bundle")
         bundle_wrapper.test_names = ["test1", "test2"]
 
         test_configs = {
@@ -753,7 +753,7 @@ class TestFileBenchmarkRepository:
     def test_get_bundle_by_id_parametrized(self, mock_load_module, bundle_id):
         """Test get_bundle_by_id with different bundle IDs"""
         # Arrange
-        bundle_wrapper = BundleEntityWrapper(name=bundle_id, description=f"Description for {bundle_id}", tests=[], category="test_category", id=bundle_id)
+        bundle_wrapper = TestBundleEntityWrapper(name=bundle_id, description=f"Description for {bundle_id}", tests=[], category="test_category", id=bundle_id)
         test_configs = {}
         bundles = {bundle_id: bundle_wrapper}
         mock_load_module.return_value = (test_configs, bundles)

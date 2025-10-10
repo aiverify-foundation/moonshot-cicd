@@ -2,8 +2,8 @@ import pytest
 from unittest.mock import patch, MagicMock, mock_open
 from domain.services.loader.loader_types.data_loader import DataLoader
 from domain.entities.benchmark_test_entity import BenchmarkTestEntity
-from domain.entities.bundle_entity import BundleEntity
-from application.services.wrappers.bundle_entity_wrapper import BundleEntityWrapper
+from domain.entities.test_bundle_entity import TestBundleEntity
+from application.services.wrappers.bundle_entity_wrapper import TestBundleEntityWrapper
 from application.services.wrappers.benchmark_test_entity_wrapper import BenchmarkTestEntityWrapper
 
 
@@ -133,7 +133,7 @@ class TestDataLoader:
         
         # Check bundle wrapper properties
         bundle_1_wrapper = bundles["test_bundle_1"]
-        assert isinstance(bundle_1_wrapper, BundleEntityWrapper)
+        assert isinstance(bundle_1_wrapper, TestBundleEntityWrapper)
         assert bundle_1_wrapper.name == "Test Bundle 1"
         assert bundle_1_wrapper.id == "test_bundle_1"
         assert bundle_1_wrapper.description == "First test bundle"
