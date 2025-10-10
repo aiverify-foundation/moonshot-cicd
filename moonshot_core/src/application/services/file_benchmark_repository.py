@@ -138,7 +138,7 @@ class FileBenchmarkRepository(BenchmarkRepository):
             self.logger.error(f"Error retrieving all bundles: {e}")
             raise
     
-    def get_all_test_configs(self) -> list[TestConfigEntity]:
+    def get_all_benchmark_tests(self) -> list[TestConfigEntity]:
         """
         Get all available test configurations.
         

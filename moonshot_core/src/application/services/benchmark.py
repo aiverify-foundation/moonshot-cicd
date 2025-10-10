@@ -36,7 +36,7 @@ class BenchmarkService:
         benchmark_test_entity = self.benchmark_repository.get_benchmark_test_by_id(test_config_id)
         return self._convert_benchmark_test_entity_to_dto(benchmark_test_entity)
 
-    def get_all_test_configs(self) -> list[BenchmarkTestDTO]:
+    def get_all_benchmark_tests(self) -> list[BenchmarkTestDTO]:
         benchmark_test_entities = self.benchmark_repository.get_all_benchmark_tests()
         benchmark_test_dtos = []
         for benchmark_test_entity in benchmark_test_entities:

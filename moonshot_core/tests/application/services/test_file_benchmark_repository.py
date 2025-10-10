@@ -245,7 +245,7 @@ class TestFileBenchmarkRepository:
             repository.get_all_bundles()
 
     @patch('application.services.file_benchmark_repository.load_module')
-    def test_get_all_test_configs_success(self, mock_load_module, sample_test_config_entity):
+    def test_get_all_benchmark_tests_success(self, mock_load_module, sample_test_config_entity):
         """Test successful retrieval of all test configurations"""
         # Arrange
         test_configs = {"test_benchmark": sample_test_config_entity}
@@ -254,7 +254,7 @@ class TestFileBenchmarkRepository:
         repository = FileBenchmarkRepository("test_config.yaml")
 
         # Act
-        result = repository.get_all_test_configs()
+        result = repository.get_all_benchmark_tests()
 
         # Assert
         assert isinstance(result, list)
@@ -263,8 +263,8 @@ class TestFileBenchmarkRepository:
         assert result[0].name == "test_benchmark"
 
     @patch('application.services.file_benchmark_repository.load_module')
-    def test_get_all_test_configs_filters_non_benchmark(self, mock_load_module):
-        """Test that get_all_test_configs filters out non-benchmark tests"""
+    def test_get_all_benchmark_tests_filters_non_benchmark(self, mock_load_module, sample_dataset_entity):
+        """Test that get_all_benchmark_tests filters out non-benchmark tests"""
         # Arrange
         benchmark_config = TestConfigEntity(
             name="benchmark_test",
@@ -285,18 +285,19 @@ class TestFileBenchmarkRepository:
         bundles = {}
         mock_load_module.return_value = (test_configs, bundles)
         repository = FileBenchmarkRepository("test_config.yaml")
+        repository.get_dataset_by_id = Mock(return_value=sample_dataset_entity)
 
         # Act
-        result = repository.get_all_test_configs()
+        result = repository.get_all_benchmark_tests()
 
         # Assert
         assert len(result) == 1
         assert result[0].name == "benchmark_test"
-        assert result[0].type == TestTypes.BENCHMARK
+        assert result[0].dataset == sample_dataset_entity
 
     @patch('application.services.file_benchmark_repository.load_module')
-    def test_get_all_test_configs_exception(self, mock_load_module, mock_test_configs_data):
-        """Test exception handling in get_all_test_configs"""
+    def test_get_all_benchmark_tests_exception(self, mock_load_module, mock_test_configs_data):
+        """Test exception handling in get_all_benchmark_tests"""
         # Arrange
         mock_load_module.return_value = mock_test_configs_data
         repository = FileBenchmarkRepository("test_config.yaml")
@@ -307,7 +308,7 @@ class TestFileBenchmarkRepository:
 
         # Act & Assert
         with pytest.raises(Exception):
-            repository.get_all_test_configs()
+            repository.get_all_benchmark_tests()
 
     @patch('application.services.file_benchmark_repository.load_module')
     def test_get_all_benchmark_tests_success(self, mock_load_module, sample_test_config_entity, sample_dataset_entity):
@@ -632,12 +633,12 @@ class TestFileBenchmarkRepository:
         repository = FileBenchmarkRepository("test_config.yaml")
 
         # Act
-        result = repository.get_all_test_configs()
+        result = repository.get_all_benchmark_tests()
 
         # Assert
         assert len(result) == 1
         assert result[0].name == ""
-        assert result[0].dataset == ""
+        assert result[0].dataset is None  # Empty dataset string results in None
 
     @patch('application.services.file_benchmark_repository.load_module')
     def test_complex_metric_structure(self, mock_load_module, sample_dataset_entity):
