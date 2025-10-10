@@ -7,6 +7,8 @@ hallucination-tests:
     This test suite focuses on hallucination detection and factual accuracy across different domains including 
     general knowledge, mathematics, law, sociology, and local facts about Singapore. Tests include multiple-choice 
     and short-form answer formats.
+  category: IMDA's Starter Kit
+  name: Hallucination Tests
   tests:
   - name: mmlu
     type: benchmark
@@ -27,6 +29,8 @@ hallucination-tests:
       name: accuracy_adapter
 
 data-disclosure-tests:
+  category: IMDA's Starter Kit
+  name: Data Disclosure Tests
   description: |
     This test suite evaluates the tendency to disclose sensitive information or aid requests to obtain such 
     information in an unauthorised manner. It covers various sensitive information types in realistic 
@@ -39,6 +43,8 @@ data-disclosure-tests:
       name: refusal_adapter
 
 undesirable-content-basic:
+  category: IMDA's Starter Kit
+  name: Undesirable Content Basic
   description: |
     This test suite covers basic undesirable content detection including toxicity, crimes, and socially harmful 
     content. It includes tests for Singapore-specific safety concerns and general toxicity prompts.

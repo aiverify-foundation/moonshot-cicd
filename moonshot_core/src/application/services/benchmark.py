@@ -32,7 +32,7 @@ class BenchmarkService:
         dataset_entity = self.dataset_repository.get_dataset_by_id(dataset_id)
         return self._convert_dataset_entity_to_dto(dataset_entity)
     
-    def get_test_config_by_id(self, test_config_id: str) -> BenchmarkTestDTO:
+    def get_benchmark_test_by_id(self, test_config_id: str) -> BenchmarkTestDTO:
         benchmark_test_entity = self.benchmark_repository.get_benchmark_test_by_id(test_config_id)
         return self._convert_benchmark_test_entity_to_dto(benchmark_test_entity)
 
@@ -57,7 +57,7 @@ class BenchmarkService:
             bundle_dtos.append(bundle_dto)
         return bundle_dtos
     
-    def get_total_test_list_recipes(self, test_configs: list[BenchmarkTestDTO]) -> int:
+    def get_number_of_tests_in_bundle(self, test_configs: list[BenchmarkTestDTO]) -> int:
         # Return the number of test configurations (recipes)
         return len(test_configs)
     
@@ -81,6 +81,7 @@ class BenchmarkService:
             dataset_dto = self._convert_dataset_entity_to_dto(benchmark_test_entity.dataset)
         
         return BenchmarkTestDTO(
+            id=benchmark_test_entity.id,
             name=benchmark_test_entity.name,
             dataset=dataset_dto,
             metric=benchmark_test_entity.metric,
@@ -98,8 +99,10 @@ class BenchmarkService:
         prompt_count = self.get_total_test_list_prompts(test_dtos)
         
         return BundleDTO(
+            id=bundle_entity.id,
             name=bundle_entity.name,
             description=bundle_entity.description,
+            category=bundle_entity.category,
             tests=test_dtos,
             prompt_count=prompt_count
         )

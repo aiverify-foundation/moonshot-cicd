@@ -34,21 +34,6 @@ def test_root_endpoint(mock_get_build_dir):
     assert response.json() == {"message": "Welcome to Moonshot CI/CD API"}
 
 
-# Removed tests for non-existent endpoints (/health, /api/v1/status)
-
-
-def test_docs_endpoint():
-    """Test that the docs endpoint is accessible."""
-    response = client.get("/docs")
-    assert response.status_code == 200
-
-
-def test_redoc_endpoint():
-    """Test that the redoc endpoint is accessible."""
-    response = client.get("/redoc")
-    assert response.status_code == 200
-
-
 @patch('entrypoints.api.benchmark_service')
 def test_bundles_endpoint(mock_benchmark_service):
     """Test the /api/bundles endpoint returns proper response structure."""

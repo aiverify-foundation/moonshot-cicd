@@ -29,6 +29,9 @@ class FileBenchmarkRepository(BenchmarkRepository):
             self.benchmark_source = AppConfig().get_benchmark_source()
         
         self.logger.info(f"Loading test config from {self.benchmark_source}")
+        # tuple[Dict[str, List[BundleEntityWrapper]], Dict[str, List[BenchmarkTestEntityWrapper]]]
+        # The first dictionary contains the bundle wrapper entities with their id as the key
+        # The second dictionary contains the benchmark test wrapperentities with their id as the key
         self.test_configs = load_module(
             FileLoader,
             self.benchmark_source,
@@ -69,6 +72,7 @@ class FileBenchmarkRepository(BenchmarkRepository):
                 dataset_entity = self.get_dataset_by_id(test_wrapper.dataset_name)
                 # Create BenchmarkTestEntity with the resolved dataset
                 benchmark_test_entity = BenchmarkTestEntity(
+                    id=test_wrapper.name,
                     name=test_wrapper.name,
                     dataset=dataset_entity,
                     metric=test_wrapper.metric,
@@ -78,8 +82,10 @@ class FileBenchmarkRepository(BenchmarkRepository):
         
         # Create and return the bundle with calculated metrics
         return BundleEntity(
+            id=bundle_id,
             name=bundle.name,
             description=bundle.description,
+            category=bundle.category,
             tests=test_list
         )
     
@@ -107,6 +113,7 @@ class FileBenchmarkRepository(BenchmarkRepository):
                         dataset_entity = self.get_dataset_by_id(test_wrapper.dataset_name)
                         # Create BenchmarkTestEntity with the resolved dataset
                         benchmark_test_entity = BenchmarkTestEntity(
+                            id=test_wrapper.name,
                             name=test_wrapper.name,
                             dataset=dataset_entity,
                             metric=test_wrapper.metric,
@@ -116,8 +123,10 @@ class FileBenchmarkRepository(BenchmarkRepository):
                 
                 # Create and return the bundle with calculated metrics
                 bundle_entity = BundleEntity(
+                    id=bundle_id,
                     name=bundle.name,
                     description=bundle.description,
+                    category=bundle.category,
                     tests=test_list
                 )
                 bundle_list.append(bundle_entity)
@@ -170,6 +179,7 @@ class FileBenchmarkRepository(BenchmarkRepository):
                     if test_config.dataset:
                         dataset_entity = self.get_dataset_by_id(test_config.dataset)
                     benchmark_test = BenchmarkTestEntity(
+                        id=test_config.name,
                         name=test_config.name,
                         dataset=dataset_entity,
                         metric=test_config.metric
@@ -214,6 +224,7 @@ class FileBenchmarkRepository(BenchmarkRepository):
                 dataset_entity = self.get_dataset_by_id(test_config.dataset)
             
             benchmark_test = BenchmarkTestEntity(
+                id=test_config.name,
                 name=test_config.name,
                 dataset=dataset_entity,
                 metric=test_config.metric
@@ -226,34 +237,6 @@ class FileBenchmarkRepository(BenchmarkRepository):
             self.logger.error(f"Error retrieving benchmark test entity '{test_id}': {e}")
             raise
 
-    def get_test_config_by_id(self, test_config_id: str) -> TestConfigEntity:
-        """
-        Get a test config by its ID.
-        
-        Args:
-            test_config_id (str): The ID of the test configuration to retrieve
-            
-        Returns:
-            TestConfigEntity: The requested test configuration
-            
-        Raises:
-            KeyError: If the test_config_id is not found
-        """
-        try:
-            # Load test configs and bundles
-            test_configs, bundles = self.test_configs
-            
-            if test_config_id not in test_configs:
-                self.logger.error(f"Test configuration with ID '{test_config_id}' not found")
-                raise KeyError(f"Test configuration with ID '{test_config_id}' not found")
-            
-            test_config = test_configs[test_config_id]
-            self.logger.info(f"Retrieved test configuration: {test_config.name}")
-            return test_config
-            
-        except Exception as e:
-            self.logger.error(f"Error retrieving test configuration '{test_config_id}': {e}")
-            raise
     
     def get_dataset_by_id(self, dataset_id: str) -> DatasetEntity:
         """

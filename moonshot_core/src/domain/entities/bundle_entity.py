@@ -1,3 +1,4 @@
+from asyncio import streams
 from typing import List, Optional
 
 from pydantic import BaseModel
@@ -27,6 +28,10 @@ class BundleEntity(BaseModel):
 
     # List of test names in the bundle
     tests: List[BenchmarkTestEntity] = []
+
+    category: str = ""
+
+    id: str = ""
 
     def get_prompt_count(self) -> int:
         return sum(test.get_prompt_count() for test in self.tests)

@@ -22,6 +22,7 @@ class BenchmarkTestDTO(BaseModel):
     class Config:
         arbitrary_types_allowed = True
 
+    id: str = ""
     # Name of the test
     name: str
 
@@ -34,14 +35,4 @@ class BenchmarkTestDTO(BaseModel):
     # Prompt or scenario description for the test
     description: str = ""
 
-    def __str__(self) -> str:
-        """String representation for debugging."""
-        dataset_info = f"Dataset: {self.dataset.name}" if self.dataset else "Dataset: None"
-        return (
-            f"BenchmarkTestDTO(\n"
-            f"  name: '{self.name}'\n"
-            f"  {dataset_info}\n"
-            f"  metric: {self.metric}\n"
-            f"  description: '{self.description}'\n"
-            f")"
-        )
+

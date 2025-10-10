@@ -2,7 +2,15 @@ from domain.entities.benchmark_test_entity import BenchmarkTestEntity
 
 class BenchmarkTestEntityWrapper:
     def __init__(self, benchmark_test_entity: BenchmarkTestEntity = None):
-        self.benchmark_test_entity = benchmark_test_entity or BenchmarkTestEntity()
+        if benchmark_test_entity:
+            self.benchmark_test_entity = benchmark_test_entity
+        else:
+            # Create a default entity with required fields
+            self.benchmark_test_entity = BenchmarkTestEntity(
+                id="",
+                name="",
+                metric={}
+            )
         self.dataset_name: str = ""
 
     def get_benchmark_test_entity(self) -> BenchmarkTestEntity:
@@ -25,6 +33,10 @@ class BenchmarkTestEntityWrapper:
     def description(self) -> str:
         return self.benchmark_test_entity.description
     
+    @property
+    def id(self) -> str:
+        return self.benchmark_test_entity.id
+    
     @name.setter
     def name(self, value: str):
         self.benchmark_test_entity.name = value
@@ -40,3 +52,10 @@ class BenchmarkTestEntityWrapper:
     @description.setter
     def description(self, value: str):
         self.benchmark_test_entity.description = value
+
+    @id.setter
+    def id(self, value: str):
+        self.benchmark_test_entity.id = value
+
+    def get_prompt_count(self) -> int:
+        return self.benchmark_test_entity.get_prompt_count()

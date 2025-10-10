@@ -39,38 +39,3 @@ class TestConfigEntity(BaseModel):
     # Prompt or scenario description for the test
     prompt: str = ""
 
-    # Additional description for the test
-    description: str = ""
-
-    def __str__(self) -> str:
-        """
-        Returns a formatted string representation of the TestConfigEntity for debugging.
-        
-        Returns:
-            str: A formatted string containing all entity attributes
-        """
-        lines = [
-            f"TestConfigEntity:",
-            f"  Name: {self.name}",
-            f"  Type: {self.type.value if self.type else 'None'}",
-            f"  Dataset: {self.dataset if self.dataset else 'None'}",
-            f"  Prompt: {self.prompt if self.prompt else 'None'}",
-        ]
-        
-        # Format attack_module
-        if self.attack_module:
-            lines.append("  Attack Module:")
-            for key, value in self.attack_module.items():
-                lines.append(f"    {key}: {value}")
-        else:
-            lines.append("  Attack Module: None")
-        
-        # Format metric
-        if self.metric:
-            lines.append("  Metric:")
-            for key, value in self.metric.items():
-                lines.append(f"    {key}: {value}")
-        else:
-            lines.append("  Metric: None")
-        
-        return "\n".join(lines)

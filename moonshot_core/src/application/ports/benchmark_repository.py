@@ -1,8 +1,9 @@
 from abc import ABC, abstractmethod
 from typing import Any, Dict, List, Optional
 from domain.entities.bundle_entity import BundleEntity
-from domain.entities.test_config_entity import TestConfigEntity
+from domain.entities.benchmark_test_entity import BenchmarkTestEntity
 from domain.entities.dataset_entity import DatasetEntity
+from domain.entities.benchmark_test_entity import BenchmarkTestEntity
 
 class BenchmarkRepository(ABC):
     def __init__(self, benchmark_source: Any = None):
@@ -10,7 +11,7 @@ class BenchmarkRepository(ABC):
         Initialize the repository with optional test configurations.
         
         Args:
-            test_configs (Optional[Dict[str, List[TestConfigEntity]]]): Test configurations to use
+            benchmark_tests (Optional[Dict[str, List[BenchmarkTestEntity]]]): Test configurations to use
         """
         self.benchmark_source = benchmark_source
     
@@ -38,22 +39,22 @@ class BenchmarkRepository(ABC):
         pass
 
     @abstractmethod
-    def get_all_test_configs(self) -> list[TestConfigEntity]:
+    def get_all_benchmark_tests(self) -> list[BenchmarkTestEntity]:
         """
-        Get all available bundles.
+        Get all available benchmark tests.
         
         Returns:
-            list[BundleEntity]: List of all bundles
+            list[BenchmarkTestEntity]: List of all benchmark tests
         """
         pass
 
     @abstractmethod
-    def get_test_config_by_id(self, test_config_id: str) -> TestConfigEntity:
+    def get_benchmark_test_by_id(self, benchmark_test_id: str) -> BenchmarkTestEntity:
         """
         Get a test config by its ID.
         
         Returns:
-            TestConfigEntity: The requested test config
+            BenchmarkTestEntity: The requested test config
         """
         pass
 

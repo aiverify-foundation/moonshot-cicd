@@ -54,6 +54,7 @@ class TestFileBenchmarkRepository:
     def sample_benchmark_test_entity(self, sample_dataset_entity):
         """Create a sample BenchmarkTestEntity for testing"""
         return BenchmarkTestEntity(
+            id="test_benchmark",
             name="test_benchmark",
             dataset=sample_dataset_entity,
             metric={"name": "accuracy", "threshold": 0.8},
@@ -64,8 +65,10 @@ class TestFileBenchmarkRepository:
     def sample_bundle_entity(self, sample_benchmark_test_entity):
         """Create a sample BundleEntity for testing"""
         return BundleEntity(
+            id="test_bundle",
             name="test_bundle",
             description="Test bundle",
+            category="test_category",
             tests=[sample_benchmark_test_entity]
         )
 
@@ -75,7 +78,9 @@ class TestFileBenchmarkRepository:
         wrapper = BundleEntityWrapper(
             name="test_bundle",
             description="Test bundle",
-            tests=[]
+            tests=[],
+            category="test_category",
+            id="test_bundle"
         )
         wrapper.test_names = ["test_benchmark"]
         return wrapper
@@ -84,6 +89,7 @@ class TestFileBenchmarkRepository:
     def sample_test_wrapper(self):
         """Create a sample BenchmarkTestEntityWrapper for testing"""
         benchmark_test_entity = BenchmarkTestEntity(
+            id="test_benchmark",
             name="test_benchmark",
             dataset=None,
             metric={"name": "accuracy", "threshold": 0.8},
@@ -424,25 +430,9 @@ class TestFileBenchmarkRepository:
         with pytest.raises(Exception):
             repository.get_benchmark_test_by_id("test_id")
 
-    @patch('application.services.file_benchmark_repository.load_module')
-    def test_get_test_config_by_id_success(self, mock_load_module, sample_test_config_entity):
-        """Test successful test config retrieval by ID"""
-        # Arrange
-        test_configs = {"test_benchmark": sample_test_config_entity}
-        bundles = {}
-        mock_load_module.return_value = (test_configs, bundles)
-        repository = FileBenchmarkRepository("test_config.yaml")
-
-        # Act
-        result = repository.get_test_config_by_id("test_benchmark")
-
-        # Assert
-        assert isinstance(result, TestConfigEntity)
-        assert result.name == "test_benchmark"
-        assert result.type == TestTypes.BENCHMARK
 
     @patch('application.services.file_benchmark_repository.load_module')
-    def test_get_test_config_by_id_not_found(self, mock_load_module):
+    def test_get_benchmark_test_by_id_not_found(self, mock_load_module):
         """Test test config retrieval when config is not found"""
         # Arrange
         mock_load_module.return_value = ({}, {})
@@ -450,11 +440,11 @@ class TestFileBenchmarkRepository:
 
         # Act & Assert
         with pytest.raises(KeyError, match="Test configuration with ID 'nonexistent_config' not found"):
-            repository.get_test_config_by_id("nonexistent_config")
+            repository.get_benchmark_test_by_id("nonexistent_config")
 
     @patch('application.services.file_benchmark_repository.load_module')
-    def test_get_test_config_by_id_exception(self, mock_load_module, mock_test_configs_data):
-        """Test exception handling in get_test_config_by_id"""
+    def test_get_benchmark_test_by_id_exception(self, mock_load_module, mock_test_configs_data):
+        """Test exception handling in get_benchmark_test_by_id"""
         # Arrange
         mock_load_module.return_value = mock_test_configs_data
         repository = FileBenchmarkRepository("test_config.yaml")
@@ -465,7 +455,7 @@ class TestFileBenchmarkRepository:
 
         # Act & Assert
         with pytest.raises(Exception):
-            repository.get_test_config_by_id("test_id")
+            repository.get_benchmark_test_by_id("test_id")
 
     @patch('application.services.file_benchmark_repository.load_module')
     def test_get_dataset_by_id_success(self, mock_load_module, sample_dataset_entity):
@@ -525,6 +515,7 @@ class TestFileBenchmarkRepository:
         # Arrange
         test_wrapper1 = BenchmarkTestEntityWrapper(
             BenchmarkTestEntity(
+                id="test1",
                 name="test1",
                 dataset=None,
                 metric={"name": "accuracy"},
@@ -535,6 +526,7 @@ class TestFileBenchmarkRepository:
 
         test_wrapper2 = BenchmarkTestEntityWrapper(
             BenchmarkTestEntity(
+                id="test2",
                 name="test2",
                 dataset=None,
                 metric={"name": "refusal"},
@@ -543,10 +535,10 @@ class TestFileBenchmarkRepository:
         )
         test_wrapper2.dataset_name = "dataset2"
 
-        bundle_wrapper1 = BundleEntityWrapper(name="bundle1", description="Bundle 1", tests=[])
+        bundle_wrapper1 = BundleEntityWrapper(name="bundle1", description="Bundle 1", tests=[], category="test_category", id="bundle1")
         bundle_wrapper1.test_names = ["test1"]
 
-        bundle_wrapper2 = BundleEntityWrapper(name="bundle2", description="Bundle 2", tests=[])
+        bundle_wrapper2 = BundleEntityWrapper(name="bundle2", description="Bundle 2", tests=[], category="test_category", id="bundle2")
         bundle_wrapper2.test_names = ["test2"]
 
         test_configs = {
@@ -579,6 +571,7 @@ class TestFileBenchmarkRepository:
         # Arrange
         test_wrapper1 = BenchmarkTestEntityWrapper(
             BenchmarkTestEntity(
+                id="test1",
                 name="test1",
                 dataset=None,
                 metric={"name": "accuracy"},
@@ -589,6 +582,7 @@ class TestFileBenchmarkRepository:
 
         test_wrapper2 = BenchmarkTestEntityWrapper(
             BenchmarkTestEntity(
+                id="test2",
                 name="test2",
                 dataset=None,
                 metric={"name": "refusal"},
@@ -597,7 +591,7 @@ class TestFileBenchmarkRepository:
         )
         test_wrapper2.dataset_name = "dataset2"
 
-        bundle_wrapper = BundleEntityWrapper(name="multi_bundle", description="Multi bundle", tests=[])
+        bundle_wrapper = BundleEntityWrapper(name="multi_bundle", description="Multi bundle", tests=[], category="test_category", id="multi_bundle")
         bundle_wrapper.test_names = ["test1", "test2"]
 
         test_configs = {
@@ -758,7 +752,7 @@ class TestFileBenchmarkRepository:
     def test_get_bundle_by_id_parametrized(self, mock_load_module, bundle_id):
         """Test get_bundle_by_id with different bundle IDs"""
         # Arrange
-        bundle_wrapper = BundleEntityWrapper(name=bundle_id, description=f"Description for {bundle_id}", tests=[])
+        bundle_wrapper = BundleEntityWrapper(name=bundle_id, description=f"Description for {bundle_id}", tests=[], category="test_category", id=bundle_id)
         test_configs = {}
         bundles = {bundle_id: bundle_wrapper}
         mock_load_module.return_value = (test_configs, bundles)

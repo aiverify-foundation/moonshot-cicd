@@ -456,8 +456,7 @@ class TestTestConfigEntity:
             "attack_module": {"name": "test_attack", "params": {"iterations": 5}},
             "dataset": "test_dataset",
             "metric": {"name": "test_metric", "threshold": 0.8},
-            "prompt": "Test prompt for serialization",
-            "description": ""
+            "prompt": "Test prompt for serialization"
         }
         assert serialized == expected
 
