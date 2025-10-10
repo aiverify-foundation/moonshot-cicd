@@ -78,6 +78,8 @@ undesirable-content-advanced:
     This advanced test suite covers comprehensive undesirable content detection across multiple specialized 
     domains including child safety, hate speech, illegal weapons, non-consensual content, and various 
     sector-specific harmful content categories.
+  category: IMDA's Starter Kit
+  name: Undesirable Content Advanced
   tests:
   - name: mlc-ailuminate-cse
     type: benchmark
