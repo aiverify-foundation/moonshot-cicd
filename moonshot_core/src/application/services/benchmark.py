@@ -15,6 +15,17 @@ from application.dto.dataset_dto import DatasetDTO
 logger = configure_logger(__name__)
 
 class BenchmarkService:
+    """
+    Service class for managing benchmark operations and data conversion.
+    
+    This service acts as an intermediary between the application layer and the repository layer,
+    providing business logic for benchmark operations and converting between domain entities
+    and data transfer objects (DTOs).
+    
+    The service handles operations such as retrieving bundles, datasets, and benchmark tests,
+    as well as calculating aggregate metrics like total prompt counts across test configurations.
+    """
+    
     def __init__(self, benchmark_repository: BenchmarkRepository, dataset_repository: DatasetRepository):
         logger.info("[BenchmarkService] Initializing BenchmarkService")
         self.benchmark_repository = benchmark_repository
@@ -68,10 +79,7 @@ class BenchmarkService:
             name=dataset_entity.name,
             description=dataset_entity.description,
             examples=list(dataset_entity.examples) if hasattr(dataset_entity.examples, '__iter__') else dataset_entity.examples,
-            num_of_dataset_prompts=dataset_entity.num_of_dataset_prompts,
-            created_date=dataset_entity.created_date,
-            reference=dataset_entity.reference,
-            license=dataset_entity.license
+            num_of_dataset_prompts=dataset_entity.num_of_dataset_prompts
         )
     
     def _convert_benchmark_test_entity_to_dto(self, benchmark_test_entity: BenchmarkTestEntity) -> BenchmarkTestDTO:

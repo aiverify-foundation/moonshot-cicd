@@ -15,9 +15,6 @@ class DatasetDTO(BaseModel):
         description (str): Description of the dataset's contents and purpose.
         examples (list): List of examples from the dataset, where each example is a dictionary.
         num_of_dataset_prompts (int): The number of dataset prompts.
-        created_date (str): The creation date and time of the dataset in ISO format without 'T'.
-        reference (str): An optional string to store a reference link or identifier for the dataset.
-        license (str): License information for the dataset.
     """
 
     class Config:
@@ -38,12 +35,4 @@ class DatasetDTO(BaseModel):
     # The number of dataset prompts
     num_of_dataset_prompts: int = 0
 
-    # The creation date and time of the dataset in ISO format without 'T'.
-    created_date: str = ""
-
-    # An optional string to store a reference link or identifier for the dataset
-    reference: str = ""
-
-    # License information for the dataset. Defaults to an empty string if not provided.
-    license: str = ""
 

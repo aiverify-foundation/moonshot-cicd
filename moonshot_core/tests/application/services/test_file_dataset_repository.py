@@ -481,3 +481,46 @@ class TestFileDatasetRepository:
         assert result.created_date == "2023-12-01 00:00:00"
         assert result.reference == "https://example.com/maximal"
         assert result.license == "GPL v3"
+
+    def test_get_dataset_by_id_with_real_dataset_file(self):
+        """Test get_dataset_by_id with actual dataset file"""
+        # Arrange - Use a real dataset file
+        repository = FileDatasetRepository()
+        
+        # Act - Try to load a dataset that should exist
+        result = repository.get_dataset_by_id("brand_reputation_bbq")
+        
+        # Assert
+        assert isinstance(result, DatasetEntity)
+        assert result.id == "brand_reputation_bbq"
+        assert result.name is not None
+        assert result.description is not None
+        assert isinstance(result.examples, list)
+        assert result.num_of_dataset_prompts > 0
+        
+        # Verify dataset structure
+        if result.examples:
+            example = result.examples[0]
+            assert isinstance(example, dict)
+            # Should have input/output structure typical of datasets
+
+    def test_get_dataset_by_id_with_nonexistent_dataset(self):
+        """Test get_dataset_by_id with dataset that doesn't exist"""
+        # Arrange
+        repository = FileDatasetRepository()
+        
+        # Act & Assert
+        with pytest.raises(Exception):  # Should raise an exception for nonexistent dataset
+            repository.get_dataset_by_id("nonexistent_dataset_12345")
+
+    def test_dataset_loading_error_handling(self):
+        """Test proper error handling when dataset loading fails"""
+        # Arrange
+        repository = FileDatasetRepository()
+        
+        # Act & Assert - Try to load with invalid dataset ID
+        with pytest.raises(Exception):
+            repository.get_dataset_by_id("")  # Empty string should fail
+            
+        with pytest.raises(Exception):
+            repository.get_dataset_by_id(None)  # None should fail

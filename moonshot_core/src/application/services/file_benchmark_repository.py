@@ -13,6 +13,17 @@ from domain.entities.dataset_entity import DatasetEntity
 from domain.entities.benchmark_test_entity import BenchmarkTestEntity
 
 class FileBenchmarkRepository(BenchmarkRepository):
+    """
+    File-based implementation of the BenchmarkRepository interface.
+    
+    This repository loads benchmark test configurations and bundles from files using the FileLoader.
+    It provides concrete implementations for retrieving bundles, benchmark tests, and datasets
+    from file-based storage.
+    
+    The repository handles the conversion between test configuration wrappers and domain entities,
+    resolving dataset references and creating properly structured benchmark test entities.
+    """
+    
     def __init__(self, benchmark_source: Any = None):
         """
         Initialize the file-based bundle repository.
@@ -138,29 +149,6 @@ class FileBenchmarkRepository(BenchmarkRepository):
             self.logger.error(f"Error retrieving all bundles: {e}")
             raise
     
-    def get_all_benchmark_tests(self) -> list[TestConfigEntity]:
-        """
-        Get all available test configurations.
-        
-        Returns:
-            list[TestConfigEntity]: List of all test configurations
-        """
-        try:
-            # Load test configs and bundles
-            test_configs, bundles = self.test_configs
-            
-            test_config_list = []
-            for test_id, test_config in test_configs.items():
-                if test_config.type.value == "benchmark":
-                    test_config_list.append(test_config)
-            
-            self.logger.info(f"Retrieved {len(test_config_list)} test configurations")
-            return test_config_list
-            
-        except Exception as e:
-            self.logger.error(f"Error retrieving all test configurations: {e}")
-            raise
-
     def get_all_benchmark_tests(self) -> list[BenchmarkTestEntity]:
         """
         Get all available benchmark test entities.
@@ -173,18 +161,21 @@ class FileBenchmarkRepository(BenchmarkRepository):
             test_configs, bundles = self.test_configs
             
             benchmark_test_list = []
-            for test_id, test_config in test_configs.items():
-                if test_config.type.value == "benchmark":
-                    dataset_entity = None
-                    if test_config.dataset:
-                        dataset_entity = self.get_dataset_by_id(test_config.dataset)
-                    benchmark_test = BenchmarkTestEntity(
-                        id=test_config.name,
-                        name=test_config.name,
-                        dataset=dataset_entity,
-                        metric=test_config.metric
-                    )
-                    benchmark_test_list.append(benchmark_test)
+            for test_id, test_wrapper in test_configs.items():
+                # Get the dataset entity using the dataset name from the wrapper
+                dataset_entity = None
+                if test_wrapper.dataset_id:
+                    dataset_entity = self.get_dataset_by_id(test_wrapper.dataset_id)
+                
+                # Create BenchmarkTestEntity with the resolved dataset
+                benchmark_test = BenchmarkTestEntity(
+                    id=test_wrapper.name,
+                    name=test_wrapper.name,
+                    dataset=dataset_entity,
+                    metric=test_wrapper.metric,
+                    description=test_wrapper.description
+                )
+                benchmark_test_list.append(benchmark_test)
             
             self.logger.info(f"Retrieved {len(benchmark_test_list)} benchmark test entities")
             return benchmark_test_list
@@ -204,7 +195,7 @@ class FileBenchmarkRepository(BenchmarkRepository):
             BenchmarkTestEntity: The requested benchmark test entity
             
         Raises:
-            KeyError: If the test_id is not found or is not a benchmark test
+            KeyError: If the test_id is not found
         """
         try:
             # Load test configs and bundles
@@ -214,20 +205,20 @@ class FileBenchmarkRepository(BenchmarkRepository):
                 self.logger.error(f"Test configuration with ID '{test_id}' not found")
                 raise KeyError(f"Test configuration with ID '{test_id}' not found")
             
-            test_config = test_configs[test_id]
-            if test_config.type.value != "benchmark":
-                self.logger.error(f"Test configuration with ID '{test_id}' is not a benchmark test")
-                raise KeyError(f"Test configuration with ID '{test_id}' is not a benchmark test")
+            test_wrapper = test_configs[test_id]
             
+            # Get the dataset entity using the dataset name from the wrapper
             dataset_entity = None
-            if test_config.dataset:
-                dataset_entity = self.get_dataset_by_id(test_config.dataset)
+            if test_wrapper.dataset_id:
+                dataset_entity = self.get_dataset_by_id(test_wrapper.dataset_id)
             
+            # Create BenchmarkTestEntity with the resolved dataset
             benchmark_test = BenchmarkTestEntity(
-                id=test_config.name,
-                name=test_config.name,
+                id=test_wrapper.name,
+                name=test_wrapper.name,
                 dataset=dataset_entity,
-                metric=test_config.metric
+                metric=test_wrapper.metric,
+                description=test_wrapper.description
             )
             
             self.logger.info(f"Retrieved benchmark test entity: {benchmark_test.name}")

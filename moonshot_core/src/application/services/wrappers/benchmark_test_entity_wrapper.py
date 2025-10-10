@@ -1,6 +1,14 @@
 from domain.entities.benchmark_test_entity import BenchmarkTestEntity
 
 class BenchmarkTestEntityWrapper:
+    """
+    Wrapper class for BenchmarkTestEntity that provides additional functionality for repository operations.
+    
+    This wrapper extends the BenchmarkTestEntity with repository-specific logic, particularly
+    maintaining a dataset_id field for easier lookup and management in repository operations.
+    It delegates most operations to the wrapped entity while providing additional metadata.
+    """
+    
     def __init__(self, benchmark_test_entity: BenchmarkTestEntity = None):
         if benchmark_test_entity:
             self.benchmark_test_entity = benchmark_test_entity
