@@ -97,7 +97,7 @@ class DataLoader(Loader):
                         description=test.get("description", "")
                     )
                     wrapper = BenchmarkTestEntityWrapper(benchmark_test_entity)
-                    wrapper.dataset_name = test.get("dataset", "")
+                    wrapper.dataset_id = test.get("dataset", "")
                     benchmark_test_wrapper_entities[test.get("name")] = wrapper
 
                 # Create BenchmarkTestEntity objects for the bundle

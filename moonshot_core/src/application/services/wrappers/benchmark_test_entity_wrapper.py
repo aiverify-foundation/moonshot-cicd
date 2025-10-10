@@ -11,7 +11,7 @@ class BenchmarkTestEntityWrapper:
                 name="",
                 metric={}
             )
-        self.dataset_name: str = ""
+        self.dataset_id: str = ""
 
     def get_benchmark_test_entity(self) -> BenchmarkTestEntity:
         return self.benchmark_test_entity

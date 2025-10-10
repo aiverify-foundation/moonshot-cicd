@@ -82,7 +82,7 @@ class TestFileBenchmarkRepository:
             category="test_category",
             id="test_bundle"
         )
-        wrapper.test_names = ["test_benchmark"]
+        wrapper.test_ids = ["test_benchmark"]
         return wrapper
 
     @pytest.fixture
@@ -96,7 +96,7 @@ class TestFileBenchmarkRepository:
             description="Test benchmark"
         )
         wrapper = BenchmarkTestEntityWrapper(benchmark_test_entity)
-        wrapper.dataset_name = "test_dataset_1"
+        wrapper.dataset_id = "test_dataset_1"
         return wrapper
 
     @pytest.fixture
@@ -523,7 +523,7 @@ class TestFileBenchmarkRepository:
                 description="Test 1"
             )
         )
-        test_wrapper1.dataset_name = "dataset1"
+        test_wrapper1.dataset_id = "dataset1"
 
         test_wrapper2 = BenchmarkTestEntityWrapper(
             BenchmarkTestEntity(
@@ -534,13 +534,13 @@ class TestFileBenchmarkRepository:
                 description="Test 2"
             )
         )
-        test_wrapper2.dataset_name = "dataset2"
+        test_wrapper2.dataset_id = "dataset2"
 
         bundle_wrapper1 = TestBundleEntityWrapper(name="bundle1", description="Bundle 1", tests=[], category="test_category", id="bundle1")
-        bundle_wrapper1.test_names = ["test1"]
+        bundle_wrapper1.test_ids = ["test1"]
 
         bundle_wrapper2 = TestBundleEntityWrapper(name="bundle2", description="Bundle 2", tests=[], category="test_category", id="bundle2")
-        bundle_wrapper2.test_names = ["test2"]
+        bundle_wrapper2.test_ids = ["test2"]
 
         test_configs = {
             "test1": test_wrapper1,
@@ -579,7 +579,7 @@ class TestFileBenchmarkRepository:
                 description="Test 1"
             )
         )
-        test_wrapper1.dataset_name = "dataset1"
+        test_wrapper1.dataset_id = "dataset1"
 
         test_wrapper2 = BenchmarkTestEntityWrapper(
             BenchmarkTestEntity(
@@ -590,10 +590,10 @@ class TestFileBenchmarkRepository:
                 description="Test 2"
             )
         )
-        test_wrapper2.dataset_name = "dataset2"
+        test_wrapper2.dataset_id = "dataset2"
 
         bundle_wrapper = TestBundleEntityWrapper(name="multi_bundle", description="Multi bundle", tests=[], category="test_category", id="multi_bundle")
-        bundle_wrapper.test_names = ["test1", "test2"]
+        bundle_wrapper.test_ids = ["test1", "test2"]
 
         test_configs = {
             "test1": test_wrapper1,
