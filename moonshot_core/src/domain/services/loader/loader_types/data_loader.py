@@ -82,48 +82,45 @@ class DataLoader(Loader):
             bundle_wrapper_entities = {}
             # Iterate over all top-level keys in the YAML data
             for key, config_data in yaml_data.items():
-                isBundle = False
-                # Handle both old format (direct list) and new format (with tests key)
-                if isinstance(config_data, list):
-                    # Old format: direct list of tests
-                    tests = config_data
-                    description = None
-                elif isinstance(config_data, dict) and "tests" in config_data:
-                    # New format: config with tests key
-                    tests = config_data["tests"]
-                    description = config_data.get("description")
-                    isBundle = True
+                tests = config_data["tests"]
+                description = config_data.get("description", "")
+                category = config_data.get("category", "")
+                name = config_data.get("name", key)  # Use the key as default name if name is not provided
 
+                # Create BenchmarkTestEntity objects for individual tests
+                for test in tests:
+                    benchmark_test_entity = BenchmarkTestEntity(
+                        name=test.get("name"),
+                        id=test.get("name"),  # test id will be name for now
+                        dataset=None,  # Will be resolved later
+                        metric=test.get("metric"),
+                        description=test.get("description", "")
+                    )
+                    wrapper = BenchmarkTestEntityWrapper(benchmark_test_entity)
+                    wrapper.dataset_name = test.get("dataset", "")
+                    benchmark_test_wrapper_entities[test.get("name")] = wrapper
+
+                # Create BenchmarkTestEntity objects for the bundle
+                bundle_tests = []
+                for test in tests:
+                    benchmark_test_entity = BenchmarkTestEntity(
+                        name=test.get("name"),
+                        id=test.get("name"),  # test id will be name for now
+                        dataset=None,  # Will be resolved later
+                        metric=test.get("metric"),
+                        description=test.get("description", "")
+                    )
+                    bundle_tests.append(benchmark_test_entity)
                 
-                if isinstance(tests, list):
-                    for test in tests :
-                        benchmark_test_entity = BenchmarkTestEntity(
-                            name=test.get("name"),
-                            dataset=None,  # Will be resolved later
-                            metric=test.get("metric"),
-                            description=test.get("description", "")
-                        )
-                        wrapper = BenchmarkTestEntityWrapper(benchmark_test_entity)
-                        wrapper.dataset_name = test.get("dataset", "")
-                        benchmark_test_wrapper_entities[test.get("name")] = wrapper
-                    if isBundle:
-                        # add the bundles to the bundle_entities
-                        # Create BenchmarkTestEntity objects for the bundle
-                        bundle_tests = []
-                        for test in tests:
-                            benchmark_test_entity = BenchmarkTestEntity(
-                                name=test.get("name"),
-                                dataset=None,  # Will be resolved later
-                                metric=test.get("metric"),
-                                description=test.get("description", "")
-                            )
-                            bundle_tests.append(benchmark_test_entity)
-                        
-                        bundle_wrapper_entities[key] = BundleEntityWrapper(
-                            name=key,
-                            tests=bundle_tests,
-                            description=description,    
-                        )
+                # Create bundle wrapper entity
+                bundle_wrapper = BundleEntityWrapper(
+                    name=name,
+                    tests=bundle_tests,
+                    description=description,
+                    category=category,
+                    id=key
+                )
+                bundle_wrapper_entities[key] = bundle_wrapper
             return (benchmark_test_wrapper_entities, bundle_wrapper_entities)
         except FileExistsError:
             raise FileNotFoundError

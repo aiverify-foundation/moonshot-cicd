@@ -22,6 +22,8 @@ class BenchmarkTestEntity(BaseModel):
     class Config:
         arbitrary_types_allowed = True
 
+    id: str
+
     # Name of the test
     name: str
 

@@ -20,8 +20,8 @@ app = FastAPI(
     title="Moonshot CI/CD API",
     description="A REST API for the Moonshot benchmarking and red-teaming system",
     version="1.1.0",
-    docs_url="/docs",
-    redoc_url="/redoc"
+    docs_url=None,
+    redoc_url=None
 )
 
 

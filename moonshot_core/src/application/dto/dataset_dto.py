@@ -47,18 +47,3 @@ class DatasetDTO(BaseModel):
     # License information for the dataset. Defaults to an empty string if not provided.
     license: str = ""
 
-    def __str__(self) -> str:
-        """String representation for debugging."""
-        examples_preview = f"{len(self.examples)} examples" if self.examples else "No examples"
-        return (
-            f"DatasetDTO(\n"
-            f"  id: '{self.id}'\n"
-            f"  name: '{self.name}'\n"
-            f"  description: '{self.description[:100]}{'...' if len(self.description) > 100 else ''}'\n"
-            f"  {examples_preview}\n"
-            f"  num_of_dataset_prompts: {self.num_of_dataset_prompts}\n"
-            f"  created_date: '{self.created_date}'\n"
-            f"  reference: '{self.reference}'\n"
-            f"  license: '{self.license}'\n"
-            f")"
-        )
