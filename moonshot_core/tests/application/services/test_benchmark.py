@@ -169,7 +169,7 @@ class TestBenchmarkService:
         with pytest.raises(KeyError):
             benchmark_service.get_benchmark_test_by_id(test_config_id)
 
-    def test_get_all_test_configs_success(self, benchmark_service, mock_benchmark_repository, mock_dataset_repository, sample_benchmark_test_entity, sample_dataset_entity):
+    def test_get_all_benchmark_tests_success(self, benchmark_service, mock_benchmark_repository, mock_dataset_repository, sample_benchmark_test_entity, sample_dataset_entity):
         """Test successful retrieval of all test configs"""
         # Arrange
         test_entities = [sample_benchmark_test_entity]
@@ -177,7 +177,7 @@ class TestBenchmarkService:
         mock_dataset_repository.get_dataset_by_id.return_value = sample_dataset_entity
 
         # Act
-        result = benchmark_service.get_all_test_configs()
+        result = benchmark_service.get_all_benchmark_tests()
 
         # Assert
         mock_benchmark_repository.get_all_benchmark_tests.assert_called_once()
@@ -186,13 +186,13 @@ class TestBenchmarkService:
         assert isinstance(result[0], BenchmarkTestDTO)
         assert result[0].name == sample_benchmark_test_entity.name
 
-    def test_get_all_test_configs_empty(self, benchmark_service, mock_benchmark_repository):
+    def test_get_all_benchmark_tests_empty(self, benchmark_service, mock_benchmark_repository):
         """Test retrieval of all test configs when none exist"""
         # Arrange
         mock_benchmark_repository.get_all_benchmark_tests.return_value = []
 
         # Act
-        result = benchmark_service.get_all_test_configs()
+        result = benchmark_service.get_all_benchmark_tests()
 
         # Assert
         assert isinstance(result, list)
@@ -463,7 +463,7 @@ class TestBenchmarkService:
         mock_benchmark_repository.get_all_benchmark_tests.return_value = test_entities
 
         # Act
-        result = benchmark_service.get_all_test_configs()
+        result = benchmark_service.get_all_benchmark_tests()
 
         # Assert
         assert len(result) == 2
