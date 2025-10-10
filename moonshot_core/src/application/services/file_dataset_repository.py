@@ -7,6 +7,14 @@ from domain.services.app_config import AppConfig
 from domain.services.logger import configure_logger
 
 class FileDatasetRepository(DatasetRepository):
+    """
+    File-based implementation of the DatasetRepository interface.
+    
+    This repository loads datasets from files using the FileLoader. It provides concrete
+    implementations for retrieving dataset entities from file-based storage, handling
+    the loading and instantiation of dataset files.
+    """
+    
     def __init__(self, dataset_source: Any = None):
         """
         Initialize the file-based dataset repository.

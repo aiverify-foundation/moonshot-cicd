@@ -6,6 +6,14 @@ from domain.entities.dataset_entity import DatasetEntity
 from domain.entities.benchmark_test_entity import BenchmarkTestEntity
 
 class BenchmarkRepository(ABC):
+    """
+    Abstract base class for benchmark repository implementations.
+    
+    This interface defines the contract for benchmark data access operations including
+    bundles, benchmark tests, and datasets. Implementations should provide concrete
+    functionality for retrieving these entities from various storage backends.
+    """
+    
     def __init__(self, benchmark_source: Any = None):
         """
         Initialize the repository with optional test configurations.

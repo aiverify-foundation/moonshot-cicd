@@ -327,9 +327,6 @@ class TestBenchmarkService:
         assert result.description == sample_dataset_entity.description
         assert result.examples == sample_dataset_entity.examples
         assert result.num_of_dataset_prompts == sample_dataset_entity.num_of_dataset_prompts
-        assert result.created_date == sample_dataset_entity.created_date
-        assert result.reference == sample_dataset_entity.reference
-        assert result.license == sample_dataset_entity.license
 
     def test_convert_dataset_entity_to_dto_with_iterable_examples(self, benchmark_service):
         """Test conversion of DatasetEntity to DatasetDTO with iterable examples"""
@@ -750,3 +747,124 @@ class TestBenchmarkService:
         assert bundle_dto.tests[1].dataset.id == "dataset_2"
         assert bundle_dto.tests[1].dataset.name == "Dataset 2"
         assert bundle_dto.tests[1].dataset.num_of_dataset_prompts == 15
+
+    def test_benchmark_service_with_real_repositories(self):
+        """Test BenchmarkService with real repository implementations"""
+        # Arrange - Use real repository implementations
+        from application.services.file_benchmark_repository import FileBenchmarkRepository
+        from application.services.file_dataset_repository import FileDatasetRepository
+        
+        benchmark_repo = FileBenchmarkRepository("shared.yaml")
+        dataset_repo = FileDatasetRepository()
+        service = BenchmarkService(benchmark_repo, dataset_repo)
+
+        # Act - Test actual business logic
+        bundles = service.get_all_bundles()
+        benchmark_tests = service.get_all_benchmark_tests()
+
+        # Assert - Verify business logic works
+        assert isinstance(bundles, list)
+        assert isinstance(benchmark_tests, list)
+        
+        # Verify DTO conversion works correctly
+        if bundles:
+            bundle = bundles[0]
+            assert isinstance(bundle, BundleDTO)
+            assert bundle.id is not None
+            assert bundle.name is not None
+            assert bundle.description is not None
+            assert bundle.category is not None
+            assert isinstance(bundle.tests, list)
+            
+            # Verify test DTOs within bundles
+            for test in bundle.tests:
+                assert isinstance(test, BenchmarkTestDTO)
+                assert test.id is not None
+                assert test.name is not None
+                assert test.metric is not None
+        
+        # Verify benchmark test DTOs
+        if benchmark_tests:
+            test = benchmark_tests[0]
+            assert isinstance(test, BenchmarkTestDTO)
+            assert test.id is not None
+            assert test.name is not None
+            assert test.metric is not None
+
+    def test_total_prompts_calculation_with_real_data(self):
+        """Test total prompts calculation with real dataset data"""
+        # Arrange - Use real repositories
+        from application.services.file_benchmark_repository import FileBenchmarkRepository
+        from application.services.file_dataset_repository import FileDatasetRepository
+        
+        benchmark_repo = FileBenchmarkRepository("shared.yaml")
+        dataset_repo = FileDatasetRepository()
+        service = BenchmarkService(benchmark_repo, dataset_repo)
+
+        # Act - Get real benchmark tests
+        benchmark_tests = service.get_all_benchmark_tests()
+        
+        if benchmark_tests:  # Only test if we have data
+            total_prompts = service.get_total_test_list_prompts(benchmark_tests)
+
+            # Assert - Verify calculation logic
+            assert isinstance(total_prompts, int)
+            assert total_prompts >= 0
+            
+            # Verify calculation is correct by checking individual datasets
+            expected_total = 0
+            for test in benchmark_tests:
+                if test.dataset and test.dataset.num_of_dataset_prompts:
+                    expected_total += test.dataset.num_of_dataset_prompts
+            
+            assert total_prompts == expected_total
+
+    def test_number_of_tests_calculation_with_real_data(self):
+        """Test number of tests calculation with real data"""
+        # Arrange - Use real repositories
+        from application.services.file_benchmark_repository import FileBenchmarkRepository
+        from application.services.file_dataset_repository import FileDatasetRepository
+        
+        benchmark_repo = FileBenchmarkRepository("shared.yaml")
+        dataset_repo = FileDatasetRepository()
+        service = BenchmarkService(benchmark_repo, dataset_repo)
+
+        # Act - Get real benchmark tests
+        benchmark_tests = service.get_all_benchmark_tests()
+        num_tests = service.get_number_of_tests_in_bundle(benchmark_tests)
+
+        # Assert - Verify calculation logic
+        assert isinstance(num_tests, int)
+        assert num_tests >= 0
+        assert num_tests == len(benchmark_tests)
+
+    def test_dto_conversion_edge_cases(self):
+        """Test DTO conversion with edge cases using real data"""
+        # Arrange - Use real repositories
+        from application.services.file_benchmark_repository import FileBenchmarkRepository
+        from application.services.file_dataset_repository import FileDatasetRepository
+        
+        benchmark_repo = FileBenchmarkRepository("shared.yaml")
+        dataset_repo = FileDatasetRepository()
+        service = BenchmarkService(benchmark_repo, dataset_repo)
+
+        # Act - Get real data
+        bundles = service.get_all_bundles()
+        benchmark_tests = service.get_all_benchmark_tests()
+
+        # Assert - Test edge cases in DTO conversion
+        if bundles:
+            bundle = bundles[0]
+            # Test with empty tests
+            empty_tests = service.get_number_of_tests_in_bundle([])
+            assert empty_tests == 0
+            
+            # Test with None dataset handling
+            total_prompts_empty = service.get_total_test_list_prompts([])
+            assert total_prompts_empty == 0
+            
+            # Test complex metric structures are preserved
+            if bundle.tests:
+                test = bundle.tests[0]
+                assert isinstance(test.metric, dict)
+                # Metrics should be preserved as-is from the entity

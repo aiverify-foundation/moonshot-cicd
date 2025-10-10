@@ -8,15 +8,17 @@ from domain.entities.dataset_entity import DatasetEntity
 
 class BenchmarkTestEntity(BaseModel):
     """
-    TestConfigEntity represents the configuration for a test case.
+    BenchmarkTestEntity represents the configuration for a benchmark test case.
+
+    This entity defines the structure for benchmark test configurations, including
+    the dataset to be used, evaluation metrics, and test metadata.
 
     Attributes:
-        name (str): The name of the test configuration.
-        type (TestTypes): The type of the test configuration (can be Benchmark or Scan).
-        attack_module (dict): The module used for attack simulations, including parameters.
-        metric (str): The metric used to evaluate the test.
-        dataset (str): The dataset used for benchmark.
-        prompt (str): The prompt or scenario description for the test.
+        id (str): Unique identifier for the benchmark test.
+        name (str): The name of the benchmark test configuration.
+        dataset (Optional[DatasetEntity]): The dataset entity used for the benchmark.
+        metric (dict): The metric configuration used to evaluate the test.
+        description (str): The description or scenario for the benchmark test.
     """
 
     class Config:

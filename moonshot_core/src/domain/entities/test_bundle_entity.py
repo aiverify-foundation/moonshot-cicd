@@ -7,14 +7,17 @@ from domain.entities.benchmark_test_entity import BenchmarkTestEntity
 
 class TestBundleEntity(BaseModel):
     """
-    TestBundleEntity represents the configuration for a bundle of tests.
+    TestBundleEntity represents the configuration for a bundle of benchmark tests.
+
+    This entity groups multiple benchmark tests together, providing organization
+    and categorization for related test configurations.
 
     Attributes:
-        name (str): The name of bundle.
-        description (str): The description of bundle.
-        tests (list of strings): The tests in the bundle.
-        num_of_bundle_prompts (int): The number of prompts in the bundle.
-        num_of_recipes (int): The number of recipes in the bundle.
+        id (str): Unique identifier for the bundle.
+        name (str): The name of the bundle.
+        description (str): The description of the bundle.
+        category (str): The category classification for the bundle.
+        tests (List[BenchmarkTestEntity]): List of benchmark test entities in the bundle.
     """
 
     class Config:

@@ -1,6 +1,14 @@
 from domain.entities.test_bundle_entity import TestBundleEntity
 
 class TestBundleEntityWrapper:
+    """
+    Wrapper class for TestBundleEntity that provides additional functionality for repository operations.
+    
+    This wrapper extends the TestBundleEntity with repository-specific logic, particularly
+    maintaining a list of test IDs for easier lookup and management in repository operations.
+    It delegates most operations to the wrapped entity while providing additional metadata.
+    """
+    
     def __init__(self, bundle_entity: TestBundleEntity = None, name: str = "", tests: list = None, description: str = "", category: str = "", id: str = ""):
         if bundle_entity:
             self.bundle_entity = bundle_entity
