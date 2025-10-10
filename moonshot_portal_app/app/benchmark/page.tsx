@@ -46,9 +46,45 @@ function BenchmarkInner() {
   );
   }
 
+  function renderTestList(tests: Array<{
+    name: string;
+    dataset: {
+      id: string;
+      name: string;
+      description: string;
+    };
+  }>, bundleName: string) {
+    return (
+      <ul style={{ padding: 0, margin: 0 }}>
+        {tests.slice(0, 2).map((test, idx: number) => (
+          <li
+            key={bundleName + '-' + test.name + '-' + idx}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '0.5rem',
+              marginBottom: '1rem',
+              listStyle: 'none'
+            }}
+            data-testid={`test-name-${idx}`}
+          >
+            <FileTerminal />
+            <span>{test.name}</span>
+          </li>
+        ))}
+        {tests.length > 2 && (
+          <li style={{ listStyle: 'none', color: '#888', marginLeft: '2rem' }} data-testid="more-tests-text">
+            + {tests.length - 2} more
+          </li>
+        )}
+      </ul>
+    );
+  }
+
   function renderCard(bundle: {
     name: string;
     description: string;
+    category: string;
     tests: Array<{
       name: string;
       dataset: {
@@ -59,7 +95,7 @@ function BenchmarkInner() {
     }>;
     prompt_count?: number;
   }) {
-    const { name, description, tests, prompt_count } = bundle;
+    const { name, description, category, tests, prompt_count } = bundle;
     const selected = bundleSelection[name] || false;
     return (
       <Card style={{ width: '400px', height: '470px', display: 'flex', flexDirection: 'column' }} data-testid={`bundle-card-${name}`}>
@@ -69,7 +105,7 @@ function BenchmarkInner() {
               className="h-6 min-w-5 rounded-full px-2 tabular-nums"
               variant="outline"
             >
-            {"IMDA's Starter Kit"}
+            {category}
             </Badge>
           </div>
           <CardTitle data-testid="bundle-name">{name}</CardTitle>
@@ -103,36 +139,7 @@ function BenchmarkInner() {
         <Separator style={{ width: 'calc(100% - 2rem)', margin: '0 1rem' }} />
         <CardContent style={{ flex: 1 }}>
           <div style={{ marginBottom: '1rem' }}>Includes:</div>
-          <ul style={{ padding: 0, margin: 0 }}>
-            {tests.slice(0, 2).map((test: {
-              name: string;
-              dataset: {
-                id: string;
-                name: string;
-                description: string;
-              };
-            }, idx: number) => (
-              <li
-                key={name + '-' + test.name + '-' + idx}
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '0.5rem',
-                  marginBottom: '1rem',
-                  listStyle: 'none'
-                }}
-                data-testid={`test-name-${idx}`}
-              >
-                <FileTerminal />
-                <span>{test.name}</span>
-              </li>
-            ))}
-            {tests.length > 2 && (
-              <li style={{ listStyle: 'none', color: '#888', marginLeft: '2rem' }} data-testid="more-tests-text">
-                + {tests.length - 2} more
-              </li>
-            )}
-          </ul>
+          {renderTestList(tests, name)}
         </CardContent>
         <CardFooter className="flex items-center justify-between gap-2">
           <CheckboxToggleButton

@@ -7,6 +7,7 @@ const API_BASE_URL = 'http://localhost:8000';
 export interface Bundle {
   name: string;
   description: string;
+  category: string;
   tests: Array<{
     name: string;
     dataset: {
