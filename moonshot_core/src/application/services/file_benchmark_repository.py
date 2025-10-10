@@ -64,12 +64,12 @@ class FileBenchmarkRepository(BenchmarkRepository):
         test_list = []
 
         # Make sure to only include benchmark tests
-        # Use test_names from the wrapper
-        for test_name in bundle.test_names:
+        # Use test_ids from the wrapper
+        for test_name in bundle.test_ids:
             if test_name in test_configs:
                 test_wrapper = test_configs[test_name]
                 # Get the dataset entity using the dataset name from the wrapper
-                dataset_entity = self.get_dataset_by_id(test_wrapper.dataset_name)
+                dataset_entity = self.get_dataset_by_id(test_wrapper.dataset_id)
                 # Create BenchmarkTestEntity with the resolved dataset
                 benchmark_test_entity = BenchmarkTestEntity(
                     id=test_wrapper.name,
@@ -105,12 +105,12 @@ class FileBenchmarkRepository(BenchmarkRepository):
                 test_list = []
                 
                 # Make sure to only include benchmark tests
-                # Use test_names from the wrapper
-                for test_name in bundle.test_names:
+                # Use test_ids from the wrapper
+                for test_name in bundle.test_ids:
                     if test_name in test_configs:
                         test_wrapper = test_configs[test_name]
                         # Get the dataset entity using the dataset name from the wrapper
-                        dataset_entity = self.get_dataset_by_id(test_wrapper.dataset_name)
+                        dataset_entity = self.get_dataset_by_id(test_wrapper.dataset_id)
                         # Create BenchmarkTestEntity with the resolved dataset
                         benchmark_test_entity = BenchmarkTestEntity(
                             id=test_wrapper.name,

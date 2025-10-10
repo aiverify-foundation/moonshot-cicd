@@ -13,7 +13,7 @@ class TestBundleEntityWrapper:
                 id=id
             )
         # Store test names for repository logic
-        self.test_names: list[str] = [test.name for test in (tests or [])]
+        self.test_ids: list[str] = [test.name for test in (tests or [])]
 
     def get_bundle_entity(self) -> TestBundleEntity:
         return self.bundle_entity

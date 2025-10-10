@@ -311,7 +311,7 @@ class TestTestConfigEntity:
         "dataset with spaces",
         "unicode_dataset_数据集",
         "path/to/dataset.json",
-        "very_long_dataset_name_" * 10,
+        "very_long_dataset_id_" * 10,
     ])
     def test_valid_dataset_variations(self, dataset):
         """Test TestConfigEntity with various valid dataset formats"""
@@ -663,7 +663,7 @@ class TestTestConfigEntity:
                     }
                 }
             },
-            "very_large_dataset_name_" * 10,
+            "very_large_dataset_id_" * 10,
             {
                 "name": "comprehensive_metric",
                 "threshold": 0.001,

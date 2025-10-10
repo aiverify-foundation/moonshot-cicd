@@ -122,7 +122,7 @@ class TestDataLoader:
         assert isinstance(test_1_wrapper, BenchmarkTestEntityWrapper)
         assert test_1_wrapper.name == "test_1"
         assert test_1_wrapper.id == "test_1"
-        assert test_1_wrapper.dataset_name == "dataset_1"
+        assert test_1_wrapper.dataset_id == "dataset_1"
         assert test_1_wrapper.metric == {"name": "accuracy"}
         assert test_1_wrapper.description == "First test"
         
