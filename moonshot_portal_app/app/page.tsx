@@ -1,4 +1,5 @@
 import Image from "next/image";
+import Link from "next/link";
 
 export default function Home() {
   return (
@@ -51,13 +52,13 @@ export default function Home() {
           </a>
         </div>
           {/* Link to Benchmark page */}
-          <a
+          <Link
             className="rounded-full border border-solid border-blue-500 transition-colors flex items-center justify-center bg-blue-500 text-white gap-2 hover:bg-blue-700 font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 sm:w-auto mt-4"
             href="/benchmark"
             data-testid="benchmark-link"
           >
             Benchmark
-          </a>
+          </Link>
       </main>
       <footer className="row-start-3 flex gap-[24px] flex-wrap items-center justify-center">
         <a
