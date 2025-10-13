@@ -5,57 +5,15 @@ import { Breadcrumb, BreadcrumbList, BreadcrumbItem, BreadcrumbPage, BreadcrumbS
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Check, ChevronsUpDown, Edit, Plus } from "lucide-react";
+import { Check, ChevronsUpDown, Edit, Plus, CircleAlert, CircleCheckBig } from "lucide-react";
 import { cn } from "@/lib/utils";
 import EditModelSheet from "./EditModelSheet";
+import { providers, models, custom_connectors, type Provider, type Model } from "./MockData";
 
 interface ModelSelectionPageProps {
   onBack: () => void;
   onNext: () => void;
 }
-
-const providers = [
-  { value: "openai", label: "OpenAI", type: "provider" },
-  { value: "anthropic", label: "Anthropic", type: "provider" },
-  { value: "google", label: "Google", type: "provider" },
-  { value: "meta", label: "Meta", type: "provider" },
-  { value: "cohere", label: "Cohere", type: "provider" },
-  { value: "mistral", label: "Mistral", type: "provider" },
-];
-
-const models = [
-  { value: "openai-gpt-4", label: "GPT-4", provider: "openai" },
-  { value: "openai-gpt-3.5-turbo", label: "GPT-3.5 Turbo", provider: "openai" },
-  { value: "anthropic-claude-3-opus", label: "Claude 3 Opus", provider: "anthropic" },
-  { value: "anthropic-claude-3-sonnet", label: "Claude 3 Sonnet", provider: "anthropic" },
-  { value: "anthropic-claude-3-haiku", label: "Claude 3 Haiku", provider: "anthropic" },
-  { value: "google-gemini-pro", label: "Gemini Pro", provider: "google" },
-  { value: "google-gemini-ultra", label: "Gemini Ultra", provider: "google" },
-  { value: "meta-llama-2-70b", label: "Llama 2 70B", provider: "meta" },
-  { value: "meta-llama-2-13b", label: "Llama 2 13B", provider: "meta" },
-  { value: "cohere-command", label: "Command", provider: "cohere" },
-  { value: "cohere-command-light", label: "Command Light", provider: "cohere" },
-  { value: "mistral-mistral-7b", label: "Mistral 7B", provider: "mistral" },
-  { value: "mistral-mixtral-8x7b", label: "Mixtral 8x7B", provider: "mistral" },
-];
-
-const custom_connectors = [
-  { value: "neuralforge-ai", label: "NeuralForge AI", type: "custom" },
-  { value: "quantummind-studio", label: "QuantumMind Studio", type: "custom" },
-  { value: "cognitivelab-pro", label: "CognitiveLab Pro", type: "custom" },
-  { value: "deepthink-platform", label: "DeepThink Platform", type: "custom" },
-  { value: "intellisage-hub", label: "IntelliSage Hub", type: "custom" },
-  { value: "smartbrain-ai", label: "SmartBrain AI", type: "custom" },
-  { value: "neuralnet-works", label: "NeuralNet Works", type: "custom" },
-  { value: "ai-catalyst", label: "AI Catalyst", type: "custom" },
-  { value: "mindforge-studio", label: "MindForge Studio", type: "custom" },
-  { value: "cognitivemax-ai", label: "CognitiveMax AI", type: "custom" },
-  { value: "neuralwave-platform", label: "NeuralWave Platform", type: "custom" },
-  { value: "intelligenesis-hub", label: "IntelliGenesis Hub", type: "custom" },
-  { value: "deepmind-lab", label: "DeepMind Lab", type: "custom" },
-  { value: "ai-nucleus", label: "AI Nucleus", type: "custom" },
-  { value: "neuralcore-studio", label: "NeuralCore Studio", type: "custom" },
-];
 
 export default function ModelSelectionPage({ onBack, onNext }: ModelSelectionPageProps) {
   const [providerOpen, setProviderOpen] = useState(false);
@@ -110,12 +68,23 @@ export default function ModelSelectionPage({ onBack, onNext }: ModelSelectionPag
       </div>
       
       <div className="flex flex-col items-center justify-center min-h-[400px]">
-        <Card className="w-full max-w-md">
-          <CardHeader>
-            <CardTitle>Select Test Endpoint</CardTitle>
-            <CardDescription>
-              Confirm the details of the endpoint for this test
-            </CardDescription>
+        <Card className="w-full max-w-4xl">
+          <CardHeader className="flex flex-row items-center justify-between">
+            <div>
+              <CardTitle>Select Test Endpoint</CardTitle>
+              <CardDescription>
+                Confirm the details of the endpoint for this test
+              </CardDescription>
+            </div>
+            {/* Status indicators */}
+            <div className="flex items-center">
+              {selectedProvider && !selectedModel && (
+                <CircleAlert className="h-5 w-5 text-red-500" />
+              )}
+              {selectedProvider && selectedModel && (
+                <CircleCheckBig className="h-5 w-5 text-green-500" />
+              )}
+            </div>
           </CardHeader>
           <CardContent className="space-y-4">
             <div>
@@ -128,7 +97,7 @@ export default function ModelSelectionPage({ onBack, onNext }: ModelSelectionPag
                     variant="outline"
                     role="combobox"
                     aria-expanded={providerOpen}
-                    className="w-full justify-between"
+                    className="w-[780px] justify-between"
                     data-testid="provider-combobox-trigger"
                   >
                     {selectedProvider
@@ -265,7 +234,7 @@ export default function ModelSelectionPage({ onBack, onNext }: ModelSelectionPag
                       variant="outline"
                       role="combobox"
                       aria-expanded={modelOpen}
-                      className="w-full justify-between"
+                      className="w-[780px] justify-between"
                       data-testid="model-combobox-trigger"
                     >
                       {selectedModel
@@ -310,6 +279,20 @@ export default function ModelSelectionPage({ onBack, onNext }: ModelSelectionPag
                             </Button>
                           </CommandItem>
                         ))}
+                        
+                        <CommandGroup heading="Actions">
+                          <CommandItem
+                            value="add-new-model"
+                            onSelect={() => {
+                              console.log('Add new model clicked from model dropdown');
+                              setModelOpen(false);
+                            }}
+                            data-testid="add-new-model-from-model-dropdown"
+                          >
+                            <Plus className="mr-2 h-4 w-4" />
+                            Add New Model
+                          </CommandItem>
+                        </CommandGroup>
                       </CommandList>
                     </Command>
                   </PopoverContent>
