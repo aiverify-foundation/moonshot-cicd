@@ -8,7 +8,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Check, ChevronsUpDown, Edit, Plus, CircleAlert, CircleCheckBig } from "lucide-react";
 import { cn } from "@/lib/utils";
 import EditModelSheet from "./EditModelSheet";
-import { providers, models, custom_connectors, type Provider, type Model } from "./MockData";
+import { providers, models, custom_connectors, configs, type Provider, type Model, type Config } from "./MockData";
 
 interface ModelSelectionPageProps {
   onBack: () => void;
@@ -20,6 +20,7 @@ export default function ModelSelectionPage({ onBack, onNext }: ModelSelectionPag
   const [modelOpen, setModelOpen] = useState(false);
   const [selectedProvider, setSelectedProvider] = useState<string>("");
   const [selectedModel, setSelectedModel] = useState<string>("");
+  const [selectedConfig, setSelectedConfig] = useState<string>("");
   const [sheetOpen, setSheetOpen] = useState(false);
   const [editingModel, setEditingModel] = useState<string>("");
   const [showAllStandardProviders, setShowAllStandardProviders] = useState(false);
@@ -30,6 +31,12 @@ export default function ModelSelectionPage({ onBack, onNext }: ModelSelectionPag
 
   // Get models filtered by selected provider
   const filteredModels = models.filter(model => model.provider === selectedProvider);
+  
+  // Get configs filtered by selected custom connector
+  const filteredConfigs = configs.filter(config => config.connector === selectedProvider);
+  
+  // Check if selected provider is a custom connector
+  const isCustomConnector = custom_connectors.some(connector => connector.value === selectedProvider);
 
   // Handle edit model action
   const handleEditModel = (modelValue: string, event: React.MouseEvent) => {
@@ -78,10 +85,10 @@ export default function ModelSelectionPage({ onBack, onNext }: ModelSelectionPag
             </div>
             {/* Status indicators */}
             <div className="flex items-center">
-              {selectedProvider && !selectedModel && (
+              {selectedProvider && !selectedModel && !selectedConfig && (
                 <CircleAlert className="h-5 w-5 text-red-500" />
               )}
-              {selectedProvider && selectedModel && (
+              {selectedProvider && (selectedModel || selectedConfig) && (
                 <CircleCheckBig className="h-5 w-5 text-green-500" />
               )}
             </div>
@@ -120,6 +127,7 @@ export default function ModelSelectionPage({ onBack, onNext }: ModelSelectionPag
                             onSelect={(currentValue) => {
                               setSelectedProvider(currentValue === selectedProvider ? "" : currentValue);
                               setSelectedModel(""); // Reset model selection when provider changes
+                              setSelectedConfig(""); // Reset config selection when provider changes
                               setProviderOpen(false);
                             }}
                             data-testid={`provider-option-${provider.value}`}
@@ -167,6 +175,7 @@ export default function ModelSelectionPage({ onBack, onNext }: ModelSelectionPag
                             onSelect={(currentValue) => {
                               setSelectedProvider(currentValue === selectedProvider ? "" : currentValue);
                               setSelectedModel(""); // Reset model selection when provider changes
+                              setSelectedConfig(""); // Reset config selection when provider changes
                               setProviderOpen(false);
                             }}
                             data-testid={`custom-connector-option-${connector.value}`}
@@ -222,11 +231,11 @@ export default function ModelSelectionPage({ onBack, onNext }: ModelSelectionPag
               </Popover>
             </div>
             
-            {/* Model selection combo box - only shows when provider is selected */}
+            {/* Model/Config selection combo box - only shows when provider is selected */}
             {selectedProvider && (
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Model
+                  {isCustomConnector ? "Configuration" : "Model"}
                 </label>
                 <Popover open={modelOpen} onOpenChange={setModelOpen}>
                   <PopoverTrigger asChild>
@@ -237,60 +246,86 @@ export default function ModelSelectionPage({ onBack, onNext }: ModelSelectionPag
                       className="w-[780px] justify-between"
                       data-testid="model-combobox-trigger"
                     >
-                      {selectedModel
-                        ? filteredModels.find((model) => model.value === selectedModel)?.label
-                        : "Select model..."}
+                      {isCustomConnector 
+                        ? (selectedConfig
+                            ? filteredConfigs.find((config) => config.value === selectedConfig)?.label
+                            : "Select configuration...")
+                        : (selectedModel
+                            ? filteredModels.find((model) => model.value === selectedModel)?.label
+                            : "Select model...")}
                       <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
                     </Button>
                   </PopoverTrigger>
                   <PopoverContent className="w-full p-0" align="start">
                     <Command>
-                      <CommandInput placeholder="Search models..." />
+                      <CommandInput placeholder={isCustomConnector ? "Search configurations..." : "Search models..."} />
                       <CommandList>
-                        <CommandEmpty>No model found.</CommandEmpty>
-                        {filteredModels.map((model) => (
-                          <CommandItem
-                            key={model.value}
-                            value={model.value}
-                            onSelect={(currentValue) => {
-                              setSelectedModel(currentValue === selectedModel ? "" : currentValue);
-                              setModelOpen(false);
-                            }}
-                            data-testid={`model-option-${model.value}`}
-                            className="flex items-center justify-between"
-                          >
-                            <div className="flex items-center">
+                        <CommandEmpty>{isCustomConnector ? "No configuration found." : "No model found."}</CommandEmpty>
+                        {isCustomConnector ? (
+                          filteredConfigs.map((config) => (
+                            <CommandItem
+                              key={config.value}
+                              value={config.value}
+                              onSelect={(currentValue) => {
+                                setSelectedConfig(currentValue === selectedConfig ? "" : currentValue);
+                                setModelOpen(false);
+                              }}
+                              data-testid={`config-option-${config.value}`}
+                            >
                               <Check
                                 className={cn(
                                   "mr-2 h-4 w-4",
-                                  selectedModel === model.value ? "opacity-100" : "opacity-0"
+                                  selectedConfig === config.value ? "opacity-100" : "opacity-0"
                                 )}
                               />
-                              {model.label}
-                            </div>
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              className="h-6 w-6 p-0 hover:bg-gray-100"
-                              onClick={(e) => handleEditModel(model.value, e)}
-                              data-testid={`edit-model-${model.value}`}
+                              {config.label}
+                            </CommandItem>
+                          ))
+                        ) : (
+                          filteredModels.map((model) => (
+                            <CommandItem
+                              key={model.value}
+                              value={model.value}
+                              onSelect={(currentValue) => {
+                                setSelectedModel(currentValue === selectedModel ? "" : currentValue);
+                                setModelOpen(false);
+                              }}
+                              data-testid={`model-option-${model.value}`}
+                              className="flex items-center justify-between"
                             >
-                              <Edit className="h-3 w-3" />
-                            </Button>
-                          </CommandItem>
-                        ))}
+                              <div className="flex items-center">
+                                <Check
+                                  className={cn(
+                                    "mr-2 h-4 w-4",
+                                    selectedModel === model.value ? "opacity-100" : "opacity-0"
+                                  )}
+                                />
+                                {model.label}
+                              </div>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                className="h-6 w-6 p-0 hover:bg-gray-100"
+                                onClick={(e) => handleEditModel(model.value, e)}
+                                data-testid={`edit-model-${model.value}`}
+                              >
+                                <Edit className="h-3 w-3" />
+                              </Button>
+                            </CommandItem>
+                          ))
+                        )}
                         
                         <CommandGroup heading="Actions">
                           <CommandItem
-                            value="add-new-model"
+                            value="add-new-item"
                             onSelect={() => {
-                              console.log('Add new model clicked from model dropdown');
+                              console.log(`Add new ${isCustomConnector ? 'configuration' : 'model'} clicked from dropdown`);
                               setModelOpen(false);
                             }}
-                            data-testid="add-new-model-from-model-dropdown"
+                            data-testid={`add-new-${isCustomConnector ? 'config' : 'model'}-from-dropdown`}
                           >
                             <Plus className="mr-2 h-4 w-4" />
-                            Add New Model
+                            Add New {isCustomConnector ? 'Configuration' : 'Model'}
                           </CommandItem>
                         </CommandGroup>
                       </CommandList>
