@@ -78,18 +78,18 @@ export default function ModelSelectionPage({ onBack, onNext }: ModelSelectionPag
         <Card className="w-full max-w-4xl">
           <CardHeader className="flex flex-row items-center justify-between">
             <div>
-              <CardTitle>Select App or Model</CardTitle>
-              <CardDescription>
+              <CardTitle data-testid="card-title">Select App or Model</CardTitle>
+              <CardDescription data-testid="card-description">
                 Confirm the details of the app or model to be tested.
               </CardDescription>
             </div>
             {/* Status indicators */}
             <div className="flex items-center">
               {selectedProvider && !selectedModel && !selectedConfig && (
-                <CircleAlert className="h-5 w-5 text-red-500" />
+                <CircleAlert className="h-5 w-5 text-red-500" data-testid="status-indicator" />
               )}
               {selectedProvider && (selectedModel || selectedConfig) && (
-                <CircleCheckBig className="h-5 w-5 text-green-500" />
+                <CircleCheckBig className="h-5 w-5 text-green-500" data-testid="status-indicator" />
               )}
             </div>
           </CardHeader>
@@ -118,7 +118,7 @@ export default function ModelSelectionPage({ onBack, onNext }: ModelSelectionPag
                     <CommandInput placeholder="Search providers..." />
                     <CommandList className="max-h-[300px] overflow-y-auto">
                       <CommandEmpty>No provider found.</CommandEmpty>
-                      <CommandGroup heading="Model Providers">
+                      <CommandGroup heading="Model Providers" data-testid="model-providers-group">
                         {providers.slice(0, showAllStandardProviders ? providers.length : 3).map((provider) => (
                           <CommandItem
                             key={provider.value}
@@ -165,7 +165,7 @@ export default function ModelSelectionPage({ onBack, onNext }: ModelSelectionPag
                           </CommandItem>
                         )}
                       </CommandGroup>
-                      <CommandGroup heading="Custom Applications">
+                      <CommandGroup heading="Custom Applications" data-testid="custom-applications-group">
                         {custom_connectors.slice(0, showAllCustomConnectors ? custom_connectors.length : 3).map((connector) => (
                           <CommandItem
                             key={connector.value}
@@ -221,7 +221,7 @@ export default function ModelSelectionPage({ onBack, onNext }: ModelSelectionPag
             {/* Model/Config selection combo box - only shows when provider is selected */}
             {selectedProvider && (
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+                <label className="block text-sm font-medium text-gray-700 mb-2" data-testid={isCustomConnector ? "configuration-label" : "model-label"}>
                   {isCustomConnector ? "Configuration" : "Model"}
                 </label>
                 <Popover open={modelOpen} onOpenChange={setModelOpen}>
