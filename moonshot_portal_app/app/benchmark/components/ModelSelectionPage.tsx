@@ -78,9 +78,9 @@ export default function ModelSelectionPage({ onBack, onNext }: ModelSelectionPag
         <Card className="w-full max-w-4xl">
           <CardHeader className="flex flex-row items-center justify-between">
             <div>
-              <CardTitle>Select Test Endpoint</CardTitle>
+              <CardTitle>Select App or Model</CardTitle>
               <CardDescription>
-                Confirm the details of the endpoint for this test
+                Confirm the details of the app or model to be tested.
               </CardDescription>
             </div>
             {/* Status indicators */}
@@ -118,8 +118,7 @@ export default function ModelSelectionPage({ onBack, onNext }: ModelSelectionPag
                     <CommandInput placeholder="Search providers..." />
                     <CommandList className="max-h-[300px] overflow-y-auto">
                       <CommandEmpty>No provider found.</CommandEmpty>
-                      
-                      <CommandGroup heading="Standard Providers">
+                      <CommandGroup heading="Model Providers">
                         {providers.slice(0, showAllStandardProviders ? providers.length : 3).map((provider) => (
                           <CommandItem
                             key={provider.value}
@@ -166,8 +165,7 @@ export default function ModelSelectionPage({ onBack, onNext }: ModelSelectionPag
                           </CommandItem>
                         )}
                       </CommandGroup>
-
-                      <CommandGroup heading="Custom Connectors">
+                      <CommandGroup heading="Custom Applications">
                         {custom_connectors.slice(0, showAllCustomConnectors ? custom_connectors.length : 3).map((connector) => (
                           <CommandItem
                             key={connector.value}
@@ -213,17 +211,6 @@ export default function ModelSelectionPage({ onBack, onNext }: ModelSelectionPag
                             Show Less
                           </CommandItem>
                         )}
-                      </CommandGroup>
-
-                      <CommandGroup heading="Actions">
-                        <CommandItem
-                          value="add-new-model"
-                          onSelect={handleAddNewModel}
-                          data-testid="add-new-model"
-                        >
-                          <Plus className="mr-2 h-4 w-4" />
-                          Add New Model
-                        </CommandItem>
                       </CommandGroup>
                     </CommandList>
                   </Command>
@@ -314,20 +301,17 @@ export default function ModelSelectionPage({ onBack, onNext }: ModelSelectionPag
                             </CommandItem>
                           ))
                         )}
-                        
-                        <CommandGroup heading="Actions">
-                          <CommandItem
-                            value="add-new-item"
-                            onSelect={() => {
-                              console.log(`Add new ${isCustomConnector ? 'configuration' : 'model'} clicked from dropdown`);
-                              setModelOpen(false);
-                            }}
-                            data-testid={`add-new-${isCustomConnector ? 'config' : 'model'}-from-dropdown`}
-                          >
-                            <Plus className="mr-2 h-4 w-4" />
-                            Add New {isCustomConnector ? 'Configuration' : 'Model'}
-                          </CommandItem>
-                        </CommandGroup>
+                        <CommandItem
+                          value="add-new-item"
+                          onSelect={() => {
+                            console.log(`Add new ${isCustomConnector ? 'configuration' : 'model'} clicked from dropdown`);
+                            setModelOpen(false);
+                          }}
+                          data-testid={`add-new-${isCustomConnector ? 'config' : 'model'}-from-dropdown`}
+                        >
+                          <Plus className="mr-2 h-4 w-4" />
+                          Add New {isCustomConnector ? 'Configuration' : 'Model'}
+                        </CommandItem>
                       </CommandList>
                     </Command>
                   </PopoverContent>
@@ -337,7 +321,6 @@ export default function ModelSelectionPage({ onBack, onNext }: ModelSelectionPag
           </CardContent>
         </Card>
       </div>
-      
       <div className="flex justify-between pt-6">
         <Button 
           variant="outline" 
@@ -355,7 +338,6 @@ export default function ModelSelectionPage({ onBack, onNext }: ModelSelectionPag
           Run Benchmark Tests
         </Button>
       </div>
-
       {/* Edit Model Sheet */}
       <EditModelSheet
         open={sheetOpen}
