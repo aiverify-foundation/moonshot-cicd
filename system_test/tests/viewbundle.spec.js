@@ -13,8 +13,8 @@ async function navigateToBenchmark(page) {
   // Wait for navigation to complete
   await page.waitForLoadState('networkidle');
   
-  // Verify we're on the bundles page by checking the URL
-  await expect(page).toHaveURL(/.*\/benchmark/);
+  // Verify we're on the bundles page by checking for the page content
+  await expect(page.locator('[data-testid="select-bundles-header"]')).toContainText('Select bundles');
 }
 
 // Helper function to toggle all toggle buttons
@@ -77,8 +77,11 @@ test.describe('Moonshot Integration Tests', () => {
     // Click the enabled configure button to verify it works
     await configureButton.click();
     
-    // Verify navigation occurred (should go to select_model page)
-    await expect(page).toHaveURL(/.*\/select_model/);
+    // Wait for navigation to complete
+    await page.waitForLoadState('networkidle');
+    
+    // Verify navigation occurred by checking for the model selection page content
+    await expect(page.locator('[data-testid="select-model-header"]')).toContainText('Select Model');
   });
 
   test('configure button becomes disabled after toggling off all bundles', async ({ page }) => {
