@@ -8,7 +8,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Check, ChevronsUpDown, Edit, Plus, CircleAlert, CircleCheckBig } from "lucide-react";
 import { cn } from "@/lib/utils";
 import EditModelSheet from "./EditModelSheet";
-import { providers, models, custom_connectors, configs, type Provider, type Model, type Config } from "./MockData";
+import EditCustomApplicationSheet from "./EditCustomApplicationSheet";
+import { providers, models, custom_connectors, configs, type Provider, type ModelConfig, type Config, type ModelApp } from "./MockData";
 
 interface ModelSelectionPageProps {
   onBack: () => void;
@@ -23,6 +24,8 @@ export default function ModelSelectionPage({ onBack, onNext }: ModelSelectionPag
   const [selectedConfig, setSelectedConfig] = useState<string>("");
   const [sheetOpen, setSheetOpen] = useState(false);
   const [editingModel, setEditingModel] = useState<string>("");
+  const [customSheetOpen, setCustomSheetOpen] = useState(false);
+  const [editingConfig, setEditingConfig] = useState<string>("");
   const [showAllStandardProviders, setShowAllStandardProviders] = useState(false);
   const [showAllCustomConnectors, setShowAllCustomConnectors] = useState(false);
 
@@ -36,12 +39,12 @@ export default function ModelSelectionPage({ onBack, onNext }: ModelSelectionPag
   const filteredConfigs = configs.filter(config => config.connector === selectedProvider);
   
   // Check if selected provider is a custom connector
-  const isCustomConnector = custom_connectors.some(connector => connector.value === selectedProvider);
+  const isCustomConnector = custom_connectors.some(connector => connector.id === selectedProvider);
 
   // Handle edit model action
-  const handleEditModel = (modelValue: string, event: React.MouseEvent) => {
+  const handleEditModel = (modelId: string, event: React.MouseEvent) => {
     event.stopPropagation(); // Prevent triggering the selection
-    setEditingModel(modelValue);
+    setEditingModel(modelId);
     setSheetOpen(true);
     setModelOpen(false); // Close the model dropdown
   };
@@ -49,8 +52,25 @@ export default function ModelSelectionPage({ onBack, onNext }: ModelSelectionPag
   // Handle add new model action
   const handleAddNewModel = () => {
     console.log('Add new model clicked');
-    // Add your add new model logic here
+    setEditingModel(selectedProvider); // Set selected provider to indicate new model creation for this provider
+    setSheetOpen(true);
     setProviderOpen(false); // Close the provider dropdown
+  };
+
+  // Handle edit configuration action
+  const handleEditConfig = (configId: string, event: React.MouseEvent) => {
+    event.stopPropagation(); // Prevent triggering the selection
+    setEditingConfig(configId);
+    setCustomSheetOpen(true);
+    setModelOpen(false); // Close the model dropdown
+  };
+
+  // Handle add new configuration action
+  const handleAddNewConfig = () => {
+    console.log('Add new configuration clicked');
+    setEditingConfig(selectedProvider); // Set selected provider to indicate new configuration creation for this provider
+    setCustomSheetOpen(true);
+    setModelOpen(false); // Close the model dropdown
   };
 
   return (
@@ -108,7 +128,7 @@ export default function ModelSelectionPage({ onBack, onNext }: ModelSelectionPag
                     data-testid="provider-combobox-trigger"
                   >
                     {selectedProvider
-                      ? allProviders.find((provider) => provider.value === selectedProvider)?.label
+                      ? allProviders.find((provider) => provider.id === selectedProvider)?.name
                       : "Select provider..."}
                     <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
                   </Button>
@@ -121,23 +141,23 @@ export default function ModelSelectionPage({ onBack, onNext }: ModelSelectionPag
                       <CommandGroup heading="Model Providers" data-testid="model-providers-group">
                         {providers.slice(0, showAllStandardProviders ? providers.length : 3).map((provider) => (
                           <CommandItem
-                            key={provider.value}
-                            value={provider.value}
+                            key={provider.id}
+                            value={provider.id}
                             onSelect={(currentValue) => {
                               setSelectedProvider(currentValue === selectedProvider ? "" : currentValue);
                               setSelectedModel(""); // Reset model selection when provider changes
                               setSelectedConfig(""); // Reset config selection when provider changes
                               setProviderOpen(false);
                             }}
-                            data-testid={`provider-option-${provider.value}`}
+                            data-testid={`provider-option-${provider.id}`}
                           >
                             <Check
                               className={cn(
                                 "mr-2 h-4 w-4",
-                                selectedProvider === provider.value ? "opacity-100" : "opacity-0"
+                                selectedProvider === provider.id ? "opacity-100" : "opacity-0"
                               )}
                             />
-                            {provider.label}
+                            {provider.name}
                           </CommandItem>
                         ))}
                         {!showAllStandardProviders && providers.length > 3 && (
@@ -168,23 +188,23 @@ export default function ModelSelectionPage({ onBack, onNext }: ModelSelectionPag
                       <CommandGroup heading="Custom Applications" data-testid="custom-applications-group">
                         {custom_connectors.slice(0, showAllCustomConnectors ? custom_connectors.length : 3).map((connector) => (
                           <CommandItem
-                            key={connector.value}
-                            value={connector.value}
+                            key={connector.id}
+                            value={connector.id}
                             onSelect={(currentValue) => {
                               setSelectedProvider(currentValue === selectedProvider ? "" : currentValue);
                               setSelectedModel(""); // Reset model selection when provider changes
                               setSelectedConfig(""); // Reset config selection when provider changes
                               setProviderOpen(false);
                             }}
-                            data-testid={`custom-connector-option-${connector.value}`}
+                            data-testid={`custom-connector-option-${connector.id}`}
                           >
                             <Check
                               className={cn(
                                 "mr-2 h-4 w-4",
-                                selectedProvider === connector.value ? "opacity-100" : "opacity-0"
+                                selectedProvider === connector.id ? "opacity-100" : "opacity-0"
                               )}
                             />
-                            {connector.label}
+                            {connector.name}
                           </CommandItem>
                         ))}
                         {!showAllCustomConnectors && custom_connectors.length > 3 && (
@@ -235,10 +255,10 @@ export default function ModelSelectionPage({ onBack, onNext }: ModelSelectionPag
                     >
                       {isCustomConnector 
                         ? (selectedConfig
-                            ? filteredConfigs.find((config) => config.value === selectedConfig)?.label
+                            ? filteredConfigs.find((config) => config.id === selectedConfig)?.name
                             : "Select configuration...")
                         : (selectedModel
-                            ? filteredModels.find((model) => model.value === selectedModel)?.label
+                            ? filteredModels.find((model) => model.id === selectedModel)?.name
                             : "Select model...")}
                       <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
                     </Button>
@@ -251,50 +271,62 @@ export default function ModelSelectionPage({ onBack, onNext }: ModelSelectionPag
                         {isCustomConnector ? (
                           filteredConfigs.map((config) => (
                             <CommandItem
-                              key={config.value}
-                              value={config.value}
+                              key={config.id}
+                              value={config.id}
                               onSelect={(currentValue) => {
                                 setSelectedConfig(currentValue === selectedConfig ? "" : currentValue);
                                 setModelOpen(false);
                               }}
-                              data-testid={`config-option-${config.value}`}
-                            >
-                              <Check
-                                className={cn(
-                                  "mr-2 h-4 w-4",
-                                  selectedConfig === config.value ? "opacity-100" : "opacity-0"
-                                )}
-                              />
-                              {config.label}
-                            </CommandItem>
-                          ))
-                        ) : (
-                          filteredModels.map((model) => (
-                            <CommandItem
-                              key={model.value}
-                              value={model.value}
-                              onSelect={(currentValue) => {
-                                setSelectedModel(currentValue === selectedModel ? "" : currentValue);
-                                setModelOpen(false);
-                              }}
-                              data-testid={`model-option-${model.value}`}
+                              data-testid={`config-option-${config.id}`}
                               className="flex items-center justify-between"
                             >
                               <div className="flex items-center">
                                 <Check
                                   className={cn(
                                     "mr-2 h-4 w-4",
-                                    selectedModel === model.value ? "opacity-100" : "opacity-0"
+                                    selectedConfig === config.id ? "opacity-100" : "opacity-0"
                                   )}
                                 />
-                                {model.label}
+                                {config.name}
                               </div>
                               <Button
                                 variant="ghost"
                                 size="sm"
                                 className="h-6 w-6 p-0 hover:bg-gray-100"
-                                onClick={(e) => handleEditModel(model.value, e)}
-                                data-testid={`edit-model-${model.value}`}
+                                onClick={(e) => handleEditConfig(config.id, e)}
+                                data-testid={`edit-config-${config.id}`}
+                              >
+                                <Edit className="h-3 w-3" />
+                              </Button>
+                            </CommandItem>
+                          ))
+                        ) : (
+                          filteredModels.map((model) => (
+                            <CommandItem
+                              key={model.id}
+                              value={model.id}
+                              onSelect={(currentValue) => {
+                                setSelectedModel(currentValue === selectedModel ? "" : currentValue);
+                                setModelOpen(false);
+                              }}
+                              data-testid={`model-option-${model.id}`}
+                              className="flex items-center justify-between"
+                            >
+                              <div className="flex items-center">
+                                <Check
+                                  className={cn(
+                                    "mr-2 h-4 w-4",
+                                    selectedModel === model.id ? "opacity-100" : "opacity-0"
+                                  )}
+                                />
+                                {model.name}
+                              </div>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                className="h-6 w-6 p-0 hover:bg-gray-100"
+                                onClick={(e) => handleEditModel(model.id, e)}
+                                data-testid={`edit-model-${model.id}`}
                               >
                                 <Edit className="h-3 w-3" />
                               </Button>
@@ -304,7 +336,11 @@ export default function ModelSelectionPage({ onBack, onNext }: ModelSelectionPag
                         <CommandItem
                           value="add-new-item"
                           onSelect={() => {
-                            console.log(`Add new ${isCustomConnector ? 'configuration' : 'model'} clicked from dropdown`);
+                            if (!isCustomConnector) {
+                              handleAddNewModel();
+                            } else {
+                              handleAddNewConfig();
+                            }
                             setModelOpen(false);
                           }}
                           data-testid={`add-new-${isCustomConnector ? 'config' : 'model'}-from-dropdown`}
@@ -345,6 +381,15 @@ export default function ModelSelectionPage({ onBack, onNext }: ModelSelectionPag
         editingModel={editingModel}
         providers={allProviders}
         models={models}
+      />
+      
+      {/* Edit Custom Application Sheet */}
+      <EditCustomApplicationSheet
+        open={customSheetOpen}
+        onOpenChange={setCustomSheetOpen}
+        editingConfig={editingConfig}
+        modelApps={custom_connectors}
+        configs={configs}
       />
     </main>
   );

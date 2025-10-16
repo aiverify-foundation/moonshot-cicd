@@ -17,21 +17,17 @@ const DEFAULT_ADVANCED_PARAMS = [
 const TEST_POPOVER_TIMEOUT = 3000;
 
 // Type definitions
-interface Provider {
+interface ModelApp {
   id: string;
   name: string;
   type: string;
-  defaultModel?: string;
-  modelTextboxExplanation?: string;
   configPairs?: Array<{ key: string; value: string }>;
-  modelToken?: string;
 }
 
-interface Model {
+interface Config {
   id: string;
   name: string;
-  modelname: string;
-  provider: string;
+  connector: string;
 }
 
 interface AdvancedParam {
@@ -40,19 +36,19 @@ interface AdvancedParam {
 }
 
 // Helper functions
-const getProviderModelInfo = (editingModel: string, providers: Provider[], models: Model[]) => {
-  const isNewModel = providers.some(p => p.id === editingModel);
-  const currentModelConfig = isNewModel ? null : models.find(m => m.id === editingModel);
-  const currentProvider = isNewModel 
-    ? providers.find(p => p.id === editingModel)
-    : providers.find(p => p.id === currentModelConfig?.provider);
+const getModelAppConfigInfo = (editingConfig: string, modelApps: ModelApp[], configs: Config[]) => {
+  const isNewConfig = modelApps.some(p => p.id === editingConfig);
+  const currentConfig = isNewConfig ? null : configs.find(m => m.id === editingConfig);
+  const currentModelApp = isNewConfig 
+    ? modelApps.find(p => p.id === editingConfig)
+    : modelApps.find(p => p.id === currentConfig?.connector);
   
-  return { isNewModel, currentModelConfig, currentProvider };
+  return { isNewConfig, currentConfig, currentModelApp };
 };
 
-const getAdvancedParamsFromProvider = (currentProvider: Provider | undefined): AdvancedParam[] => {
-  if (currentProvider?.configPairs && currentProvider.configPairs.length > 0) {
-    return currentProvider.configPairs.map((cp) => ({
+const getAdvancedParamsFromModelApp = (currentModelApp: ModelApp | undefined): AdvancedParam[] => {
+  if (currentModelApp?.configPairs && currentModelApp.configPairs.length > 0) {
+    return currentModelApp.configPairs.map((cp) => ({
       parameter: cp.key,
       value: cp.value
     }));
@@ -60,44 +56,40 @@ const getAdvancedParamsFromProvider = (currentProvider: Provider | undefined): A
   return DEFAULT_ADVANCED_PARAMS;
 };
 
-interface EditModelSheetProps {
+interface EditCustomApplicationSheetProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  editingModel: string;
-  providers: Provider[];
-  models: Model[];
+  editingConfig: string;
+  modelApps: ModelApp[];
+  configs: Config[];
 }
 
-export default function EditModelSheet({ 
+export default function EditCustomApplicationSheet({ 
   open, 
   onOpenChange, 
-  editingModel, 
-  providers, 
-  models 
-}: EditModelSheetProps) {
-  // Get provider/model info using helper function with memoization
-  const { isNewModel, currentModelConfig, currentProvider } = React.useMemo(
-    () => getProviderModelInfo(editingModel, providers, models),
-    [editingModel, providers, models]
+  editingConfig, 
+  modelApps, 
+  configs 
+}: EditCustomApplicationSheetProps) {
+  // Get modelApp/config info using helper function with memoization
+  const { isNewConfig, currentConfig, currentModelApp } = React.useMemo(
+    () => getModelAppConfigInfo(editingConfig, modelApps, configs),
+    [editingConfig, modelApps, configs]
   );
 
-  const [modelConfigName, setModelConfigName] = React.useState(isNewModel ? 'New Model' : currentModelConfig?.name || 'New Model');
-  const [tokenValue, setTokenValue] = React.useState('');
-  const [modelName, setModelName] = React.useState(isNewModel ? '' : currentModelConfig?.modelname || '');
+  const [configName, setConfigName] = React.useState(isNewConfig ? 'New Configuration' : currentConfig?.name || 'New Configuration');
   const [testResult, setTestResult] = React.useState<boolean | null>(null);
   const [popoverOpen, setPopoverOpen] = React.useState(false);
-  const [advancedParams, setAdvancedParams] = React.useState(getAdvancedParamsFromProvider(currentProvider));
+  const [advancedParams, setAdvancedParams] = React.useState(getAdvancedParamsFromModelApp(currentModelApp));
   const timeoutRef = React.useRef<NodeJS.Timeout | null>(null);
 
-  // Update state when editingModel changes
+  // Update state when editingConfig changes
   React.useEffect(() => {
-    setModelConfigName(isNewModel ? 'New Model' : currentModelConfig?.name || 'New Model');
-    setModelName(isNewModel ? '' : currentModelConfig?.modelname || '');
-    setTokenValue(currentProvider?.modelToken || ''); // Use modelToken as default
+    setConfigName(isNewConfig ? 'New Configuration' : currentConfig?.name || 'New Configuration');
     setTestResult(null);
     setPopoverOpen(false);
-    setAdvancedParams(getAdvancedParamsFromProvider(currentProvider));
-  }, [isNewModel, currentModelConfig, currentProvider]);
+    setAdvancedParams(getAdvancedParamsFromModelApp(currentModelApp));
+  }, [isNewConfig, currentConfig, currentModelApp]);
 
   // Cleanup timeout on unmount
   React.useEffect(() => {
@@ -109,23 +101,21 @@ export default function EditModelSheet({
   }, []);
 
   const resetForm = () => {
-    setModelConfigName('New Model');
-    setTokenValue(currentProvider?.modelToken || ''); // Use modelToken as default
-    setModelName('');
+    setConfigName('New Configuration');
     setTestResult(null);
     setPopoverOpen(false);
-    setAdvancedParams(getAdvancedParamsFromProvider(currentProvider));
+    setAdvancedParams(getAdvancedParamsFromModelApp(currentModelApp));
   };
 
   const handleSave = () => {
     // Add your save logic here
-    console.log('Saving model configuration for:', editingModel);
+    console.log('Saving custom application configuration for:', editingConfig);
     resetForm();
     onOpenChange(false);
   };
 
   const handleTest = () => {
-    if (tokenValue.trim() && modelName.trim()) {
+    if (configName.trim()) {
       setTestResult(true);
     } else {
       setTestResult(false);
@@ -163,80 +153,28 @@ export default function EditModelSheet({
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent side="right" className="w-[1400px] sm:max-w-[700px] ml-4 overflow-y-auto pl-6 pr-6">
         <SheetHeader>
-          <SheetTitle className="sr-only">Edit Model Configuration</SheetTitle>
+          <SheetTitle className="sr-only">Edit Custom Application Configuration</SheetTitle>
         </SheetHeader>
         
         <div className="flex items-center justify-between mb-6">
-          <h2 className="text-lg font-semibold">Edit Model Configuration</h2>
+          <h2 className="text-lg font-semibold">Edit Custom Application Configuration</h2>
         </div>
         
         <div className="space-y-2 mb-6">
-          <Label htmlFor="modelConfig" className="text-sm font-medium">
-            Model Configuration Name*
+          <Label htmlFor="configName" className="text-sm font-medium">
+            Configuration Name*
           </Label>
           <Input
-            id="modelConfig"
-            placeholder="Enter model configuration name"
-            value={modelConfigName}
-            onChange={(e) => setModelConfigName(e.target.value)}
+            id="configName"
+            placeholder="Enter configuration name"
+            value={configName}
+            onChange={(e) => setConfigName(e.target.value)}
             tabIndex={-1}
           />
         </div>
 
         <div className="flex flex-col h-full">
           <div className="flex-1 space-y-6 pb-6">
-            {/* Model Provider and Token Card */}
-            <Card className="py-0 gap-0">
-              <CardContent className="p-4 space-y-4">
-                {/* Model Provider Section */}
-                <div className="space-y-2">
-                  <Label className="text-sm font-medium">
-                    Model Provider*
-                  </Label>
-                  <div className="text-sm text-gray-700 bg-gray-50 px-3 py-2 rounded-md border">
-                    {currentProvider?.name || 'No provider selected'}
-                  </div>
-                </div>
-
-                {/* Token Section */}
-                <div className="space-y-2">
-                  <div className="flex items-center gap-2">
-                    <Label htmlFor="token" className="text-sm font-medium">
-                      Token*
-                    </Label>
-                  </div>
-                  <Input
-                    id="token"
-                    placeholder="Enter token"
-                    value={tokenValue}
-                    onChange={(e) => setTokenValue(e.target.value)}
-                    tabIndex={-1}
-                  />
-                </div>
-              </CardContent>
-            </Card>
-
-            {/* Model Section */}
-            <div className="space-y-2">
-              <Label htmlFor="model" className="text-sm font-medium">
-                Model*
-              </Label>
-              <Input
-                id="model"
-                placeholder={currentProvider?.defaultModel || 'Enter model name'}
-                value={modelName}
-                onChange={(e) => setModelName(e.target.value)}
-                tabIndex={-1}
-              />
-            </div>
-
-            {/* Configuration Notes */}
-            <div className="space-y-2">
-              <p className="text-sm text-gray-600">
-                {currentProvider?.modelTextboxExplanation || ''}
-              </p>
-            </div>
-
             {/* Advanced Parameters Section */}
             <div className="space-y-4">
               <div className="flex items-center justify-between">
@@ -274,7 +212,7 @@ export default function EditModelSheet({
                     </div>
                     <div className="flex items-center gap-1 w-16">
                       {/* Only show delete button for rows beyond the default rows */}
-                      {index >= (currentProvider?.configPairs?.length || 0) && (
+                      {index >= (currentModelApp?.configPairs?.length || 0) && (
                         <Button
                           variant="ghost"
                           size="sm"
