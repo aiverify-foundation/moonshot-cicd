@@ -32,8 +32,21 @@ const renderEndpointStatusCard = (modelName: string, status: ConnectionStatus, t
     }
   };
 
+  const getBorderClasses = (status: ConnectionStatus) => {
+    switch (status) {
+      case ConnectionStatus.CONNECTED:
+        return "border-green-200";
+      case ConnectionStatus.NOT_CONNECTED:
+        return "border-gray-200";
+      case ConnectionStatus.INVALID_TOKEN:
+        return "border-red-200";
+      default:
+        return "border-gray-200";
+    }
+  };
+
   return (
-    <Card className="border border-green-200 p-2 w-80">
+    <Card className={`border ${getBorderClasses(status)} p-2 w-80`}>
       <CardContent className="px-1 py-1">
         <div>{modelName}</div>
         
@@ -41,9 +54,10 @@ const renderEndpointStatusCard = (modelName: string, status: ConnectionStatus, t
           <div>
             <h3 className="font-semibold text-sm text-gray-700 mb-2">Tests</h3>
             <div className="space-y-1">
-              {tests.map((test, index) => (
-                <div key={index} className="text-sm text-gray-600">{test}</div>
-              ))}
+              <div className="text-sm text-gray-600">{tests[0]}</div>
+              <div className="text-sm text-gray-500 h-5">
+                {tests.length > 1 ? `+${tests.length - 1} more` : '\u00A0'}
+              </div>
             </div>
           </div>
           <div>
@@ -67,12 +81,14 @@ const renderEndpointStatusCard = (modelName: string, status: ConnectionStatus, t
 // Helper function to render multiple endpoint status cards in a 2-column grid
 const renderEndpointStatusCardsGrid = (endpoints: Array<{modelName: string, status: ConnectionStatus, tests: string[]}>) => {
   return (
-    <div className="grid grid-cols-2 gap-4">
-      {endpoints.map((endpoint, index) => (
-        <div key={index}>
-          {renderEndpointStatusCard(endpoint.modelName, endpoint.status, endpoint.tests)}
-        </div>
-      ))}
+    <div className="max-h-[400px] overflow-y-auto">
+      <div className="grid grid-cols-2 gap-4">
+        {endpoints.map((endpoint, index) => (
+          <div key={index}>
+            {renderEndpointStatusCard(endpoint.modelName, endpoint.status, endpoint.tests)}
+          </div>
+        ))}
+      </div>
     </div>
   );
 };
@@ -88,6 +104,26 @@ export default function RequiredEndpointsCard() {
       modelName: "another-model-example",
       status: ConnectionStatus.NOT_CONNECTED,
       tests: ["HellaSwag", "ARC"]
+    },
+    {
+      modelName: "together-llama-guard-8b-assistant",
+      status: ConnectionStatus.CONNECTED,
+      tests: ["MMLU2.0"]
+    },
+    {
+      modelName: "another-model-example",
+      status: ConnectionStatus.NOT_CONNECTED,
+      tests: ["HellaSwag", "ARC"]
+    },
+    {
+      modelName: "together-llama-guard-8b-assistant",
+      status: ConnectionStatus.CONNECTED,
+      tests: ["MMLU2.0"]
+    },
+    {
+      modelName: "another-model-example",
+      status: ConnectionStatus.NOT_CONNECTED,
+      tests: ["HellaSwag", "ARC","TriviaQA"]
     }
   ];
 
