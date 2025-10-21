@@ -82,7 +82,11 @@ export default function ModelSelectionPage({ onBack, onNext }: ModelSelectionPag
           </BreadcrumbItem>
           <BreadcrumbSeparator />
           <BreadcrumbItem>
-            <BreadcrumbPage>Select Model</BreadcrumbPage>
+            Select Model
+          </BreadcrumbItem>
+          <BreadcrumbSeparator />
+          <BreadcrumbItem>
+            <BreadcrumbPage>Configure And Run Tests</BreadcrumbPage>
           </BreadcrumbItem>
         </BreadcrumbList>
       </Breadcrumb>
@@ -94,8 +98,8 @@ export default function ModelSelectionPage({ onBack, onNext }: ModelSelectionPag
         </div>
       </div>
       
-      <div className="flex flex-col items-center justify-center min-h-[400px]">
-        <Card className="w-full max-w-4xl">
+      <div className="flex flex-col items-center justify-center min-h-[200px]">
+        <Card className="w-3xl">
           <CardHeader className="flex flex-row items-center justify-between">
             <div>
               <CardTitle data-testid="card-title">Select App or Model</CardTitle>
@@ -105,7 +109,7 @@ export default function ModelSelectionPage({ onBack, onNext }: ModelSelectionPag
             </div>
             {/* Status indicators */}
             <div className="flex items-center">
-              {selectedProvider && !selectedModel && !selectedConfig && (
+              {(!selectedConfig && !selectedModel) && (
                 <CircleAlert className="h-5 w-5 text-red-500" data-testid="status-indicator" />
               )}
               {selectedProvider && (selectedModel || selectedConfig) && (
@@ -113,8 +117,8 @@ export default function ModelSelectionPage({ onBack, onNext }: ModelSelectionPag
               )}
             </div>
           </CardHeader>
-          <CardContent className="space-y-4">
-            <div>
+          <CardContent className="flex gap-6">
+            <div className="w-80">
               <label className="block text-sm font-medium text-gray-700 mb-2">
                 LLM Provider
               </label>
@@ -124,7 +128,7 @@ export default function ModelSelectionPage({ onBack, onNext }: ModelSelectionPag
                     variant="outline"
                     role="combobox"
                     aria-expanded={providerOpen}
-                    className="w-[780px] justify-between"
+                    className="w-full justify-between"
                     data-testid="provider-combobox-trigger"
                   >
                     {selectedProvider
@@ -240,7 +244,7 @@ export default function ModelSelectionPage({ onBack, onNext }: ModelSelectionPag
             
             {/* Model/Config selection combo box - only shows when provider is selected */}
             {selectedProvider && (
-              <div>
+              <div className="flex-1">
                 <label className="block text-sm font-medium text-gray-700 mb-2" data-testid={isCustomConnector ? "configuration-label" : "model-label"}>
                   {isCustomConnector ? "Configuration" : "Model"}
                 </label>
@@ -250,7 +254,7 @@ export default function ModelSelectionPage({ onBack, onNext }: ModelSelectionPag
                       variant="outline"
                       role="combobox"
                       aria-expanded={modelOpen}
-                      className="w-[780px] justify-between"
+                      className="w-full justify-between"
                       data-testid="model-combobox-trigger"
                     >
                       {isCustomConnector 
