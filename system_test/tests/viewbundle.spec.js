@@ -166,6 +166,22 @@ test.describe('Moonshot Integration Tests', () => {
     
   });
 
+  test('Ensure Back to home page button is displayed on the Select Bundles page with the correct content', async ({ page }) => {
+
+    await navigateToBenchmark(page);
+    
+    // Verify "Back to Home Page" button exists and links to landing page
+    const backToHomeButton = page.locator('[data-testid="back-to-home-button"]');
+    await expect(backToHomeButton).toBeVisible();
+    await expect(backToHomeButton).toContainText('Back to Home Page');
+
+    // Click the button and verify navigation
+    await backToHomeButton.click();
+    await page.waitForLoadState('networkidle');
+    await expect(page).toHaveURL('/');
+    
+  });
+
   test('Ensure all elements are displayed on the Select Bundles page with the correct content', async ({ page }) => {
     // Navigate to the benchmark page
     await navigateToBenchmark(page);
@@ -174,10 +190,7 @@ test.describe('Moonshot Integration Tests', () => {
     const backToHomeButton = page.locator('[data-testid="back-to-home-button"]');
     await expect(backToHomeButton).toBeVisible();
     await expect(backToHomeButton).toContainText('Back to Home Page');
-    
-    // Verify the button links to landing page (check href attribute or click and verify navigation)
-    const backToHomeLink = page.locator('[data-testid="back-to-home-button"]');
-    await expect(backToHomeLink).toHaveAttribute('href', '/');
+    await expect(backToHomeButton).toBeEnabled(); 
     
     // 2. Verify "Configure and run benchmark test" button is disabled
     const configureButton = page.locator('[data-testid="configure-and-run-benchmark-tests"]');
