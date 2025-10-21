@@ -1,6 +1,7 @@
 "use client"
 import React, { useState } from 'react';
 import { Button } from "@/components/ui/button"
+import { Badge } from "@/components/ui/badge"
 import { Breadcrumb, BreadcrumbList, BreadcrumbItem, BreadcrumbPage, BreadcrumbSeparator } from '@/components/ui/breadcrumb';
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
@@ -9,6 +10,7 @@ import { Check, ChevronsUpDown, Edit, Plus, CircleAlert, CircleCheckBig } from "
 import { cn } from "@/lib/utils";
 import EditModelSheet from "./EditModelSheet";
 import EditCustomApplicationSheet from "./EditCustomApplicationSheet";
+import RequiredEndpointsCard from "./RequiredEndpointsCard";
 import { providers, models, custom_connectors, configs, type Provider, type ModelConfig, type Config, type ModelApp } from "./MockData";
 
 interface ModelSelectionPageProps {
@@ -360,6 +362,9 @@ export default function ModelSelectionPage({ onBack, onNext }: ModelSelectionPag
             )}
           </CardContent>
         </Card>
+        
+        {/* Additional Card */}
+        <RequiredEndpointsCard />
       </div>
       <div className="flex justify-between pt-6">
         <Button 
