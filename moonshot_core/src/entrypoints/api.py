@@ -11,6 +11,15 @@ from urllib.parse import urlparse
 from domain.services.app_config import AppConfig
 from domain.services.logger import configure_logger
 from application.services.benchmark import BenchmarkService
+from typing import List
+from datetime import datetime
+
+# Provider/model-config service & DTOs
+from application.services.provider_service import ProviderService
+from application.services.sqlite_adapter import SQLiteAdapter
+from application.services.sqlite_provider_repository import SQLiteProviderRepository
+from application.dto.provider_dto import ProviderDTO
+from application.dto.model_config_dto import ModelConfigDTO
 
 # Configure the logger for this module
 logger = configure_logger(__name__)
@@ -93,6 +102,12 @@ async def root():
 # Initialize the benchmark service
 benchmark_service = BenchmarkService(None, None)
 
+# Initialize provider service with SQLite repository
+sqlite_adapter = SQLiteAdapter()
+provider_repository = SQLiteProviderRepository(sqlite_adapter)
+provider_service = ProviderService(provider_repository)
+
+
 
 @app.get("/api/bundles")
 async def view_all_bundles():
@@ -108,6 +123,69 @@ async def view_all_bundles():
     except Exception as e:
         logger.error(f"Error fetching bundles: {e}")
         raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
+
+
+@app.get("/api/providers", response_model=List[ProviderDTO])
+async def list_providers():
+    """Get all LLM providers as DTOs."""
+    try:
+        providers = provider_service.list_providers()
+        return providers
+    except Exception as e:
+        logger.error(f"Error listing providers: {e}")
+        raise HTTPException(status_code=500, detail="Failed to list providers")
+
+
+@app.get("/api/providers/{provider_id}/model-configs", response_model=List[ModelConfigDTO])
+async def get_model_configs_by_provider(provider_id: int):
+    """Get all model configs for a provider ID, returned as DTOs."""
+    try:
+        configs = provider_service.get_model_configs_by_provider_id(provider_id)
+        return configs
+    except Exception as e:
+        logger.error(f"Error fetching model configs for provider {provider_id}: {e}")
+        raise HTTPException(status_code=500, detail="Failed to get model configs")
+
+
+@app.post("/api/model-configs", response_model=ModelConfigDTO)
+async def create_model_config(payload: ModelConfigDTO):
+    """Create a new model configuration using DTO."""
+    try:
+        created = provider_service.create_model_config(payload)
+        return created
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        logger.error(f"Error creating model config: {e}")
+        raise HTTPException(status_code=500, detail="Failed to create model config")
+
+
+@app.put("/api/model-configs", response_model=ModelConfigDTO)
+async def update_model_config(payload: ModelConfigDTO):
+    """Update an existing model configuration (matched by name) using DTO."""
+    try:
+        updated = provider_service.update_model_config(payload)
+        return updated
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    except Exception as e:
+        logger.error(f"Error updating model config: {e}")
+        raise HTTPException(status_code=500, detail="Failed to update model config")
+
+
+@app.delete("/api/model-configs/{config_id}")
+async def delete_model_config(config_id: str):
+    """Delete a model configuration by ID or name."""
+    try:
+        deleted = provider_service.delete_model_config(config_id)
+        if not deleted:
+            raise HTTPException(status_code=404, detail="Model config not found")
+        return {"deleted": True}
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error deleting model config {config_id}: {e}")
+        raise HTTPException(status_code=500, detail="Failed to delete model config")
 
 
 @app.api_route("/{file_path:path}", methods=["GET", "HEAD"])
