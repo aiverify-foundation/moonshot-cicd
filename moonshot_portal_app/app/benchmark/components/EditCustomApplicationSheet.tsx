@@ -9,11 +9,6 @@ import { Trash2, Plus } from "lucide-react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 
 // Constants
-const DEFAULT_ADVANCED_PARAMS = [
-  { parameter: 'temperature', value: '30' },
-  { parameter: 'timeout', value: '0' }
-];
-
 const TEST_POPOVER_TIMEOUT = 3000;
 
 // Type definitions
@@ -21,13 +16,13 @@ interface ModelApp {
   id: string;
   name: string;
   type: string;
-  configPairs?: Array<{ key: string; value: string }>;
 }
 
 interface Config {
   id: string;
   name: string;
   connector: string;
+  configPairs: Array<{ key: string; value: string }>;
 }
 
 interface AdvancedParam {
@@ -46,14 +41,14 @@ const getModelAppConfigInfo = (editingConfig: string, modelApps: ModelApp[], con
   return { isNewConfig, currentConfig, currentModelApp };
 };
 
-const getAdvancedParamsFromModelApp = (currentModelApp: ModelApp | undefined): AdvancedParam[] => {
-  if (currentModelApp?.configPairs && currentModelApp.configPairs.length > 0) {
-    return currentModelApp.configPairs.map((cp) => ({
+const getAdvancedParamsFromConfig = (currentConfig: Config | null | undefined): AdvancedParam[] => {
+  if (currentConfig?.configPairs && currentConfig.configPairs.length > 0) {
+    return currentConfig.configPairs.map((cp) => ({
       parameter: cp.key,
       value: cp.value
     }));
   }
-  return DEFAULT_ADVANCED_PARAMS;
+  return [];
 };
 
 interface EditCustomApplicationSheetProps {
@@ -80,7 +75,9 @@ export default function EditCustomApplicationSheet({
   const [configName, setConfigName] = React.useState(isNewConfig ? 'New Configuration' : currentConfig?.name || 'New Configuration');
   const [testResult, setTestResult] = React.useState<boolean | null>(null);
   const [popoverOpen, setPopoverOpen] = React.useState(false);
-  const [advancedParams, setAdvancedParams] = React.useState(getAdvancedParamsFromModelApp(currentModelApp));
+  const [advancedParams, setAdvancedParams] = React.useState(() => {
+    return getAdvancedParamsFromConfig(currentConfig);
+  });
   const timeoutRef = React.useRef<NodeJS.Timeout | null>(null);
 
   // Update state when editingConfig changes
@@ -88,7 +85,7 @@ export default function EditCustomApplicationSheet({
     setConfigName(isNewConfig ? 'New Configuration' : currentConfig?.name || 'New Configuration');
     setTestResult(null);
     setPopoverOpen(false);
-    setAdvancedParams(getAdvancedParamsFromModelApp(currentModelApp));
+    setAdvancedParams(getAdvancedParamsFromConfig(currentConfig));
   }, [isNewConfig, currentConfig, currentModelApp]);
 
   // Cleanup timeout on unmount
@@ -104,7 +101,7 @@ export default function EditCustomApplicationSheet({
     setConfigName('New Configuration');
     setTestResult(null);
     setPopoverOpen(false);
-    setAdvancedParams(getAdvancedParamsFromModelApp(currentModelApp));
+    setAdvancedParams(getAdvancedParamsFromConfig(currentConfig));
   };
 
   const handleSave = () => {
@@ -211,17 +208,14 @@ export default function EditCustomApplicationSheet({
                       />
                     </div>
                     <div className="flex items-center gap-1 w-16">
-                      {/* Only show delete button for rows beyond the default rows */}
-                      {index >= (currentModelApp?.configPairs?.length || 0) && (
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => removeParameter(index)}
-                          className="h-8 w-8 p-0"
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
-                      )}
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => removeParameter(index)}
+                        className="h-8 w-8 p-0"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
                       {/* Add button only on the last row */}
                       {index === advancedParams.length - 1 && (
                         <Button
@@ -236,6 +230,25 @@ export default function EditCustomApplicationSheet({
                     </div>
                   </div>
                 ))}
+                
+                {/* Show add button when there are no parameters */}
+                {advancedParams.length === 0 && (
+                  <div className="flex items-center gap-3">
+                    <div className="flex-1"></div>
+                    <div className="flex-1"></div>
+                    <div className="flex items-center gap-1 w-16">
+                      <div className="h-8 w-8"></div> {/* Spacer for delete button */}
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={addParameter}
+                        className="h-8 w-8 p-0"
+                      >
+                        <Plus className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
           </div>
