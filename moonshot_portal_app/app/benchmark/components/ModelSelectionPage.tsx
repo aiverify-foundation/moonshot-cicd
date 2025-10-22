@@ -11,6 +11,7 @@ import { cn } from "@/lib/utils";
 import EditModelSheet from "./EditModelSheet";
 import EditCustomApplicationSheet from "./EditCustomApplicationSheet";
 import RequiredEndpointsCard from "./RequiredEndpointsCard";
+import SampleSizeCard from "./SampleSizeCard";
 import { providers, models, custom_connectors, configs, type Provider, type ModelConfig, type Config, type ModelApp } from "./MockData";
 
 interface ModelSelectionPageProps {
@@ -365,6 +366,9 @@ export default function ModelSelectionPage({ onBack, onNext }: ModelSelectionPag
         
         {/* Additional Card */}
         <RequiredEndpointsCard />
+        
+        {/* Sample Size Card */}
+        <SampleSizeCard />
       </div>
       <div className="flex justify-between pt-6">
         <Button 
