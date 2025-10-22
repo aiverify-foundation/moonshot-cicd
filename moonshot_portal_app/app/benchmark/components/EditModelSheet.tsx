@@ -66,6 +66,7 @@ interface EditModelSheetProps {
   editingModel: string;
   providers: Provider[];
   models: Model[];
+  isMetricEndpoint?: boolean;
 }
 
 export default function EditModelSheet({ 
@@ -73,7 +74,8 @@ export default function EditModelSheet({
   onOpenChange, 
   editingModel, 
   providers, 
-  models 
+  models,
+  isMetricEndpoint = false
 }: EditModelSheetProps) {
   // Get provider/model info using helper function with memoization
   const { isNewModel, currentModelConfig, currentProvider } = React.useMemo(
@@ -174,13 +176,19 @@ export default function EditModelSheet({
           <Label htmlFor="modelConfig" className="text-sm font-medium">
             Model Configuration Name*
           </Label>
-          <Input
-            id="modelConfig"
-            placeholder="Enter model configuration name"
-            value={modelConfigName}
-            onChange={(e) => setModelConfigName(e.target.value)}
-            tabIndex={-1}
-          />
+          {isMetricEndpoint ? (
+            <div className="text-sm text-gray-700 bg-gray-50 px-3 py-2 rounded-md border">
+              {modelConfigName}
+            </div>
+          ) : (
+            <Input
+              id="modelConfig"
+              placeholder="Enter model configuration name"
+              value={modelConfigName}
+              onChange={(e) => setModelConfigName(e.target.value)}
+              tabIndex={-1}
+            />
+          )}
         </div>
 
         <div className="flex flex-col h-full">
@@ -193,7 +201,7 @@ export default function EditModelSheet({
                   <Label className="text-sm font-medium">
                     Model Provider*
                   </Label>
-                  <div className="text-sm text-gray-700 bg-gray-50 px-3 py-2 rounded-md border">
+                  <div className={`text-sm px-3 py-2 rounded-md border ${isMetricEndpoint ? 'text-gray-700 bg-gray-50' : 'text-gray-700 bg-gray-50'}`}>
                     {currentProvider?.name || 'No provider selected'}
                   </div>
                 </div>
@@ -221,13 +229,19 @@ export default function EditModelSheet({
               <Label htmlFor="model" className="text-sm font-medium">
                 Model*
               </Label>
-              <Input
-                id="model"
-                placeholder={currentProvider?.defaultModel || 'Enter model name'}
-                value={modelName}
-                onChange={(e) => setModelName(e.target.value)}
-                tabIndex={-1}
-              />
+              {isMetricEndpoint ? (
+                <div className="text-sm text-gray-700 bg-gray-50 px-3 py-2 rounded-md border">
+                  {modelName || currentProvider?.defaultModel || 'No model selected'}
+                </div>
+              ) : (
+                <Input
+                  id="model"
+                  placeholder={currentProvider?.defaultModel || 'Enter model name'}
+                  value={modelName}
+                  onChange={(e) => setModelName(e.target.value)}
+                  tabIndex={-1}
+                />
+              )}
             </div>
 
             {/* Configuration Notes */}
@@ -252,50 +266,64 @@ export default function EditModelSheet({
                   <div className="flex-1">
                     <Label className="text-sm font-medium text-gray-600">Value</Label>
                   </div>
-                  <div className="w-16"></div> {/* Spacer for button column */}
+                  {!isMetricEndpoint && <div className="w-16"></div>} {/* Spacer for button column */}
                 </div>
                 
                 {/* Parameter rows */}
                 {advancedParams.map((param: AdvancedParam, index: number) => (
                   <div key={index} className="flex items-center gap-3">
                     <div className="flex-1">
-                      <Input
-                        value={param.parameter}
-                        onChange={(e) => updateParameter(index, 'parameter', e.target.value)}
-                        tabIndex={-1}
-                      />
+                      {isMetricEndpoint ? (
+                        <div className="text-sm text-gray-700 bg-gray-50 px-3 py-2 rounded-md border">
+                          {param.parameter}
+                        </div>
+                      ) : (
+                        <Input
+                          value={param.parameter}
+                          onChange={(e) => updateParameter(index, 'parameter', e.target.value)}
+                          tabIndex={-1}
+                        />
+                      )}
                     </div>
                     <div className="flex-1">
-                      <Input
-                        value={param.value}
-                        onChange={(e) => updateParameter(index, 'value', e.target.value)}
-                        tabIndex={-1}
-                      />
-                    </div>
-                    <div className="flex items-center gap-1 w-16">
-                      {/* Only show delete button for rows beyond the default rows */}
-                      {index >= (currentProvider?.configPairs?.length || 0) && (
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => removeParameter(index)}
-                          className="h-8 w-8 p-0"
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
-                      )}
-                      {/* Add button only on the last row */}
-                      {index === advancedParams.length - 1 && (
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={addParameter}
-                          className="h-8 w-8 p-0"
-                        >
-                          <Plus className="h-4 w-4" />
-                        </Button>
+                      {isMetricEndpoint ? (
+                        <div className="text-sm text-gray-700 bg-gray-50 px-3 py-2 rounded-md border">
+                          {param.value}
+                        </div>
+                      ) : (
+                        <Input
+                          value={param.value}
+                          onChange={(e) => updateParameter(index, 'value', e.target.value)}
+                          tabIndex={-1}
+                        />
                       )}
                     </div>
+                    {!isMetricEndpoint && (
+                      <div className="flex items-center gap-1 w-16">
+                        {/* Only show delete button for rows beyond the default rows */}
+                        {index >= (currentProvider?.configPairs?.length || 0) && (
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => removeParameter(index)}
+                            className="h-8 w-8 p-0"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        )}
+                        {/* Add button only on the last row */}
+                        {index === advancedParams.length - 1 && (
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={addParameter}
+                            className="h-8 w-8 p-0"
+                          >
+                            <Plus className="h-4 w-4" />
+                          </Button>
+                        )}
+                      </div>
+                    )}
                   </div>
                 ))}
               </div>
