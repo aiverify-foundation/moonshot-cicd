@@ -1,5 +1,5 @@
 "use client"
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Breadcrumb, BreadcrumbList, BreadcrumbItem, BreadcrumbPage, BreadcrumbSeparator } from '@/components/ui/breadcrumb';
@@ -13,6 +13,8 @@ import EditCustomApplicationSheet from "./EditCustomApplicationSheet";
 import RequiredEndpointsCard from "./RequiredEndpointsCard";
 import SampleSizeCard from "./SampleSizeCard";
 import { providers, models, custom_connectors, configs, type Provider, type ModelConfig, type Config, type ModelApp } from "./MockData";
+import { useAppDispatch, useAppSelector } from "@/hooks/reduxHooks";
+import { setSelectedProvider, setSelectedModel, setSelectedConfig, updateConfigValidity } from "@/store";
 
 interface ModelSelectionPageProps {
   onBack: () => void;
@@ -20,11 +22,11 @@ interface ModelSelectionPageProps {
 }
 
 export default function ModelSelectionPage({ onBack, onNext }: ModelSelectionPageProps) {
+  const dispatch = useAppDispatch();
+  const { selectedProvider, selectedModel, selectedConfig, isConfigValid } = useAppSelector(state => state.modelSelection);
+  
   const [providerOpen, setProviderOpen] = useState(false);
   const [modelOpen, setModelOpen] = useState(false);
-  const [selectedProvider, setSelectedProvider] = useState<string>("");
-  const [selectedModel, setSelectedModel] = useState<string>("");
-  const [selectedConfig, setSelectedConfig] = useState<string>("");
   const [sheetOpen, setSheetOpen] = useState(false);
   const [editingModel, setEditingModel] = useState<string>("");
   const [customSheetOpen, setCustomSheetOpen] = useState(false);
@@ -43,6 +45,11 @@ export default function ModelSelectionPage({ onBack, onNext }: ModelSelectionPag
   
   // Check if selected provider is a custom connector
   const isCustomConnector = custom_connectors.some(connector => connector.id === selectedProvider);
+
+  // Track config validity
+  useEffect(() => {
+    dispatch(updateConfigValidity());
+  }, [selectedProvider, selectedModel, selectedConfig, dispatch]);
 
   // Handle edit model action
   const handleEditModel = (modelId: string, event: React.MouseEvent) => {
@@ -112,10 +119,10 @@ export default function ModelSelectionPage({ onBack, onNext }: ModelSelectionPag
             </div>
             {/* Status indicators */}
             <div className="flex items-center">
-              {(!selectedConfig && !selectedModel) && (
+              {!isConfigValid && (
                 <CircleAlert className="h-5 w-5 text-red-500" data-testid="status-indicator" />
               )}
-              {selectedProvider && (selectedModel || selectedConfig) && (
+              {isConfigValid && (
                 <CircleCheckBig className="h-5 w-5 text-green-500" data-testid="status-indicator" />
               )}
             </div>
@@ -151,9 +158,8 @@ export default function ModelSelectionPage({ onBack, onNext }: ModelSelectionPag
                             key={provider.id}
                             value={provider.id}
                             onSelect={(currentValue) => {
-                              setSelectedProvider(currentValue === selectedProvider ? "" : currentValue);
-                              setSelectedModel(""); // Reset model selection when provider changes
-                              setSelectedConfig(""); // Reset config selection when provider changes
+                              const newProvider = currentValue === selectedProvider ? "" : currentValue;
+                              dispatch(setSelectedProvider(newProvider));
                               setProviderOpen(false);
                             }}
                             data-testid={`provider-option-${provider.id}`}
@@ -198,9 +204,8 @@ export default function ModelSelectionPage({ onBack, onNext }: ModelSelectionPag
                             key={connector.id}
                             value={connector.id}
                             onSelect={(currentValue) => {
-                              setSelectedProvider(currentValue === selectedProvider ? "" : currentValue);
-                              setSelectedModel(""); // Reset model selection when provider changes
-                              setSelectedConfig(""); // Reset config selection when provider changes
+                              const newProvider = currentValue === selectedProvider ? "" : currentValue;
+                              dispatch(setSelectedProvider(newProvider));
                               setProviderOpen(false);
                             }}
                             data-testid={`custom-connector-option-${connector.id}`}
@@ -281,7 +286,8 @@ export default function ModelSelectionPage({ onBack, onNext }: ModelSelectionPag
                               key={config.id}
                               value={config.id}
                               onSelect={(currentValue) => {
-                                setSelectedConfig(currentValue === selectedConfig ? "" : currentValue);
+                                const newConfig = currentValue === selectedConfig ? "" : currentValue;
+                                dispatch(setSelectedConfig(newConfig));
                                 setModelOpen(false);
                               }}
                               data-testid={`config-option-${config.id}`}
@@ -313,7 +319,8 @@ export default function ModelSelectionPage({ onBack, onNext }: ModelSelectionPag
                               key={model.id}
                               value={model.id}
                               onSelect={(currentValue) => {
-                                setSelectedModel(currentValue === selectedModel ? "" : currentValue);
+                                const newModel = currentValue === selectedModel ? "" : currentValue;
+                                dispatch(setSelectedModel(newModel));
                                 setModelOpen(false);
                               }}
                               data-testid={`model-option-${model.id}`}
