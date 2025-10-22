@@ -10,6 +10,8 @@ import {
     AccordionItem,
     AccordionTrigger,
   } from "@/components/ui/accordion"
+import EditModelSheet from './EditModelSheet';
+import { providers, models } from './MockData';
 
 enum ConnectionStatus {
   CONNECTED = "connected",
@@ -18,7 +20,7 @@ enum ConnectionStatus {
 }
 
 // Helper function to render endpoint status card
-const renderEndpointStatusCard = (modelName: string, status: ConnectionStatus, tests: string[]) => {
+const renderEndpointStatusCard = (modelName: string, status: ConnectionStatus, tests: string[], onConnect: () => void) => {
   const getBadgeClasses = (status: ConnectionStatus) => {
     switch (status) {
       case ConnectionStatus.CONNECTED:
@@ -69,7 +71,7 @@ const renderEndpointStatusCard = (modelName: string, status: ConnectionStatus, t
         </div>
         
         <div className="mt-4 flex justify-start">
-          <Button size="sm" className="text-xs">
+          <Button size="sm" className="text-xs" onClick={onConnect}>
             Connect
           </Button>
         </div>
@@ -79,13 +81,13 @@ const renderEndpointStatusCard = (modelName: string, status: ConnectionStatus, t
 };
 
 // Helper function to render multiple endpoint status cards in a 2-column grid
-const renderEndpointStatusCardsGrid = (endpoints: Array<{modelName: string, status: ConnectionStatus, tests: string[]}>) => {
+const renderEndpointStatusCardsGrid = (endpoints: Array<{modelName: string, status: ConnectionStatus, tests: string[]}>, onConnect: () => void) => {
   return (
     <div className="max-h-[400px] overflow-y-auto">
       <div className="grid grid-cols-2 gap-4">
         {endpoints.map((endpoint, index) => (
           <div key={index}>
-            {renderEndpointStatusCard(endpoint.modelName, endpoint.status, endpoint.tests)}
+            {renderEndpointStatusCard(endpoint.modelName, endpoint.status, endpoint.tests, onConnect)}
           </div>
         ))}
       </div>
@@ -94,6 +96,16 @@ const renderEndpointStatusCardsGrid = (endpoints: Array<{modelName: string, stat
 };
 
 export default function RequiredEndpointsCard() {
+  const [isEditModelSheetOpen, setIsEditModelSheetOpen] = React.useState(false);
+  
+  // Get the first provider and model config from MockData
+  const firstProvider = providers[0]; // OpenAI provider
+  const firstModel = models[0]; // GPT-4 model
+  
+  const handleConnect = () => {
+    setIsEditModelSheetOpen(true);
+  };
+
   const endpoints = [
     {
       modelName: "together-llama-guard-8b-assistant",
@@ -128,29 +140,40 @@ export default function RequiredEndpointsCard() {
   ];
 
   return (
-    <Card className="w-3xl mt-6 py-1">
-    <Accordion type="single" collapsible>
-        <AccordionItem value="item-1">
-        <AccordionTrigger className="flex flex-row items-center hover:no-underline px-6 py-4">
-          <div className="flex-1">
-            <CardTitle data-testid="additional-card-title">Connect Required Endpoints</CardTitle>
-            <CardDescription data-testid="additional-card-description">
-              Make sure you configure access to the required models to run selected recipes.
-            </CardDescription>
-          </div>
-          {/* Status indicators */}
-          <div className="flex items-center">
-            <CircleCheckBig className="h-5 w-5 text-green-500" data-testid="required-endpoints-status-indicator" />
-          </div>
-        </AccordionTrigger>
-      <AccordionContent>
-      <CardContent>
-        {renderEndpointStatusCardsGrid(endpoints)}
-      </CardContent>
-      </AccordionContent>
-      </AccordionItem>
-      </Accordion>
-    </Card>
+    <>
+      <Card className="w-3xl mt-6 py-1">
+        <Accordion type="single" collapsible>
+          <AccordionItem value="item-1">
+            <AccordionTrigger className="flex flex-row items-center hover:no-underline px-6 py-4">
+              <div className="flex-1">
+                <CardTitle data-testid="additional-card-title">Connect Required Endpoints</CardTitle>
+                <CardDescription data-testid="additional-card-description">
+                  Make sure you configure access to the required models to run selected recipes.
+                </CardDescription>
+              </div>
+              {/* Status indicators */}
+              <div className="flex items-center">
+                <CircleCheckBig className="h-5 w-5 text-green-500" data-testid="required-endpoints-status-indicator" />
+              </div>
+            </AccordionTrigger>
+            <AccordionContent>
+              <CardContent>
+                {renderEndpointStatusCardsGrid(endpoints, handleConnect)}
+              </CardContent>
+            </AccordionContent>
+          </AccordionItem>
+        </Accordion>
+      </Card>
+      
+      <EditModelSheet
+        open={isEditModelSheetOpen}
+        onOpenChange={setIsEditModelSheetOpen}
+        editingModel={firstModel.id}
+        providers={providers}
+        models={models}
+        isMetricEndpoint={true}
+      />
+    </>
   );
 }
 
