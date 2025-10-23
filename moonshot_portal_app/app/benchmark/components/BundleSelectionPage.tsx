@@ -16,7 +16,7 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/comp
 import { FileTerminal, RefreshCw, AlertCircle, CheckSquare, Square } from 'lucide-react';
 import { Breadcrumb, BreadcrumbList, BreadcrumbItem, BreadcrumbPage, BreadcrumbSeparator } from '@/components/ui/breadcrumb';
 import { useAppSelector, useAppDispatch } from '../../../hooks/reduxHooks';
-import { useBundles } from '../../../hooks/useBundles';
+import { useBundlesRedux } from '../../../hooks/useBundlesRedux';
 import { setBundleSelected } from '../../../store';
 
 interface BundleSelectionPageProps {}
@@ -24,7 +24,7 @@ interface BundleSelectionPageProps {}
 export default function BundleSelectionPage({}: BundleSelectionPageProps) {
   const bundleSelection = useAppSelector((state) => state.bundleSelection);
   const dispatch = useAppDispatch();
-  const { bundles, loading, error, refetch } = useBundles();
+  const { bundles, loading, error, refetch } = useBundlesRedux();
 
   function CheckboxToggleButton({ checked, onCheckedChange, ...props }: { checked: boolean; onCheckedChange: (checked: boolean) => void; [key: string]: unknown }) {
     return (
