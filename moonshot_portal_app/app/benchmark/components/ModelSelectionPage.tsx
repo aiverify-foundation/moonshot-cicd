@@ -16,12 +16,9 @@ import { providers, models, custom_connectors, configs, type Provider, type Mode
 import { useAppDispatch, useAppSelector } from "@/hooks/reduxHooks";
 import { setSelectedProvider, setSelectedModel, setSelectedConfig, updateConfigValidity } from "@/store";
 
-interface ModelSelectionPageProps {
-  onBack: () => void;
-  onNext: () => void;
-}
+interface ModelSelectionPageProps {}
 
-export default function ModelSelectionPage({ onBack, onNext }: ModelSelectionPageProps) {
+export default function ModelSelectionPage({}: ModelSelectionPageProps) {
   const dispatch = useAppDispatch();
   const { selectedProvider, selectedModel, selectedConfig, isConfigValid } = useAppSelector(state => state.modelSelection);
   
@@ -84,7 +81,7 @@ export default function ModelSelectionPage({ onBack, onNext }: ModelSelectionPag
   };
 
   return (
-    <main className="p-8">
+    <div className="p-8">
       <Breadcrumb data-testid="Breadcrumb">
         <BreadcrumbList>
           <BreadcrumbItem>
@@ -377,23 +374,6 @@ export default function ModelSelectionPage({ onBack, onNext }: ModelSelectionPag
         {/* Sample Size Card */}
         <SampleSizeCard />
       </div>
-      <div className="flex justify-between pt-6">
-        <Button 
-          variant="outline" 
-          className="flex items-center gap-2"
-          onClick={onBack}
-          data-testid="back-to-bundles-button"
-        >
-          Back to Bundle Selection
-        </Button>
-        <Button 
-          className="flex items-center gap-2" 
-          onClick={onNext}
-          data-testid="run-benchmark-tests"
-        >
-          Run Benchmark Tests
-        </Button>
-      </div>
       {/* Edit Model Sheet */}
       <EditModelSheet
         open={sheetOpen}
@@ -411,6 +391,6 @@ export default function ModelSelectionPage({ onBack, onNext }: ModelSelectionPag
         modelApps={custom_connectors}
         configs={configs}
       />
-    </main>
+    </div>
   );
 }

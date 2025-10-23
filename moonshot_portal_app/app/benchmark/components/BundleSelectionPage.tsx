@@ -19,12 +19,9 @@ import { useAppSelector, useAppDispatch } from '../../../hooks/reduxHooks';
 import { useBundles } from '../../../hooks/useBundles';
 import { setBundleSelected } from '../../../store';
 
-interface BundleSelectionPageProps {
-  onNext: () => void;
-  onBack: () => void;
-}
+interface BundleSelectionPageProps {}
 
-export default function BundleSelectionPage({ onNext, onBack }: BundleSelectionPageProps) {
+export default function BundleSelectionPage({}: BundleSelectionPageProps) {
   const bundleSelection = useAppSelector((state) => state.bundleSelection);
   const dispatch = useAppDispatch();
   const { bundles, loading, error, refetch } = useBundles();
@@ -158,18 +155,18 @@ export default function BundleSelectionPage({ onNext, onBack }: BundleSelectionP
 
   if (loading) {
     return (
-      <main className="p-8">
+      <div className="p-8">
         <div className="flex flex-col items-center justify-center min-h-[400px] gap-4">
           <Spinner className="h-12 w-12" />
           <p className="text-lg text-gray-600">Loading bundles...</p>
         </div>
-      </main>
+      </div>
     );
   }
 
   if (error) {
     return (
-      <main className="p-8">
+      <div className="p-8">
         <div className="flex flex-col items-center justify-center min-h-[400px] gap-4">
           <AlertCircle className="h-16 w-16 text-red-500" />
           <h2 className="text-xl font-semibold text-red-600">Error Loading Bundles</h2>
@@ -179,12 +176,12 @@ export default function BundleSelectionPage({ onNext, onBack }: BundleSelectionP
             Try Again
           </Button>
         </div>
-      </main>
+      </div>
     );
   }
 
   return (
-    <main className="p-8">
+    <div className="p-8">
       <Breadcrumb data-testid="Breadcrumb">
         <BreadcrumbList>
           <BreadcrumbItem>
@@ -220,33 +217,6 @@ export default function BundleSelectionPage({ onNext, onBack }: BundleSelectionP
           ))}
         </div>
         )}
-        <div className="flex justify-between pt-6">
-          <Button 
-            variant="outline" 
-            className="flex items-center gap-2"
-            onClick={onBack}
-            data-testid="back-to-home-button"
-          >
-            Back to Home Page
-          </Button>
-          {Object.values(bundleSelection).some(selected => selected) ? (
-            <Button 
-              className="flex items-center gap-2" 
-              onClick={onNext}
-              data-testid="configure-and-run-benchmark-tests"
-            >
-              Configure and Run Benchmark Tests
-            </Button>
-          ) : (
-            <Button 
-              className="flex items-center gap-2"
-              disabled={true}
-              data-testid="configure-and-run-benchmark-tests"
-            >
-              Configure and Run Benchmark Tests
-            </Button>
-          )}
-        </div>
-      </main>
+    </div>
   );
 }
