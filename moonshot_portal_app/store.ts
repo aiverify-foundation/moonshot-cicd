@@ -1,4 +1,50 @@
-import { configureStore, createSlice } from '@reduxjs/toolkit';
+import { configureStore, createSlice, createAsyncThunk } from '@reduxjs/toolkit';
+import { fetchBundles, Bundle } from './lib/api';
+
+// Async thunk for fetching bundles
+export const fetchBundlesAsync = createAsyncThunk(
+  'bundles/fetchBundles',
+  async (_, { rejectWithValue }) => {
+    try {
+      const bundles = await fetchBundles();
+      return bundles;
+    } catch (error) {
+      return rejectWithValue(error instanceof Error ? error.message : 'Failed to fetch bundles');
+    }
+  }
+);
+
+const bundlesSlice = createSlice({
+  name: 'bundles',
+  initialState: {
+    data: [] as Bundle[],
+    loading: false,
+    error: null as string | null,
+  },
+  reducers: {
+    clearBundlesError: (state) => {
+      state.error = null;
+    },
+  },
+  extraReducers: (builder) => {
+    builder
+      .addCase(fetchBundlesAsync.pending, (state) => {
+        state.loading = true;
+        state.error = null;
+      })
+      .addCase(fetchBundlesAsync.fulfilled, (state, action) => {
+        state.loading = false;
+        state.data = action.payload;
+        state.error = null;
+      })
+      .addCase(fetchBundlesAsync.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.payload as string;
+      });
+  },
+});
+
+export const { clearBundlesError } = bundlesSlice.actions;
 
 const bundleSelectionSlice = createSlice({
   name: 'bundleSelection',
@@ -64,6 +110,7 @@ export const {
 
 const store = configureStore({
   reducer: {
+    bundles: bundlesSlice.reducer,
     bundleSelection: bundleSelectionSlice.reducer,
     modelSelection: modelSelectionSlice.reducer,
   },
