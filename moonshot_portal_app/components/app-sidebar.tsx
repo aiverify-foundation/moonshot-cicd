@@ -23,18 +23,16 @@ const items = [
 
 export function AppSidebar() {
   return (
-    <Sidebar>
-      <SidebarContent>
-        <SidebarGroup>
-          <SidebarGroupLabel>Application</SidebarGroupLabel>
-          <SidebarGroupContent>
+    <Sidebar collapsible="none" className="w-12 border-r h-screen fixed left-0 top-0 z-40">
+      <SidebarContent className="h-full">
+        <SidebarGroup className="h-full">
+          <SidebarGroupContent className="h-full flex items-start">
             <SidebarMenu>
               {items.map((item) => (
                 <SidebarMenuItem key={item.title}>
-                  <SidebarMenuButton asChild>
+                  <SidebarMenuButton asChild tooltip={item.title}>
                     <a href={item.url} data-testid={item.testId}>
                       <item.icon />
-                      <span>{item.title}</span>
                     </a>
                   </SidebarMenuButton>
                 </SidebarMenuItem>
