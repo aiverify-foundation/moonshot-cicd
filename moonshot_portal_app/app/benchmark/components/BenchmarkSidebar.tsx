@@ -1,5 +1,5 @@
 "use client"
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Badge } from '@/components/ui/badge';
@@ -7,6 +7,9 @@ import { Separator } from '@/components/ui/separator';
 import { Card, CardContent, CardDescription, CardTitle } from '@/components/ui/card';
 import { CircleCheckBig } from 'lucide-react';
 import { useBundlesRedux } from '../../../hooks/useBundlesRedux';
+import { useSelectedBundles } from '../../../hooks/useSelectedBundles';
+import { useIsTestSelected, useTestSelectionActions } from '../../../hooks/useTestSelection';
+import { useAppSelector } from '../../../hooks/reduxHooks';
 
 
 
@@ -29,35 +32,44 @@ interface BundleAccordionData {
 
 export default function BenchmarkSidebar({ currentPage }: BenchmarkSidebarProps) {
   const { bundles, loading, error } = useBundlesRedux();
-  
-  const [checkedItems, setCheckedItems] = useState({
-    mmlu: false,
-    singaporeTF: false,
-    singaporeMCQ: false
-  });
+  const selectedBundles = useSelectedBundles();
+  const { setTest, toggleTest, setMultipleTests } = useTestSelectionActions();
+  const testSelection = useAppSelector((state) => state.testSelection);
 
-  const handleCheckChange = (key: keyof typeof checkedItems) => {
-    setCheckedItems(prev => ({
-      ...prev,
-      [key]: !prev[key]
-    }));
+  const handleCheckChange = (testName: string) => {
+    toggleTest(testName);
   };
 
-  const createTestAccordionItem = (data: AccordionTestData) => (
-    <Card key={data.id} className="w-full mt-2 py-1 rounded-sm">
-      <Accordion type="single" collapsible>
-        <AccordionItem value={data.id} className="border-none">
-          <div className="flex items-center px-2 py-1">
-            <div className="flex-1">
-              <div className="flex items-center gap-2">
-                <Checkbox 
-                  checked={checkedItems[data.id as keyof typeof checkedItems]}
-                  onCheckedChange={() => handleCheckChange(data.id as keyof typeof checkedItems)}
-                  className="rounded-sm"
-                />
-                <CardTitle className="text-sm font-medium">{data.title}</CardTitle>
+  // Helper function to handle parent checkbox (select/deselect all)
+  const handleParentCheckChange = (bundleName: string) => {
+    const bundle = selectedBundles.find(b => b.name === bundleName);
+    if (!bundle) return;
+
+    const testNames = bundle.tests.map(test => test.name);
+    const allChecked = testNames.every(testName => testSelection[testName]);
+    const newCheckedState = !allChecked;
+
+    setMultipleTests(testNames, newCheckedState);
+  };
+
+  const createTestAccordionItem = (data: AccordionTestData) => {
+    const isChecked = testSelection[data.id] || false;
+    
+    return (
+      <Card key={data.id} className="w-full mt-2 py-1 rounded-sm">
+        <Accordion type="single" collapsible>
+          <AccordionItem value={data.id} className="border-none">
+            <div className="flex items-center px-2 py-1">
+              <div className="flex-1">
+                <div className="flex items-center gap-2">
+                  <Checkbox 
+                    checked={isChecked}
+                    onCheckedChange={() => handleCheckChange(data.id)}
+                    className="rounded-sm"
+                  />
+                  <CardTitle className="text-sm font-medium">{data.title}</CardTitle>
+                </div>
               </div>
-            </div>
             {/* Status indicators */}
             <div className="flex items-center gap-2">
               <CircleCheckBig className={`h-5 w-5 ${
@@ -83,18 +95,25 @@ export default function BenchmarkSidebar({ currentPage }: BenchmarkSidebarProps)
         </AccordionItem>
       </Accordion>
     </Card>
-  );
+    );
+  };
 
-  const createParentAccordion = (data: BundleAccordionData) => (
-    <AccordionItem key={data.id} value={data.id} className="border-none">
-      <div className="flex items-center">
-        <Badge variant="outline" className="flex items-center gap-2 px-3 py-2">
-          <Checkbox 
-            checked={false}
-            className="rounded-sm"
-          />
-          <span className="font-medium text-sm">{data.title} {data.count}</span>
-        </Badge>
+  const createParentAccordion = (data: BundleAccordionData) => {
+    const bundle = selectedBundles.find(b => b.name === data.id);
+    const testNames = bundle ? bundle.tests.map(test => test.name) : [];
+    const allChecked = testNames.length > 0 && testNames.every(testName => testSelection[testName]);
+    
+    return (
+      <AccordionItem key={data.id} value={data.id} className="border-none">
+        <div className="flex items-center">
+          <Badge variant="outline" className="flex items-center gap-2 px-3 py-2">
+            <Checkbox 
+              checked={allChecked}
+              onCheckedChange={() => handleParentCheckChange(data.id)}
+              className="rounded-sm"
+            />
+            <span className="font-medium text-sm">{data.title} {data.count}</span>
+          </Badge>
         <Separator orientation="horizontal" className="flex-1 mx-2" />
         <AccordionTrigger className="hover:no-underline">
           <span className="sr-only">Toggle {data.title} section</span>
@@ -107,35 +126,22 @@ export default function BenchmarkSidebar({ currentPage }: BenchmarkSidebarProps)
         </div>
       </AccordionContent>
     </AccordionItem>
-  );
+    );
+  };
 
-  // Data for parent accordion with nested items
-  const parentAccordionData: BundleAccordionData[] = [
-    {
-      id: 'hallucination',
-      title: 'Hallucination',
-      items: [
-        {
-          id: 'mmlu',
-          title: 'MMLU 2.0',
-          status: 'pending'
-        },
-        {
-          id: 'singaporeTF',
-          title: 'Facts about Singapore TF',
-          status: 'completed'
-        },
-        {
-          id: 'singaporeMCQ',
-          title: 'Facts about Singapore MCQ',
-          status: 'completed'
-        }
-      ],
-      get count() {
-        return `[${this.items.length}/${this.items.length}]`;
-      }
+  // Transform selected bundles into accordion data
+  const parentAccordionData: BundleAccordionData[] = selectedBundles.map(bundle => ({
+    id: bundle.name,
+    title: bundle.name,
+    items: bundle.tests.map(test => ({
+      id: test.name,
+      title: test.name,
+      status: 'pending' as const // Default status, could be enhanced later
+    })),
+    get count() {
+      return `[${this.items.length}/${this.items.length}]`;
     }
-  ];
+  }));
 
   return (
     <div 
@@ -157,9 +163,15 @@ export default function BenchmarkSidebar({ currentPage }: BenchmarkSidebarProps)
       }}
     >
       <div className="w-full max-w-md mx-auto p-1">
-        <Accordion type="single" collapsible>
-          {parentAccordionData.map((data) => createParentAccordion(data))}
-        </Accordion>
+        {parentAccordionData.length > 0 ? (
+          <Accordion type="multiple">
+            {parentAccordionData.map((data) => createParentAccordion(data))}
+          </Accordion>
+        ) : (
+          <div className="text-center text-gray-500 py-8">
+            No bundles selected. Please select bundles to view their tests.
+          </div>
+        )}
       </div>
       {/* Sidebar content goes here */}
     </div>
