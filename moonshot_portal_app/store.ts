@@ -108,11 +108,49 @@ export const {
   resetModelSelection 
 } = modelSelectionSlice.actions;
 
+const testSelectionSlice = createSlice({
+  name: 'testSelection',
+  initialState: {} as Record<string, boolean>,
+  reducers: {
+    setTestSelected: (state, action) => {
+      const { testName, selected } = action.payload;
+      state[testName] = selected;
+    },
+    toggleTestSelected: (state, action) => {
+      const testName = action.payload;
+      state[testName] = !state[testName];
+    },
+    setMultipleTestsSelected: (state, action) => {
+      const { testNames, selected } = action.payload;
+      testNames.forEach((testName: string) => {
+        state[testName] = selected;
+      });
+    },
+    clearTestSelection: (state) => {
+      return {};
+    },
+    clearTestsForBundle: (state, action) => {
+      const bundleName = action.payload;
+      // This will be handled by the component logic
+      return state;
+    },
+  },
+});
+
+export const { 
+  setTestSelected, 
+  toggleTestSelected, 
+  setMultipleTestsSelected, 
+  clearTestSelection,
+  clearTestsForBundle 
+} = testSelectionSlice.actions;
+
 const store = configureStore({
   reducer: {
     bundles: bundlesSlice.reducer,
     bundleSelection: bundleSelectionSlice.reducer,
     modelSelection: modelSelectionSlice.reducer,
+    testSelection: testSelectionSlice.reducer,
   },
 });
 
