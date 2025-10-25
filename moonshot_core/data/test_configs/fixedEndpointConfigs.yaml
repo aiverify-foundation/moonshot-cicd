@@ -1,0 +1,56 @@
+# Fixed Endpoint Configurations
+# This file contains sample model configuration data based on ModelConfigDTO structure
+# Each configuration represents a fixed endpoint setup for testing purposes
+
+sample_openai_gpt4_config:
+  id: "config_001"
+  name: "OpenAI GPT-4 Production Config"
+  modelname: "gpt-4"
+  providerID: "openai_provider"
+  savedConfigPairs:
+    temperature: "0.7"
+    max_tokens: "1000"
+    top_p: "1.0"
+    frequency_penalty: "0.0"
+    presence_penalty: "0.0"
+    timeout: "30"
+  lastUpdated: "2024-01-15T10:30:00Z"
+
+sample_anthropic_claude_config:
+  id: "config_002"
+  name: "Anthropic Claude-3 Opus Config"
+  modelname: "claude-3-opus-20240229"
+  providerID: "anthropic_provider"
+  savedConfigPairs:
+    temperature: "0.5"
+    max_tokens: "2000"
+    top_p: "0.9"
+    timeout: "60"
+    model_version: "20240229"
+  lastUpdated: "2024-01-20T14:45:00Z"
+
+sample_aws_bedrock_config:
+  id: "config_003"
+  name: "AWS Bedrock Titan Config"
+  modelname: "amazon.titan-text-express-v1"
+  providerID: "aws_bedrock_provider"
+  savedConfigPairs:
+    aws_region: "us-east-1"
+    temperature: "0.8"
+    max_tokens: "1500"
+    top_p: "0.95"
+  lastUpdated: "2024-01-25T09:15:00Z"
+
+sample_local_model_config:
+  id: "config_004"
+  name: "Local Ollama Llama2 Config"
+  modelname: "llama2:7b"
+  providerID: "ollama_provider"
+  savedConfigPairs:
+    base_url: "http://localhost:11434"
+    temperature: "0.6"
+    max_tokens: "800"
+    top_p: "0.9"
+    timeout: "120"
+    stream: "false"
+  lastUpdated: "2024-01-30T16:20:00Z"

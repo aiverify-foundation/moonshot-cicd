@@ -5,6 +5,7 @@ This module provides a REST API interface for the Moonshot benchmarking system.
 
 from fastapi import FastAPI, Request, HTTPException
 from fastapi.responses import FileResponse
+from fastapi.middleware.cors import CORSMiddleware
 import os
 from pathlib import Path
 from urllib.parse import urlparse
@@ -107,6 +108,10 @@ sqlite_adapter = SQLiteAdapter()
 provider_repository = SQLiteProviderRepository(sqlite_adapter)
 provider_service = ProviderService(provider_repository)
 
+# Initialize file-based model config repository for fixed endpoint configs
+config_file_path = os.path.join(os.path.dirname(__file__), "..", "data", "test_configs", "fixedEndpointConfigs.yaml")
+file_model_config_repository = FileModelConfigRepository(config_file_path)
+
 
 
 @app.get("/api/bundles")
@@ -186,6 +191,39 @@ async def delete_model_config(config_id: str):
     except Exception as e:
         logger.error(f"Error deleting model config {config_id}: {e}")
         raise HTTPException(status_code=500, detail="Failed to delete model config")
+
+
+@app.get("/api/fixed-configs")
+async def list_all_fixed_configs():
+    """Get all fixed endpoint model configurations from the YAML file."""
+    try:
+        logger.info("Fetching all fixed endpoint model configurations")
+        configs = file_model_config_repository.list_model_configs()
+        
+        # Convert ModelConfigEntity objects to dictionaries for JSON response
+        config_dicts = []
+        for config in configs:
+            config_dict = {
+                "id": config.id,
+                "name": config.name,
+                "modelname": config.modelname,
+                "providerID": config.providerID,
+                "savedConfigPairs": config.savedConfigPairs,
+                "lastUpdated": config.lastUpdated.isoformat() if config.lastUpdated else None
+            }
+            config_dicts.append(config_dict)
+        
+        logger.info(f"Successfully retrieved {len(config_dicts)} fixed endpoint configurations")
+        return {"configs": config_dicts}
+    except FileNotFoundError as e:
+        logger.error(f"Fixed endpoint config file not found: {e}")
+        raise HTTPException(status_code=404, detail="Fixed endpoint configuration file not found")
+    except ValueError as e:
+        logger.error(f"Invalid fixed endpoint config file: {e}")
+        raise HTTPException(status_code=400, detail=f"Invalid configuration file: {str(e)}")
+    except Exception as e:
+        logger.error(f"Error fetching fixed endpoint configurations: {e}")
+        raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
 
 
 @app.api_route("/{file_path:path}", methods=["GET", "HEAD"])
