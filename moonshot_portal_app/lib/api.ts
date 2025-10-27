@@ -82,6 +82,68 @@ export async function fetchBundles(): Promise<Bundle[]> {
   }
 }
 
+export interface FixedConfig {
+  id: string;
+  name: string;
+  modelname: string;
+  providerID: number;
+  savedConfigPairs: Record<string, string>;
+  lastUpdated: string | null;
+}
+
+export interface FixedConfigsResponse {
+  configs: FixedConfig[];
+}
+
+/**
+ * Fetches all fixed endpoint model configurations from the API
+ */
+export async function fetchFixedConfigs(): Promise<FixedConfig[]> {
+  try {
+    console.log(`Fetching fixed configs from: ${API_BASE_URL}/api/fixed-configs`);
+    
+    const response = await fetch(`${API_BASE_URL}/api/fixed-configs`, {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+    });
+
+    console.log(`Response status: ${response.status} ${response.statusText}`);
+
+    if (!response.ok) {
+      const errorText = await response.text().catch(() => 'Unknown error');
+      console.error(`API Error: ${response.status} - ${errorText}`);
+      throw new ApiError(
+        `Failed to fetch fixed configs: ${response.statusText} (${response.status})`,
+        response.status,
+        response.statusText
+      );
+    }
+
+    const data: FixedConfigsResponse = await response.json();
+    console.log(`Successfully fetched ${data.configs.length} fixed configurations`);
+    return data.configs;
+  } catch (error) {
+    console.error('Fetch fixed configs error:', error);
+    
+    if (error instanceof ApiError) {
+      throw error;
+    }
+    
+    // Handle network errors or other issues
+    if (error instanceof TypeError && error.message.includes('fetch')) {
+      throw new ApiError(
+        `Cannot connect to API server at ${API_BASE_URL}. Please ensure the backend is running on port 8000.`
+      );
+    }
+    
+    throw new ApiError(
+      `Network error: ${error instanceof Error ? error.message : 'Unknown error'}`
+    );
+  }
+}
+
 /**
  * Health check for the API
  */
