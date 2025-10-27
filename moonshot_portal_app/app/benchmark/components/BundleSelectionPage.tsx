@@ -19,9 +19,7 @@ import { useAppSelector, useAppDispatch } from '../../../hooks/reduxHooks';
 import { useBundlesRedux } from '../../../hooks/useBundlesRedux';
 import { setBundleSelected } from '../../../store';
 
-interface BundleSelectionPageProps {}
-
-export default function BundleSelectionPage({}: BundleSelectionPageProps) {
+export default function BundleSelectionPage() {
   const bundleSelection = useAppSelector((state) => state.bundleSelection);
   const dispatch = useAppDispatch();
   const { bundles, loading, error, refetch } = useBundlesRedux();

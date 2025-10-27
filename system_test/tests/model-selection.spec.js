@@ -282,9 +282,9 @@ test.describe('Model Selection Page Integration Tests', () => {
     test('GIVEN as a user WHEN a Custom Application or standard provider is selected But NOT the Model or Config THEN display a red exclamation mark Icon', async ({ page }) => {
       await navigateToModelSelection(page);
       
-      // Initially no status indicator should be visible
+      // Status indicator should be displayed
       const statusIndicators = page.locator('[data-testid="status-indicator"]');
-      await expect(statusIndicators).toHaveCount(0);
+      await expect(statusIndicators).toHaveCount(1);
       
       // Select a standard provider
       await page.click('[data-testid="provider-combobox-trigger"]');

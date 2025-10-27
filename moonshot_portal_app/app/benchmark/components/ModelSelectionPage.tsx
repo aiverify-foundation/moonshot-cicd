@@ -16,9 +16,7 @@ import { providers, models, custom_connectors, configs, type Provider, type Mode
 import { useAppDispatch, useAppSelector } from "@/hooks/reduxHooks";
 import { setSelectedProvider, setSelectedModel, setSelectedConfig, updateConfigValidity } from "@/store";
 
-interface ModelSelectionPageProps {}
-
-export default function ModelSelectionPage({}: ModelSelectionPageProps) {
+export default function ModelSelectionPage() {
   const dispatch = useAppDispatch();
   const { selectedProvider, selectedModel, selectedConfig, isConfigValid } = useAppSelector(state => state.modelSelection);
   
