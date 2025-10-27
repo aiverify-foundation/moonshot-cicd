@@ -108,9 +108,18 @@ sqlite_adapter = SQLiteAdapter()
 provider_repository = SQLiteProviderRepository(sqlite_adapter)
 provider_service = ProviderService(provider_repository)
 
-# Initialize file-based model config repository for fixed endpoint configs
-config_file_path = os.path.join(os.path.dirname(__file__), "..", "data", "test_configs", "fixedEndpointConfigs.yaml")
-file_model_config_repository = FileModelConfigRepository(config_file_path)
+# Initialize file-based model config repository for fixed endpoint configs (lazy initialization)
+_file_model_config_repository = None
+
+
+def get_file_model_config_repository():
+    """Get or create the file-based model config repository instance."""
+    global _file_model_config_repository
+    if _file_model_config_repository is None:
+        # Use AppConfig to get the test configs path
+        config_file_path = os.path.join(AppConfig.DEFAULT_TEST_CONFIGS_PATH, "fixedEndpointConfigs.yaml")
+        _file_model_config_repository = FileModelConfigRepository(config_file_path)
+    return _file_model_config_repository
 
 
 
@@ -198,7 +207,8 @@ async def list_all_fixed_configs():
     """Get all fixed endpoint model configurations from the YAML file."""
     try:
         logger.info("Fetching all fixed endpoint model configurations")
-        configs = file_model_config_repository.list_model_configs()
+        repo = get_file_model_config_repository()
+        configs = repo.list_model_configs()
         
         # Convert ModelConfigEntity objects to dictionaries for JSON response
         config_dicts = []
