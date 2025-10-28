@@ -79,3 +79,20 @@ export function useFixedConfigsForSelectedTests(): FixedConfig[] {
   }, [selectedTestNames, bundles, allFixedConfigs]);
 }
 
+/**
+ * Get a single fixed config by its ID
+ */
+export function useFixedConfigById(configId: string): FixedConfig | undefined {
+  const dispatch = useAppDispatch();
+  const { data: allFixedConfigs, loading } = useAppSelector((state) => state.fixedConfigs);
+
+  // Ensure fixed configs are loaded
+  useEffect(() => {
+    if (allFixedConfigs.length === 0 && !loading) {
+      dispatch(fetchFixedConfigsAsync());
+    }
+  }, [dispatch, allFixedConfigs.length, loading]);
+
+  return allFixedConfigs.find(config => config.id === configId);
+}
+

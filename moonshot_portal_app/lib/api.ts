@@ -87,7 +87,7 @@ export interface FixedConfig {
   id: string;
   name: string;
   modelname: string;
-  providerID: number;
+  providerID: string;
   savedConfigPairs: Record<string, string>;
   lastUpdated: string | null;
 }
