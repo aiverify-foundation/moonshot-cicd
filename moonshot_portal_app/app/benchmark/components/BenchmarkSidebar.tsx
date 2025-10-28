@@ -1,5 +1,5 @@
 "use client"
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Badge } from '@/components/ui/badge';
@@ -35,6 +35,43 @@ export default function BenchmarkSidebar({ currentPage }: BenchmarkSidebarProps)
   const selectedBundles = useSelectedBundles();
   const { setTest, toggleTest, setMultipleTests } = useTestSelectionActions();
   const testSelection = useAppSelector((state) => state.testSelection);
+  const processedBundles = useRef<Set<string>>(new Set());
+
+  // Auto-select all tests from selected bundles by default (only for new bundles)
+  useEffect(() => {
+    const currentBundleNames = new Set(selectedBundles.map(b => b.name));
+    
+    // Find new bundles that haven't been processed yet
+    const newBundles = selectedBundles.filter(bundle => !processedBundles.current.has(bundle.name));
+    
+    if (newBundles.length > 0) {
+      const allTestNames = newBundles.flatMap(bundle => 
+        bundle.tests.map(test => test.name)
+      );
+      
+      if (allTestNames.length > 0) {
+        setMultipleTests(allTestNames, true);
+      }
+      
+      // Mark these bundles as processed
+      newBundles.forEach(bundle => processedBundles.current.add(bundle.name));
+    }
+    
+    // Remove bundles that are no longer selected and unselect their tests
+    Array.from(processedBundles.current).forEach(bundleName => {
+      if (!currentBundleNames.has(bundleName)) {
+        // Find the bundle and unselect all its tests
+        const deselectedBundle = bundles.find(b => b.name === bundleName);
+        if (deselectedBundle) {
+          const testNamesToUnselect = deselectedBundle.tests.map((test: { name: string }) => test.name);
+          if (testNamesToUnselect.length > 0) {
+            setMultipleTests(testNamesToUnselect, false);
+          }
+        }
+        processedBundles.current.delete(bundleName);
+      }
+    });
+  }, [selectedBundles, bundles, setMultipleTests]);
 
   const handleCheckChange = (testName: string) => {
     toggleTest(testName);
