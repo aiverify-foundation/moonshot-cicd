@@ -6,7 +6,7 @@ sample_openai_gpt4_config:
   id: "config_001"
   name: "OpenAI GPT-4 Production Config"
   modelname: "gpt-4"
-  providerID: "openai_provider"
+  providerID: "openai"
   savedConfigPairs:
     temperature: "0.7"
     max_tokens: "1000"
@@ -20,7 +20,7 @@ sample_anthropic_claude_config:
   id: "config_002"
   name: "Anthropic Claude-3 Opus Config"
   modelname: "claude-3-opus-20240229"
-  providerID: "anthropic_provider"
+  providerID: "anthropic"
   savedConfigPairs:
     temperature: "0.5"
     max_tokens: "2000"
@@ -33,7 +33,7 @@ sample_aws_bedrock_config:
   id: "config_003"
   name: "AWS Bedrock Titan Config"
   modelname: "amazon.titan-text-express-v1"
-  providerID: "aws_bedrock_provider"
+  providerID: "aws_bedrock"
   savedConfigPairs:
     aws_region: "us-east-1"
     temperature: "0.8"
@@ -45,7 +45,7 @@ sample_local_model_config:
   id: "config_004"
   name: "Local Ollama Llama2 Config"
   modelname: "llama2:7b"
-  providerID: "ollama_provider"
+  providerID: "ollama"
   savedConfigPairs:
     base_url: "http://localhost:11434"
     temperature: "0.6"

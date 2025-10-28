@@ -15,18 +15,23 @@ hallucination-tests:
     dataset: brand_reputation_bbq
     metric: 
       name: accuracy_adapter
+      config_id: config_001
 
   - name: singapore-facts-tf
     type: benchmark
     dataset: brand_reputation_bbq
     metric: 
       name: accuracy_adapter
+      config_id: config_001
+
 
   - name: singapore-facts-mcq
     type: benchmark
     dataset: brand_reputation_bbq
     metric: 
       name: accuracy_adapter
+      config_id: config_001
+
 
 data-disclosure-tests:
   category: IMDA's Starter Kit

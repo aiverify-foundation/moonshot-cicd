@@ -85,13 +85,13 @@ const renderEndpointStatusCard = (modelName: string, status: ConnectionStatus, t
 };
 
 // Helper function to render multiple endpoint status cards in a 2-column grid
-const renderEndpointStatusCardsGrid = (endpoints: Array<{modelName: string, status: ConnectionStatus, tests: string[]}>, onConnect: () => void) => {
+const renderEndpointStatusCardsGrid = (endpoints: Array<{modelName: string, status: ConnectionStatus, tests: string[], configId?: string}>, onConnect: (configId: string) => void) => {
   return (
     <div className="max-h-[400px] overflow-y-auto">
       <div className="grid grid-cols-2 gap-4">
         {endpoints.map((endpoint, index) => (
           <div key={index}>
-            {renderEndpointStatusCard(endpoint.modelName, endpoint.status, endpoint.tests, onConnect)}
+            {renderEndpointStatusCard(endpoint.modelName, endpoint.status, endpoint.tests, () => onConnect(endpoint.configId || ''))}
           </div>
         ))}
       </div>
@@ -101,12 +101,11 @@ const renderEndpointStatusCardsGrid = (endpoints: Array<{modelName: string, stat
 
 export default function RequiredEndpointsCard() {
   const [isEditModelSheetOpen, setIsEditModelSheetOpen] = React.useState(false);
+  const [editingConfigId, setEditingConfigId] = React.useState<string>('');
   
-  // Get the first provider and model config from MockData
-  const firstProvider = providers[0]; // OpenAI provider
-  const firstModel = models[0]; // GPT-4 model
   
-  const handleConnect = () => {
+  const handleConnect = (configId: string) => {
+    setEditingConfigId(configId);
     setIsEditModelSheetOpen(true);
   };
 
@@ -179,10 +178,11 @@ export default function RequiredEndpointsCard() {
       <EditModelSheet
         open={isEditModelSheetOpen}
         onOpenChange={setIsEditModelSheetOpen}
-        editingModel={firstModel.id}
+        editingModel={editingConfigId}
         providers={providers}
         models={models}
         isMetricEndpoint={true}
+        fixedConfigs={fixedConfigs}
       />
     </>
   );

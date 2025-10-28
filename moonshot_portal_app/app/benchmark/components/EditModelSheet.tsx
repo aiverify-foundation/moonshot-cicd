@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Trash2, Plus } from "lucide-react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { FixedConfig } from '../../../lib/api';
 
 // Constants
 const DEFAULT_ADVANCED_PARAMS = [
@@ -40,17 +41,50 @@ interface AdvancedParam {
 }
 
 // Helper functions
-const getProviderModelInfo = (editingModel: string, providers: Provider[], models: Model[]) => {
+const getProviderModelInfoFromFixedConfig = (editingModel: string, fixedConfigs: FixedConfig[]) => {
+  const fixedConfig = fixedConfigs.find(c => c.id === editingModel);
+  if (!fixedConfig) {
+    return null;
+  }
+  
+  //TODO: Get a real reference to a provider from providers
+  // Create a new provider with only the name filled as fixedConfig.providerID
+  const currentProvider: Provider = {
+    id: fixedConfig.providerID,
+    name: fixedConfig.providerID,
+    type: 'provider'
+  };
+  
+  // Create a mock model config from fixedConfig
+  const currentModelConfig = {
+    id: fixedConfig.id,
+    name: fixedConfig.name,
+    modelname: fixedConfig.modelname,
+    provider: fixedConfig.providerID
+  };
+  
+  return { isNewModel: false, currentModelConfig, currentProvider, fixedConfig };
+};
+
+const getProviderModelInfoFromProviders = (editingModel: string, providers: Provider[], models: Model[]) => {
   const isNewModel = providers.some(p => p.id === editingModel);
   const currentModelConfig = isNewModel ? null : models.find(m => m.id === editingModel);
   const currentProvider = isNewModel 
     ? providers.find(p => p.id === editingModel)
     : providers.find(p => p.id === currentModelConfig?.provider);
   
-  return { isNewModel, currentModelConfig, currentProvider };
+  return { isNewModel, currentModelConfig, currentProvider, fixedConfig: undefined };
 };
 
-const getAdvancedParamsFromProvider = (currentProvider: Provider | undefined): AdvancedParam[] => {
+const getAdvancedParamsFromProvider = (currentProvider: Provider | undefined, fixedConfig?: FixedConfig): AdvancedParam[] => {
+  // If fixed config is provided, use its savedConfigPairs
+  if (fixedConfig?.savedConfigPairs) {
+    return Object.entries(fixedConfig.savedConfigPairs).map(([key, value]) => ({
+      parameter: key,
+      value: value
+    }));
+  }
+  
   if (currentProvider?.configPairs && currentProvider.configPairs.length > 0) {
     return currentProvider.configPairs.map((cp) => ({
       parameter: cp.key,
@@ -67,6 +101,7 @@ interface EditModelSheetProps {
   providers: Provider[];
   models: Model[];
   isMetricEndpoint?: boolean;
+  fixedConfigs?: FixedConfig[];
 }
 
 export default function EditModelSheet({ 
@@ -75,20 +110,25 @@ export default function EditModelSheet({
   editingModel, 
   providers, 
   models,
-  isMetricEndpoint = false
+  isMetricEndpoint = false,
+  fixedConfigs
 }: EditModelSheetProps) {
   // Get provider/model info using helper function with memoization
-  const { isNewModel, currentModelConfig, currentProvider } = React.useMemo(
-    () => getProviderModelInfo(editingModel, providers, models),
-    [editingModel, providers, models]
-  );
+  const { isNewModel, currentModelConfig, currentProvider, fixedConfig } = React.useMemo(() => {
+    if (isMetricEndpoint && fixedConfigs) {
+      // If fixed config is found, use it, otherwise use providers which has default behaviour
+      return getProviderModelInfoFromFixedConfig(editingModel, fixedConfigs) || 
+             getProviderModelInfoFromProviders(editingModel, providers, models);
+    }
+    return getProviderModelInfoFromProviders(editingModel, providers, models);
+  }, [editingModel, providers, models, isMetricEndpoint, fixedConfigs]);
 
   const [modelConfigName, setModelConfigName] = React.useState(isNewModel ? 'New Model' : currentModelConfig?.name || 'New Model');
   const [tokenValue, setTokenValue] = React.useState('');
   const [modelName, setModelName] = React.useState(isNewModel ? '' : currentModelConfig?.modelname || '');
   const [testResult, setTestResult] = React.useState<boolean | null>(null);
   const [popoverOpen, setPopoverOpen] = React.useState(false);
-  const [advancedParams, setAdvancedParams] = React.useState(getAdvancedParamsFromProvider(currentProvider));
+  const [advancedParams, setAdvancedParams] = React.useState(getAdvancedParamsFromProvider(currentProvider, fixedConfig));
   const timeoutRef = React.useRef<NodeJS.Timeout | null>(null);
 
   // Update state when editingModel changes
@@ -98,8 +138,8 @@ export default function EditModelSheet({
     setTokenValue(currentProvider?.modelToken || ''); // Use modelToken as default
     setTestResult(null);
     setPopoverOpen(false);
-    setAdvancedParams(getAdvancedParamsFromProvider(currentProvider));
-  }, [isNewModel, currentModelConfig, currentProvider]);
+    setAdvancedParams(getAdvancedParamsFromProvider(currentProvider, fixedConfig));
+  }, [isNewModel, currentModelConfig, currentProvider, fixedConfig]);
 
   // Cleanup timeout on unmount
   React.useEffect(() => {
@@ -116,12 +156,11 @@ export default function EditModelSheet({
     setModelName('');
     setTestResult(null);
     setPopoverOpen(false);
-    setAdvancedParams(getAdvancedParamsFromProvider(currentProvider));
+    setAdvancedParams(getAdvancedParamsFromProvider(currentProvider, fixedConfig));
   };
 
   const handleSave = () => {
     // Add your save logic here
-    console.log('Saving model configuration for:', editingModel);
     resetForm();
     onOpenChange(false);
   };
