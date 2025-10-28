@@ -1,5 +1,5 @@
 "use client"
-import React from 'react';
+import React, { useMemo } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -12,6 +12,10 @@ import {
   } from "@/components/ui/accordion"
 import EditModelSheet from './EditModelSheet';
 import { providers, models } from './MockData';
+import { useFixedConfigsForSelectedTests } from '../../../hooks/useFixedConfigsRedux';
+import { useCheckedTestNames } from '../../../hooks/useTestSelection';
+import { useAppSelector } from '../../../hooks/reduxHooks';
+import { Bundle } from '../../../lib/api';
 
 enum ConnectionStatus {
   CONNECTED = "connected",
@@ -106,38 +110,38 @@ export default function RequiredEndpointsCard() {
     setIsEditModelSheetOpen(true);
   };
 
-  const endpoints = [
-    {
-      modelName: "together-llama-guard-8b-assistant",
-      status: ConnectionStatus.CONNECTED,
-      tests: ["MMLU2.0"]
-    },
-    {
-      modelName: "another-model-example",
-      status: ConnectionStatus.NOT_CONNECTED,
-      tests: ["HellaSwag", "ARC"]
-    },
-    {
-      modelName: "together-llama-guard-8b-assistant",
-      status: ConnectionStatus.CONNECTED,
-      tests: ["MMLU2.0"]
-    },
-    {
-      modelName: "another-model-example",
-      status: ConnectionStatus.NOT_CONNECTED,
-      tests: ["HellaSwag", "ARC"]
-    },
-    {
-      modelName: "together-llama-guard-8b-assistant",
-      status: ConnectionStatus.CONNECTED,
-      tests: ["MMLU2.0"]
-    },
-    {
-      modelName: "another-model-example",
-      status: ConnectionStatus.NOT_CONNECTED,
-      tests: ["HellaSwag", "ARC","TriviaQA"]
-    }
-  ];
+  // Get fixed configs that are referenced by selected tests
+  const fixedConfigs = useFixedConfigsForSelectedTests();
+  const selectedTestNames = useCheckedTestNames();
+  const bundles = useAppSelector((state) => state.bundles.data) as Bundle[];
+
+  // Map fixed configs to endpoints with their associated tests
+  const endpoints = useMemo(() => {
+  
+    return fixedConfigs.map(config => {
+      // Find only the SELECTED tests that reference this config_id
+      const associatedTests: string[] = [];
+      bundles.forEach(bundle => {
+        bundle.tests.forEach(test => {
+          // Only include the test if it's selected AND references this config
+          if (selectedTestNames.includes(test.name) && test.metric?.config_id === config.id) {
+            associatedTests.push(test.name);
+          }
+        });
+      });
+
+      // Determine status based on whether the config is properly configured
+      // TODO: Add actual connection validation logic
+      const status = ConnectionStatus.CONNECTED;
+
+      return {
+        modelName: config.modelname || config.name,
+        status,
+        tests: associatedTests,
+        configId: config.id
+      };
+    });
+  }, [fixedConfigs, bundles, selectedTestNames]);
 
   return (
     <>
@@ -153,12 +157,19 @@ export default function RequiredEndpointsCard() {
               </div>
               {/* Status indicators */}
               <div className="flex items-center">
-                <CircleCheckBig className="h-5 w-5 text-green-500" data-testid="required-endpoints-status-indicator" />
+                  {/*TODO: Add actual connection validation logic*/}
+                  <CircleCheckBig className="h-5 w-5 text-green-500" data-testid="required-endpoints-status-indicator" />
               </div>
             </AccordionTrigger>
             <AccordionContent>
               <CardContent>
-                {renderEndpointStatusCardsGrid(endpoints, handleConnect)}
+                {endpoints.length > 0 ? (
+                  renderEndpointStatusCardsGrid(endpoints, handleConnect)
+                ) : (
+                  <div className="text-center text-gray-500 py-8">
+                    No required endpoints.
+                  </div>
+                )}
               </CardContent>
             </AccordionContent>
           </AccordionItem>

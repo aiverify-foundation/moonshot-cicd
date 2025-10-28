@@ -15,6 +15,11 @@ export interface Bundle {
       name: string;
       description: string;
     };
+    metric?: {
+      name?: string;
+      config_id?: string;
+      [key: string]: any;
+    };
   }>;
 }
 
@@ -38,7 +43,6 @@ export class ApiError extends Error {
  */
 export async function fetchBundles(): Promise<Bundle[]> {
   try {
-    console.log(`Fetching bundles from: ${API_BASE_URL}/api/bundles`);
     
     const response = await fetch(`${API_BASE_URL}/api/bundles`, {
       method: 'GET',
@@ -46,8 +50,6 @@ export async function fetchBundles(): Promise<Bundle[]> {
         'Content-Type': 'application/json',
       },
     });
-
-    console.log(`Response status: ${response.status} ${response.statusText}`);
 
     if (!response.ok) {
       const errorText = await response.text().catch(() => 'Unknown error');
@@ -60,7 +62,6 @@ export async function fetchBundles(): Promise<Bundle[]> {
     }
 
     const data: BundlesResponse = await response.json();
-    console.log(`Successfully fetched ${data.bundles.length} bundles`);
     return data.bundles;
   } catch (error) {
     console.error('Fetch bundles error:', error);
@@ -100,16 +101,13 @@ export interface FixedConfigsResponse {
  */
 export async function fetchFixedConfigs(): Promise<FixedConfig[]> {
   try {
-    console.log(`Fetching fixed configs from: ${API_BASE_URL}/api/fixed-configs`);
-    
+   
     const response = await fetch(`${API_BASE_URL}/api/fixed-configs`, {
       method: 'GET',
       headers: {
         'Content-Type': 'application/json',
       },
     });
-
-    console.log(`Response status: ${response.status} ${response.statusText}`);
 
     if (!response.ok) {
       const errorText = await response.text().catch(() => 'Unknown error');
@@ -122,7 +120,6 @@ export async function fetchFixedConfigs(): Promise<FixedConfig[]> {
     }
 
     const data: FixedConfigsResponse = await response.json();
-    console.log(`Successfully fetched ${data.configs.length} fixed configurations`);
     return data.configs;
   } catch (error) {
     console.error('Fetch fixed configs error:', error);
