@@ -18,7 +18,7 @@ export interface Bundle {
     metric?: {
       name?: string;
       config_id?: string;
-      [key: string]: any;
+      [key: string]: string | undefined; //Undefined in order to accomodate the optional fields name and config_id
     };
   }>;
 }
