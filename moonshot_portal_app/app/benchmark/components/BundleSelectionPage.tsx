@@ -65,7 +65,7 @@ export default function BundleSelectionPage() {
             data-testid={`test-name-${idx}`}
           >
             <FileTerminal />
-            <span>{test.name}</span>
+            <span className="truncate min-w-0">{test.name}</span>
           </li>
         ))}
         {tests.length > 2 && (
@@ -153,7 +153,7 @@ export default function BundleSelectionPage() {
 
   if (loading) {
     return (
-      <div className="p-8">
+      <div className="p-8 pb-20">
         <div className="flex flex-col items-center justify-center min-h-[400px] gap-4">
           <Spinner className="h-12 w-12" />
           <p className="text-lg text-gray-600">Loading bundles...</p>
@@ -164,7 +164,7 @@ export default function BundleSelectionPage() {
 
   if (error) {
     return (
-      <div className="p-8">
+      <div className="p-8 pb-20">
         <div className="flex flex-col items-center justify-center min-h-[400px] gap-4">
           <AlertCircle className="h-16 w-16 text-red-500" />
           <h2 className="text-xl font-semibold text-red-600">Error Loading Bundles</h2>
@@ -179,7 +179,7 @@ export default function BundleSelectionPage() {
   }
 
   return (
-    <div className="p-8">
+    <div className="p-8 pb-20">
       <Breadcrumb data-testid="Breadcrumb">
         <BreadcrumbList>
           <BreadcrumbItem>
