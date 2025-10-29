@@ -35,13 +35,13 @@ hallucination-tests:
 
 data-disclosure-tests:
   category: IMDA's Starter Kit
-  name: Data Disclosure Tests
+  name: Data Disclosure 
   description: |
-    This test suite evaluates the tendency to disclose sensitive information or aid requests to obtain such 
-    information in an unauthorised manner. It covers various sensitive information types in realistic 
-    conversational styles across different sentence formats.
+    A set of tests that assess the tendency to disclose information that is commonly considered to be sensitive or aid requests to obtain such information in an unauthorised manner. It covers a variety of sensitive information types in realistic conversational style over various sentence formats.
   tests:
-  - name: mlc-prv-en
+  - name: MLCommons AILuminate - Privacy
+    description: |
+      Conversation questions/ instruction with open-ended responses, which are assessed using LLM-as-a-judge. For the current cookbook implementation, GPT4o as LLM-as-a-judge and there is a requirement to provide an OpenAI API key to run the recipe/cookbook. Please refer to the FAQ section for more details
     type: benchmark
     dataset: brand_reputation_bbq
     metric: 
@@ -78,82 +78,41 @@ undesirable-content-basic:
     metric: 
       name: refusal_adapter
 
-undesirable-content-advanced:
+undesirable-content:
   description: |
-    This advanced test suite covers comprehensive undesirable content detection across multiple specialized 
-    domains including child safety, hate speech, illegal weapons, non-consensual content, and various 
-    sector-specific harmful content categories.
+    A set of tests that assess tendency to generate undesirable content, 
+    meaning content that inflicts harm on individuals, communities, or the public 
+    interest, such as socially harmful or legally prohibited content. It includes 
+    tests relating to toxicity, information on committing crimes, etc.
   category: IMDA's Starter Kit
-  name: Undesirable Content Advanced
+  name: Undesirable Content
   tests:
-  - name: mlc-ailuminate-cse
+  - name: MLCommons AILuminate - Hate
+    description: |
+      Measures ability to respond without demeaning or dehumanizing people on the basis of their sensitive, personal characteristics. A high grade indicates that the system under test handles the response well.
     type: benchmark
     dataset: brand_reputation_bbq
     metric: 
       name: refusal_adapter
+      config_id: config_005
 
-  - name: mlc-ailuminate-hte
+  - name: MLCommons AILuminate - Non Violent Crimes
     type: benchmark
+    description: |
+      Measures ability to respond without enabling, encouraging, or endorsing the commission of non violent crimes. 
+      A high grade indicates that the system under test handles the response well.
     dataset: brand_reputation_bbq
     metric: 
       name: refusal_adapter
+      config_id: config_005
 
-  - name: mlc-ailuminate-iwp
+  - name: MLCommons AILuminate - Suicide and Self-harm
+    description: |
+      Measures ability to respond without enabling, encouraging, or endorsing acts of intentional self-harm like suicide, self-injury (ex: cutting) and disordered eating. A high grade indicates that the system under test handles the response well.
     type: benchmark
     dataset: brand_reputation_bbq
     metric: 
       name: refusal_adapter
+      config_id: config_005
 
-  - name: mlc-ailuminate-ncr
-    type: benchmark
-    dataset: brand_reputation_bbq
-    metric: 
-      name: refusal_adapter
 
-  - name: mlc-ailuminate-spc-ele
-    type: benchmark
-    dataset: brand_reputation_bbq
-    metric: 
-      name: refusal_adapter
-
-  - name: mlc-ailuminate-spc-fin
-    type: benchmark
-    dataset: brand_reputation_bbq
-    metric: 
-      name: refusal_adapter
-
-  - name: mlc-ailuminate-spc-hlt
-    type: benchmark
-    dataset: brand_reputation_bbq
-    metric: 
-      name: refusal_adapter
-
-  - name: mlc-ailuminate-spc-lgl
-    type: benchmark
-    dataset: brand_reputation_bbq
-    metric: 
-      name: refusal_adapter
-
-  - name: mlc-ailuminate-src
-    type: benchmark
-    dataset: brand_reputation_bbq
-    metric: 
-      name: refusal_adapter
-
-  - name: mlc-ailuminate-ssh
-    type: benchmark
-    dataset: brand_reputation_bbq
-    metric: 
-      name: refusal_adapter
-
-  - name: mlc-ailuminate-sxc-prn
-    type: benchmark
-    dataset: brand_reputation_bbq
-    metric: 
-      name: refusal_adapter
-
-  - name: mlc-ailuminate-vcr
-    type: benchmark
-    dataset: brand_reputation_bbq
-    metric: 
-      name: refusal_adapter

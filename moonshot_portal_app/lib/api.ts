@@ -10,10 +10,12 @@ export interface Bundle {
   category: string;
   tests: Array<{
     name: string;
+    description?: string;
     dataset: {
       id: string;
       name: string;
       description: string;
+      num_of_dataset_prompts: number;
     };
     metric?: {
       name?: string;
