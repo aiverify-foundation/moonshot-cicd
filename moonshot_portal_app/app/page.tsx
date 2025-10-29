@@ -1,112 +1,97 @@
 import Image from "next/image";
 import Link from "next/link";
+import { HelpCircle, Bug, Github, MoreVertical, ArrowRight } from "lucide-react";
+import { Button } from "@/components/ui/button";
+
+function QuickStartButton() {
+  return (
+    <Button
+      asChild
+      variant="outline"
+      className="h-[70px] w-full flex-col items-start p-4 text-left hover:bg-accent whitespace-normal"
+      data-testid="benchmark-link"
+    >
+      <Link href="/benchmark">
+        <h3 className="text-base font-semibold text-gray-900 leading-none break-words mb-0">Run a benchmark test</h3>
+        <p className="text-sm text-slate-700 leading-tight break-words mt-0">Test your LLM application for trust and safety risks</p>
+      </Link>
+    </Button>
+  );
+}
+
+function HowToGuideButton() {
+  return (
+    <Button
+      variant="outline"
+      className="h-[70px] w-full flex-col items-start p-4 text-left hover:bg-accent whitespace-normal"
+    >
+      <h3 className="text-base font-semibold text-gray-900 leading-none break-words mb-0">How-to guide</h3>
+      <p className="text-sm text-slate-700 leading-normal break-words mt-0">Understand how the product works step-by-step</p>
+    </Button>
+  );
+}
+
+function IMDAStarterKitButton() {
+  return (
+    <Button
+      variant="outline"
+      className="h-[70px] w-full flex-col items-start p-4 text-left hover:bg-accent whitespace-normal"
+    >
+      <h3 className="text-base font-semibold text-gray-900 leading-none break-words mb-0">{"IMDA's Starter Kit"}</h3>
+      <p className="text-sm text-slate-700 leading-normal break-words mt-0">{"Follow IMDA's guidance for safety testing"}</p>
+    </Button>
+  );
+}
 
 export default function Home() {
   return (
-    <div className="font-sans grid grid-rows-[20px_1fr_20px] items-center justify-items-center min-h-screen p-8 pb-20 gap-16 sm:p-20">
-      <main className="flex flex-col gap-[32px] row-start-2 items-center sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={180}
-          height={38}
-          priority
-        />
-        <ol className="font-mono list-inside list-decimal text-sm/6 text-center sm:text-left">
-          <li className="mb-2 tracking-[-.01em]">
-            Get started by editing{" "}
-            <code className="bg-black/[.05] dark:bg-white/[.06] font-mono font-semibold px-1 py-0.5 rounded">
-              app/page.tsx
-            </code>
-            .
-          </li>
-          <li className="tracking-[-.01em]">
-            Save and see your changes instantly.
-          </li>
-        </ol>
-
-        <div className="flex gap-4 items-center flex-col sm:flex-row">
-          <a
-            className="rounded-full border border-solid border-transparent transition-colors flex items-center justify-center bg-foreground text-background gap-2 hover:bg-[#383838] dark:hover:bg-[#ccc] font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 sm:w-auto"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={20}
-              height={20}
-            />
-            Deploy now
-          </a>
-          <a
-            className="rounded-full border border-solid border-black/[.08] dark:border-white/[.145] transition-colors flex items-center justify-center hover:bg-[#f2f2f2] dark:hover:bg-[#1a1a1a] hover:border-transparent font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 w-full sm:w-auto md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Read our docs
-          </a>
+    <div className="min-h-screen w-[1200px]">
+      {/* Header */}
+      <div className="flex items-center justify-between w-full py-6 px-6">
+        {/* Logo Section */}
+        <div className="flex items-center gap-2">
+          {/* Logo SVG Code taken from Figma */}
+          <svg width="260" height="54" viewBox="0 0 260 54" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <rect width="260" height="54" fill="url(#pattern0_2236_39430)"/>
+            <defs>
+              <pattern id="pattern0_2236_39430" patternContentUnits="objectBoundingBox" width="1" height="1">
+                <use href="#image0_2236_39430" transform="matrix(0.000976562 0 0 0.00470197 0 -0.000759549)"/>
+              </pattern>
+              <image id="image0_2236_39430" width="1024" height="213" preserveAspectRatio="none" href="data:image/png;base64,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"/>
+            </defs>
+          </svg>
+          <div className="flex flex-col">
+            <h1 className="text-sm font-semibold text-gray-900 leading-none">
+              Moonshot
+            </h1>
+            <p className="text-xs font-medium text-slate-500 leading-tight">
+              0.1.0
+            </p>
+          </div>
         </div>
-          {/* Link to Benchmark page */}
-          <Link
-            className="rounded-full border border-solid border-blue-500 transition-colors flex items-center justify-center bg-blue-500 text-white gap-2 hover:bg-blue-700 font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 sm:w-auto mt-4"
-            href="/benchmark"
-            data-testid="benchmark-link"
-          >
-            Benchmark
-          </Link>
-      </main>
-      <footer className="row-start-3 flex gap-[24px] flex-wrap items-center justify-center">
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/file.svg"
-            alt="File icon"
-            width={16}
-            height={16}
-          />
-          Learn
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/window.svg"
-            alt="Window icon"
-            width={16}
-            height={16}
-          />
-          Examples
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/globe.svg"
-            alt="Globe icon"
-            width={16}
-            height={16}
-          />
-          Go to nextjs.org →
-        </a>
-      </footer>
+
+        {/* Action Buttons these don't do anything right now as per agreed on */}
+        <div className="flex items-center gap-4">
+          <button className="p-2 rounded hover:bg-gray-100 transition-colors">
+            <HelpCircle className="w-4 h-4 text-slate-500" />
+          </button>
+          <button className="p-2 rounded hover:bg-gray-100 transition-colors">
+            <Bug className="w-4 h-4 text-slate-500" />
+          </button>
+          <button className="p-2 rounded hover:bg-gray-100 transition-colors">
+            <Github className="w-4 h-4 text-slate-500" />
+          </button>
+        </div>
+      </div>
+
+      {/* Main Content */}
+      <div className="p-6">
+        <div className="grid gap-3 grid-cols-3">
+          <QuickStartButton />
+          <HowToGuideButton />
+          <IMDAStarterKitButton />
+        </div>
+      </div>
     </div>
   );
 }

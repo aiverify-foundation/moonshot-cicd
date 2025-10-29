@@ -1,4 +1,4 @@
-import { Home } from "lucide-react"
+import { Home, History, Network } from "lucide-react"
 
 import {
   Sidebar,
@@ -19,6 +19,18 @@ const items = [
     icon: Home,
     testId: "sidebar-back-to-home-button",
   },
+  {
+    title: "History",
+    url: "/",
+    icon: History,
+    testId: "sidebar-history-button",
+  },
+  {
+    title: "Connectors",
+    url: "/",
+    icon: Network,
+    testId: "sidebar-connectors-button",
+  },
 ]
 
 export function AppSidebar() {
@@ -27,7 +39,7 @@ export function AppSidebar() {
       <SidebarContent className="h-full">
         <SidebarGroup className="h-full">
           <SidebarGroupContent className="h-full flex items-start">
-            <SidebarMenu>
+            <SidebarMenu className="gap-3">
               {items.map((item) => (
                 <SidebarMenuItem key={item.title}>
                   <SidebarMenuButton asChild tooltip={item.title}>
