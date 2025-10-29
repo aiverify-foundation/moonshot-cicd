@@ -54,3 +54,17 @@ sample_local_model_config:
     timeout: "120"
     stream: "false"
   lastUpdated: "2024-01-30T16:20:00Z"
+
+sample_local_model_config:
+  id: "config_005"
+  name: "LLamaguard2 Config"
+  modelname: "Llama-Guard-2-8B"
+  providerID: "ollama"
+  savedConfigPairs:
+    temperature: "0"
+    max_tokens: "800"
+    top_p: "0.9"
+    timeout: "120"
+    stream: "false"
+  lastUpdated: "2024-01-30T16:20:00Z"
+

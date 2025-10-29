@@ -1,15 +1,18 @@
 "use client"
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { Card, CardContent, CardDescription, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
 import { CircleCheckBig } from 'lucide-react';
 import { useBundlesRedux } from '../../../hooks/useBundlesRedux';
 import { useSelectedBundles } from '../../../hooks/useSelectedBundles';
 import { useIsTestSelected, useTestSelectionActions } from '../../../hooks/useTestSelection';
 import { useAppSelector } from '../../../hooks/reduxHooks';
+import { useFixedConfigsRedux } from '../../../hooks/useFixedConfigsRedux';
+import { FixedConfig } from '../../../lib/api';
 
 
 
@@ -21,6 +24,10 @@ interface AccordionTestData {
   id: string;
   title: string;
   status: 'pending' | 'completed';
+  promptCount: number;
+  metricName: string;
+  description: string;
+  configId?: string;
 }
 
 interface BundleAccordionData {
@@ -36,6 +43,7 @@ export default function BenchmarkSidebar({ currentPage }: BenchmarkSidebarProps)
   const { setTest, toggleTest, setMultipleTests } = useTestSelectionActions();
   const testSelection = useAppSelector((state) => state.testSelection);
   const processedBundles = useRef<Set<string>>(new Set());
+  const { configs: fixedConfigs } = useFixedConfigsRedux();
 
   // Auto-select all tests from selected bundles by default (only for new bundles)
   useEffect(() => {
@@ -92,11 +100,16 @@ export default function BenchmarkSidebar({ currentPage }: BenchmarkSidebarProps)
   const createTestAccordionItem = (data: AccordionTestData) => {
     const isChecked = testSelection[data.id] || false;
     
+    // Find the matching fixed config if configId exists
+    const matchingConfig = data.configId 
+      ? fixedConfigs.find(config => config.id === data.configId)
+      : undefined;
+    
     return (
       <Card key={data.id} className="w-full mt-2 py-1 rounded-sm">
         <Accordion type="single" collapsible>
           <AccordionItem value={data.id} className="border-none">
-            <div className="flex items-center px-2 py-1">
+            <div className="flex items-center px-4 py-1">
               <div className="flex-1">
                 <div className="flex items-center gap-2">
                   <Checkbox 
@@ -120,11 +133,33 @@ export default function BenchmarkSidebar({ currentPage }: BenchmarkSidebarProps)
             </div>
           </div>
           <AccordionContent>
-            <CardContent className="px-6 py-4">
+            <CardContent className="px-4 py-2">
               <div className="space-y-3">
                 {/* Content for this accordion item can go here */}
                 <div className="text-sm text-gray-600">
-                  Details for {data.title} will be displayed here when expanded.
+                  {matchingConfig && (
+                    <Badge variant="outline" className="w-60 py-2 px-3 flex flex-col items-start">
+                      <div>
+                        <div className="font-bold mb-1">Endpoint Required:</div>
+                        <div>{matchingConfig.name}</div>
+                      </div>
+                    </Badge>
+                  )}
+                  <div className="flex items-center gap-2 mt-2 mb-2">
+                    <span>Prompts : </span>
+                    <span className="font-bold">{data.promptCount}</span>
+                  </div>    
+                  <div className="mb-3">
+                    <span>Evaluation Logic : </span>
+                    <span className="font-bold">{data.metricName}</span>
+                  </div>
+                  <div className="mb-3">
+                    <span className="font-medium">Description :</span>
+                    <p className="mt-1">{data.description || 'No description available'}</p>
+                  </div>
+                  <Button variant="outline" size="sm">
+                    Learn More
+                  </Button>
                 </div>
               </div>
             </CardContent>
@@ -173,12 +208,26 @@ export default function BenchmarkSidebar({ currentPage }: BenchmarkSidebarProps)
     items: bundle.tests.map(test => ({
       id: test.name,
       title: test.name,
-      status: 'pending' as const // Default status, could be enhanced later
+      status: 'pending' as const, // Default status, could be enhanced later
+      promptCount: test.dataset?.num_of_dataset_prompts ?? 0,
+      metricName: test.metric?.name ?? 'N/A',
+      description: test.description ?? '',
+      configId: test.metric?.config_id
     })),
     get count() {
-      return `[${this.items.length}/${this.items.length}]`;
+      const items_selected = this.items.filter(item => testSelection[item.id]);
+      return `[${items_selected.length}/${this.items.length}]`;
     }
   }));
+
+  // Calculate total test counts - updates when selectedBundles or testSelection changes
+  const { totalTests, selectedTests } = useMemo(() => {
+    // This sums the length of all the tests in all the bundles, acc is accumulator in reduce function
+    const total = parentAccordionData.reduce((acc, bundle) => acc + bundle.items.length, 0);
+    // This counts the number of tests that are selected
+    const selected = Object.values(testSelection).filter(Boolean).length;
+    return { totalTests: total, selectedTests: selected };
+  }, [parentAccordionData, testSelection]);
 
   return (
     <div 
@@ -187,7 +236,7 @@ export default function BenchmarkSidebar({ currentPage }: BenchmarkSidebarProps)
         display: 'flex',
         flexDirection: 'column',
         alignItems: 'flex-start',
-        padding: '121px 24px 16px',
+        padding: '20px 24px 32px',
         gap: '8px',
         isolation: 'isolate',
         position: 'fixed',
@@ -199,7 +248,11 @@ export default function BenchmarkSidebar({ currentPage }: BenchmarkSidebarProps)
         borderLeft: '1px solid #E2E8F0'
       }}
     >
-      <div className="w-full max-w-md mx-auto p-1">
+      <div className="w-full max-w-md mx-auto px-4 py-2">
+        <h2 className="text-lg font-semibold mb-2">Selected Tests [{selectedTests}/{totalTests}]</h2>
+        <Separator className="mb-4" />
+      </div>
+      <div className="w-full max-w-md mx-auto p-1 flex-1 overflow-y-auto">
         {parentAccordionData.length > 0 ? (
           <Accordion type="multiple">
             {parentAccordionData.map((data) => createParentAccordion(data))}

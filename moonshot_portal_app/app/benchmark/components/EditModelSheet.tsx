@@ -255,6 +255,7 @@ export default function EditModelSheet({
                   <Input
                     id="token"
                     placeholder="Enter token"
+                    type="password"
                     value={tokenValue}
                     onChange={(e) => setTokenValue(e.target.value)}
                     tabIndex={-1}
