@@ -18,11 +18,29 @@ import { Breadcrumb, BreadcrumbList, BreadcrumbItem, BreadcrumbPage, BreadcrumbS
 import { useAppSelector, useAppDispatch } from '../../../hooks/reduxHooks';
 import { useBundlesRedux } from '../../../hooks/useBundlesRedux';
 import { setBundleSelected } from '../../../store';
+import ViewBundleDetailsSheet from './ViewBundleDetailsSheet';
 
 export default function BundleSelectionPage() {
   const bundleSelection = useAppSelector((state) => state.bundleSelection);
   const dispatch = useAppDispatch();
   const { bundles, loading, error, refetch } = useBundlesRedux();
+  const [sheetOpen, setSheetOpen] = React.useState(false);
+  const [selectedBundle, setSelectedBundle] = React.useState<{
+    name: string;
+    description: string;
+    category: string;
+    tests: Array<{
+      name: string;
+      description?: string;
+      dataset: {
+        id: string;
+        name: string;
+        description: string;
+        num_of_dataset_prompts: number;
+      };
+    }>;
+    prompt_count?: number;
+  } | undefined>(undefined);
 
   function CheckboxToggleButton({ checked, onCheckedChange, ...props }: { checked: boolean; onCheckedChange: (checked: boolean) => void; [key: string]: unknown }) {
     return (
@@ -83,10 +101,12 @@ export default function BundleSelectionPage() {
     category: string;
     tests: Array<{
       name: string;
+      description?: string;
       dataset: {
         id: string;
         name: string;
         description: string;
+        num_of_dataset_prompts: number;
       };
     }>;
     prompt_count?: number;
@@ -145,7 +165,18 @@ export default function BundleSelectionPage() {
           >
             selected
           </CheckboxToggleButton>
-          <a href="#" className="ml-auto" data-testid="learn-more-link">Learn more</a>
+          <a 
+            href="#" 
+            className="ml-auto" 
+            data-testid="learn-more-link"
+            onClick={(e) => {
+              e.preventDefault();
+              setSelectedBundle(bundle);
+              setSheetOpen(true);
+            }}
+          >
+            Learn more
+          </a>
         </CardFooter>
       </Card>
     );
@@ -215,6 +246,11 @@ export default function BundleSelectionPage() {
           ))}
         </div>
         )}
+      <ViewBundleDetailsSheet 
+        open={sheetOpen} 
+        onOpenChange={setSheetOpen}
+        bundle={selectedBundle}
+      />
     </div>
   );
 }
