@@ -14,6 +14,9 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { useAppSelector, useAppDispatch } from '../../../hooks/reduxHooks';
+import { toggleBundleSelected } from '../../../store';
+import { useTestSelectionActions } from '../../../hooks/useTestSelection';
 
 interface Bundle {
   name: string;
@@ -131,6 +134,9 @@ export default function ViewBundleDetailsSheet({
   bundle 
 }: ViewBundleDetailsSheetProps) {
   const [selectedTests, setSelectedTests] = React.useState<Set<number>>(new Set());
+  const dispatch = useAppDispatch();
+  const bundleSelection = useAppSelector((state) => state.bundleSelection);
+  const { setMultipleTests, toggleTest } = useTestSelectionActions();
 
   const handleTestSelectionChange = (index: number, selected: boolean) => {
     setSelectedTests(prev => {
@@ -142,6 +148,32 @@ export default function ViewBundleDetailsSheet({
       }
       return newSet;
     });
+  };
+
+  const handleAddTests = () => {
+    if (!bundle || selectedTests.size === 0) return;
+
+    // Get test names from selected indices
+    const selectedTestNames = Array.from(selectedTests)
+      .map(index => bundle.tests[index]?.name)
+      .filter((name): name is string => Boolean(name));
+
+    if (selectedTestNames.length === 0) return;
+
+    // First, set the specific tests as selected before toggling the bundle
+    // This ensures the tests are selected before the sidebar's auto-select logic runs
+    setMultipleTests(selectedTestNames, true);
+
+    // Then ensure the bundle is selected (only toggle if not already selected)
+    // The sidebar will detect that tests are already selected and won't auto-select all
+    const isBundleSelected = Boolean(bundleSelection[bundle.name]);
+    if (!isBundleSelected) {
+      dispatch(toggleBundleSelected(bundle.name));
+    }
+
+    // Clear the local selection state and close the sheet
+    setSelectedTests(new Set());
+    onOpenChange(false);
   };
 
   const selectedCount = selectedTests.size;
@@ -205,7 +237,7 @@ export default function ViewBundleDetailsSheet({
           <Button variant="outline" onClick={() => onOpenChange(false)}>
             Close
           </Button>
-          <Button disabled={selectedCount < 1}>
+          <Button disabled={selectedCount < 1} onClick={handleAddTests}>
             {buttonText}
           </Button>
         </SheetFooter>
