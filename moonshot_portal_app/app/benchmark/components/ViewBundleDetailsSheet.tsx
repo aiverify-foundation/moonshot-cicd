@@ -120,7 +120,16 @@ function TestDetailCard({
           aria-label="Toggle test"
           size="sm"
         />
-        <Button variant="ghost" size="sm" className="text-sm">
+        <Button 
+          variant="ghost" 
+          size="sm" 
+          className="text-sm"
+          onClick={() => {
+            const testName = encodeURIComponent(test.name);
+            const datasetId = encodeURIComponent(test.dataset.id);
+            window.open(`/view_test?test=${testName}&dataset=${datasetId}`, '_blank');
+          }}
+        >
           Learn More
         </Button>
       </CardFooter>
