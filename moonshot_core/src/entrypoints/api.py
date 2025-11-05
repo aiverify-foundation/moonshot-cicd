@@ -19,6 +19,7 @@ from datetime import datetime
 from application.services.provider_service import ProviderService
 from application.services.sqlite_adapter import SQLiteAdapter
 from application.services.sqlite_provider_repository import SQLiteProviderRepository
+from application.services.file_model_config_repository import FileModelConfigRepository
 from application.dto.provider_dto import ProviderDTO
 from application.dto.model_config_dto import ModelConfigDTO
 
