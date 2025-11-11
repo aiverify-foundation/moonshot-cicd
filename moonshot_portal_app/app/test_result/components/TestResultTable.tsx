@@ -22,14 +22,15 @@ export interface TestResultTableRow {
     response: string
     evaluation: string
     score: number
-    yourVerdict?: "agree" | "disagree" | null
-    note?: string
-    bundle?: string
+    yourVerdict: "agree" | "disagree" | null
+    note: string
+    bundle: string
     evaluatorInfo?: {
         model?: string
         systemPrompt?: string
         falsePositiveRate?: string
     }
+    evaluatorPrompt: string
 }
 
 interface TestResultTableProps {
