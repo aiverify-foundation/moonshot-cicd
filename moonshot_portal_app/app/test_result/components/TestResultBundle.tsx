@@ -258,6 +258,9 @@ export default function TestResultBundle() {
     // Calculate verdict statistics
     const verdictStats = calculateVerdictStatistics(tableData)
 
+    // Calculate total number of prompts
+    const totalPrompts = tableData.length
+
     // Calculate adjusted verdict statistics
     const totalAdjusted = verdictStats.totalVerdictsSet
     const trueToFalseCount = verdictStats.disagreeWithScore1
@@ -267,6 +270,21 @@ export default function TestResultBundle() {
         : "0%"
     const falseToTruePercentage = totalAdjusted > 0
         ? `${Math.round((falseToTrueCount / totalAdjusted) * 100)}%`
+        : "0%"
+
+    // Calculate verdicts ranked statistics
+    const totalVerdictsSet = verdictStats.totalVerdictsSet
+    const notRanked = totalPrompts - totalVerdictsSet
+    const rankedPercentage = totalPrompts > 0
+        ? `${Math.round((totalVerdictsSet / totalPrompts) * 100)}%`
+        : "0%"
+    const agreeCount = verdictStats.agreeWithScore1 + verdictStats.agreeWithScore0
+    const agreePercentage = totalVerdictsSet > 0
+        ? `${Math.round((agreeCount / totalVerdictsSet) * 100)}%`
+        : "0%"
+    const disagreeCount = verdictStats.disagreeWithScore1 + verdictStats.disagreeWithScore0
+    const disagreePercentage = totalVerdictsSet > 0
+        ? `${Math.round((disagreeCount / totalVerdictsSet) * 100)}%`
         : "0%"
 
     // Format numbers with commas
@@ -303,13 +321,13 @@ export default function TestResultBundle() {
                     scoreChange="+20%"
                 />
                 <VerdictsRankedCard
-                    totalRanked="1,201"
-                    rankedPercentage="4%"
-                    notRanked="200,041"
-                    agreeCount="1,000"
-                    agreePercentage="84%"
-                    disagreeCount="201"
-                    disagreePercentage="16%"
+                    totalRanked={formatNumber(totalVerdictsSet)}
+                    rankedPercentage={rankedPercentage}
+                    notRanked={formatNumber(notRanked)}
+                    agreeCount={formatNumber(agreeCount)}
+                    agreePercentage={agreePercentage}
+                    disagreeCount={formatNumber(disagreeCount)}
+                    disagreePercentage={disagreePercentage}
                 />
                 <VerdictsAdjustedCard
                     totalAdjusted={formatNumber(totalAdjusted)}
