@@ -10,6 +10,7 @@ import TestResultBundle from './TestResultBundle';
 
 export default function TestResultApp() {
     const [activeTab, setActiveTab] = useState('Overview');
+    const [undesirableContentScore, setUndesirableContentScore] = useState<number | null>(null);
     return (
       <main className="p-8 w-[1300px]">
         <div>
@@ -85,14 +86,20 @@ export default function TestResultApp() {
                 </p>
                 <div className="bg-gray-100 border border-gray-200 flex gap-1 items-center justify-center p-1 rounded-[6px]">
                     <p className="font-semibold text-[12px] text-gray-800 whitespace-nowrap">
-                        75%
+                        {undesirableContentScore !== null 
+                            ? `${Math.round(undesirableContentScore * 10) / 10}%`
+                            : '—'
+                        }
                     </p>
                 </div>
             </button>
         </div>
+        {/* Always render TestResultBundle to load data on mount, but hide when not active */}
+        <div className={activeTab === 'Undesirable content' ? '' : 'hidden'}>
+            <TestResultBundle onAdjustedScoreChange={setUndesirableContentScore} />
+        </div>
         {/* if activeTab is Overview, show TestResultOverview (If first expression is true, it evaluates to the component)*/}
         {activeTab === 'Overview' && <TestResultOverview />}
-        {activeTab === 'Undesirable content' && <TestResultBundle />}
       </main>
     );
   }

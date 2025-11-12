@@ -8,10 +8,17 @@ import { parseCsvData } from "./parseCsvData"
 interface ScoreCardProps {
     aiScore: string
     adjustedScore: string
-    scoreChange: string
+    scoreChange: number
 }
 
 function ScoreCard({ aiScore, adjustedScore, scoreChange }: ScoreCardProps) {
+    const formatScoreChange = (change: number): string => {
+        const sign = change >= 0 ? "+" : ""
+        return `${sign}${Math.round(change * 10) / 10}%`
+    }
+
+    const scoreChangeColor = scoreChange < 0 ? "text-red-700" : "text-green-700"
+
     return (
         <div className="bg-white border border-slate-200 rounded-[12px] flex gap-[24px] items-start justify-between p-3 flex-1">
             {/* AI Score */}
@@ -35,8 +42,8 @@ function ScoreCard({ aiScore, adjustedScore, scoreChange }: ScoreCardProps) {
                         <p className="font-semibold text-[16px] leading-[1.25] text-slate-700 whitespace-pre">
                             {adjustedScore}
                         </p>
-                        <p className="font-medium text-[12px] text-green-700">
-                            {scoreChange}
+                        <p className={`font-medium text-[12px] ${scoreChangeColor}`}>
+                            {formatScoreChange(scoreChange)}
                         </p>
                     </div>
                 </div>
@@ -251,11 +258,27 @@ function calculateChartDataFromTableData(data: TestResultTableRow[]): BundleChar
         const totalCount = rows.length
         const totalScore = rows.reduce((sum, row) => sum + row.score, 0)
         
+        // Calculate disagree counts for this test group
+        let disagreeWithScore1 = 0
+        let disagreeWithScore0 = 0
+        
+        rows.forEach((row) => {
+            if (row.yourVerdict === "disagree") {
+                if (row.score === 1) {
+                    disagreeWithScore1++
+                } else if (row.score === 0) {
+                    disagreeWithScore0++
+                }
+            }
+        })
+        
         // Calculate AI score as percentage (total score / total count * 100)
         const aiScore = totalCount > 0 ? (totalScore / totalCount) * 100 : 0
         
-        // For now, adjusted score is the same as AI score
-        const adjustedScore = aiScore
+        // Calculate adjusted score: (totalScore - disagreeWithScore1 + disagreeWithScore0) / totalCount * 100
+        const adjustedScore = totalCount > 0 
+            ? ((totalScore - disagreeWithScore1 + disagreeWithScore0) / totalCount) * 100 
+            : 0
         
         // Round scores to avoid floating point precision issues
         const roundedAiScore = Math.round(aiScore * 100) / 100
@@ -265,10 +288,10 @@ function calculateChartDataFromTableData(data: TestResultTableRow[]): BundleChar
             name: testName,
             aiScore: roundedAiScore,
             adjustedScore: roundedAdjustedScore,
-            aiScoreLowerDifference: 0,
-            aiScoreUpperDifference: 0,
-            adjustedScoreLowerDifference: 0,
-            adjustedScoreUpperDifference: 0,
+            aiScoreLowerDifference: 2,
+            aiScoreUpperDifference: 5,
+            adjustedScoreLowerDifference: 3,
+            adjustedScoreUpperDifference: 4,
         })
     })
 
@@ -290,7 +313,11 @@ function calculateChartDataFromTableData(data: TestResultTableRow[]): BundleChar
     return uniqueChartData
 }
 
-export default function TestResultBundle() {
+interface TestResultBundleProps {
+    onAdjustedScoreChange?: (score: number) => void
+}
+
+export default function TestResultBundle({ onAdjustedScoreChange }: TestResultBundleProps) {
     const [tableData, setTableData] = useState<TestResultTableRow[]>([])
     const [isLoading, setIsLoading] = useState(true)
     const [error, setError] = useState<string | null>(null)
@@ -321,7 +348,7 @@ export default function TestResultBundle() {
     const totalPrompts = tableData.length
 
     // Calculate adjusted verdict statistics
-    const totalAdjusted = verdictStats.totalVerdictsSet
+    const totalAdjusted = verdictStats.disagreeWithScore1 + verdictStats.disagreeWithScore0
     const trueToFalseCount = verdictStats.disagreeWithScore1
     const falseToTrueCount = verdictStats.disagreeWithScore0
     const trueToFalsePercentage = totalAdjusted > 0 
@@ -362,17 +389,27 @@ export default function TestResultBundle() {
     const overallAiScore = totalPromptsForScore > 0 
         ? (totalScore / totalPromptsForScore) * 100 
         : 0
-    const overallAdjustedScore = overallAiScore // Same as AI score for now
+    
+    // Calculate overall disagree counts
+    const overallDisagreeWithScore1 = verdictStats.disagreeWithScore1
+    const overallDisagreeWithScore0 = verdictStats.disagreeWithScore0
+    
+    // Calculate overall adjusted score: (totalScore - disagreeWithScore1 + disagreeWithScore0) / totalPromptsForScore * 100
+    const overallAdjustedScore = totalPromptsForScore > 0
+        ? ((totalScore - overallDisagreeWithScore1 + overallDisagreeWithScore0) / totalPromptsForScore) * 100
+        : 0
     const overallScoreChange = overallAdjustedScore - overallAiScore
+
+    // Notify parent component of adjusted score changes
+    useEffect(() => {
+        if (onAdjustedScoreChange && !isLoading) {
+            onAdjustedScoreChange(overallAdjustedScore)
+        }
+    }, [overallAdjustedScore, isLoading, onAdjustedScoreChange])
 
     // Format scores for ScoreCard
     const formatScore = (score: number): string => {
         return `${Math.round(score * 10) / 10}%`
-    }
-
-    const formatScoreChange = (change: number): string => {
-        const sign = change >= 0 ? "+" : ""
-        return `${sign}${Math.round(change * 10) / 10}%`
     }
 
     return (
@@ -382,7 +419,7 @@ export default function TestResultBundle() {
                 <ScoreCard
                     aiScore={formatScore(overallAiScore)}
                     adjustedScore={formatScore(overallAdjustedScore)}
-                    scoreChange={formatScoreChange(overallScoreChange)}
+                    scoreChange={overallScoreChange}
                 />
                 <VerdictsRankedCard
                     totalRanked={formatNumber(totalVerdictsSet)}
