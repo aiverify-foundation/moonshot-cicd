@@ -1,6 +1,6 @@
 "use client"
-import React, { useState, useEffect } from "react"
-import { ThumbsUp, ThumbsDown, ArrowUpDown, ChevronLeft, ChevronRight } from "lucide-react"
+import React, { useState, useEffect, useMemo } from "react"
+import { ThumbsUp, ThumbsDown, ArrowUpDown, ChevronLeft, ChevronRight, ChevronDown } from "lucide-react"
 import {
     Table,
     TableBody,
@@ -11,6 +11,8 @@ import {
 } from "@/components/ui/table"
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group"
 import { Button } from "@/components/ui/button"
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
+import { Checkbox } from "@/components/ui/checkbox"
 import { cn } from "@/lib/utils"
 import TestResultSheet from "./TestResultSheet"
 
@@ -46,10 +48,70 @@ export default function TestResultTable({ data, pageSize = 10, onDataChange }: T
     const [sheetOpen, setSheetOpen] = useState(false)
     const [selectedRowIndex, setSelectedRowIndex] = useState(0)
 
-    // Reset to page 1 when sorting changes
+    // Extract unique filter values from data
+    const filterOptions = useMemo(() => {
+        const bundles = Array.from(new Set(data.map((row) => row.bundle).filter(Boolean))).sort()
+        const evaluations = Array.from(new Set(data.map((row) => row.evaluation).filter(Boolean))).sort()
+        const yourVerdicts: (string | null)[] = ["agree", "disagree", null]
+        const adjustedOptions: string[] = ["adjusted", "not adjusted"]
+
+        return {
+            bundles,
+            evaluations,
+            yourVerdicts,
+            adjustedOptions,
+        }
+    }, [data])
+
+    // Initialize filter state with all options selected
+    const [filters, setFilters] = useState<{
+        bundles: Set<string>
+        evaluations: Set<string>
+        yourVerdicts: Set<string | null>
+        adjusted: Set<string>
+    }>(() => {
+        const bundles = Array.from(new Set(data.map((row) => row.bundle).filter(Boolean))).sort()
+        const evaluations = Array.from(new Set(data.map((row) => row.evaluation).filter(Boolean))).sort()
+        
+        return {
+            bundles: new Set(bundles),
+            evaluations: new Set(evaluations),
+            yourVerdicts: new Set(["agree", "disagree", null]),
+            adjusted: new Set(["adjusted", "not adjusted"]),
+        }
+    })
+
+    // Reset filters when data changes
+    useEffect(() => {
+        setFilters({
+            bundles: new Set(filterOptions.bundles),
+            evaluations: new Set(filterOptions.evaluations),
+            yourVerdicts: new Set(["agree", "disagree", null]),
+            adjusted: new Set(["adjusted", "not adjusted"]),
+        })
+    }, [filterOptions])
+
+    // Reset to page 1 when sorting or filters change
     useEffect(() => {
         setCurrentPage(1)
     }, [sortColumn, sortDirection])
+    
+    // Reset to page 1 when filters change (using stringified version for stable comparison)
+    const filterKey = useMemo(() => {
+        return [
+            Array.from(filters.bundles).sort().join(","),
+            Array.from(filters.evaluations).sort().join(","),
+            Array.from(filters.yourVerdicts)
+                .map((v) => v ?? "null")
+                .sort()
+                .join(","),
+            Array.from(filters.adjusted).sort().join(","),
+        ].join("|")
+    }, [filters])
+    
+    useEffect(() => {
+        setCurrentPage(1)
+    }, [filterKey])
 
     const handleSort = (column: "evaluation") => {
         if (sortColumn === column) {
@@ -60,16 +122,37 @@ export default function TestResultTable({ data, pageSize = 10, onDataChange }: T
         }
     }
 
-    // Sort the entire dataset first
+    // Apply filters to data
+    const filteredData = useMemo(() => {
+        return data.filter((row) => {
+            // Filter by bundle
+            if (!filters.bundles.has(row.bundle)) return false
+
+            // Filter by evaluation
+            if (!filters.evaluations.has(row.evaluation)) return false
+
+            // Filter by your verdict
+            if (!filters.yourVerdicts.has(row.yourVerdict)) return false
+
+            // Filter by adjusted/not adjusted
+            const isAdjusted = row.yourVerdict === "disagree"
+            if (isAdjusted && !filters.adjusted.has("adjusted")) return false
+            if (!isAdjusted && !filters.adjusted.has("not adjusted")) return false
+
+            return true
+        })
+    }, [data, filters])
+
+    // Sort the filtered dataset
     const sortedData = sortColumn
-        ? [...data].sort((a, b) => {
+        ? [...filteredData].sort((a, b) => {
               if (sortColumn === "evaluation") {
                   const comparison = a.evaluation.localeCompare(b.evaluation)
                   return sortDirection === "asc" ? comparison : -comparison
               }
               return 0
           })
-        : data
+        : filteredData
 
     const totalPages = Math.ceil(sortedData.length / pageSize)
     const startIndex = (currentPage - 1) * pageSize
@@ -94,8 +177,180 @@ export default function TestResultTable({ data, pageSize = 10, onDataChange }: T
         }
     }
 
+    // Calculate counts for each filter option
+    const getFilterCounts = () => {
+        const bundleCounts = new Map<string, number>()
+        const evaluationCounts = new Map<string, number>()
+        const yourVerdictCounts = new Map<string | null, number>()
+        const adjustedCounts = new Map<string, number>()
+
+        data.forEach((row) => {
+            // Bundle counts
+            bundleCounts.set(row.bundle, (bundleCounts.get(row.bundle) || 0) + 1)
+
+            // Evaluation counts
+            evaluationCounts.set(row.evaluation, (evaluationCounts.get(row.evaluation) || 0) + 1)
+
+            // Your verdict counts
+            yourVerdictCounts.set(row.yourVerdict, (yourVerdictCounts.get(row.yourVerdict) || 0) + 1)
+
+            // Adjusted counts
+            const isAdjusted = row.yourVerdict === "disagree"
+            const adjustedKey = isAdjusted ? "adjusted" : "not adjusted"
+            adjustedCounts.set(adjustedKey, (adjustedCounts.get(adjustedKey) || 0) + 1)
+        })
+
+        return { bundleCounts, evaluationCounts, yourVerdictCounts, adjustedCounts }
+    }
+
+    const filterCounts = getFilterCounts()
+
+    // Filter dropdown component
+    const FilterDropdown = <T extends string | null>({
+        label,
+        options,
+        selected,
+        onToggle,
+        counts,
+        getDisplayLabel,
+    }: {
+        label: string
+        options: T[]
+        selected: Set<T>
+        onToggle: (value: T) => void
+        counts: Map<T, number>
+        getDisplayLabel: (value: T) => string
+    }) => {
+        const [open, setOpen] = useState(false)
+        const selectedCount = selected.size
+        const totalCount = options.length
+
+        return (
+            <Popover open={open} onOpenChange={setOpen}>
+                <PopoverTrigger asChild>
+                    <Button
+                        variant="outline"
+                        className="h-9 px-3 text-sm font-medium text-slate-700 bg-white border-slate-200 hover:bg-slate-50"
+                    >
+                        {label}
+                        {selectedCount < totalCount && (
+                            <span className="ml-1.5 text-slate-500">({selectedCount})</span>
+                        )}
+                        <ChevronDown className="ml-2 size-4 text-slate-500" />
+                    </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-[200px] p-2" align="start">
+                    <div className="flex flex-col gap-1 max-h-[300px] overflow-y-auto">
+                        {options.map((option) => {
+                            const isSelected = selected.has(option)
+                            const count = counts.get(option) || 0
+                            const displayLabel = getDisplayLabel(option)
+
+                            return (
+                                <label
+                                    key={option ?? "null"}
+                                    className="flex items-center gap-2 px-2 py-1.5 rounded-md hover:bg-slate-100 cursor-pointer"
+                                >
+                                    <Checkbox
+                                        checked={isSelected}
+                                        onCheckedChange={() => onToggle(option)}
+                                    />
+                                    <span className="text-sm text-slate-700 flex-1">{displayLabel}</span>
+                                    <span className="text-xs text-slate-500">{count}</span>
+                                </label>
+                            )
+                        })}
+                    </div>
+                </PopoverContent>
+            </Popover>
+        )
+    }
+
     return (
-        <div className="flex flex-col w-full">
+        <div className="flex flex-col w-full gap-4">
+            {/* Filters */}
+            <div className="flex flex-wrap items-center gap-2">
+                <FilterDropdown<string>
+                    label="Bundle"
+                    options={filterOptions.bundles}
+                    selected={filters.bundles}
+                    onToggle={(value) => {
+                        setFilters((prev) => {
+                            const newSet = new Set(prev.bundles)
+                            if (newSet.has(value)) {
+                                newSet.delete(value)
+                            } else {
+                                newSet.add(value)
+                            }
+                            return { ...prev, bundles: newSet }
+                        })
+                    }}
+                    counts={filterCounts.bundleCounts}
+                    getDisplayLabel={(value) => value || ""}
+                />
+                <FilterDropdown<string>
+                    label="Evaluation"
+                    options={filterOptions.evaluations}
+                    selected={filters.evaluations}
+                    onToggle={(value) => {
+                        setFilters((prev) => {
+                            const newSet = new Set(prev.evaluations)
+                            if (newSet.has(value)) {
+                                newSet.delete(value)
+                            } else {
+                                newSet.add(value)
+                            }
+                            return { ...prev, evaluations: newSet }
+                        })
+                    }}
+                    counts={filterCounts.evaluationCounts}
+                    getDisplayLabel={(value) => value || ""}
+                />
+                <FilterDropdown<string | null>
+                    label="Your Agreement with Evaluation"
+                    options={filterOptions.yourVerdicts}
+                    selected={filters.yourVerdicts}
+                    onToggle={(value) => {
+                        setFilters((prev) => {
+                            const newSet = new Set(prev.yourVerdicts)
+                            if (newSet.has(value)) {
+                                newSet.delete(value)
+                            } else {
+                                newSet.add(value)
+                            }
+                            return { ...prev, yourVerdicts: newSet }
+                        })
+                    }}
+                    counts={filterCounts.yourVerdictCounts}
+                    getDisplayLabel={(value) => {
+                        if (value === "agree") return "Agree"
+                        if (value === "disagree") return "Disagree"
+                        return "Not Set"
+                    }}
+                />
+                <FilterDropdown<string>
+                    label="Adjusted/Not Adjusted"
+                    options={filterOptions.adjustedOptions}
+                    selected={filters.adjusted}
+                    onToggle={(value) => {
+                        setFilters((prev) => {
+                            const newSet = new Set(prev.adjusted)
+                            if (newSet.has(value)) {
+                                newSet.delete(value)
+                            } else {
+                                newSet.add(value)
+                            }
+                            return { ...prev, adjusted: newSet }
+                        })
+                    }}
+                    counts={filterCounts.adjustedCounts}
+                    getDisplayLabel={(value) => {
+                        if (value === "adjusted") return "Adjusted"
+                        return "Not Adjusted"
+                    }}
+                />
+            </div>
+
             <div className="border border-slate-200 rounded-[12px] overflow-hidden">
                 <Table>
                     <TableHeader>
@@ -126,7 +381,7 @@ export default function TestResultTable({ data, pageSize = 10, onDataChange }: T
                                 </div>
                             </TableHead>
                             <TableHead className="w-[160px] px-0 py-2">
-                                <p className="font-medium text-[14px] leading-[14px] text-slate-500">Your verdict</p>
+                                <p className="font-medium text-[14px] leading-[14px] text-slate-500">Your agreement<br />with evaluation</p>
                             </TableHead>
                             <TableHead className="w-[120px] px-0 py-2">
                                 <p className="font-medium text-[14px] leading-[14px] text-slate-500">Note</p>
