@@ -1,6 +1,6 @@
 "use client"
 import React, { useState, useEffect, useMemo } from "react"
-import { ThumbsUp, ThumbsDown, ArrowUpDown, ChevronLeft, ChevronRight, ChevronDown } from "lucide-react"
+import { ThumbsUp, ThumbsDown, ArrowUpDown, ChevronLeft, ChevronRight, ChevronDown, Search } from "lucide-react"
 import {
     Table,
     TableBody,
@@ -13,6 +13,7 @@ import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group"
 import { Button } from "@/components/ui/button"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { Checkbox } from "@/components/ui/checkbox"
+import { Input } from "@/components/ui/input"
 import { cn } from "@/lib/utils"
 import TestResultSheet from "./TestResultSheet"
 
@@ -47,6 +48,7 @@ export default function TestResultTable({ data, pageSize = 10, onDataChange }: T
     const [sortDirection, setSortDirection] = useState<"asc" | "desc">("asc")
     const [sheetOpen, setSheetOpen] = useState(false)
     const [selectedRowIndex, setSelectedRowIndex] = useState(0)
+    const [searchTerm, setSearchTerm] = useState("")
 
     // Extract unique filter values from data
     const filterOptions = useMemo(() => {
@@ -96,6 +98,11 @@ export default function TestResultTable({ data, pageSize = 10, onDataChange }: T
         setCurrentPage(1)
     }, [sortColumn, sortDirection])
     
+    // Reset to page 1 when search term changes
+    useEffect(() => {
+        setCurrentPage(1)
+    }, [searchTerm])
+    
     // Reset to page 1 when filters change (using stringified version for stable comparison)
     const filterKey = useMemo(() => {
         return [
@@ -122,7 +129,7 @@ export default function TestResultTable({ data, pageSize = 10, onDataChange }: T
         }
     }
 
-    // Apply filters to data
+    // Apply filters and search to data
     const filteredData = useMemo(() => {
         return data.filter((row) => {
             // Filter by bundle
@@ -139,9 +146,32 @@ export default function TestResultTable({ data, pageSize = 10, onDataChange }: T
             if (isAdjusted && !filters.adjusted.has("adjusted")) return false
             if (!isAdjusted && !filters.adjusted.has("not adjusted")) return false
 
+            // Filter by search term (case-insensitive search across all displayed columns)
+            if (searchTerm.trim()) {
+                const searchLower = searchTerm.toLowerCase().trim()
+                const yourVerdictDisplay = 
+                    row.yourVerdict === "agree" ? "agree" :
+                    row.yourVerdict === "disagree" ? "disagree" : "not set"
+                
+                const searchableText = [
+                    row.test,
+                    row.prompt,
+                    row.target,
+                    row.response,
+                    row.evaluation,
+                    yourVerdictDisplay,
+                    row.note,
+                ]
+                    .filter(Boolean)
+                    .join(" ")
+                    .toLowerCase()
+                
+                if (!searchableText.includes(searchLower)) return false
+            }
+
             return true
         })
-    }, [data, filters])
+    }, [data, filters, searchTerm])
 
     // Sort the filtered dataset
     const sortedData = sortColumn
@@ -233,9 +263,7 @@ export default function TestResultTable({ data, pageSize = 10, onDataChange }: T
                         className="h-9 px-3 text-sm font-medium text-slate-700 bg-white border-slate-200 hover:bg-slate-50"
                     >
                         {label}
-                        {selectedCount < totalCount && (
                             <span className="ml-1.5 text-slate-500">({selectedCount})</span>
-                        )}
                         <ChevronDown className="ml-2 size-4 text-slate-500" />
                     </Button>
                 </PopoverTrigger>
@@ -268,7 +296,7 @@ export default function TestResultTable({ data, pageSize = 10, onDataChange }: T
 
     return (
         <div className="flex flex-col w-full gap-4">
-            {/* Filters */}
+            {/* Filters and Search */}
             <div className="flex flex-wrap items-center gap-2">
                 <FilterDropdown<string>
                     label="Bundle"
@@ -349,6 +377,17 @@ export default function TestResultTable({ data, pageSize = 10, onDataChange }: T
                         return "Not Adjusted"
                     }}
                 />
+                {/* Search Bar */}
+                <div className="relative ml-auto">
+                    <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 size-4 text-slate-400" />
+                    <Input
+                        type="text"
+                        placeholder="Search across all columns..."
+                        value={searchTerm}
+                        onChange={(e) => setSearchTerm(e.target.value)}
+                        className="pl-9 h-9 w-full max-w-md"
+                    />
+                </div>
             </div>
 
             <div className="border border-slate-200 rounded-[12px] overflow-hidden">
