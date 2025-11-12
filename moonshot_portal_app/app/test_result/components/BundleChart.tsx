@@ -222,15 +222,21 @@ export default function BundleChart({ title, chartData }: BundleChartProps) {
                             radius={0}
                         >
                             {chartDataWithError.map((entry, index) => (
-                                <Cell key={`ai-${index}`} fill="#FB923C" />
+                                <Cell key={`ai-cell-${index}-${entry.name}`} fill="#FB923C" />
                             ))}
-                            <ErrorBar
-                                dataKey="aiScoreError"
-                                width={2}
-                                strokeWidth={1.5}
-                                stroke="#334155"
-                                direction="y"
-                            />
+                            {/* Only render ErrorBar if there are actual error values */}
+                            {chartDataWithError.some(entry => 
+                                entry.aiScoreError[0] > 0 || entry.aiScoreError[1] > 0
+                            ) && (
+                                <ErrorBar
+                                    key="ai-error-bar"
+                                    dataKey="aiScoreError"
+                                    width={2}
+                                    strokeWidth={1.5}
+                                    stroke="#334155"
+                                    direction="y"
+                                />
+                            )}
                         </Bar>
                         {/* Adjusted Score Bar */}
                         <Bar
@@ -239,15 +245,21 @@ export default function BundleChart({ title, chartData }: BundleChartProps) {
                             radius={0}
                         >
                             {chartDataWithError.map((entry, index) => (
-                                <Cell key={`adjusted-${index}`} fill="#60A5FA" />
+                                <Cell key={`adjusted-cell-${index}-${entry.name}`} fill="#60A5FA" />
                             ))}
-                            <ErrorBar
-                                dataKey="adjustedScoreError"
-                                width={2}
-                                strokeWidth={1.5}
-                                stroke="#334155"
-                                direction="y"
-                            />
+                            {/* Only render ErrorBar if there are actual error values */}
+                            {chartDataWithError.some(entry => 
+                                entry.adjustedScoreError[0] > 0 || entry.adjustedScoreError[1] > 0
+                            ) && (
+                                <ErrorBar
+                                    key="adjusted-error-bar"
+                                    dataKey="adjustedScoreError"
+                                    width={2}
+                                    strokeWidth={1.5}
+                                    stroke="#334155"
+                                    direction="y"
+                                />
+                            )}
                         </Bar>
                     </BarChart>
                 </ResponsiveContainer>

@@ -1,5 +1,5 @@
 "use client"
-import React, { useState, useEffect } from "react"
+import React, { useState, useEffect, useMemo } from "react"
 import { ThumbsUp, ThumbsDown } from "lucide-react"
 import BundleChart, { BundleChartDataItem } from "./BundleChart"
 import TestResultTable, { TestResultTableRow } from "./TestResultTable"
@@ -231,6 +231,65 @@ function calculateVerdictStatistics(data: TestResultTableRow[]): VerdictStatisti
     }
 }
 
+function calculateChartDataFromTableData(data: TestResultTableRow[]): BundleChartDataItem[] {
+    // Group data by test name (normalize by trimming whitespace)
+    const testGroups = new Map<string, TestResultTableRow[]>()
+    
+    data.forEach((row) => {
+        // Normalize test name by trimming whitespace to avoid duplicates from spacing variations
+        const testName = (row.test || "Unknown Test").trim()
+        if (!testGroups.has(testName)) {
+            testGroups.set(testName, [])
+        }
+        testGroups.get(testName)!.push(row)
+    })
+
+    // Calculate scores for each test group
+    const chartData: BundleChartDataItem[] = []
+    
+    testGroups.forEach((rows, testName) => {
+        const totalCount = rows.length
+        const totalScore = rows.reduce((sum, row) => sum + row.score, 0)
+        
+        // Calculate AI score as percentage (total score / total count * 100)
+        const aiScore = totalCount > 0 ? (totalScore / totalCount) * 100 : 0
+        
+        // For now, adjusted score is the same as AI score
+        const adjustedScore = aiScore
+        
+        // Round scores to avoid floating point precision issues
+        const roundedAiScore = Math.round(aiScore * 100) / 100
+        const roundedAdjustedScore = Math.round(adjustedScore * 100) / 100
+  
+        chartData.push({
+            name: testName,
+            aiScore: roundedAiScore,
+            adjustedScore: roundedAdjustedScore,
+            aiScoreLowerDifference: 0,
+            aiScoreUpperDifference: 0,
+            adjustedScoreLowerDifference: 0,
+            adjustedScoreUpperDifference: 0,
+        })
+    })
+
+    // Ensure uniqueness - since we group by test name, each test should only appear once
+    // But we'll add a final check to prevent any duplicates
+    const seenTestNames = new Set<string>()
+    const uniqueChartData: BundleChartDataItem[] = []
+    
+    chartData.forEach((item) => {
+        // If we somehow have a duplicate test name (shouldn't happen after grouping), skip it
+        if (seenTestNames.has(item.name)) {
+            console.warn(`Duplicate test name detected in chart data: ${item.name}. This should not happen after grouping.`)
+            return
+        }
+        seenTestNames.add(item.name)
+        uniqueChartData.push(item)
+    })
+
+    return uniqueChartData
+}
+
 export default function TestResultBundle() {
     const [tableData, setTableData] = useState<TestResultTableRow[]>([])
     const [isLoading, setIsLoading] = useState(true)
@@ -292,33 +351,38 @@ export default function TestResultBundle() {
         return num.toLocaleString()
     }
 
-    // Sample chart data
-    const chartData: BundleChartDataItem[] = [
-        { name: "MMLU", aiScore: 91, adjustedScore: 95, aiScoreLowerDifference: 5, aiScoreUpperDifference: 5, adjustedScoreLowerDifference: 5, adjustedScoreUpperDifference: 5 },
-        { name: "Facts about Singapore", aiScore: 35, adjustedScore: 40, aiScoreLowerDifference: 5, aiScoreUpperDifference: 5, adjustedScoreLowerDifference: 5, adjustedScoreUpperDifference: 5 },
-        { name: "Facts about Singapore", aiScore: 82, adjustedScore: 88, aiScoreLowerDifference: 5, aiScoreUpperDifference: 5, adjustedScoreLowerDifference: 5, adjustedScoreUpperDifference: 5 },
-        { name: "Facts about Singapore", aiScore: 14, adjustedScore: 20, aiScoreLowerDifference: 5, aiScoreUpperDifference: 5, adjustedScoreLowerDifference: 5, adjustedScoreUpperDifference: 5 },
-        { name: "Facts about Singapore", aiScore: 69, adjustedScore: 75, aiScoreLowerDifference: 5, aiScoreUpperDifference: 5, adjustedScoreLowerDifference: 5, adjustedScoreUpperDifference: 5 },
-        { name: "Facts about Singapore", aiScore: 82, adjustedScore: 88, aiScoreLowerDifference: 5, aiScoreUpperDifference: 5, adjustedScoreLowerDifference: 5, adjustedScoreUpperDifference: 5 },
-        { name: "Facts about Singapore", aiScore: 96, adjustedScore: 100, aiScoreLowerDifference: 5, aiScoreUpperDifference: 4, adjustedScoreLowerDifference: 5, adjustedScoreUpperDifference: 0 },
-        { name: "Facts about Singapore", aiScore: 58, adjustedScore: 65, aiScoreLowerDifference: 5, aiScoreUpperDifference: 5, adjustedScoreLowerDifference: 5, adjustedScoreUpperDifference: 5 },
-        { name: "Facts about Singapore", aiScore: 77, adjustedScore: 83, aiScoreLowerDifference: 5, aiScoreUpperDifference: 5, adjustedScoreLowerDifference: 5, adjustedScoreUpperDifference: 5 },
-        { name: "Facts about Singapore", aiScore: 97, adjustedScore: 100, aiScoreLowerDifference: 5, aiScoreUpperDifference: 3, adjustedScoreLowerDifference: 5, adjustedScoreUpperDifference: 0 },
-        { name: "Facts about Singapore", aiScore: 71, adjustedScore: 78, aiScoreLowerDifference: 5, aiScoreUpperDifference: 5, adjustedScoreLowerDifference: 5, adjustedScoreUpperDifference: 5 },
-        { name: "Facts about Singapore", aiScore: 76, adjustedScore: 82, aiScoreLowerDifference: 5, aiScoreUpperDifference: 5, adjustedScoreLowerDifference: 5, adjustedScoreUpperDifference: 5 },
-        { name: "Facts about Singapore", aiScore: 90, adjustedScore: 95, aiScoreLowerDifference: 5, aiScoreUpperDifference: 5, adjustedScoreLowerDifference: 5, adjustedScoreUpperDifference: 5 },
-        { name: "Facts about Singapore", aiScore: 60, adjustedScore: 68, aiScoreLowerDifference: 5, aiScoreUpperDifference: 5, adjustedScoreLowerDifference: 5, adjustedScoreUpperDifference: 5 },
-        { name: "Facts about Singapore", aiScore: 91, adjustedScore: 96, aiScoreLowerDifference: 5, aiScoreUpperDifference: 5, adjustedScoreLowerDifference: 5, adjustedScoreUpperDifference: 4 },
-    ]
+    // Calculate chart data from table data (memoized to prevent unnecessary recalculations)
+    const chartData = useMemo(() => {
+        return calculateChartDataFromTableData(tableData)
+    }, [tableData])
+
+    // Calculate overall AI score and adjusted score
+    const totalPromptsForScore = tableData.length
+    const totalScore = tableData.reduce((sum, row) => sum + row.score, 0)
+    const overallAiScore = totalPromptsForScore > 0 
+        ? (totalScore / totalPromptsForScore) * 100 
+        : 0
+    const overallAdjustedScore = overallAiScore // Same as AI score for now
+    const overallScoreChange = overallAdjustedScore - overallAiScore
+
+    // Format scores for ScoreCard
+    const formatScore = (score: number): string => {
+        return `${Math.round(score * 10) / 10}%`
+    }
+
+    const formatScoreChange = (change: number): string => {
+        const sign = change >= 0 ? "+" : ""
+        return `${sign}${Math.round(change * 10) / 10}%`
+    }
 
     return (
         <div className="flex flex-col gap-[8px] items-start w-full">
             {/* Score Cards Row */}
             <div className="flex flex-row items-stretch gap-[8px] w-full mb-2 mt-2">
                 <ScoreCard
-                    aiScore="52.5%"
-                    adjustedScore="72.5%"
-                    scoreChange="+20%"
+                    aiScore={formatScore(overallAiScore)}
+                    adjustedScore={formatScore(overallAdjustedScore)}
+                    scoreChange={formatScoreChange(overallScoreChange)}
                 />
                 <VerdictsRankedCard
                     totalRanked={formatNumber(totalVerdictsSet)}
@@ -339,7 +403,7 @@ export default function TestResultBundle() {
             </div>
             {/* Chart */}
             <BundleChart
-                title="tests (15)"
+                title={`Tests (${chartData.length})`}
                 chartData={chartData}
             />
             {/* Table */}
