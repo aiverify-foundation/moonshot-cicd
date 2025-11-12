@@ -74,7 +74,15 @@ export default function BundleChart({ title, chartData }: BundleChartProps) {
     }
 
     // Custom tooltip
-    const CustomTooltip = ({ active, payload }: any) => {
+    interface TooltipEntry {
+        dataKey: string
+        value: number
+        name: string
+        color: string
+        payload: BundleChartDataItem
+    }
+
+    const CustomTooltip = ({ active, payload }: { active?: boolean; payload?: TooltipEntry[] }) => {
         if (active && payload && payload.length) {
             const data = payload[0].payload
             const confidenceLevel = 95 // Standard confidence level
@@ -84,7 +92,7 @@ export default function BundleChart({ title, chartData }: BundleChartProps) {
                     <p className="font-semibold text-sm text-slate-700 mb-2">
                         {data.name}
                     </p>
-                    {payload.map((entry: any, index: number) => {
+                    {payload.map((entry: TooltipEntry, index: number) => {
                         // Get the appropriate lower and upper differences based on the entry name
                         const isAiScore = entry.dataKey === 'aiScore'
                         const lowerDiff = isAiScore ? data.aiScoreLowerDifference : data.adjustedScoreLowerDifference

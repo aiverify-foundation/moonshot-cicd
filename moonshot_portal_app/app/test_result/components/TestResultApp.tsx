@@ -2,9 +2,6 @@
 import TestResultOverview from './TestResultOverview';
 import React, { useState } from 'react';
 import { Badge } from '@/components/ui/badge';
-import { Separator } from '@/components/ui/separator';
-import { Button } from '@/components/ui/button';
-import { Progress } from "@/components/ui/progress"
 import TestResultBundle from './TestResultBundle';
 
 
@@ -23,7 +20,7 @@ export default function TestResultApp() {
                     </div>
                 </Badge>
             </div>
-            <div className="text-left font-medium text-[14px] text-slate-500 mb-3">Report description that spans several lines, I don't think this should be in descriptions?</div>
+            <div className="text-left font-medium text-[14px] text-slate-500 mb-3">{"Report description that spans several lines, I don't think this should be in descriptions?"}</div>
             {/* vertcal seperators have issues so using divs with inline styles */}
             <div className="flex items-center gap-2 mt-2">
                 <div className="text-left font-medium text-[12px] text-slate-500">Endpoint</div>

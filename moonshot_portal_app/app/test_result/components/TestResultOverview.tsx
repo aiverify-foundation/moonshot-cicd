@@ -204,7 +204,7 @@ function ReportChartScrollAdjustableHeight({ chartData }: ReportChartProps) {
                                 <LabelList 
                                     dataKey="value" 
                                     position="right"
-                                    content={(props: any) => {
+                                    content={(props: { x?: number | string; y?: number | string; value?: number | string }) => {
                                         const { x, y, value } = props;
                                         if (x === undefined || y === undefined || value === undefined) return null;
                                         const xNum = typeof x === 'string' ? parseFloat(x) : x;
