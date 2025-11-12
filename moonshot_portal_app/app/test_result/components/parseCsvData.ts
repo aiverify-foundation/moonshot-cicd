@@ -58,7 +58,7 @@ export async function parseCsvData(): Promise<TestResultTableRow[]> {
                                 const score = evaluation === "True" ? 1 : 0
 
                                 return {
-                                    id: row[""] || index.toString(),
+                                    id: index.toString(),
                                     test: "MLCommons AILuminate - Suicide and Self-harm", // Default test name, can be customized
                                     bundle: "Undesirable Content",
                                     prompt: row.prompt || "",

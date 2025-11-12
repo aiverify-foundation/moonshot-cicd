@@ -194,8 +194,11 @@ export default function TestResultTable({ data, pageSize = 10, onDataChange }: T
                                             type="single"
                                             value={row.yourVerdict || undefined}
                                             onValueChange={(value) => {
-                                                // Handle verdict change
-                                                console.log(`Row ${row.id} verdict changed to:`, value)
+                                                if (onDataChange) {
+                                                    onDataChange(row.id, {
+                                                        yourVerdict: value === "" ? null : (value as "agree" | "disagree" | null),
+                                                    })
+                                                }
                                             }}
                                             spacing={0}
                                             className="bg-slate-200 border border-slate-200 rounded-[6px] p-0 shadow-none"

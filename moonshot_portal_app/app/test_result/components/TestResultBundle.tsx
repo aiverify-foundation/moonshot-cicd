@@ -187,6 +187,50 @@ function VerdictsAdjustedCard({
     )
 }
 
+interface VerdictStatistics {
+    totalVerdictsSet: number
+    agreeWithScore1: number
+    agreeWithScore0: number
+    disagreeWithScore1: number
+    disagreeWithScore0: number
+}
+
+function calculateVerdictStatistics(data: TestResultTableRow[]): VerdictStatistics {
+    let totalVerdictsSet = 0
+    let agreeWithScore1 = 0
+    let agreeWithScore0 = 0
+    let disagreeWithScore1 = 0
+    let disagreeWithScore0 = 0
+
+    data.forEach((row) => {
+        if (row.yourVerdict !== null && row.yourVerdict !== undefined) {
+            totalVerdictsSet++
+
+            if (row.yourVerdict === "agree") {
+                if (row.score === 1) {
+                    agreeWithScore1++
+                } else if (row.score === 0) {
+                    agreeWithScore0++
+                }
+            } else if (row.yourVerdict === "disagree") {
+                if (row.score === 1) {
+                    disagreeWithScore1++
+                } else if (row.score === 0) {
+                    disagreeWithScore0++
+                }
+            }
+        }
+    })
+
+    return {
+        totalVerdictsSet,
+        agreeWithScore1,
+        agreeWithScore0,
+        disagreeWithScore1,
+        disagreeWithScore0,
+    }
+}
+
 export default function TestResultBundle() {
     const [tableData, setTableData] = useState<TestResultTableRow[]>([])
     const [isLoading, setIsLoading] = useState(true)
@@ -210,6 +254,25 @@ export default function TestResultBundle() {
 
         loadCsvData()
     }, [])
+
+    // Calculate verdict statistics
+    const verdictStats = calculateVerdictStatistics(tableData)
+
+    // Calculate adjusted verdict statistics
+    const totalAdjusted = verdictStats.totalVerdictsSet
+    const trueToFalseCount = verdictStats.disagreeWithScore1
+    const falseToTrueCount = verdictStats.disagreeWithScore0
+    const trueToFalsePercentage = totalAdjusted > 0 
+        ? `${Math.round((trueToFalseCount / totalAdjusted) * 100)}%`
+        : "0%"
+    const falseToTruePercentage = totalAdjusted > 0
+        ? `${Math.round((falseToTrueCount / totalAdjusted) * 100)}%`
+        : "0%"
+
+    // Format numbers with commas
+    const formatNumber = (num: number): string => {
+        return num.toLocaleString()
+    }
 
     // Sample chart data
     const chartData: BundleChartDataItem[] = [
@@ -249,11 +312,11 @@ export default function TestResultBundle() {
                     disagreePercentage="16%"
                 />
                 <VerdictsAdjustedCard
-                    totalAdjusted="201"
-                    trueToFalseCount="11"
-                    trueToFalsePercentage="5%"
-                    falseToTrueCount="190"
-                    falseToTruePercentage="95%"
+                    totalAdjusted={formatNumber(totalAdjusted)}
+                    trueToFalseCount={formatNumber(trueToFalseCount)}
+                    trueToFalsePercentage={trueToFalsePercentage}
+                    falseToTrueCount={formatNumber(falseToTrueCount)}
+                    falseToTruePercentage={falseToTruePercentage}
                 />
             </div>
             {/* Chart */}
