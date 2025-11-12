@@ -1,5 +1,5 @@
 "use client"
-import React, { useState } from "react"
+import React, { useState, useEffect } from "react"
 import { ThumbsUp, ThumbsDown, ArrowUpDown, ChevronLeft, ChevronRight } from "lucide-react"
 import {
     Table,
@@ -46,10 +46,10 @@ export default function TestResultTable({ data, pageSize = 10, onDataChange }: T
     const [sheetOpen, setSheetOpen] = useState(false)
     const [selectedRowIndex, setSelectedRowIndex] = useState(0)
 
-    const totalPages = Math.ceil(data.length / pageSize)
-    const startIndex = (currentPage - 1) * pageSize
-    const endIndex = startIndex + pageSize
-    const currentData = data.slice(startIndex, endIndex)
+    // Reset to page 1 when sorting changes
+    useEffect(() => {
+        setCurrentPage(1)
+    }, [sortColumn, sortDirection])
 
     const handleSort = (column: "evaluation") => {
         if (sortColumn === column) {
@@ -60,19 +60,25 @@ export default function TestResultTable({ data, pageSize = 10, onDataChange }: T
         }
     }
 
+    // Sort the entire dataset first
     const sortedData = sortColumn
-        ? [...currentData].sort((a, b) => {
+        ? [...data].sort((a, b) => {
               if (sortColumn === "evaluation") {
                   const comparison = a.evaluation.localeCompare(b.evaluation)
                   return sortDirection === "asc" ? comparison : -comparison
               }
               return 0
           })
-        : currentData
+        : data
+
+    const totalPages = Math.ceil(sortedData.length / pageSize)
+    const startIndex = (currentPage - 1) * pageSize
+    const endIndex = startIndex + pageSize
+    const currentData = sortedData.slice(startIndex, endIndex)
 
     const handleRowClick = (row: TestResultTableRow) => {
-        // Find the index of the row in the full data array
-        const fullIndex = data.findIndex((item) => item.id === row.id)
+        // Find the index of the row in the sorted data array
+        const fullIndex = sortedData.findIndex((item) => item.id === row.id)
         if (fullIndex !== -1) {
             setSelectedRowIndex(fullIndex)
             setSheetOpen(true)
@@ -128,7 +134,7 @@ export default function TestResultTable({ data, pageSize = 10, onDataChange }: T
                         </TableRow>
                     </TableHeader>
                     <TableBody>
-                        {sortedData.map((row) => (
+                        {currentData.map((row) => (
                             <TableRow
                                 key={row.id}
                                 className="border-b border-slate-200 hover:bg-slate-50 h-[120px] cursor-pointer"
@@ -261,7 +267,7 @@ export default function TestResultTable({ data, pageSize = 10, onDataChange }: T
             {totalPages > 1 && (
                 <div className="flex items-center justify-between mt-4">
                     <div className="text-sm text-slate-500">
-                        Showing {startIndex + 1} to {Math.min(endIndex, data.length)} of {data.length} results
+                        Showing {startIndex + 1} to {Math.min(endIndex, sortedData.length)} of {sortedData.length} results
                     </div>
                     <div className="flex items-center gap-2">
                         <Button
@@ -320,7 +326,7 @@ export default function TestResultTable({ data, pageSize = 10, onDataChange }: T
             <TestResultSheet
                 open={sheetOpen}
                 onOpenChange={setSheetOpen}
-                data={data}
+                data={sortedData}
                 currentIndex={selectedRowIndex}
                 onIndexChange={handleSheetIndexChange}
                 onDataChange={onDataChange}
