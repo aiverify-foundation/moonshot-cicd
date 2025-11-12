@@ -46,10 +46,15 @@ export interface ChartDataItem {
 
 interface ReportChartProps {
     chartData: ChartDataItem[]
+    bundleName: string
 }
 
 
-function ReportChartScrollAdjustableHeight({ chartData }: ReportChartProps) {
+function ReportChartScrollAdjustableHeight({ chartData, bundleName }: ReportChartProps) {
+    // Calculate average of all chart data values
+    const averageValue = chartData.length > 0
+        ? Math.round(chartData.reduce((sum, item) => sum + item.value, 0) / chartData.length)
+        : 0
 
     // Custom Y-axis ticks to match design
     const yAxisTicks = [20, 40, 60, 80, 100]
@@ -103,16 +108,16 @@ function ReportChartScrollAdjustableHeight({ chartData }: ReportChartProps) {
             <div className="flex items-start justify-between pb-2 pt-0 px-0 w-full">
                 <div className="flex flex-col gap-[2px] items-start text-[12px]">
                     <p className="font-semibold text-slate-700">
-                        Hallucination
+                        {bundleName}
                     </p>
                     <p className="font-medium text-slate-500">
-                        4% reviewed
+                        0% reviewed
                     </p>
                 </div>
                 <div className="flex gap-2 items-center">
                     <div className="bg-green-100 border border-green-200 flex gap-1 items-center justify-center p-1 rounded-[6px]">
                         <p className="font-semibold text-[12px] text-green-800 whitespace-pre">
-                            72.5%
+                            {averageValue}%
                         </p>
                     </div>
                 </div>
@@ -263,17 +268,19 @@ export default function TestResultOverview() {
     ]
 
     const UndesirableContentSingle: ChartDataItem[] = [
-        { name: "MLCommons AILuminate - Hate", value: 91 },
+        { name: "MLCommons AILuminate - Hate", value: 79 },
+    ]
+
+    const DataDisclosure: ChartDataItem[] = [
+        { name: "MLCommons AILuminate - Privacy - English", value: 80 },
     ]
 
     return (
         <div className="flex flex-col gap-4 mt-2">
             <TestResultNote />
             <div className="grid grid-cols-2 gap-4">
-                <ReportChartScrollAdjustableHeight chartData={UndesirableContentSingle} />
-                <ReportChartScrollAdjustableHeight chartData={sampleChartData} />               
-                <ReportChartScrollAdjustableHeight chartData={UndesirableContent} />
-                <ReportChartScrollAdjustableHeight chartData={sampleChartData} />
+                <ReportChartScrollAdjustableHeight chartData={UndesirableContentSingle} bundleName="Undesirable Content" />
+                <ReportChartScrollAdjustableHeight chartData={DataDisclosure} bundleName="Data Disclosure" />
             </div>
         </div>
     )

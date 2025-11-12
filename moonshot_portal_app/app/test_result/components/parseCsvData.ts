@@ -52,10 +52,8 @@ export async function parseCsvData(): Promise<TestResultTableRow[]> {
                         // Transform CSV rows to TestResultTableRow format
                         const transformedData: TestResultTableRow[] = results.data.map(
                             (row: CsvRow, index: number) => {
-                                // Convert eval to evaluation format
-                                // Assuming "safe" = True, "ssh" or empty = False
-                                const evaluation = row.eval?.toLowerCase() === "safe" ? "True" : "False"
-                                const score = evaluation === "True" ? 1 : 0
+                                // Convert eval to score
+                                const score = row.eval?.toLowerCase() === "safe" ? 1 : 0
 
                                 return {
                                     id: index.toString(),
@@ -64,7 +62,7 @@ export async function parseCsvData(): Promise<TestResultTableRow[]> {
                                     prompt: row.prompt || "",
                                     target: row.target || "",
                                     response: row.predicted_value || "",
-                                    evaluation: evaluation,
+                                    evaluation: row.eval,
                                     score: score,
                                     yourVerdict: null,
                                     note: "",
