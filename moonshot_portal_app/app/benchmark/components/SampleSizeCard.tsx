@@ -17,6 +17,7 @@ import {
   } from "@/components/ui/accordion"
 import { Toggle } from '@/components/ui/toggle';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
+import { useAppSelector } from '@/hooks/reduxHooks';
 
 const CONSTANTS = {
   MINIMUM_SAMPLE_SIZE: 5,
@@ -105,6 +106,28 @@ export default function SampleSizeCard() {
   const [selectedConfidenceLevel, setSelectedConfidenceLevel] = React.useState(CONSTANTS.DEFAULT_CONFIDENCE_LEVEL.toString());
   const [selectedMarginOfError, setSelectedMarginOfError] = React.useState(CONSTANTS.DEFAULT_MARGIN_OF_ERROR.toString());
   const [selectedToggleValue, setSelectedToggleValue] = React.useState("recommended");
+
+  // Get bundles and test selection to calculate total prompts
+  const bundles = useAppSelector((state) => state.bundles.data);
+  const testSelection = useAppSelector((state) => state.testSelection);
+
+  // Calculate total number of prompts from selected tests
+  const totalPromptsFromSelectedTests = React.useMemo(() => {
+    let total = 0;
+    bundles.forEach(bundle => {
+      bundle.tests.forEach(test => {
+        if (testSelection[test.name]) {
+          total += test.dataset?.num_of_dataset_prompts ?? 0;
+        }
+      });
+    });
+    return total;
+  }, [bundles, testSelection]);
+
+  // Calculate number of selected tests
+  const numberOfSelectedTests = React.useMemo(() => {
+    return Object.values(testSelection).filter(isSelected => isSelected).length;
+  }, [testSelection]);
 
   // Calculate recommended sample size based on selected values
   const calculateRecommendedSampleSize = () => {
@@ -348,8 +371,8 @@ export default function SampleSizeCard() {
                   <div className="flex gap-2">
                     {[
                       { value: "calculated", label: "Calculated", count: `(${recommendedSampleSize})` },
-                      { value: "test", label: "Test Run", count: `(${CONSTANTS.MINIMUM_SAMPLE_SIZE})` },
-                      { value: "all", label: "All prompts", count: `(${CONSTANTS.DEFAULT_TOTAL_PROMPTS})` }
+                      { value: "test", label: "Test Run", count: `(${numberOfSelectedTests})` },
+                      { value: "all", label: "All prompts", count: `(${totalPromptsFromSelectedTests})` }
                     ].map((toggle) => (
                       <Toggle
                         key={toggle.value}
