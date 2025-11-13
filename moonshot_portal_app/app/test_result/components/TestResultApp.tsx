@@ -50,25 +50,6 @@ export default function TestResultApp() {
                 </p>
             </button>
             <button
-                onClick={() => setActiveTab('Data disclosure')}
-                className={`flex gap-[10px] items-center px-3 py-1.5 rounded-[3px] transition-colors ${
-                    activeTab === 'Data disclosure'
-                        ? 'bg-white'
-                        : 'bg-transparent hover:bg-white/50'
-                }`}
-            >
-                <p className={`font-semibold text-[14px] whitespace-nowrap ${
-                    activeTab === 'Data disclosure' ? 'text-slate-800' : 'text-slate-600'
-                }`}>
-                    Data disclosure
-                </p>
-                <div className="bg-gray-100 border border-gray-200 flex gap-1 items-center justify-center p-1 rounded-[6px]">
-                    <p className="font-semibold text-[12px] text-gray-800 whitespace-nowrap">
-                        80%
-                    </p>
-                </div>
-            </button>
-            <button
                 onClick={() => setActiveTab('Undesirable content')}
                 className={`flex gap-[10px] items-center px-3 py-1.5 rounded-[3px] transition-colors ${
                     activeTab === 'Undesirable content'
@@ -87,6 +68,25 @@ export default function TestResultApp() {
                             ? `${Math.round(undesirableContentScore * 10) / 10}%`
                             : '—'
                         }
+                    </p>
+                </div>
+            </button>
+            <button
+                onClick={() => setActiveTab('Data disclosure')}
+                className={`flex gap-[10px] items-center px-3 py-1.5 rounded-[3px] transition-colors ${
+                    activeTab === 'Data disclosure'
+                        ? 'bg-white'
+                        : 'bg-transparent hover:bg-white/50'
+                }`}
+            >
+                <p className={`font-semibold text-[14px] whitespace-nowrap ${
+                    activeTab === 'Data disclosure' ? 'text-slate-800' : 'text-slate-600'
+                }`}>
+                    Data disclosure
+                </p>
+                <div className="bg-gray-100 border border-gray-200 flex gap-1 items-center justify-center p-1 rounded-[6px]">
+                    <p className="font-semibold text-[12px] text-gray-800 whitespace-nowrap">
+                        80%
                     </p>
                 </div>
             </button>
