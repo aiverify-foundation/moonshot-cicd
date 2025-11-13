@@ -9,7 +9,7 @@ import { setTestNameFilled } from "@/store";
 
 export default function TestNameAndDescriptionCard() {
   const dispatch = useAppDispatch();
-  const isTestNameFilled = useAppSelector(state => state.modelSelection.isTestNameFilled);
+  const isTestNameValid = useAppSelector(state => state.modelSelection.isTestNameValid);
 
   const handleTestNameChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const value = e.target.value.trim();
@@ -30,10 +30,10 @@ export default function TestNameAndDescriptionCard() {
               </div>
               {/* Status indicators */}
               <div className="flex items-center">
-                {!isTestNameFilled && (
+                {!isTestNameValid && (
                   <CircleAlert className="h-5 w-5 text-red-500" data-testid="required-endpoints-status-indicator" />
                 )}
-                {isTestNameFilled && (
+                {isTestNameValid && (
                   <CircleCheckBig className="h-5 w-5 text-green-500" data-testid="required-endpoints-status-indicator" />
                 )}
               </div>

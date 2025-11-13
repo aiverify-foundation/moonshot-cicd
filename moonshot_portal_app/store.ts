@@ -115,7 +115,7 @@ const modelSelectionSlice = createSlice({
     selectedModel: '',
     selectedConfig: '',
     isConfigValid: false,
-    isTestNameFilled: false,
+    isTestNameValid: false,
   },
   reducers: {
     setSelectedProvider: (state, action) => {
@@ -138,14 +138,14 @@ const modelSelectionSlice = createSlice({
       state.isConfigValid = Boolean(state.selectedProvider && (state.selectedModel || state.selectedConfig));
     },
     setTestNameFilled: (state, action) => {
-      state.isTestNameFilled = action.payload;
+      state.isTestNameValid = action.payload;
     },
     resetModelSelection: (state) => {
       state.selectedProvider = '';
       state.selectedModel = '';
       state.selectedConfig = '';
       state.isConfigValid = false;
-      state.isTestNameFilled = false;
+      state.isTestNameValid = false;
     },
   },
 });

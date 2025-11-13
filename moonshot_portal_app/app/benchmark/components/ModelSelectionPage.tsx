@@ -13,7 +13,7 @@ import { updateConfigValidity } from "@/store";
 
 export default function ModelSelectionPage() {
   const dispatch = useAppDispatch();
-  const { selectedProvider, selectedModel, selectedConfig, isConfigValid, isTestNameFilled } = useAppSelector(state => state.modelSelection);
+  const { selectedProvider, selectedModel, selectedConfig, isConfigValid, isTestNameValid } = useAppSelector(state => state.modelSelection);
   
   const [providerOpen, setProviderOpen] = useState(false);
   const [modelOpen, setModelOpen] = useState(false);
@@ -35,6 +35,10 @@ export default function ModelSelectionPage() {
   
   // Check if selected provider is a custom connector
   const isCustomConnector = custom_connectors.some(connector => connector.id === selectedProvider);
+
+  // Check if both provider and model/config are selected
+  const isModelSelected = (!isCustomConnector && selectedProvider && selectedModel) || 
+                          (isCustomConnector && selectedProvider && selectedConfig);
 
   // Track config validity
   useEffect(() => {
@@ -101,39 +105,42 @@ export default function ModelSelectionPage() {
       <div className="flex flex-col items-center justify-center min-h-[200px]">
         
         <TestNameAndDescriptionCard />
-
         {/* TODO: Look into how to clean this up, it probably can be done better*/}
-        <SelectAppOrModelCard
-          providerOpen={providerOpen}
-          setProviderOpen={setProviderOpen}
-          modelOpen={modelOpen}
-          setModelOpen={setModelOpen}
-          showAllStandardProviders={showAllStandardProviders}
-          setShowAllStandardProviders={setShowAllStandardProviders}
-          showAllCustomConnectors={showAllCustomConnectors}
-          setShowAllCustomConnectors={setShowAllCustomConnectors}
-          selectedProvider={selectedProvider}
-          selectedModel={selectedModel}
-          selectedConfig={selectedConfig}
-          isConfigValid={isConfigValid}
-          allProviders={allProviders}
-          providers={providers}
-          custom_connectors={custom_connectors}
-          filteredModels={filteredModels}
-          filteredConfigs={filteredConfigs}
-          isCustomConnector={isCustomConnector}
-          handleEditModel={handleEditModel}
-          handleAddNewModel={handleAddNewModel}
-          handleEditConfig={handleEditConfig}
-          handleAddNewConfig={handleAddNewConfig}
-          dispatch={dispatch}
-        />
+        {isTestNameValid && (
+          <SelectAppOrModelCard
+            providerOpen={providerOpen}
+            setProviderOpen={setProviderOpen}
+            modelOpen={modelOpen}
+            setModelOpen={setModelOpen}
+            showAllStandardProviders={showAllStandardProviders}
+            setShowAllStandardProviders={setShowAllStandardProviders}
+            showAllCustomConnectors={showAllCustomConnectors}
+            setShowAllCustomConnectors={setShowAllCustomConnectors}
+            selectedProvider={selectedProvider}
+            selectedModel={selectedModel}
+            selectedConfig={selectedConfig}
+            isConfigValid={isConfigValid}
+            allProviders={allProviders}
+            providers={providers}
+            custom_connectors={custom_connectors}
+            filteredModels={filteredModels}
+            filteredConfigs={filteredConfigs}
+            isCustomConnector={isCustomConnector}
+            handleEditModel={handleEditModel}
+            handleAddNewModel={handleAddNewModel}
+            handleEditConfig={handleEditConfig}
+            handleAddNewConfig={handleAddNewConfig}
+            dispatch={dispatch}
+          />
+        )}
         
-        {/* Additional Card */}
-        <RequiredEndpointsCard />
-        
-        {/* Sample Size Card */}
-        <SampleSizeCard />
+        {/* Additional Card - only show when both provider and model/config are selected */}
+        {(isTestNameValid && isModelSelected) && (
+          <>
+            <RequiredEndpointsCard />
+            <SampleSizeCard />
+          </>
+        )}
       </div>
       {/* Edit Model Sheet */}
       <EditModelSheet
