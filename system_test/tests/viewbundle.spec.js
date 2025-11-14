@@ -81,7 +81,7 @@ test.describe('Moonshot Integration Tests', () => {
     await page.waitForLoadState('networkidle');
     
     // Verify navigation occurred by checking for the model selection page content
-    await expect(page.locator('[data-testid="select-model-header"]')).toContainText('Select Model');
+    await expect(page.locator('[data-testid="select-model-header"]')).toContainText('Configure And Run Tests');
   });
 
   test('configure button becomes disabled after toggling off all bundles', async ({ page }) => {
