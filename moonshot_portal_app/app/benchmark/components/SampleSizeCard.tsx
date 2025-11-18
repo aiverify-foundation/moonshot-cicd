@@ -175,7 +175,7 @@ export default function SampleSizeCard() {
   return (
     <>
       <Card className="w-3xl mt-6 py-1">
-        <Accordion type="single" collapsible>
+        <Accordion type="single" collapsible defaultValue="item-1">
           <AccordionItem value="item-1">
             <AccordionTrigger className="flex flex-row items-center hover:no-underline px-6 py-4">
               <div className="flex-1">
