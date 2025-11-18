@@ -10,22 +10,22 @@ hallucination-tests:
   category: IMDA's Starter Kit
   name: Hallucination Tests
   tests:
-  - name: mmlu
+  - name: MMLU
+    type: benchmark
+    dataset: mmlu-all
+    metric: 
+      name: accuracy_adapter
+      config_id: config_001
+
+  - name: Facts About Singapore (True/False)
     type: benchmark
     dataset: brand_reputation_bbq
     metric: 
       name: accuracy_adapter
       config_id: config_001
 
-  - name: singapore-facts-tf
-    type: benchmark
-    dataset: brand_reputation_bbq
-    metric: 
-      name: accuracy_adapter
-      config_id: config_001
 
-
-  - name: singapore-facts-mcq
+  - name: Facts About Singapore (Multiple Choice)
     type: benchmark
     dataset: brand_reputation_bbq
     metric: 
@@ -43,40 +43,22 @@ data-disclosure-tests:
     description: |
       Conversation questions/ instruction with open-ended responses, which are assessed using LLM-as-a-judge. For the current cookbook implementation, GPT4o as LLM-as-a-judge and there is a requirement to provide an OpenAI API key to run the recipe/cookbook. Please refer to the FAQ section for more details
     type: benchmark
-    dataset: brand_reputation_bbq
+    dataset: mlc-prv-en
     metric: 
       name: refusal_adapter
 
-undesirable-content-basic:
+adversarial-prompts:
   category: IMDA's Starter Kit
-  name: Undesirable Content Basic
+  name: Adversarial Prompts
   description: |
-    This test suite covers basic undesirable content detection including toxicity, crimes, and socially harmful 
-    content. It includes tests for Singapore-specific safety concerns and general toxicity prompts.
+    Tests for susceptibility to producing unsafe outputs (which may include incorrect content, undesirable content and/or sensitive information) when presented with intentional prompt attacks. It covers a range of prompt attack techniques across different risk categories.
   tests:
-  - name: singapore-safety
+  - name: CyberSecEval- Prompt Injections 3
     type: benchmark
-    dataset: brand_reputation_bbq
+    dataset: cyberseceval-promptinjection2-en
     metric: 
       name: refusal_adapter
 
-  - name: real-toxicity-prompts-completion
-    type: benchmark
-    dataset: brand_reputation_bbq
-    metric: 
-      name: refusal_adapter
-
-  - name: mlc-vcr-en
-    type: benchmark
-    dataset: brand_reputation_bbq
-    metric: 
-      name: refusal_adapter
-
-  - name: mlc-ncr-en
-    type: benchmark
-    dataset: brand_reputation_bbq
-    metric: 
-      name: refusal_adapter
 
 undesirable-content:
   description: |
@@ -91,7 +73,7 @@ undesirable-content:
     description: |
       Measures ability to respond without demeaning or dehumanizing people on the basis of their sensitive, personal characteristics. A high grade indicates that the system under test handles the response well.
     type: benchmark
-    dataset: brand_reputation_bbq
+    dataset: mlc-ailuminate-hte
     metric: 
       name: refusal_adapter
       config_id: config_005
@@ -101,7 +83,7 @@ undesirable-content:
     description: |
       Measures ability to respond without enabling, encouraging, or endorsing the commission of non violent crimes. 
       A high grade indicates that the system under test handles the response well.
-    dataset: brand_reputation_bbq
+    dataset: mlc-ailuminate-ncr
     metric: 
       name: refusal_adapter
       config_id: config_005
@@ -110,7 +92,7 @@ undesirable-content:
     description: |
       Measures ability to respond without enabling, encouraging, or endorsing acts of intentional self-harm like suicide, self-injury (ex: cutting) and disordered eating. A high grade indicates that the system under test handles the response well.
     type: benchmark
-    dataset: brand_reputation_bbq
+    dataset: mlc-ailuminate-ssh
     metric: 
       name: refusal_adapter
       config_id: config_005

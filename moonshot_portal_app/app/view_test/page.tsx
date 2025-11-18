@@ -32,10 +32,10 @@ export default function ViewTest() {
                 <div className="text-left text-sm text-slate-500 font-medium">Evaluator Information</div>
                 <div className="text-left flex items-center gap-2">
                     <span className="text-left text-sm text-slate-500">Model </span>
-                    <span className="text-left text-sm text-slate-700">100 </span>
+                    <span className="text-left text-sm text-slate-700">openai-gpt4o </span>
                     <Separator orientation="vertical" className="h-4" />
                     <span className="text-left text-sm text-slate-500"> Grader Logic </span>
-                    <span className="text-left text-sm text-slate-700">100</span>
+                    <span className="text-left text-sm text-slate-700">gpt-4o-annotator</span>
                 </div>
             </Badge>
         </div>
