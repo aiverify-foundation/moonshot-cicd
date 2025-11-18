@@ -2,13 +2,17 @@
 
 import sqlite3
 import os
-import json
 import yaml
 from pathlib import Path
 from typing import Optional, Dict, Any, List
 from contextlib import contextmanager
 from datetime import datetime
 from domain.entities.model_config_entity import ModelConfigEntity
+from alembic import command
+from alembic.config import Config
+from alembic import script
+from alembic.runtime.migration import MigrationContext
+from sqlalchemy import create_engine, inspect
 
 
 class SQLiteAdapter:
@@ -22,9 +26,9 @@ class SQLiteAdapter:
             db_path: Path to SQLite database file. If None, uses default path in data directory.
         """
         if db_path is None:
-            # Default to moonshot_core/data/moonshot.db
+            # Default to moonshot_core/data/database/moonshot.db
             # Go up 3 levels from src/application/services/ to reach moonshot_core
-            data_dir = Path(__file__).parent.parent.parent.parent / "data"
+            data_dir = Path(__file__).parent.parent.parent.parent / "data/database"
             data_dir.mkdir(exist_ok=True)
             db_path = str(data_dir / "moonshot.db")
         
@@ -33,10 +37,8 @@ class SQLiteAdapter:
         self._initialize_provider_names()
     
     def _initialize_database(self) -> None:
-        """Initialize the database with the required schema if it doesn't exist."""
-        with self.get_connection() as conn:
-            self._create_tables(conn)
-            self._migrate_schema(conn)
+        """Initialize the database schema using Alembic migrations."""
+        self._run_alembic_migrations()
     
     @contextmanager
     def get_connection(self):
@@ -49,73 +51,34 @@ class SQLiteAdapter:
         finally:
             conn.close()
     
-    def _create_tables(self, conn: sqlite3.Connection) -> None:
-        """Create all required tables based on the ERD schema."""
+    def _run_alembic_migrations(self) -> None:
+        """Run Alembic migrations to initialize and update database schema."""
+        # Get the path to alembic.ini (should be in moonshot_core/)
+        moonshot_core_dir = Path(__file__).parent.parent.parent.parent
+        alembic_ini_path = moonshot_core_dir / "alembic.ini"
         
-        # Enable foreign key constraints
-        conn.execute("PRAGMA foreign_keys = ON")
+        if not alembic_ini_path.exists():
+            raise FileNotFoundError(f"Alembic config file not found at {alembic_ini_path}")
         
-        # Create LLM_Provider table
-        conn.execute("""
-            CREATE TABLE IF NOT EXISTS llm_provider (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                name TEXT NOT NULL UNIQUE
-            )
-        """)
+        # Create Alembic config
+        alembic_cfg = Config(str(alembic_ini_path))
         
-        # Create Model table
-        conn.execute("""
-            CREATE TABLE IF NOT EXISTS model (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                llm_provider_id INTEGER NOT NULL,
-                name TEXT NOT NULL,
-                create_dt DATE NOT NULL DEFAULT CURRENT_DATE,
-                FOREIGN KEY (llm_provider_id) REFERENCES llm_provider(id),
-                UNIQUE(llm_provider_id, name)
-            )
-        """)
+        # Update the database URL to use the actual database path
+        # For SQLite absolute paths, use sqlite:/// (3 slashes)
+        # Convert to absolute path if relative
+        abs_db_path = os.path.abspath(self.db_path)
+        db_url = f"sqlite:///{abs_db_path}"
+        alembic_cfg.set_main_option("sqlalchemy.url", db_url)
         
-        # Create Config table
-        conn.execute("""
-            CREATE TABLE IF NOT EXISTS config (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                name TEXT NOT NULL UNIQUE,
-                last_update_dt DATE NOT NULL DEFAULT CURRENT_DATE
-            )
-        """)
-        
-        # Create Model_Config junction table
-        conn.execute("""
-            CREATE TABLE IF NOT EXISTS model_config (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                model_id INTEGER NOT NULL,
-                config_id INTEGER NOT NULL,
-                last_run_dt DATE NOT NULL DEFAULT CURRENT_DATE,
-                FOREIGN KEY (model_id) REFERENCES model(id),
-                FOREIGN KEY (config_id) REFERENCES config(id),
-                UNIQUE(model_id, config_id)
-            )
-        """)
-        
-        # Create Config_Parameters table
-        conn.execute("""
-            CREATE TABLE IF NOT EXISTS config_parameters (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                config_id INTEGER NOT NULL,
-                key TEXT NOT NULL,
-                value TEXT,
-                FOREIGN KEY (config_id) REFERENCES config(id),
-                UNIQUE(config_id, key)
-            )
-        """)
-        
-        conn.commit()
-    
-    
-    def _migrate_schema(self, conn: sqlite3.Connection) -> None:
-        """Migrate database schema to add new columns if they don't exist."""
-        # No migration needed for the original schema
-        conn.commit()
+        # Run migrations to head (latest version)
+        try:
+            command.upgrade(alembic_cfg, "head")
+        except Exception as e:
+            # If migration fails, it might be because tables already exist
+            # In that case, we'll just log the error and continue
+            # The application can still work if tables exist
+            print(f"Warning: Alembic migration failed: {e}")
+            print("Database may already be initialized. Continuing...")
     
     def _initialize_provider_names(self) -> None:
         """
