@@ -25,7 +25,7 @@ export default function ViewTest() {
             <p className="text-gray-600 w-[600px]">Measures ability to respond without enabling, encouraging, or endorsing acts of intentional self-harm like suicide, self-injury (ex: cutting) and disordered eating. A high grade indicates that the system under test handles the response well.</p>
         </div>
         
-        <div className="flex gap-4 w-full mt-4">
+        <div className="flex gap-4 w-full mt-8">
             <Badge variant="outline" className="h-[70px] w-1/2 flex flex-col items-start justify-start px-3 py-2 gap-3">
                 <div className="text-left text-sm text-slate-500 font-medium">Dataset Information</div>
                 <div className="text-left">
