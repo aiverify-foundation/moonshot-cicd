@@ -2,64 +2,6 @@
 # It consists of 4 bundles with tests from various cookbooks including hallucination, data disclosure, and undesirable content.
 # Use this command to run: moonshot run <insert_runner_id> <bundle_name> <insert_endpoint_id>
 
-hallucination-tests:
-  description: |
-    This test suite focuses on hallucination detection and factual accuracy across different domains including 
-    general knowledge, mathematics, law, sociology, and local facts about Singapore. Tests include multiple-choice 
-    and short-form answer formats.
-  category: IMDA's Starter Kit
-  name: Hallucination Tests
-  tests:
-  - name: MMLU
-    type: benchmark
-    dataset: mmlu-all
-    metric: 
-      name: accuracy_adapter
-      config_id: config_001
-
-  - name: Facts About Singapore (True/False)
-    type: benchmark
-    dataset: brand_reputation_bbq
-    metric: 
-      name: accuracy_adapter
-      config_id: config_001
-
-
-  - name: Facts About Singapore (Multiple Choice)
-    type: benchmark
-    dataset: brand_reputation_bbq
-    metric: 
-      name: accuracy_adapter
-      config_id: config_001
-
-
-data-disclosure-tests:
-  category: IMDA's Starter Kit
-  name: Data Disclosure 
-  description: |
-    A set of tests that assess the tendency to disclose information that is commonly considered to be sensitive or aid requests to obtain such information in an unauthorised manner. It covers a variety of sensitive information types in realistic conversational style over various sentence formats.
-  tests:
-  - name: MLCommons AILuminate - Privacy
-    description: |
-      Conversation questions/ instruction with open-ended responses, which are assessed using LLM-as-a-judge. For the current cookbook implementation, GPT4o as LLM-as-a-judge and there is a requirement to provide an OpenAI API key to run the recipe/cookbook. Please refer to the FAQ section for more details
-    type: benchmark
-    dataset: mlc-prv-en
-    metric: 
-      name: refusal_adapter
-
-adversarial-prompts:
-  category: IMDA's Starter Kit
-  name: Adversarial Prompts
-  description: |
-    Tests for susceptibility to producing unsafe outputs (which may include incorrect content, undesirable content and/or sensitive information) when presented with intentional prompt attacks. It covers a range of prompt attack techniques across different risk categories.
-  tests:
-  - name: CyberSecEval- Prompt Injections 3
-    type: benchmark
-    dataset: cyberseceval-promptinjection2-en
-    metric: 
-      name: refusal_adapter
-
-
 undesirable-content:
   description: |
     A set of tests that assess tendency to generate undesirable content, 
@@ -96,5 +38,61 @@ undesirable-content:
     metric: 
       name: refusal_adapter
       config_id: config_005
+
+data-disclosure-tests:
+  category: IMDA's Starter Kit
+  name: Data Disclosure 
+  description: |
+    A set of tests that assess the tendency to disclose information that is commonly considered to be sensitive or aid requests to obtain such information in an unauthorised manner. It covers a variety of sensitive information types in realistic conversational style over various sentence formats.
+  tests:
+  - name: MLCommons AILuminate - Privacy
+    description: |
+      Conversation questions/ instruction with open-ended responses, which are assessed using LLM-as-a-judge. For the current cookbook implementation, GPT4o as LLM-as-a-judge and there is a requirement to provide an OpenAI API key to run the recipe/cookbook. Please refer to the FAQ section for more details
+    type: benchmark
+    dataset: mlc-prv-en
+    metric: 
+      name: refusal_adapter
+
+adversarial-prompts:
+  category: IMDA's Starter Kit
+  name: Adversarial Prompts
+  description: |
+    Tests for susceptibility to producing unsafe outputs (which may include incorrect content, undesirable content and/or sensitive information) when presented with intentional prompt attacks. It covers a range of prompt attack techniques across different risk categories.
+  tests:
+  - name: CyberSecEval- Prompt Injections 3
+    type: benchmark
+    dataset: cyberseceval-promptinjection2-en
+    metric: 
+      name: refusal_adapter
+
+hallucination-tests:
+  description: |
+    This test suite focuses on hallucination detection and factual accuracy across different domains including 
+    general knowledge, mathematics, law, sociology, and local facts about Singapore. Tests include multiple-choice 
+    and short-form answer formats.
+  category: IMDA's Starter Kit
+  name: Hallucination
+  tests:
+  - name: MMLU
+    type: benchmark
+    dataset: mmlu-all
+    metric: 
+      name: accuracy_adapter
+      config_id: config_001
+
+  - name: Facts About Singapore (True/False)
+    type: benchmark
+    dataset: brand_reputation_bbq
+    metric: 
+      name: accuracy_adapter
+      config_id: config_001
+
+  - name: Facts About Singapore (Multiple Choice)
+    type: benchmark
+    dataset: brand_reputation_bbq
+    metric: 
+      name: accuracy_adapter
+      config_id: config_001
+
 
 
