@@ -2,6 +2,7 @@
 import TestResultOverview from './TestResultOverview';
 import React, { useState } from 'react';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 import TestResultBundle from './TestResultBundle';
 
 
@@ -12,13 +13,21 @@ export default function TestResultApp() {
       <main className="p-8 w-[1300px]">
         <div>
             <p className="text-slate-700 text-[14px] font-medium w-[600px]">Report</p>
-            <div className="flex items-center gap-3 mt-3 mb-1">
-                <h1 className="text-2xl font-semibold text-gray-900">Demo Test Run</h1>
-                <Badge variant="outline">
-                    <div className="text-left">
-                        Status
-                    </div>
-                </Badge>
+            <div className="flex items-center justify-between mt-3 mb-1">
+                <div className="flex items-center gap-3">
+                    <h1 className="text-2xl font-semibold text-gray-900">Demo Test Run</h1>
+                    <Badge variant="outline">
+                        <div className="text-left">
+                            Status
+                        </div>
+                    </Badge>
+                </div>
+                <Button 
+                    className="font-extrabold text-[14px] text-white"
+                    style={{ backgroundColor: '#702F8A' }}
+                >
+                    Download
+                </Button>
             </div>
             <div className="text-left font-medium text-[14px] text-slate-500 mb-3">{"Report description that spans several lines, I don't think this should be in descriptions?"}</div>
             {/* vertcal seperators have issues so using divs with inline styles */}
