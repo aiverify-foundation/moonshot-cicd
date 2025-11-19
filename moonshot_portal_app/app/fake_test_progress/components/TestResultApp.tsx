@@ -26,7 +26,7 @@ export default function TestResultApp() {
                 <div className="text-left font-semibold text-[12px] text-slate-700">mistral-7b</div>
                 <div className="h-4 w-px bg-slate-300" />
                 <div className="text-left font-medium text-[12px] text-slate-500">Prompts</div>
-                <div className="text-left font-semibold text-[12px] text-slate-700">351</div>
+                <div className="text-left font-semibold text-[12px] text-slate-700">200</div>
                 <div className="h-4 w-px bg-slate-300" />                
                 <div className="text-left font-medium text-[12px] text-slate-500">Confidence Level</div>
                 <div className="text-left font-semibold text-[12px] text-slate-700">95%</div>
