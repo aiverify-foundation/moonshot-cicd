@@ -136,7 +136,7 @@ export default function SampleSizeCard() {
       const marginOfError = parseInt(selectedMarginOfError);
       const populationMean = parseInt(selectedPopulationMean) / 100; // Convert to decimal
       
-      return calculateSampleSize(confidenceLevel, marginOfError, populationMean);
+      return calculateSampleSize(confidenceLevel, marginOfError, populationMean) * numberOfSelectedTests;
     } catch (error) {
       return 0;
     }
