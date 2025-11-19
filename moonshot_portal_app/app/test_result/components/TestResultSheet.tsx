@@ -173,7 +173,7 @@ export default function TestResultSheet({
                             </p>
                             <div className="bg-white border border-slate-200 rounded-[6px] h-[80px] overflow-y-auto p-3">
                                 <p className="font-medium text-[14px] leading-[20px] text-black whitespace-pre-wrap break-words">
-                                    {currentRow.evaluatorPrompt}
+                                    {currentRow.graderLogic}
                                 </p>
                             </div>
                         </div>

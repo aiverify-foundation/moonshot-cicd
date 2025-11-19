@@ -33,7 +33,7 @@ export interface TestResultTableRow {
         graderLogic?: string
         falsePositiveRate?: string
     }
-    evaluatorPrompt: string
+    graderLogic: string
 }
 
 interface TestResultTableProps {
