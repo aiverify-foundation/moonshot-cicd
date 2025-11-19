@@ -277,7 +277,7 @@ function calculateChartDataFromTableData(data: TestResultTableRow[]): BundleChar
         
         // Calculate adjusted score: (totalScore - disagreeWithScore1 + disagreeWithScore0) / totalCount * 100
         const adjustedScore = totalCount > 0 
-            ? ((totalScore - (disagreeWithScore1 + disagreeWithScore0)*2) / totalCount) * 100 
+            ? ((totalScore - disagreeWithScore1*2 + disagreeWithScore0*2) / totalCount) * 100 
             : 0
         
         // Round scores to avoid floating point precision issues
@@ -396,7 +396,7 @@ export default function TestResultBundle({ onAdjustedScoreChange }: TestResultBu
     
     // Calculate overall adjusted score: (totalScore - disagreeWithScore1 + disagreeWithScore0) / totalPromptsForScore * 100
     const overallAdjustedScore = totalPromptsForScore > 0
-        ? ((totalScore - overallDisagreeWithScore1 + overallDisagreeWithScore0) / totalPromptsForScore) * 100
+        ? ((totalScore - overallDisagreeWithScore1*2 + overallDisagreeWithScore0*2) / totalPromptsForScore) * 100
         : 0
     const overallScoreChange = overallAdjustedScore - overallAiScore
 
