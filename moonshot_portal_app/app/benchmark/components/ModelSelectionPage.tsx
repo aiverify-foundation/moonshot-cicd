@@ -103,7 +103,7 @@ export default function ModelSelectionPage() {
       </div>
       
       
-      <div className="flex flex-col items-center justify-center min-h-[200px]">
+      <div className="flex flex-col items-center justify-center min-h-[200px] mb-10">
         
         <TestNameAndDescriptionCard />
         {/* TODO: Look into how to clean this up, it probably can be done better*/}
