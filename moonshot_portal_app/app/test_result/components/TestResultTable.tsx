@@ -44,8 +44,8 @@ interface TestResultTableProps {
 
 export default function TestResultTable({ data, pageSize = 10, onDataChange }: TestResultTableProps) {
     const [currentPage, setCurrentPage] = useState(1)
-    const [sortColumn, setSortColumn] = useState<"evaluation" | null>(null)
-    const [sortDirection, setSortDirection] = useState<"asc" | "desc">("asc")
+    const [sortColumn, setSortColumn] = useState<"evaluation" | null>("evaluation")
+    const [sortDirection, setSortDirection] = useState<"asc" | "desc">("desc")
     const [sheetOpen, setSheetOpen] = useState(false)
     const [selectedRowIndex, setSelectedRowIndex] = useState(0)
     const [searchTerm, setSearchTerm] = useState("")
