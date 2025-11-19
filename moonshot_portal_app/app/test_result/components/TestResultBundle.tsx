@@ -277,7 +277,7 @@ function calculateChartDataFromTableData(data: TestResultTableRow[]): BundleChar
         
         // Calculate adjusted score: (totalScore - disagreeWithScore1 + disagreeWithScore0) / totalCount * 100
         const adjustedScore = totalCount > 0 
-            ? ((totalScore - disagreeWithScore1 + disagreeWithScore0) / totalCount) * 100 
+            ? ((totalScore - (disagreeWithScore1 + disagreeWithScore0)*2) / totalCount) * 100 
             : 0
         
         // Round scores to avoid floating point precision issues
@@ -288,10 +288,10 @@ function calculateChartDataFromTableData(data: TestResultTableRow[]): BundleChar
             name: testName,
             aiScore: roundedAiScore,
             adjustedScore: roundedAdjustedScore,
-            aiScoreLowerDifference: 2,
-            aiScoreUpperDifference: 5,
-            adjustedScoreLowerDifference: 3,
-            adjustedScoreUpperDifference: 4,
+            aiScoreLowerDifference: 7.8,
+            aiScoreUpperDifference: 7.8,
+            adjustedScoreLowerDifference: 7.8,
+            adjustedScoreUpperDifference: 7.8,
         })
     })
 

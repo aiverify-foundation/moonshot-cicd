@@ -1,5 +1,5 @@
 "use client"
-import React, { useState, useEffect } from "react"
+import React, { useState, useEffect, useRef } from "react"
 import { ThumbsUp, ThumbsDown, Info } from "lucide-react"
 import {
     Sheet,
@@ -36,11 +36,25 @@ export default function TestResultSheet({
     
     // Local state for note to allow controlled input
     const [note, setNote] = useState(currentRow?.note || "")
+    
+    // Refs for scrollable divs
+    const promptScrollRef = useRef<HTMLDivElement>(null)
+    const responseScrollRef = useRef<HTMLDivElement>(null)
 
     // Update note state when currentRow changes
     useEffect(() => {
         setNote(currentRow?.note || "")
     }, [currentRow?.note, currentIndex])
+    
+    // Scroll prompt and response to top when index changes
+    useEffect(() => {
+        if (promptScrollRef.current) {
+            promptScrollRef.current.scrollTop = 0
+        }
+        if (responseScrollRef.current) {
+            responseScrollRef.current.scrollTop = 0
+        }
+    }, [currentIndex])
 
     const handlePrevious = () => {
         if (currentIndex > 0) {
@@ -115,7 +129,9 @@ export default function TestResultSheet({
                         <p className="font-medium text-[12px] leading-normal text-slate-700">
                             Prompt
                         </p>
-                        <div className="bg-white border border-slate-200 rounded-[6px] h-[80px] overflow-y-auto p-3">
+                        <div 
+                            ref={promptScrollRef}
+                            className="bg-white border border-slate-200 rounded-[6px] h-[80px] overflow-y-auto p-3">
                             <p className="font-medium text-[14px] leading-[20px] text-black whitespace-pre-wrap break-words">
                                 {currentRow.prompt}
                             </p>
@@ -127,7 +143,7 @@ export default function TestResultSheet({
                         <p className="font-medium text-[12px] leading-normal text-slate-700">
                             Target
                         </p>
-                        <div className="bg-white border border-slate-200 rounded-[6px] h-[80px] overflow-y-auto p-3">
+                        <div className="bg-white border border-slate-200 rounded-[6px] h-[60px] overflow-y-auto p-3">
                             <p className="font-medium text-[14px] leading-[20px] text-black whitespace-pre-wrap break-words">
                                 {currentRow.target}
                             </p>
@@ -139,7 +155,10 @@ export default function TestResultSheet({
                         <p className="font-medium text-[12px] leading-normal text-slate-700">
                             Response
                         </p>
-                        <div className="bg-white border border-slate-200 rounded-[6px] h-[80px] overflow-y-auto p-3">
+                        <div 
+                            ref={responseScrollRef}
+                            className="bg-white border border-slate-200 rounded-[6px] h-[80px] overflow-y-auto p-3"
+                        >
                             <p className="font-medium text-[14px] leading-[20px] text-black whitespace-pre-wrap break-words">
                                 {currentRow.response}
                             </p>
@@ -147,7 +166,7 @@ export default function TestResultSheet({
                     </div>
 
                     {/* Evaluator Prompt */}
-                    {currentRow.evaluatorPrompt && (
+                    {false && (
                         <div className="flex flex-col gap-[6px]">
                             <p className="font-medium text-[12px] leading-normal text-slate-700">
                                 Evaluator Prompt
@@ -180,34 +199,20 @@ export default function TestResultSheet({
                                         <div className="h-[15px] w-px bg-slate-200" />
                                     </>
                                 )}
-                                {currentRow.evaluatorInfo.systemPrompt !== undefined && (
+                                {currentRow.evaluatorInfo.graderLogic !== undefined && (
                                     <>
                                         <div className="flex gap-2 items-center">
                                             <p className="font-normal text-[12px] leading-normal text-slate-500 whitespace-pre">
-                                                System Prompt
+                                                Grader Logic
                                             </p>
                                             <div className="flex gap-0.5 items-center">
                                                 <p className="font-medium text-[12px] leading-normal text-slate-700 whitespace-pre">
-                                                    {currentRow.evaluatorInfo.systemPrompt || "N/A"}
+                                                    {currentRow.evaluatorInfo.graderLogic || "N/A"}
                                                 </p>
                                                 <Info className="size-3 text-slate-500" />
                                             </div>
                                         </div>
-                                        <div className="h-[15px] w-px bg-slate-200" />
                                     </>
-                                )}
-                                {currentRow.evaluatorInfo.falsePositiveRate !== undefined && (
-                                    <div className="flex gap-2 items-center">
-                                        <p className="font-normal text-[12px] leading-normal text-slate-500 whitespace-pre">
-                                            False-positive rate
-                                        </p>
-                                        <div className="flex gap-0.5 items-center">
-                                            <p className="font-medium text-[12px] leading-normal text-slate-700 whitespace-pre">
-                                                {currentRow.evaluatorInfo.falsePositiveRate || "N/A"}
-                                            </p>
-                                            <Info className="size-3 text-slate-500" />
-                                        </div>
-                                    </div>
                                 )}
                             </div>
                         </div>
@@ -242,7 +247,7 @@ export default function TestResultSheet({
                     {/* Your Verdict */}
                     <div className="flex flex-col gap-[6px]">
                         <p className="font-medium text-[12px] leading-normal text-slate-700">
-                            Your verdict
+                            Your Agreement with Evaluation
                         </p>
                         <ToggleGroup
                             type="single"

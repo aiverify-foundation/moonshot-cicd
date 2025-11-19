@@ -30,7 +30,7 @@ export interface TestResultTableRow {
     bundle: string
     evaluatorInfo?: {
         model?: string
-        systemPrompt?: string
+        graderLogic?: string
         falsePositiveRate?: string
     }
     evaluatorPrompt: string
