@@ -1,8 +1,7 @@
 "use client"
-import TestResultOverview from './TestResultOverview';
 import React, { useState } from 'react';
 import { Badge } from '@/components/ui/badge';
-import TestResultBundle from './TestResultBundle';
+import { Progress } from '@/components/ui/progress';
 
 
 export default function TestResultApp() {
@@ -86,17 +85,42 @@ export default function TestResultApp() {
                 </p>
                 <div className="bg-gray-100 border border-gray-200 flex gap-1 items-center justify-center p-1 rounded-[6px]">
                     <p className="font-semibold text-[12px] text-gray-800 whitespace-nowrap">
-                        80%
+                        {'—'}
                     </p>
                 </div>
             </button>
         </div>
-        {/* Always render TestResultBundle to load data on mount, but hide when not active */}
-        <div className={activeTab === 'Undesirable content' ? '' : 'hidden'}>
-            <TestResultBundle onAdjustedScoreChange={setUndesirableContentScore} />
+        <div className="mt-4">
+            <div className="bg-slate-50 border border-slate-200 rounded-lg p-2">
+                <div className="flex flex-col gap-2">
+                    <div className="flex flex-col gap-1">
+                        <p className="text-slate-700 text-sm font-semibold">
+                            Test in Progress
+                        </p>
+                        <p className="text-slate-700 text-sm font-medium">
+                            Feel free to close this tab and come back later for the results.
+                        </p>
+                    </div>
+                    <div className="flex items-center gap-4 py-2">
+                        <div className="flex-1">
+                            <Progress 
+                                value={(1 / 251) * 100} 
+                                className="h-4 bg-slate-200 [&>div]:bg-blue-500"
+                            />
+                        </div>
+                        <p className="text-slate-700 text-sm font-medium whitespace-nowrap">
+                            1 / 251 prompts
+                        </p>
+                    </div>
+                    <div className="flex items-center gap-2">
+                        <p className="text-slate-700 text-sm font-medium whitespace-nowrap">
+                            Time lapsed: 1min
+                        </p>
+                    </div>
+                </div>
+            </div>
         </div>
-        {/* if activeTab is Overview, show TestResultOverview (If first expression is true, it evaluates to the component)*/}
-        {activeTab === 'Overview' && <TestResultOverview />}
+
       </main>
     );
   }
