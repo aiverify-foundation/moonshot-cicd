@@ -3,7 +3,7 @@ import React, { useMemo } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { CircleCheckBig } from 'lucide-react';
+import { CircleCheckBig, CircleAlert } from 'lucide-react';
 import {
     Accordion,
     AccordionContent,
@@ -113,6 +113,7 @@ export default function RequiredEndpointsCard() {
   const fixedConfigs = useFixedConfigsForSelectedTests();
   const selectedTestNames = useCheckedTestNames();
   const bundles = useAppSelector((state) => state.bundles.data) as Bundle[];
+  const endpointStatuses = useAppSelector((state) => state.endpointStatus) as Record<string, string>;
 
   // Map fixed configs to endpoints with their associated tests
   const endpoints = useMemo(() => {
@@ -129,9 +130,9 @@ export default function RequiredEndpointsCard() {
         });
       });
 
-      // Determine status based on whether the config is properly configured
-      // TODO: Add actual connection validation logic
-      const status = ConnectionStatus.CONNECTED;
+      // Get status from Redux store, default to NOT_CONNECTED if not set
+      const storedStatus = endpointStatuses[config.id];
+      const status = storedStatus ? storedStatus as ConnectionStatus : ConnectionStatus.NOT_CONNECTED;
 
       return {
         modelName: config.modelname || config.name,
@@ -140,7 +141,16 @@ export default function RequiredEndpointsCard() {
         configId: config.id
       };
     });
-  }, [fixedConfigs, bundles, selectedTestNames]);
+  }, [fixedConfigs, bundles, selectedTestNames, endpointStatuses]);
+
+  // Determine overall status indicator
+  const overallStatus = useMemo(() => {
+    if (endpoints.length === 0) {
+      return null; // No endpoints to show status for
+    }
+    const allConnected = endpoints.every(endpoint => endpoint.status === ConnectionStatus.CONNECTED);
+    return allConnected;
+  }, [endpoints]);
 
   return (
     <>
@@ -156,8 +166,11 @@ export default function RequiredEndpointsCard() {
               </div>
               {/* Status indicators */}
               <div className="flex items-center">
-                  {/*TODO: Add actual connection validation logic*/}
-                  <CircleCheckBig className="h-5 w-5 text-green-500" data-testid="required-endpoints-status-indicator" />
+                  {overallStatus === null ? null : overallStatus ? (
+                    <CircleCheckBig className="h-5 w-5 text-green-500" data-testid="required-endpoints-status-indicator" />
+                  ) : (
+                    <CircleAlert className="h-5 w-5 text-red-500" data-testid="required-endpoints-status-indicator" />
+                  )}
               </div>
             </AccordionTrigger>
             <AccordionContent>

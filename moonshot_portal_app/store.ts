@@ -196,6 +196,32 @@ export const {
   clearTestsForBundle 
 } = testSelectionSlice.actions;
 
+// Endpoint connection status slice
+// Status values: "connected", "not connected", "Invalid Token"
+const endpointStatusSlice = createSlice({
+  name: 'endpointStatus',
+  initialState: {} as Record<string, string>,
+  reducers: {
+    setEndpointStatus: (state, action) => {
+      const { configId, status } = action.payload;
+      state[configId] = status;
+    },
+    clearEndpointStatus: (state, action) => {
+      const configId = action.payload;
+      delete state[configId];
+    },
+    clearAllEndpointStatuses: (state) => {
+      return {};
+    },
+  },
+});
+
+export const { 
+  setEndpointStatus, 
+  clearEndpointStatus, 
+  clearAllEndpointStatuses 
+} = endpointStatusSlice.actions;
+
 const store = configureStore({
   reducer: {
     bundles: bundlesSlice.reducer,
@@ -203,6 +229,7 @@ const store = configureStore({
     bundleSelection: bundleSelectionSlice.reducer,
     modelSelection: modelSelectionSlice.reducer,
     testSelection: testSelectionSlice.reducer,
+    endpointStatus: endpointStatusSlice.reducer,
   },
 });
 
