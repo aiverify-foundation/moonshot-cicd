@@ -12,7 +12,7 @@ import { Button } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
 import { cn } from "@/lib/utils"
 import { TestResultTableRow } from "./TestResultTable"
-import PromptTemplateSheet from "@/app/view_test/components/PromptTemplateSheet"
+import PromptTemplateSheet from "@/components/PromptTemplateSheet"
 
 interface TestResultSheetProps {
     open: boolean

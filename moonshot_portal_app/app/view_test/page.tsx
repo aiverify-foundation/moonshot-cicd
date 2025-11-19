@@ -12,7 +12,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import PromptTemplateSheet from './components/PromptTemplateSheet';
+import PromptTemplateSheet from '@/components/PromptTemplateSheet';
 
 export default function ViewTest() {
   const showPromptTemplate = false;
