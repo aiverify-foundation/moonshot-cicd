@@ -12,6 +12,7 @@ import { Button } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
 import { cn } from "@/lib/utils"
 import { TestResultTableRow } from "./TestResultTable"
+import PromptTemplateSheet from "@/app/view_test/components/PromptTemplateSheet"
 
 interface TestResultSheetProps {
     open: boolean
@@ -36,6 +37,9 @@ export default function TestResultSheet({
     
     // Local state for note to allow controlled input
     const [note, setNote] = useState(currentRow?.note || "")
+    
+    // State for prompt template sheet
+    const [promptTemplateSheetOpen, setPromptTemplateSheetOpen] = useState(false)
     
     // Refs for scrollable divs
     const promptScrollRef = useRef<HTMLDivElement>(null)
@@ -209,7 +213,15 @@ export default function TestResultSheet({
                                                 <p className="font-medium text-[12px] leading-normal text-slate-700 whitespace-pre">
                                                     {currentRow.evaluatorInfo.graderLogic || "N/A"}
                                                 </p>
-                                                <Info className="size-3 text-slate-500" />
+                                                <Button
+                                                    variant="ghost"
+                                                    size="icon"
+                                                    className="h-3 w-3 p-0 hover:bg-transparent"
+                                                    onClick={() => setPromptTemplateSheetOpen(true)}
+                                                    aria-label="View Prompt Template"
+                                                >
+                                                    <Info className="size-3 text-slate-500" />
+                                                </Button>
                                             </div>
                                         </div>
                                     </>
@@ -335,6 +347,10 @@ export default function TestResultSheet({
                     </Button>
                 </div>
             </SheetContent>
+            <PromptTemplateSheet 
+                open={promptTemplateSheetOpen} 
+                onOpenChange={setPromptTemplateSheetOpen} 
+            />
         </Sheet>
     )
 }
