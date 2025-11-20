@@ -64,8 +64,8 @@ function ReportChartScrollAdjustableHeight({ chartData, bundleName }: ReportChar
 
     // Calculate confidence intervals and add to data
     const chartDataWithConfidence = chartData.map(entry => {
-        // Calculate 10% confidence interval (±10% of value)
-        const confidenceInterval = entry.value * 0.1;
+        // Fixed confidence interval of 7.8
+        const confidenceInterval = 7.8;
         // For ErrorBar, we use the confidence interval amount as the error value
         // It will be displayed symmetrically (±)
         return {
@@ -173,6 +173,9 @@ function ReportChartScrollAdjustableHeight({ chartData, bundleName }: ReportChar
                                 content={({ active, payload }) => {
                                     if (active && payload && payload.length) {
                                         const data = payload[0].payload;
+                                        // Calculate lower and upper bounds
+                                        const lowerBound = Math.max(0, Math.round((data.value - data.error) * 10) / 10);
+                                        const upperBound = Math.min(100, Math.round((data.value + data.error) * 10) / 10);
                                         return (
                                             <div className="bg-white border border-slate-200 rounded-lg shadow-lg p-3">
                                                 <p className="font-semibold text-sm text-slate-700 mb-1">
@@ -182,7 +185,7 @@ function ReportChartScrollAdjustableHeight({ chartData, bundleName }: ReportChar
                                                     Score: {data.value}%
                                                 </p>
                                                 <p className="font-medium text-sm text-slate-600">
-                                                    Confidence Interval at {data.value}% level: [{data.error}, {data.error}]
+                                                    Confidence Interval: [{lowerBound}%, {upperBound}%]
                                                 </p>
                                                 
                                             </div>
