@@ -87,11 +87,11 @@ export default function ModelSelectionPage() {
           </BreadcrumbItem>
           <BreadcrumbSeparator />
           <BreadcrumbItem>
-            Select Model
+          Select Recipes Or Bundles
           </BreadcrumbItem>
           <BreadcrumbSeparator />
           <BreadcrumbItem>
-            <BreadcrumbPage>Configure And Run Tests</BreadcrumbPage>
+            <BreadcrumbPage>Select Model Or Application</BreadcrumbPage>
           </BreadcrumbItem>
         </BreadcrumbList>
       </Breadcrumb>

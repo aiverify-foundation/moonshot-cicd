@@ -6,15 +6,23 @@ import { Label } from "@/components/ui/label";
 import { CircleAlert, CircleCheckBig } from "lucide-react";
 import { useAppDispatch, useAppSelector } from "@/hooks/reduxHooks";
 import { setTestNameFilled } from "@/store";
+import { useState } from "react";
 
 export default function TestNameAndDescriptionCard() {
   const dispatch = useAppDispatch();
   const isTestNameValid = useAppSelector(state => state.modelSelection.isTestNameValid);
+  const [hasBeenTouched, setHasBeenTouched] = useState(false);
 
   const handleTestNameChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const value = e.target.value.trim();
-    dispatch(setTestNameFilled(value.length > 0));
+    setHasBeenTouched(true);
+
+    // dispatch(setTestNameFilled(value.length > 0));
+    dispatch(setTestNameFilled(false));
   };
+
+  // Only show error if field has been touched AND validation is invalid
+  const showError = hasBeenTouched && !isTestNameValid;
 
   return (
     <>       
@@ -48,7 +56,11 @@ export default function TestNameAndDescriptionCard() {
                   placeholder="Test Name" 
                   data-testid="test-name-input"
                   onChange={handleTestNameChange}
+                  aria-invalid={showError ? "true" : undefined}
                 />
+                {showError && (
+                  <p className="text-sm text-red-600 mt-1">This field has an error</p>
+                )}
                 <div className="mt-4 mb-2">
                   <Label htmlFor="test-description-input">Test Description</Label>
                 </div>
