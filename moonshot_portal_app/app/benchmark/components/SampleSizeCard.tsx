@@ -357,7 +357,7 @@ export default function SampleSizeCard() {
                             <p className="font-bold">Actual confidence interval of the test results may differ due to the following:</p>
                             <ul className="list-disc list-inside space-y-1">
                               <li>Actual test score can be different from the population mean assumed.</li>
-                              <li className="whitespace-nowrap">Margin of error will include additional measurement error due to non-determinism in LLM output.</li>
+                              <li>Margin of error will include additional measurement error due to non-determinism in LLM output.</li>
                             </ul>
                           </div>
                         </TooltipContent>
