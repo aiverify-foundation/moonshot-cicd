@@ -146,7 +146,7 @@ export default function RequiredEndpointsCard() {
   // Determine overall status indicator
   const overallStatus = useMemo(() => {
     if (endpoints.length === 0) {
-      return null; // No endpoints to show status for
+      return true; // No endpoints required, so status is good (green check)
     }
     const allConnected = endpoints.every(endpoint => endpoint.status === ConnectionStatus.CONNECTED);
     return allConnected;
@@ -166,7 +166,7 @@ export default function RequiredEndpointsCard() {
               </div>
               {/* Status indicators */}
               <div className="flex items-center">
-                  {overallStatus === null ? null : overallStatus ? (
+                  {overallStatus ? (
                     <CircleCheckBig className="h-5 w-5 text-green-500" data-testid="required-endpoints-status-indicator" />
                   ) : (
                     <CircleAlert className="h-5 w-5 text-red-500" data-testid="required-endpoints-status-indicator" />

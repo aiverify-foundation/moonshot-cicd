@@ -1,4 +1,5 @@
 const { test, expect } = require('@playwright/test');
+const { printPageDiagnostics } = require('../utils/pageDiagnostics');
 
 // Helper function for navigating to model selection page
 async function navigateToModelSelection(page) {
@@ -523,8 +524,16 @@ test.describe('Model Selection Page Integration Tests', () => {
       await expect(inputValue).toBe(testName);
       
       // Verify the status indicator changes to green check (test name is valid)
-      const greenCheck = page.locator('[data-testid="required-endpoints-status-indicator"]');
+      const greenCheck = page.locator('[data-testid="test-name-status-indicator"]');
       await expect(greenCheck).toBeVisible();
+    });
+  });
+
+  test.describe('Diagnostic Tests', () => {
+    
+    test('DIAGNOSTIC: Print all page elements in formatted manner', async ({ page }) => {
+      await navigateToModelSelection(page);
+      await printPageDiagnostics(page, 'MODEL SELECTION PAGE DIAGNOSTIC REPORT');
     });
   });
 });

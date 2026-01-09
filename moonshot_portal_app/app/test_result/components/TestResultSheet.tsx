@@ -10,7 +10,6 @@ import {
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group"
 import { Button } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
-import { cn } from "@/lib/utils"
 import { TestResultTableRow } from "./TestResultTable"
 import PromptTemplateSheet from "@/components/PromptTemplateSheet"
 
@@ -236,20 +235,10 @@ export default function TestResultSheet({
                             Evaluation
                         </p>
                         <div
-                            className={cn(
-                                "inline-flex items-center justify-center px-1 py-1 rounded-[6px] border w-fit",
-                                currentRow.score === 1
-                                    ? "bg-green-100 border-green-200"
-                                    : "bg-red-100 border-red-200"
-                            )}
+                            className={`inline-flex items-center justify-center px-1 py-1 rounded-[6px] border w-fit ${currentRow.score === 1 ? "bg-green-100 border-green-200" : "bg-red-100 border-red-200"}`}
                         >
                             <p
-                                className={cn(
-                                    "font-semibold text-[12px] leading-normal whitespace-pre text-nowrap",
-                                    currentRow.score === 1
-                                        ? "text-green-800"
-                                        : "text-red-800"
-                                )}
+                                className={`font-semibold text-[12px] leading-normal whitespace-pre text-nowrap ${currentRow.score === 1 ? "text-green-800" : "text-red-800"}`}
                             >
                                 {currentRow.evaluation}
                             </p>
@@ -270,38 +259,18 @@ export default function TestResultSheet({
                         >
                             <ToggleGroupItem
                                 value="agree"
-                                className={cn(
-                                    "p-1.5 rounded-none rounded-l-[6px] border-0",
-                                    currentRow.yourVerdict === "agree"
-                                        ? "bg-white"
-                                        : "bg-transparent hover:bg-white/50"
-                                )}
+                                className={`p-1.5 rounded-none rounded-l-[6px] border-0 ${currentRow.yourVerdict === "agree" ? "bg-white" : "bg-transparent hover:bg-white/50"}`}
                             >
                                 <ThumbsUp
-                                    className={cn(
-                                        "size-[15px]",
-                                        currentRow.yourVerdict === "agree"
-                                            ? "text-green-700"
-                                            : "text-slate-500"
-                                    )}
+                                    className={`size-[15px] ${currentRow.yourVerdict === "agree" ? "text-green-700" : "text-slate-500"}`}
                                 />
                             </ToggleGroupItem>
                             <ToggleGroupItem
                                 value="disagree"
-                                className={cn(
-                                    "p-1.5 rounded-none rounded-r-[6px] border-0",
-                                    currentRow.yourVerdict === "disagree"
-                                        ? "bg-white"
-                                        : "bg-transparent hover:bg-white/50"
-                                )}
+                                className={`p-1.5 rounded-none rounded-r-[6px] border-0 ${currentRow.yourVerdict === "disagree" ? "bg-white" : "bg-transparent hover:bg-white/50"}`}
                             >
                                 <ThumbsDown
-                                    className={cn(
-                                        "size-[15px]",
-                                        currentRow.yourVerdict === "disagree"
-                                            ? "text-red-700"
-                                            : "text-slate-500"
-                                    )}
+                                    className={`size-[15px] ${currentRow.yourVerdict === "disagree" ? "text-red-700" : "text-slate-500"}`}
                                 />
                             </ToggleGroupItem>
                         </ToggleGroup>

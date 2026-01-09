@@ -1,4 +1,4 @@
-import { configureStore, createSlice, createAsyncThunk } from '@reduxjs/toolkit';
+import { configureStore, createSlice, createAsyncThunk, combineReducers } from '@reduxjs/toolkit';
 import { fetchBundles, Bundle, fetchFixedConfigs, FixedConfig } from './lib/api';
 
 // Async thunk for fetching bundles
@@ -222,17 +222,42 @@ export const {
   clearAllEndpointStatuses 
 } = endpointStatusSlice.actions;
 
+const rootReducer = combineReducers({
+  bundles: bundlesSlice.reducer,
+  fixedConfigs: fixedConfigsSlice.reducer,
+  bundleSelection: bundleSelectionSlice.reducer,
+  modelSelection: modelSelectionSlice.reducer,
+  testSelection: testSelectionSlice.reducer,
+  endpointStatus: endpointStatusSlice.reducer,
+});
+
 const store = configureStore({
-  reducer: {
-    bundles: bundlesSlice.reducer,
-    fixedConfigs: fixedConfigsSlice.reducer,
-    bundleSelection: bundleSelectionSlice.reducer,
-    modelSelection: modelSelectionSlice.reducer,
-    testSelection: testSelectionSlice.reducer,
-    endpointStatus: endpointStatusSlice.reducer,
-  },
+  reducer: rootReducer,
 });
 
 export type RootState = ReturnType<typeof store.getState>;
 export type AppDispatch = typeof store.dispatch;
+
+// Export function to create a test store with optional preloaded state
+export function createTestStore(preloadedState?: Partial<RootState>) {
+  const defaultState = store.getState();
+  
+  // Merge preloadedState with default state
+  const mergedState = preloadedState 
+    ? {
+        bundles: { ...defaultState.bundles, ...(preloadedState.bundles || {}) },
+        fixedConfigs: { ...defaultState.fixedConfigs, ...(preloadedState.fixedConfigs || {}) },
+        bundleSelection: { ...defaultState.bundleSelection, ...(preloadedState.bundleSelection || {}) },
+        modelSelection: { ...defaultState.modelSelection, ...(preloadedState.modelSelection || {}) },
+        testSelection: { ...defaultState.testSelection, ...(preloadedState.testSelection || {}) },
+        endpointStatus: { ...defaultState.endpointStatus, ...(preloadedState.endpointStatus || {}) },
+      }
+    : defaultState;
+  
+  return configureStore({
+    reducer: rootReducer,
+    preloadedState: mergedState as any,
+  });
+}
+
 export default store;

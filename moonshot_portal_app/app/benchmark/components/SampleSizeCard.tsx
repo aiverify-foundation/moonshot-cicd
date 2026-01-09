@@ -8,7 +8,6 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 import { Button } from "@/components/ui/button";
 import { Check, ChevronsUpDown } from "lucide-react";
-import { cn } from "@/lib/utils";
 import {
     Accordion,
     AccordionContent,
@@ -228,10 +227,7 @@ export default function SampleSizeCard() {
                                   data-testid={`population-mean-option-${option.value}`}
                                 >
                                   <Check
-                                    className={cn(
-                                      "mr-2 h-4 w-4",
-                                      selectedPopulationMean === option.value ? "opacity-100" : "opacity-0"
-                                    )}
+                                    className={`mr-2 h-4 w-4 ${selectedPopulationMean === option.value ? "opacity-100" : "opacity-0"}`}
                                   />
                                   {option.label}
                                 </CommandItem>
@@ -275,10 +271,7 @@ export default function SampleSizeCard() {
                                   data-testid={`confidence-level-option-${option.value}`}
                                 >
                                   <Check
-                                    className={cn(
-                                      "mr-2 h-4 w-4",
-                                      selectedConfidenceLevel === option.value ? "opacity-100" : "opacity-0"
-                                    )}
+                                    className={`mr-2 h-4 w-4 ${selectedConfidenceLevel === option.value ? "opacity-100" : "opacity-0"}`}
                                   />
                                   {option.label}
                                 </CommandItem>
@@ -322,10 +315,7 @@ export default function SampleSizeCard() {
                                   data-testid={`margin-of-error-option-${option.value}`}
                                 >
                                   <Check
-                                    className={cn(
-                                      "mr-2 h-4 w-4",
-                                      selectedMarginOfError === option.value ? "opacity-100" : "opacity-0"
-                                    )}
+                                    className={`mr-2 h-4 w-4 ${selectedMarginOfError === option.value ? "opacity-100" : "opacity-0"}`}
                                   />
                                   {option.label}
                                 </CommandItem>
@@ -383,12 +373,7 @@ export default function SampleSizeCard() {
                           }
                         }}
                         variant="outline"
-                        className={cn(
-                          "transition-all duration-200",
-                          selectedToggleValue === toggle.value 
-                            ? "scale-100 px-3 py-2" 
-                            : "scale-85 px-2 py-1.5"
-                        )}
+                        className={`transition-all duration-200 ${selectedToggleValue === toggle.value ? "scale-100 px-3 py-2" : "scale-85 px-2 py-1.5"}`}
                       >
                         {toggle.label} <span className="text-muted-foreground">{toggle.count}</span>
                       </Toggle>

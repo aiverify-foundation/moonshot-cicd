@@ -14,7 +14,6 @@ import { Button } from "@/components/ui/button"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Input } from "@/components/ui/input"
-import { cn } from "@/lib/utils"
 import TestResultSheet from "./TestResultSheet"
 
 export interface TestResultTableRow {
@@ -465,20 +464,10 @@ export default function TestResultTable({ data, pageSize = 10, onDataChange }: T
                                 <TableCell className="px-0 py-2 align-top">
                                     <div className="flex gap-1.5 items-start">
                                         <div
-                                            className={cn(
-                                                "inline-flex items-center justify-center px-1 py-1 rounded-[6px] border",
-                                                row.score === 1
-                                                    ? "bg-green-100 border-green-200"
-                                                    : "bg-red-100 border-red-200"
-                                            )}
+                                            className={`inline-flex items-center justify-center px-1 py-1 rounded-[6px] border ${row.score === 1 ? "bg-green-100 border-green-200" : "bg-red-100 border-red-200"}`}
                                         >
                                             <p
-                                                className={cn(
-                                                    "font-semibold text-[12px] leading-normal whitespace-pre text-nowrap",
-                                                    row.score === 1
-                                                        ? "text-green-800"
-                                                        : "text-red-800"
-                                                )}
+                                                className={`font-semibold text-[12px] leading-normal whitespace-pre text-nowrap ${row.score === 1 ? "text-green-800" : "text-red-800"}`}
                                             >
                                                 {row.evaluation}
                                             </p>
@@ -505,38 +494,18 @@ export default function TestResultTable({ data, pageSize = 10, onDataChange }: T
                                         >
                                             <ToggleGroupItem
                                                 value="agree"
-                                                className={cn(
-                                                    "p-1.5 rounded-none rounded-l-[6px] border-0",
-                                                    row.yourVerdict === "agree"
-                                                        ? "bg-white"
-                                                        : "bg-transparent hover:bg-white/50"
-                                                )}
+                                                className={`p-1.5 rounded-none rounded-l-[6px] border-0 ${row.yourVerdict === "agree" ? "bg-white" : "bg-transparent hover:bg-white/50"}`}
                                             >
                                                 <ThumbsUp
-                                                    className={cn(
-                                                        "size-[15px]",
-                                                        row.yourVerdict === "agree"
-                                                            ? "text-green-700"
-                                                            : "text-slate-500"
-                                                    )}
+                                                    className={`size-[15px] ${row.yourVerdict === "agree" ? "text-green-700" : "text-slate-500"}`}
                                                 />
                                             </ToggleGroupItem>
                                             <ToggleGroupItem
                                                 value="disagree"
-                                                className={cn(
-                                                    "p-1.5 rounded-none rounded-r-[6px] border-0",
-                                                    row.yourVerdict === "disagree"
-                                                        ? "bg-white"
-                                                        : "bg-transparent hover:bg-white/50"
-                                                )}
+                                                className={`p-1.5 rounded-none rounded-r-[6px] border-0 ${row.yourVerdict === "disagree" ? "bg-white" : "bg-transparent hover:bg-white/50"}`}
                                             >
                                                 <ThumbsDown
-                                                    className={cn(
-                                                        "size-[15px]",
-                                                        row.yourVerdict === "disagree"
-                                                            ? "text-red-700"
-                                                            : "text-slate-500"
-                                                    )}
+                                                    className={`size-[15px] ${row.yourVerdict === "disagree" ? "text-red-700" : "text-slate-500"}`}
                                                 />
                                             </ToggleGroupItem>
                                         </ToggleGroup>

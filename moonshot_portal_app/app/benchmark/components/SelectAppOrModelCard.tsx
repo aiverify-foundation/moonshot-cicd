@@ -6,7 +6,6 @@ import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, Command
 import { Card, CardContent, CardDescription, CardTitle } from "@/components/ui/card";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { Check, ChevronsUpDown, Edit, Plus, CircleAlert, CircleCheckBig } from "lucide-react";
-import { cn } from "@/lib/utils";
 import { type Provider, type ModelConfig, type Config, type ModelApp } from "./MockData";
 import { type AppDispatch } from "@/store";
 import { setSelectedProvider, setSelectedModel, setSelectedConfig } from "@/store";
@@ -131,10 +130,7 @@ export default function SelectAppOrModelCard({
                               data-testid={`provider-option-${provider.id}`}
                             >
                               <Check
-                                className={cn(
-                                  "mr-2 h-4 w-4",
-                                  selectedProvider === provider.id ? "opacity-100" : "opacity-0"
-                                )}
+                                className={`mr-2 h-4 w-4 ${selectedProvider === provider.id ? "opacity-100" : "opacity-0"}`}
                               />
                               {provider.name}
                             </CommandItem>
@@ -177,10 +173,7 @@ export default function SelectAppOrModelCard({
                               data-testid={`custom-connector-option-${connector.id}`}
                             >
                               <Check
-                                className={cn(
-                                  "mr-2 h-4 w-4",
-                                  selectedProvider === connector.id ? "opacity-100" : "opacity-0"
-                                )}
+                                className={`mr-2 h-4 w-4 ${selectedProvider === connector.id ? "opacity-100" : "opacity-0"}`}
                               />
                               {connector.name}
                             </CommandItem>
@@ -261,10 +254,7 @@ export default function SelectAppOrModelCard({
                               >
                                 <div className="flex items-center">
                                   <Check
-                                    className={cn(
-                                      "mr-2 h-4 w-4",
-                                      selectedConfig === config.id ? "opacity-100" : "opacity-0"
-                                    )}
+                                    className={`mr-2 h-4 w-4 ${selectedConfig === config.id ? "opacity-100" : "opacity-0"}`}
                                   />
                                   {config.name}
                                 </div>
@@ -294,10 +284,7 @@ export default function SelectAppOrModelCard({
                               >
                                 <div className="flex items-center">
                                   <Check
-                                    className={cn(
-                                      "mr-2 h-4 w-4",
-                                      selectedModel === model.id ? "opacity-100" : "opacity-0"
-                                    )}
+                                    className={`mr-2 h-4 w-4 ${selectedModel === model.id ? "opacity-100" : "opacity-0"}`}
                                   />
                                   {model.name}
                                 </div>
