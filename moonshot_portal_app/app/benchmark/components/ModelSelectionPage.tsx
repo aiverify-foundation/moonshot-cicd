@@ -16,24 +16,12 @@ export default function ModelSelectionPage() {
   const dispatch = useAppDispatch();
   const { selectedProvider, selectedModel, selectedConfig, isConfigValid, isTestNameValid } = useAppSelector(state => state.modelSelection);
   
-  const [providerOpen, setProviderOpen] = useState(false);
-  const [modelOpen, setModelOpen] = useState(false);
+  // Sheet state management
   const [sheetOpen, setSheetOpen] = useState(false);
   const [editingModel, setEditingModel] = useState<string>("");
   const [customSheetOpen, setCustomSheetOpen] = useState(false);
   const [editingConfig, setEditingConfig] = useState<string>("");
-  const [showAllStandardProviders, setShowAllStandardProviders] = useState(false);
-  const [showAllCustomConnectors, setShowAllCustomConnectors] = useState(false);
 
-  // Combine providers and custom connectors
-  const allProviders = [...providers, ...custom_connectors];
-
-  // Get models filtered by selected provider
-  const filteredModels = models.filter(model => model.provider === selectedProvider);
-  
-  // Get configs filtered by selected custom connector
-  const filteredConfigs = configs.filter(config => config.connector === selectedProvider);
-  
   // Check if selected provider is a custom connector
   const isCustomConnector = custom_connectors.some(connector => connector.id === selectedProvider);
 
@@ -46,36 +34,31 @@ export default function ModelSelectionPage() {
     dispatch(updateConfigValidity());
   }, [selectedProvider, selectedModel, selectedConfig, dispatch]);
 
+  // Combine providers and custom connectors for sheets
+  const allProviders = [...providers, ...custom_connectors];
+
   // Handle edit model action
-  const handleEditModel = (modelId: string, event: React.MouseEvent) => {
-    event.stopPropagation(); // Prevent triggering the selection
+  const handleEditModel = (modelId: string) => {
     setEditingModel(modelId);
     setSheetOpen(true);
-    setModelOpen(false); // Close the model dropdown
   };
 
   // Handle add new model action
   const handleAddNewModel = () => {
-    console.log('Add new model clicked');
     setEditingModel(selectedProvider); // Set selected provider to indicate new model creation for this provider
     setSheetOpen(true);
-    setProviderOpen(false); // Close the provider dropdown
   };
 
   // Handle edit configuration action
-  const handleEditConfig = (configId: string, event: React.MouseEvent) => {
-    event.stopPropagation(); // Prevent triggering the selection
+  const handleEditConfig = (configId: string) => {
     setEditingConfig(configId);
     setCustomSheetOpen(true);
-    setModelOpen(false); // Close the model dropdown
   };
 
   // Handle add new configuration action
   const handleAddNewConfig = () => {
-    console.log('Add new configuration clicked');
     setEditingConfig(selectedProvider); // Set selected provider to indicate new configuration creation for this provider
     setCustomSheetOpen(true);
-    setModelOpen(false); // Close the model dropdown
   };
 
   return (
@@ -109,29 +92,18 @@ export default function ModelSelectionPage() {
         {/* TODO: Look into how to clean this up, it probably can be done better*/}
         {isTestNameValid && (
           <SelectAppOrModelCard
-            providerOpen={providerOpen}
-            setProviderOpen={setProviderOpen}
-            modelOpen={modelOpen}
-            setModelOpen={setModelOpen}
-            showAllStandardProviders={showAllStandardProviders}
-            setShowAllStandardProviders={setShowAllStandardProviders}
-            showAllCustomConnectors={showAllCustomConnectors}
-            setShowAllCustomConnectors={setShowAllCustomConnectors}
             selectedProvider={selectedProvider}
             selectedModel={selectedModel}
             selectedConfig={selectedConfig}
             isConfigValid={isConfigValid}
-            allProviders={allProviders}
             providers={providers}
+            models={models}
             custom_connectors={custom_connectors}
-            filteredModels={filteredModels}
-            filteredConfigs={filteredConfigs}
-            isCustomConnector={isCustomConnector}
-            handleEditModel={handleEditModel}
-            handleAddNewModel={handleAddNewModel}
-            handleEditConfig={handleEditConfig}
-            handleAddNewConfig={handleAddNewConfig}
-            dispatch={dispatch}
+            configs={configs}
+            onEditModel={handleEditModel}
+            onAddNewModel={handleAddNewModel}
+            onEditConfig={handleEditConfig}
+            onAddNewConfig={handleAddNewConfig}
           />
         )}
         

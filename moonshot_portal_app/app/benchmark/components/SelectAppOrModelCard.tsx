@@ -1,5 +1,5 @@
 "use client"
-import React from 'react';
+import React, { useState, useMemo } from 'react';
 import { Button } from "@/components/ui/button"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
@@ -7,69 +7,91 @@ import { Card, CardContent, CardDescription, CardTitle } from "@/components/ui/c
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { Check, ChevronsUpDown, Edit, Plus, CircleAlert, CircleCheckBig } from "lucide-react";
 import { type Provider, type ModelConfig, type Config, type ModelApp } from "./MockData";
-import { type AppDispatch } from "@/store";
+import { useAppDispatch } from "@/hooks/reduxHooks";
 import { setSelectedProvider, setSelectedModel, setSelectedConfig } from "@/store";
 
 interface SelectAppOrModelCardProps {
-  // State
-  providerOpen: boolean;
-  setProviderOpen: (open: boolean) => void;
-  modelOpen: boolean;
-  setModelOpen: (open: boolean) => void;
-  showAllStandardProviders: boolean;
-  setShowAllStandardProviders: (show: boolean) => void;
-  showAllCustomConnectors: boolean;
-  setShowAllCustomConnectors: (show: boolean) => void;
-  
-  // Redux state
+  // Redux state (from parent)
   selectedProvider: string;
   selectedModel: string;
   selectedConfig: string;
   isConfigValid: boolean;
   
-  // Data
-  allProviders: (Provider | ModelApp)[];
+  // Raw data
   providers: Provider[];
+  models: ModelConfig[];
   custom_connectors: ModelApp[];
-  filteredModels: ModelConfig[];
-  filteredConfigs: Config[];
-  isCustomConnector: boolean;
+  configs: Config[];
   
-  // Handlers
-  handleEditModel: (modelId: string, event: React.MouseEvent) => void;
-  handleAddNewModel: () => void;
-  handleEditConfig: (configId: string, event: React.MouseEvent) => void;
-  handleAddNewConfig: () => void;
-  
-  // Dispatch
-  dispatch: AppDispatch;
+  // Callbacks for sheet management
+  onEditModel: (modelId: string) => void;
+  onAddNewModel: () => void;
+  onEditConfig: (configId: string) => void;
+  onAddNewConfig: () => void;
 }
 
 export default function SelectAppOrModelCard({
-  providerOpen,
-  setProviderOpen,
-  modelOpen,
-  setModelOpen,
-  showAllStandardProviders,
-  setShowAllStandardProviders,
-  showAllCustomConnectors,
-  setShowAllCustomConnectors,
   selectedProvider,
   selectedModel,
   selectedConfig,
   isConfigValid,
-  allProviders,
   providers,
+  models,
   custom_connectors,
-  filteredModels,
-  filteredConfigs,
-  isCustomConnector,
-  handleEditModel,
-  handleAddNewModel,
-  handleEditConfig,
-  handleAddNewConfig,
-  dispatch,
+  configs,
+  onEditModel,
+  onAddNewModel,
+  onEditConfig,
+  onAddNewConfig,
 }: SelectAppOrModelCardProps) {
+  const dispatch = useAppDispatch();
+  
+  // Local UI state
+  const [providerOpen, setProviderOpen] = useState(false);
+  const [modelOpen, setModelOpen] = useState(false);
+  const [showAllStandardProviders, setShowAllStandardProviders] = useState(false);
+  const [showAllCustomConnectors, setShowAllCustomConnectors] = useState(false);
+  
+  // Computed values
+  const allProviders = useMemo(() => [...providers, ...custom_connectors], [providers, custom_connectors]);
+  
+  const filteredModels = useMemo(() => 
+    models.filter(model => model.provider === selectedProvider),
+    [models, selectedProvider]
+  );
+  
+  const filteredConfigs = useMemo(() => 
+    configs.filter(config => config.connector === selectedProvider),
+    [configs, selectedProvider]
+  );
+  
+  const isCustomConnector = useMemo(() => 
+    custom_connectors.some(connector => connector.id === selectedProvider),
+    [custom_connectors, selectedProvider]
+  );
+  
+  // Handle edit actions with event.stopPropagation
+  const handleEditModelClick = (modelId: string, event: React.MouseEvent) => {
+    event.stopPropagation();
+    onEditModel(modelId);
+    setModelOpen(false);
+  };
+  
+  const handleEditConfigClick = (configId: string, event: React.MouseEvent) => {
+    event.stopPropagation();
+    onEditConfig(configId);
+    setModelOpen(false);
+  };
+  
+  const handleAddNewModelClick = () => {
+    onAddNewModel();
+    setModelOpen(false);
+  };
+  
+  const handleAddNewConfigClick = () => {
+    onAddNewConfig();
+    setModelOpen(false);
+  };
   return (
     <Card className="w-3xl py-1">
       <Accordion type="single" collapsible defaultValue="item-1">
@@ -262,7 +284,7 @@ export default function SelectAppOrModelCard({
                                   variant="ghost"
                                   size="sm"
                                   className="h-6 w-6 p-0 hover:bg-gray-100"
-                                  onClick={(e) => handleEditConfig(config.id, e)}
+                                  onClick={(e) => handleEditConfigClick(config.id, e)}
                                   data-testid={`edit-config-${config.id}`}
                                 >
                                   <Edit className="h-3 w-3" />
@@ -292,7 +314,7 @@ export default function SelectAppOrModelCard({
                                   variant="ghost"
                                   size="sm"
                                   className="h-6 w-6 p-0 hover:bg-gray-100"
-                                  onClick={(e) => handleEditModel(model.id, e)}
+                                  onClick={(e) => handleEditModelClick(model.id, e)}
                                   data-testid={`edit-model-${model.id}`}
                                 >
                                   <Edit className="h-3 w-3" />
@@ -304,11 +326,10 @@ export default function SelectAppOrModelCard({
                             value="add-new-item"
                             onSelect={() => {
                               if (!isCustomConnector) {
-                                handleAddNewModel();
+                                handleAddNewModelClick();
                               } else {
-                                handleAddNewConfig();
+                                handleAddNewConfigClick();
                               }
-                              setModelOpen(false);
                             }}
                             data-testid={`add-new-${isCustomConnector ? 'config' : 'model'}-from-dropdown`}
                           >
