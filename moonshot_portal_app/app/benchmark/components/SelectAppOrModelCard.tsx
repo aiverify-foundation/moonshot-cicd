@@ -1,5 +1,5 @@
 "use client"
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { Button } from "@/components/ui/button"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
@@ -7,44 +7,29 @@ import { Card, CardContent, CardDescription, CardTitle } from "@/components/ui/c
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { Check, ChevronsUpDown, Edit, Plus, CircleAlert, CircleCheckBig } from "lucide-react";
 import { type Provider, type ModelConfig, type Config, type ModelApp } from "./MockData";
-import { useAppDispatch } from "@/hooks/reduxHooks";
-import { setSelectedProvider, setSelectedModel, setSelectedConfig } from "@/store";
+import { useAppDispatch, useAppSelector } from "@/hooks/reduxHooks";
+import { setSelectedProvider, setSelectedModel, setSelectedConfig, updateConfigValidity } from "@/store";
+import EditModelSheet from "./EditModelSheet";
+import EditCustomApplicationSheet from "./EditCustomApplicationSheet";
 
 interface SelectAppOrModelCardProps {
-  // Redux state (from parent)
-  selectedProvider: string;
-  selectedModel: string;
-  selectedConfig: string;
-  isConfigValid: boolean;
-  
   // Raw data
   providers: Provider[];
   models: ModelConfig[];
   custom_connectors: ModelApp[];
   configs: Config[];
-  
-  // Callbacks for sheet management
-  onEditModel: (modelId: string) => void;
-  onAddNewModel: () => void;
-  onEditConfig: (configId: string) => void;
-  onAddNewConfig: () => void;
 }
 
 export default function SelectAppOrModelCard({
-  selectedProvider,
-  selectedModel,
-  selectedConfig,
-  isConfigValid,
   providers,
   models,
   custom_connectors,
   configs,
-  onEditModel,
-  onAddNewModel,
-  onEditConfig,
-  onAddNewConfig,
 }: SelectAppOrModelCardProps) {
   const dispatch = useAppDispatch();
+  
+  // Redux state
+  const { selectedProvider, selectedModel, selectedConfig, isConfigValid } = useAppSelector(state => state.modelSelection);
   
   // Local UI state
   const [providerOpen, setProviderOpen] = useState(false);
@@ -52,9 +37,18 @@ export default function SelectAppOrModelCard({
   const [showAllStandardProviders, setShowAllStandardProviders] = useState(false);
   const [showAllCustomConnectors, setShowAllCustomConnectors] = useState(false);
   
-  // Computed values
-  const allProviders = useMemo(() => [...providers, ...custom_connectors], [providers, custom_connectors]);
+  // Sheet state management
+  const [sheetOpen, setSheetOpen] = useState(false);
+  const [editingModel, setEditingModel] = useState<string>("");
+  const [customSheetOpen, setCustomSheetOpen] = useState(false);
+  const [editingConfig, setEditingConfig] = useState<string>("");
   
+  // Track config validity when selections change
+  useEffect(() => {
+    dispatch(updateConfigValidity());
+  }, [selectedProvider, selectedModel, selectedConfig, dispatch]);
+  
+  // Computed values
   const filteredModels = useMemo(() => 
     models.filter(model => model.provider === selectedProvider),
     [models, selectedProvider]
@@ -70,51 +64,76 @@ export default function SelectAppOrModelCard({
     [custom_connectors, selectedProvider]
   );
   
+  // Sheet handlers
+  const handleEditModel = (modelId: string) => {
+    setEditingModel(modelId);
+    setSheetOpen(true);
+  };
+
+  const handleAddNewModel = () => {
+    setEditingModel(selectedProvider); // Set selected provider to indicate new model creation for this provider
+    setSheetOpen(true);
+  };
+
+  const handleEditConfig = (configId: string) => {
+    setEditingConfig(configId);
+    setCustomSheetOpen(true);
+  };
+
+  const handleAddNewConfig = () => {
+    setEditingConfig(selectedProvider); // Set selected provider to indicate new configuration creation for this provider
+    setCustomSheetOpen(true);
+  };
+  
   // Handle edit actions with event.stopPropagation
   const handleEditModelClick = (modelId: string, event: React.MouseEvent) => {
     event.stopPropagation();
-    onEditModel(modelId);
+    handleEditModel(modelId);
     setModelOpen(false);
   };
   
   const handleEditConfigClick = (configId: string, event: React.MouseEvent) => {
     event.stopPropagation();
-    onEditConfig(configId);
+    handleEditConfig(configId);
     setModelOpen(false);
   };
   
   const handleAddNewModelClick = () => {
-    onAddNewModel();
+    handleAddNewModel();
     setModelOpen(false);
   };
   
   const handleAddNewConfigClick = () => {
-    onAddNewConfig();
+    handleAddNewConfig();
     setModelOpen(false);
   };
+  // Combine providers and custom connectors for sheets
+  const allProviders = useMemo(() => [...providers, ...custom_connectors], [providers, custom_connectors]);
+
   return (
-    <Card className="w-3xl py-1">
-      <Accordion type="single" collapsible defaultValue="item-1">
-        <AccordionItem value="item-1">
-          <AccordionTrigger className="flex flex-row items-center hover:no-underline px-6 py-4">
-            <div className="flex-1">
-              <CardTitle data-testid="card-title">Select App or Model</CardTitle>
-              <CardDescription data-testid="card-description">
-                Confirm the details of the app or model to be tested.
-              </CardDescription>
-            </div>
-            {/* Status indicators */}
-            <div className="flex items-center">
-              {!isConfigValid && (
-                <CircleAlert className="h-5 w-5 text-red-500" data-testid="status-indicator" />
-              )}
-              {isConfigValid && (
-                <CircleCheckBig className="h-5 w-5 text-green-500" data-testid="status-indicator" />
-              )}
-            </div>
-          </AccordionTrigger>
-          <AccordionContent>
-            <CardContent className="flex gap-6">
+    <>
+      <Card className="w-3xl py-1">
+        <Accordion type="single" collapsible defaultValue="item-1">
+          <AccordionItem value="item-1">
+            <AccordionTrigger className="flex flex-row items-center hover:no-underline px-6 py-4">
+              <div className="flex-1">
+                <CardTitle data-testid="card-title">Select App or Model</CardTitle>
+                <CardDescription data-testid="card-description">
+                  Confirm the details of the app or model to be tested.
+                </CardDescription>
+              </div>
+              {/* Status indicators */}
+              <div className="flex items-center">
+                {!isConfigValid && (
+                  <CircleAlert className="h-5 w-5 text-red-500" data-testid="status-indicator" />
+                )}
+                {isConfigValid && (
+                  <CircleCheckBig className="h-5 w-5 text-green-500" data-testid="status-indicator" />
+                )}
+              </div>
+            </AccordionTrigger>
+            <AccordionContent>
+              <CardContent className="flex gap-6">
               <div className="w-80">
                 <label className="block text-sm font-medium text-gray-700 mb-2">
                   LLM Provider
@@ -347,6 +366,25 @@ export default function SelectAppOrModelCard({
         </AccordionItem>
       </Accordion>
     </Card>
+    
+    {/* Edit Model Sheet */}
+    <EditModelSheet
+      open={sheetOpen}
+      onOpenChange={setSheetOpen}
+      editingModel={editingModel}
+      providers={allProviders}
+      models={models}
+    />
+    
+    {/* Edit Custom Application Sheet */}
+    <EditCustomApplicationSheet
+      open={customSheetOpen}
+      onOpenChange={setCustomSheetOpen}
+      editingConfig={editingConfig}
+      modelApps={custom_connectors}
+      configs={configs}
+    />
+  </>
   );
 }
 

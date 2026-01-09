@@ -10,12 +10,6 @@ describe('SelectAppOrModelCard', () => {
 
   describe('Initial Page Load Display', () => {
     it('Scenario: GIVEN as a user WHEN load Standard Provider Side Sheet THEN display a card that displays the following. Display "Select App or Model" AND "confirm the details of the app or model to be tested." AND Display a Combobox', () => {
-      // Setup mock functions
-      const onEditModel = jest.fn();
-      const onAddNewModel = jest.fn();
-      const onEditConfig = jest.fn();
-      const onAddNewConfig = jest.fn();
-
       // Create test store with initial state
       const store = createTestStore({
         modelSelection: {
@@ -30,18 +24,10 @@ describe('SelectAppOrModelCard', () => {
       // Render component with all required props
       render(
         <SelectAppOrModelCard
-          selectedProvider=""
-          selectedModel=""
-          selectedConfig=""
-          isConfigValid={false}
           providers={providers}
           models={models}
           custom_connectors={custom_connectors}
           configs={configs}
-          onEditModel={onEditModel}
-          onAddNewModel={onAddNewModel}
-          onEditConfig={onEditConfig}
-          onAddNewConfig={onAddNewConfig}
         />,
         {
           store,
