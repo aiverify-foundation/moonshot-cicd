@@ -7,6 +7,7 @@ from fastapi import FastAPI, Request, HTTPException
 from fastapi.responses import FileResponse
 from fastapi.middleware.cors import CORSMiddleware
 import os
+import asyncio
 from pathlib import Path
 from urllib.parse import urlparse
 from domain.services.app_config import AppConfig
@@ -22,6 +23,10 @@ from application.services.sqlite_provider_repository import SQLiteProviderReposi
 from application.services.file_model_config_repository import FileModelConfigRepository
 from application.dto.provider_dto import ProviderDTO
 from application.dto.model_config_dto import ModelConfigDTO
+from application.dto.run_benchmark_dto import RunBenchmarkRequestDTO, RunBenchmarkResponseDTO
+
+# Benchmark execution service
+from application.services.benchmark_execution_service import BenchmarkExecutionService
 
 # Configure the logger for this module
 logger = configure_logger(__name__)
@@ -235,6 +240,52 @@ async def list_all_fixed_configs():
     except Exception as e:
         logger.error(f"Error fetching fixed endpoint configurations: {e}")
         raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
+
+
+@app.post("/api/run-benchmark", response_model=RunBenchmarkResponseDTO)
+async def run_benchmark(
+    request: RunBenchmarkRequestDTO
+) -> RunBenchmarkResponseDTO:
+    """
+    Start a benchmark execution asynchronously.
+    
+    The benchmark will run in the background and results will be written to
+    data/results/{run_id}.json when complete.
+    
+    Multiple benchmarks can run concurrently using asyncio tasks.
+    
+    Args:
+        request: Benchmark configuration parameters (test_name, dataset, metric, connector)
+        
+    Returns:
+        Response containing test_name and message
+    """
+    try:
+        logger.info(f"Received benchmark execution request for test: {request.test_name}")
+        
+        # Create BenchmarkExecutionService instance
+        execution_service = BenchmarkExecutionService()
+        
+        # Create a concurrent task (runs in background, doesn't block response)
+        task = asyncio.create_task(
+            execution_service.execute_benchmark(
+                test_name=request.test_name,
+                dataset=request.dataset,
+                metric=request.metric,
+                connector=request.connector
+            )
+        )
+        
+        logger.info(f"Benchmark execution started concurrently for test: {request.test_name}")
+        
+        return RunBenchmarkResponseDTO(
+            test_name=request.test_name,
+            message="Benchmark execution started successfully"
+        )
+        
+    except Exception as e:
+        logger.error(f"Error starting benchmark execution: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to start benchmark execution: {str(e)}")
 
 
 @app.api_route("/{file_path:path}", methods=["GET", "HEAD"])

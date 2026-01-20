@@ -5,8 +5,9 @@ Tests for the FastAPI application.
 import pytest
 import sys
 import os
+import asyncio
 from pathlib import Path
-from unittest.mock import patch, MagicMock
+from unittest.mock import patch, MagicMock, AsyncMock
 from fastapi.testclient import TestClient
 
 # Add the src directory to the Python path
@@ -171,3 +172,153 @@ def test_next_js_static_files_direct_access_blocked(mock_get_build_dir):
     response = client.get("/_next/static/test.js")
     assert response.status_code == 403
     assert "Direct access to static files is not allowed" in response.json()["detail"]
+
+
+@patch('entrypoints.api.BenchmarkExecutionService')
+def test_run_benchmark_success(mock_service_class):
+    """Test successful benchmark execution request."""
+    # Create a mock service instance
+    mock_service = MagicMock()
+    mock_service.execute_benchmark = AsyncMock(return_value=None)
+    mock_service_class.return_value = mock_service
+    
+    # Test payload
+    payload = {
+        "test_name": "test_benchmark_1",
+        "dataset": "test_dataset",
+        "metric": "accuracy_adapter",
+        "connector": "my-gpt-4o"
+    }
+    
+    response = client.post("/api/run-benchmark", json=payload)
+    
+    # Verify response
+    assert response.status_code == 200
+    data = response.json()
+    assert data["test_name"] == "test_benchmark_1"
+    assert data["message"] == "Benchmark execution started successfully"
+    
+    # Verify the service was called with correct parameters
+    mock_service_class.assert_called_once()
+    mock_service.execute_benchmark.assert_called_once_with(
+        test_name="test_benchmark_1",
+        dataset="test_dataset",
+        metric="accuracy_adapter",
+        connector="my-gpt-4o"
+    )
+
+
+@patch('entrypoints.api.BenchmarkExecutionService')
+def test_run_benchmark_with_different_params(mock_service_class):
+    """Test benchmark execution with different parameters."""
+    # Create a mock service instance
+    mock_service = MagicMock()
+    mock_service.execute_benchmark = AsyncMock(return_value=None)
+    mock_service_class.return_value = mock_service
+    
+    # Test payload with different values
+    payload = {
+        "test_name": "another_test",
+        "dataset": "different_dataset",
+        "metric": "custom_metric",
+        "connector": "custom-connector"
+    }
+    
+    response = client.post("/api/run-benchmark", json=payload)
+    
+    # Verify response
+    assert response.status_code == 200
+    data = response.json()
+    assert data["test_name"] == "another_test"
+    assert "successfully" in data["message"].lower()
+    
+    # Verify the service was called with the correct parameters
+    mock_service.execute_benchmark.assert_called_once_with(
+        test_name="another_test",
+        dataset="different_dataset",
+        metric="custom_metric",
+        connector="custom-connector"
+    )
+
+
+@patch('entrypoints.api.BenchmarkExecutionService')
+def test_run_benchmark_service_initialization_error(mock_service_class):
+    """Test error handling when service initialization fails."""
+    # Make the service class raise an exception on initialization
+    mock_service_class.side_effect = Exception("Service initialization failed")
+    
+    payload = {
+        "test_name": "test_benchmark",
+        "dataset": "test_dataset",
+        "metric": "accuracy_adapter",
+        "connector": "my-gpt-4o"
+    }
+    
+    response = client.post("/api/run-benchmark", json=payload)
+    
+    # Verify error response
+    assert response.status_code == 500
+    assert "Failed to start benchmark execution" in response.json()["detail"]
+
+
+@patch('entrypoints.api.BenchmarkExecutionService')
+def test_run_benchmark_execution_error(mock_service_class):
+    """Test error handling when benchmark execution fails during task creation."""
+    # Create a mock service instance that raises an error when execute_benchmark is called
+    mock_service = MagicMock()
+    mock_service.execute_benchmark = AsyncMock(side_effect=Exception("Execution failed"))
+    mock_service_class.return_value = mock_service
+    
+    payload = {
+        "test_name": "test_benchmark",
+        "dataset": "test_dataset",
+        "metric": "accuracy_adapter",
+        "connector": "my-gpt-4o"
+    }
+    
+    # Note: Since the endpoint uses asyncio.create_task and doesn't await,
+    # the error might not be caught immediately. However, if there's an error
+    # during task creation, it should be caught.
+    # This test verifies the endpoint still returns a response
+    response = client.post("/api/run-benchmark", json=payload)
+    
+    # The endpoint should still return 200 because it doesn't await the task
+    # The error would be logged but not raised
+    assert response.status_code == 200
+
+
+def test_run_benchmark_invalid_payload():
+    """Test benchmark endpoint with invalid/missing fields."""
+    # Missing required fields
+    payload = {
+        "test_name": "test_benchmark"
+        # Missing dataset, metric, connector
+    }
+    
+    response = client.post("/api/run-benchmark", json=payload)
+    
+    # Should return 422 (Unprocessable Entity) for validation error
+    assert response.status_code == 422
+
+
+def test_run_benchmark_empty_payload():
+    """Test benchmark endpoint with empty payload."""
+    response = client.post("/api/run-benchmark", json={})
+    
+    # Should return 422 (Unprocessable Entity) for validation error
+    assert response.status_code == 422
+
+
+def test_run_benchmark_wrong_types():
+    """Test benchmark endpoint with wrong data types."""
+    payload = {
+        "test_name": 123,  # Should be string
+        "dataset": "test_dataset",
+        "metric": "accuracy_adapter",
+        "connector": "my-gpt-4o"
+    }
+    
+    response = client.post("/api/run-benchmark", json=payload)
+    
+    # Should return 422 (Unprocessable Entity) for validation error
+    assert response.status_code == 422

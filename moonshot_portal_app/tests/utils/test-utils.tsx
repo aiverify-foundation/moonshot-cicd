@@ -4,11 +4,12 @@ import { Provider } from 'react-redux';
 import { Store } from '@reduxjs/toolkit';
 import { createTestStore, RootState } from '@/store';
 
-// we need the custome render function to wrap the component with the Redux Provider
-// because the component is using the useAppSelector hook to get the state, 
-// if we don't wrap the component with the Redux Provider
-// the useAppSelector hook will not be able to get the state, 
-// and the component will not render correctly
+//React Testing Library's default render doesn't provide a Redux store. 
+// Without a Provider, useAppDispatch and useAppSelector will throw an error 
+// because they can't access the Redux context.
+// So we need to create a custom render function that wraps the component
+// with the Redux Provider. This is a workaround to get the Redux store into the component.
+
 
 // Re-export testing utilities
 export { screen, waitFor };

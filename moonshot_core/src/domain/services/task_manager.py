@@ -147,7 +147,7 @@ class TaskManager:
             prompts = self._generate_prompts(dataset_entity)
             logger.info(self.INFO_PROMPTS_COUNT.format(count=len(prompts)))
             # Process the prompts and get results
-            self.prompts_with_results, evaluation_summary = (
+            prompts_with_results, evaluation_summary = (
                 await prompt_processor_instance[0].process_prompts(
                     prompts, connector_entity, metric, callback_fn
                 )
@@ -156,7 +156,7 @@ class TaskManager:
             # Invoke the callback function to indicate the formatting stage
             self._invoke_callback(callback_fn, stage=2, message="Formatting results")
             individual_results = self._convert_prompt_entities_to_dicts(
-                self.prompts_with_results, metric
+                prompts_with_results, metric
             )
             # Format the metadata for the benchmark results
             metadata = self._format_metadata(
