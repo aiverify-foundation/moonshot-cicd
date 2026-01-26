@@ -13,6 +13,9 @@ from fastapi.testclient import TestClient
 # Add the src directory to the Python path
 src_path = Path(__file__).parent.parent.parent / "src"
 sys.path.insert(0, str(src_path))
+# Add the repo root to the Python path for process_check_app imports
+repo_root = Path(__file__).parent.parent.parent.parent
+sys.path.insert(0, str(repo_root))
 
 from entrypoints.api import app
 
@@ -112,7 +115,7 @@ def _create_side_effect_functions(mock_connector_instance, mock_prompt_processor
 async def _wait_for_result_file_and_validate(absolute_result_path):
     """Helper function to wait for result file and validate JSON."""
     import json
-    from tests.utils.report_validation.report_validation import validate_json
+    from process_check_app.backend.report_validation import validate_json
     
     max_wait = 15
     wait_interval = 0.2
