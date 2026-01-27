@@ -1,0 +1,149 @@
+import os
+from typing import Any
+
+from together import AsyncTogether
+
+from domain.entities.connector_entity import ConnectorEntity
+from domain.entities.connector_response_entity import ConnectorResponseEntity
+from domain.ports.connector_port import ConnectorPort
+from domain.services.logger import configure_logger
+
+# Initialize a logger for this module
+logger = configure_logger(__name__)
+
+
+class TogetherAdapter(ConnectorPort):
+
+    ERROR_PROCESSING_PROMPT = "[TogetherAdapter] Failed to process prompt."
+    INFO_CONFIGURED = "[TogetherAdapter] Configured with model: {model}, endpoint: {endpoint}"
+    WARNING_NO_API_KEY = "[TogetherAdapter] WARNING: TOGETHER_API_KEY environment variable is not set or is empty."
+    INFO_API_KEY_PRESENT = "[TogetherAdapter] API key is present (length: {length} characters)"
+    INFO_MAKING_REQUEST = "[TogetherAdapter] Making API request to model: {model}, endpoint: {endpoint}"
+
+    """
+    Adapter for interacting with the Together AI API.
+
+    This class provides methods to configure the Together AI API client and retrieve responses
+    based on given prompts. It uses the Together client to make requests to the Together AI API
+    and processes the responses to return structured data.
+
+    Attributes:
+        connector_entity (ConnectorEntity): The configuration entity for the connector.
+        _client (AsyncTogether): The Together AI API client.
+    """
+
+    def configure(self, connector_entity: ConnectorEntity):
+        """
+        Configure the Together AI API client with the given connector entity.
+
+        Args:
+            connector_entity (ConnectorEntity): The configuration entity for the connector.
+        """
+        self.connector_entity = connector_entity
+        api_key = os.getenv("TOGETHER_API_KEY") or ""
+        
+        # Log API key status (without exposing the actual key)
+        if not api_key:
+            logger.warning(self.WARNING_NO_API_KEY)
+        else:
+            logger.info(self.INFO_API_KEY_PRESENT.format(length=len(api_key)))
+        
+        endpoint = self.connector_entity.model_endpoint or "default (api.together.xyz/v1)"
+        logger.info(
+            self.INFO_CONFIGURED.format(
+                model=self.connector_entity.model,
+                endpoint=endpoint
+            )
+        )
+        
+        self._client = AsyncTogether(
+            api_key=api_key,
+            base_url=self.connector_entity.model_endpoint or None,
+        )
+
+    async def get_response(self, prompt: Any) -> ConnectorResponseEntity:
+        """
+        Retrieve a response from the Together AI API based on the given prompt.
+
+        Args:
+            prompt (Any): The prompt to send to the Together AI API. It can be of any type.
+
+        Returns:
+            ConnectorResponseEntity: The response from the Together AI API.
+        """
+        connector_prompt = f"{self.connector_entity.connector_pre_prompt}{prompt}{self.connector_entity.connector_post_prompt}"  # noqa: E501
+
+        if self.connector_entity.system_prompt:
+            together_request = [
+                {"role": "system", "content": self.connector_entity.system_prompt},
+                {"role": "user", "content": connector_prompt},
+            ]
+        else:
+            together_request = [{"role": "user", "content": connector_prompt}]
+
+        # Merge model parameters with additional parameters
+        new_params = {
+            **self.connector_entity.params,
+            "model": self.connector_entity.model,
+            "messages": together_request,
+        }
+        
+        endpoint = self.connector_entity.model_endpoint or "default (api.together.xyz/v1)"
+        logger.info(
+            self.INFO_MAKING_REQUEST.format(
+                model=self.connector_entity.model,
+                endpoint=endpoint
+            )
+        )
+        
+        try:
+            response = await self._client.chat.completions.create(**new_params)
+            return ConnectorResponseEntity(
+                response=await self._process_response(response)
+            )
+        except Exception as e:
+            # Enhanced error logging with exception type and details
+            error_type = type(e).__name__
+            error_message = str(e)
+            
+            logger.error(
+                f"{self.ERROR_PROCESSING_PROMPT} Exception type: {error_type}, "
+                f"Error: {error_message}"
+            )
+            
+            # Log additional context for common error types
+            if "api_key" in error_message.lower() or "authentication" in error_message.lower():
+                logger.error(
+                    "[TogetherAdapter] Authentication error detected. "
+                    "Please verify that TOGETHER_API_KEY environment variable is set correctly."
+                )
+            elif "connection" in error_message.lower() or "network" in error_message.lower():
+                logger.error(
+                    "[TogetherAdapter] Connection error detected. "
+                    "Please check your network connection and API endpoint configuration."
+                )
+            elif "rate_limit" in error_message.lower() or "quota" in error_message.lower():
+                logger.error(
+                    "[TogetherAdapter] Rate limit or quota error detected. "
+                    "Please check your API usage limits."
+                )
+            
+            raise
+
+    async def _process_response(self, response: Any) -> str:
+        """
+        Process the response from Together AI's API and return the message content as a string.
+
+        This method processes the response received from Together AI's API call, specifically targeting
+        the chat completion response structure. It extracts the message content from the first choice
+        provided in the response, which is expected to contain the relevant information or answer.
+
+        Args:
+            response (Any): The response object received from a Together AI API call. It follows the
+            structure of OpenAI-compatible chat completion response.
+
+        Returns:
+            str: A string containing the message content from the first choice in the response. This
+            content represents the AI-generated text based on the input prompt.
+        """
+        return response.choices[0].message.content

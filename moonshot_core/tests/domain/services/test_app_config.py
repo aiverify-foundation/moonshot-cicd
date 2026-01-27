@@ -13,7 +13,7 @@ common:
   max_calls_per_minute: 10
   max_attempts: 3
 connectors_configurations:
-  - name: test_connector
+  - id: test_connector
     connector_adapter: openai_adapter
     model: gpt-4o-mini
 attack_modules:
@@ -65,7 +65,7 @@ def test_singleton_pattern(mock_file_loader):
 
 def test_load_configuration_from_file(mock_file_loader):
     app_config = AppConfig()
-    assert app_config.config.connectors_configurations[0]['name'] == "test_connector", "Connector not loaded correctly"
+    assert app_config.config.connectors_configurations[0]['id'] == "test_connector", "Connector not loaded correctly"
     assert app_config.config.metrics[0]['name'] == "test_metric", "Metric not loaded correctly"
     assert app_config.config.attack_modules[0]['name'] == "test_attack_module", "Attack module not loaded correctly"
 
@@ -79,7 +79,7 @@ connector_test_cases = [
     # Valid configuration
     ("""
     connectors_configurations:
-      - name: test_connector_1
+      - id: test_connector_1
         connector_adapter: openai_adapter
         model: gpt-4o-mini
         connector_pre_prompt: ""
@@ -89,56 +89,56 @@ connector_test_cases = [
     # Non-existent connector
     ("""
     connectors_configurations:
-      - name: test_connector_1
+      - id: test_connector_1
         connector_adapter: openai_adapter
         model: gpt-4o-mini
     """, "non_existent_connector", None),
     # Invalid connector-adapter
     ("""
     connectors_configurations:
-      - name: test_connector_1
+      - id: test_connector_1
         connector_adapter: []
         model: gpt-4o-mini
     """, "test_connector_1", False),
     # Invalid connector-adapter
     ("""
     connectors_configurations:
-      - name: test_connector_1
+      - id: test_connector_1
         connector_adapter: {}
         model: gpt-4o-mini
     """, "test_connector_1", False),
     # Invalid connector-adapter
     ("""
     connectors_configurations:
-      - name: test_connector_1
+      - id: test_connector_1
         connector_adapter: 123
         model: gpt-4o-mini
     """, "test_connector_1", False),
     # Invalid model
     ("""
     connectors_configurations:
-      - name: test_connector_1
+      - id: test_connector_1
         connector_adapter: openai_adapter
         model: []
     """, "test_connector_1", False),
     # Invalid model
     ("""
     connectors_configurations:
-      - name: test_connector_1
+      - id: test_connector_1
         connector_adapter: openai_adapter
         model: {}
     """, "test_connector_1", False),
     # Invalid model
     ("""
     connectors_configurations:
-      - name: test_connector_1
+      - id: test_connector_1
         connector_adapter: openai_adapter
         model: 123
     """, "test_connector_1", False),
     # Invalid system_prompt
     ("""
     connectors_configurations:
-      - name: test_connector_1
+      - id: test_connector_1
         connector_adapter: openai_adapter
         model: gpt-4o-mini
         system_prompt: []
@@ -146,7 +146,7 @@ connector_test_cases = [
     # Invalid system_prompt
     ("""
     connectors_configurations:
-      - name: test_connector_1
+      - id: test_connector_1
         connector_adapter: openai_adapter
         model: gpt-4o-mini
         system_prompt: {}
@@ -154,7 +154,7 @@ connector_test_cases = [
     # Invalid system_prompt
     ("""
     connectors_configurations:
-      - name: test_connector_1
+      - id: test_connector_1
         connector_adapter: openai_adapter
         model: gpt-4o-mini
         system_prompt: 123
@@ -162,7 +162,7 @@ connector_test_cases = [
     # Invalid connector_pre_prompt
     ("""
     connectors_configurations:
-      - name: test_connector_1
+      - id: test_connector_1
         connector_adapter: openai_adapter
         model: gpt-4o-mini
         connector_pre_prompt: []
@@ -170,7 +170,7 @@ connector_test_cases = [
     # Invalid connector_pre_prompt
     ("""
     connectors_configurations:
-      - name: test_connector_1
+      - id: test_connector_1
         connector_adapter: openai_adapter
         model: gpt-4o-mini
         connector_pre_prompt: {}
@@ -178,7 +178,7 @@ connector_test_cases = [
     # Invalid connector_pre_prompt
     ("""
     connectors_configurations:
-      - name: test_connector_1
+      - id: test_connector_1
         connector_adapter: openai_adapter
         model: gpt-4o-mini
         connector_pre_prompt: 123
@@ -186,7 +186,7 @@ connector_test_cases = [
     # Invalid connector_post_prompt
     ("""
     connectors_configurations:
-      - name: test_connector_1
+      - id: test_connector_1
         connector_adapter: openai_adapter
         model: gpt-4o-mini
         connector_post_prompt: []
@@ -194,7 +194,7 @@ connector_test_cases = [
     # Invalid connector_post_prompt
     ("""
     connectors_configurations:
-      - name: test_connector_1
+      - id: test_connector_1
         connector_adapter: openai_adapter
         model: gpt-4o-mini
         connector_post_prompt: {}
@@ -202,7 +202,7 @@ connector_test_cases = [
     # Invalid connector_post_prompt
     ("""
     connectors_configurations:
-      - name: test_connector_1
+      - id: test_connector_1
         connector_adapter: openai_adapter
         model: gpt-4o-mini
         connector_post_prompt: 123

@@ -139,7 +139,7 @@ class AppConfig:
                 (
                     config
                     for config in self._config.connectors_configurations
-                    if config["name"] == connector_config_name
+                    if config["id"] == connector_config_name
                 ),
                 None,
             )

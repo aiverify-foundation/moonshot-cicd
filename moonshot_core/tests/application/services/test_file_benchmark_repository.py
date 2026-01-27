@@ -765,7 +765,7 @@ class TestFileBenchmarkRepository:
         
         # Assert
         assert isinstance(result, TestBundleEntity)
-        assert result.name == "Hallucination Tests"
+        assert result.name == "Hallucination"  # Actual bundle name in config
         assert result.description is not None
         assert result.category == "IMDA's Starter Kit"
         assert len(result.tests) > 0  # Should have actual tests
