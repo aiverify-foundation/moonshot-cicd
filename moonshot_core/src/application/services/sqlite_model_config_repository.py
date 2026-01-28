@@ -35,6 +35,29 @@ class SQLiteModelConfigRepository(ModelConfigRepository):
         """
         return self.sqlite_adapter.get_model_config_by_name(name)
     
+    def get_model_config_by_id(self, config_id: str) -> Optional[ModelConfigEntity]:
+        """
+        Get a model configuration by its ID.
+        
+        Args:
+            config_id (str): The unique identifier of the model configuration.
+            
+        Returns:
+            Optional[ModelConfigEntity]: The model configuration entity if found, None otherwise.
+        """
+        # In SQLiteAdapter, config IDs are names, so we can use get_model_config_by_name
+        return self.sqlite_adapter.get_model_config_by_name(config_id)
+    
+    def list_model_configs(self) -> List[ModelConfigEntity]:
+        """
+        List all available model configurations.
+        
+        Returns:
+            List[ModelConfigEntity]: A list of all model configuration entities.
+        """
+        # Return empty list for now - can be implemented later if needed
+        return []
+    
     def get_model_configs_by_provider_id(self, provider_id: int) -> List[ModelConfigEntity]:
         """
         Get all model configurations associated with a given provider ID.

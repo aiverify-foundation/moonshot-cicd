@@ -83,6 +83,7 @@ class TaskManager:
         prompt_processor: str,
         callback_fn: Callable | None = None,
         write_result: bool = True,
+        write_to_db: bool = False,
     ) -> str:
         """
         Run a benchmark task with the specified parameters.
@@ -149,7 +150,7 @@ class TaskManager:
             # Process the prompts and get results
             prompts_with_results, evaluation_summary = (
                 await prompt_processor_instance[0].process_prompts(
-                    prompts, connector_entity, metric, callback_fn
+                    prompts, connector_entity, metric, callback_fn, write_to_db
                 )
             )
 

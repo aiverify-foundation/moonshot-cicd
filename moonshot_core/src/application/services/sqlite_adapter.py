@@ -209,89 +209,46 @@ class SQLiteAdapter:
 
     def add_model_config_entity(self, model_config: ModelConfigEntity) -> ModelConfigEntity:
         """
-        Add a new model configuration entity.
+        Create or update a model configuration entity.
         
-        This method handles the complex relationship between config, model, and config_parameters tables.
-        It will:
-        1. Create or find the config entry
-        2. Find the model by name and provider
-        3. Create the model_config junction entry
-        4. Save the config parameters
+        This method:
+        1. Creates or updates the config entry
+        2. Saves the config parameters
         
         Args:
-            model_config (ModelConfigEntity): The model configuration entity to add.
+            model_config (ModelConfigEntity): The model configuration entity to add/update.
             
         Returns:
-            ModelConfigEntity: The added model configuration entity.
-            
-        Raises:
-            ValueError: If model or provider not found
-            sqlite3.IntegrityError: If config with same name already exists
+            ModelConfigEntity: The added/updated model configuration entity.
         """
         with self.get_connection() as conn:
             try:
-                # 1. Create or update the config entry
-                cursor = conn.execute(
-                    "INSERT OR REPLACE INTO config (name, last_update_dt) VALUES (?, ?)",
+                # 1. Create or update config entry and get config_id
+                conn.execute(
+                    "INSERT INTO config (name, last_update_dt) VALUES (?, ?) "
+                    "ON CONFLICT(name) DO UPDATE SET last_update_dt = excluded.last_update_dt",
                     (model_config.name, model_config.lastUpdated.strftime("%Y-%m-%d"))
                 )
-                config_id = cursor.lastrowid
+                cursor = conn.execute("SELECT id FROM config WHERE name = ?", (model_config.name,))
+                row = cursor.fetchone()
+                if not row:
+                    raise ValueError(f"Failed to create config with name: {model_config.name}")
+                config_id = row["id"]
                 
-                # If INSERT OR REPLACE didn't return the ID, get it by name
-                if config_id is None:
-                    cursor = conn.execute("SELECT id FROM config WHERE name = ?", (model_config.name,))
-                    row = cursor.fetchone()
-                    config_id = row["id"] if row else None
+                # 2. Save config parameters
+                # Always delete existing parameters first
+                conn.execute("DELETE FROM config_parameters WHERE config_id = ?", (config_id,))
                 
-                if config_id is None:
-                    raise ValueError(f"Failed to create or find config with name: {model_config.name}")
-                
-                # 2. Find the model by name and provider
-                if model_config.modelname and model_config.providerID:
-                    # First find the provider
-                    provider_cursor = conn.execute(
-                        "SELECT id FROM llm_provider WHERE name = ?", 
-                        (model_config.providerID,)
-                    )
-                    provider_row = provider_cursor.fetchone()
-                    if not provider_row:
-                        raise ValueError(f"Provider not found: {model_config.providerID}")
-                    
-                    provider_id = provider_row["id"]
-                    
-                    # Then find the model
-                    model_cursor = conn.execute(
-                        "SELECT id FROM model WHERE name = ? AND llm_provider_id = ?",
-                        (model_config.modelname, provider_id)
-                    )
-                    model_row = model_cursor.fetchone()
-                    if not model_row:
-                        raise ValueError(f"Model not found: {model_config.modelname} for provider {model_config.providerID}")
-                    
-                    model_id = model_row["id"]
-                    
-                    # 3. Create or update the model_config junction entry
-                    conn.execute(
-                        """INSERT OR REPLACE INTO model_config (model_id, config_id, last_run_dt) 
-                           VALUES (?, ?, ?)""",
-                        (model_id, config_id, model_config.lastUpdated.strftime("%Y-%m-%d"))
-                    )
-                
-                # 4. Save the config parameters
+                # Then insert new parameters if any exist
                 if model_config.savedConfigPairs:
-                    # Delete existing parameters
-                    conn.execute("DELETE FROM config_parameters WHERE config_id = ?", (config_id,))
-                    
-                    # Insert new parameters
                     for key, value in model_config.savedConfigPairs.items():
                         conn.execute(
-                            "INSERT INTO config_parameters (config_id, key, value) VALUES (?, ?, ?)",
+                            "INSERT INTO config_parameters (config_id, key, value) VALUES (?, ?, ?) "
+                            "ON CONFLICT(config_id, key) DO UPDATE SET value = excluded.value",
                             (config_id, key, value)
                         )
                 
                 conn.commit()
-                
-                # Return the created entity (it should be the same as input)
                 return model_config
                 
             except Exception as e:

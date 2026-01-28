@@ -20,6 +20,7 @@ class PromptProcessorPort(ABC):
         connector_entity: ConnectorEntity,
         metric: str,
         callback_fn: Callable | None = None,
+        write_to_db: bool = False,
     ) -> list[PromptEntity]:
         """
         Asynchronously process a list of prompts using the provided connector and metric.

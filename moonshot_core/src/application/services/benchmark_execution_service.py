@@ -1,11 +1,13 @@
 """
-Service for executing benchmarks asynchronously.
+Service for executing benchmarks.
 
 This service handles the execution of benchmark tasks using TaskManager,
 providing a clean interface for background task execution.
+Internally handles async operations while providing a synchronous interface.
 """
 
 import json
+import asyncio
 from datetime import datetime
 from domain.services.logger import configure_logger
 from domain.services.task_manager import TaskManager
@@ -16,17 +18,18 @@ logger = configure_logger(__name__)
 
 class BenchmarkExecutionService:
     """
-    Service class for executing benchmark tasks asynchronously.
+    Service class for executing benchmark tasks.
     
     This service provides methods to execute benchmarks in the background,
     handling TaskManager initialization, parameter conversion, and error handling.
     """
     
+    # This is where we should pass in references to the repositories
     def __init__(self):
         """Initialize the BenchmarkExecutionService."""
         logger.info("[BenchmarkExecutionService] Initializing BenchmarkExecutionService")
     
-    async def execute_benchmark(
+    def execute_benchmark(
         self,
         test_name: str,
         dataset: str,
@@ -34,7 +37,7 @@ class BenchmarkExecutionService:
         connector: str
     ) -> None:
         """
-        Execute a benchmark asynchronously.
+        Execute a benchmark synchronously.
         
         This method converts the metric string to the required dict format,
         generates a run_id, and executes the benchmark using TaskManager.
@@ -42,6 +45,8 @@ class BenchmarkExecutionService:
         
         Follows the same pattern as run_test: collects JSONs from run_benchmark
         and creates a combined JSON file with run_metadata and run_results.
+        
+        Internally handles async operations using asyncio.run().
         
         Args:
             test_name: Unique identifier for the benchmark test
@@ -60,8 +65,7 @@ class BenchmarkExecutionService:
             
             # Convert metric string to dict format 
             metric_dict = {"name": metric}
-            
-            # Auto-generate run_id using timestamp format
+
             run_id = test_name
             
             # Use default prompt processor
@@ -71,15 +75,19 @@ class BenchmarkExecutionService:
             task_manager = TaskManager()
             
             # Get JSON string from run_benchmark (with write_result=False, like run_test does)
-            serialized_results = await task_manager.run_benchmark(
-                run_id=run_id,
-                test_name=test_name,
-                dataset=dataset,
-                metric=metric_dict,
-                connector=connector,
-                prompt_processor=prompt_processor,
-                callback_fn=None,
-                write_result=False,
+            # Run the async operation synchronously using asyncio.run()
+            serialized_results = asyncio.run(
+                task_manager.run_benchmark(
+                    run_id=run_id,
+                    test_name=test_name,
+                    dataset=dataset,
+                    metric=metric_dict,
+                    connector=connector,
+                    prompt_processor=prompt_processor,
+                    callback_fn=None,
+                    write_result=False,
+                    write_to_db=True
+                )
             )
             
             # Record the end time and calculate duration
