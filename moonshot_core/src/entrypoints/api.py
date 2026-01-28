@@ -24,7 +24,7 @@ from application.services.sqlite_provider_repository import SQLiteProviderReposi
 from application.services.file_model_config_repository import FileModelConfigRepository
 from application.dto.provider_dto import ProviderDTO
 from application.dto.model_config_dto import ModelConfigDTO
-from application.dto.run_benchmark_dto import RunBenchmarkRequestDTO, RunBenchmarkResponseDTO
+from application.dto.run_bundle_dto import RunBundleRequestDTO, RunBundleResponseDTO
 
 # Benchmark execution service
 from application.services.benchmark_execution_service import BenchmarkExecutionService
@@ -243,63 +243,60 @@ async def list_all_fixed_configs():
         raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
 
 
-def _run_benchmark_in_process(test_name: str, dataset: str, metric: str, connector: str) -> None:
+def _run_bundle_in_process(bundle_id: str, connector: str) -> None:
     """
-    Wrapper function to run benchmark in a separate process.
-    
-    This function instantiates BenchmarkExecutionService and calls execute_benchmark.
+    Wrapper function to run a bundle in a separate process.
+
+    This function instantiates BenchmarkExecutionService and calls execute_bundle.
     It is designed to be used as a target for multiprocessing.Process.
-    
+
     Args:
-        test_name: Unique identifier for the benchmark test
-        dataset: Dataset name to load
-        metric: Metric name (e.g., "accuracy_adapter")
+        bundle_id: Bundle identifier to execute
         connector: Connector name to use
     """
     execution_service = BenchmarkExecutionService()
-    execution_service.execute_benchmark(test_name, dataset, metric, connector)
+    execution_service.execute_bundle(bundle_id, connector)
 
 
-@app.post("/api/run-benchmark", response_model=RunBenchmarkResponseDTO)
-async def run_benchmark(
-    request: RunBenchmarkRequestDTO
-) -> RunBenchmarkResponseDTO:
+@app.post("/api/run-bundle", response_model=RunBundleResponseDTO)
+async def run_bundle(request: RunBundleRequestDTO) -> RunBundleResponseDTO:
     """
-    Start a benchmark execution in a separate daemon process.
-    
-    The benchmark will run in the background and results will be written to
-    data/results/{run_id}.json when complete.
-    
-    Multiple benchmarks can run concurrently in separate processes.
-    Daemon processes will automatically terminate when the parent process exits.
-    
+    Start a bundle execution (multiple benchmarks) in a separate daemon process.
+
+    The bundle definition is resolved via benchmark_service.get_bundle_by_id.
+    Results will be written to data/results/{bundle_id}.json when complete.
+
     Args:
-        request: Benchmark configuration parameters (test_name, dataset, metric, connector)
-        
+        request: Bundle execution parameters (bundle_name/bundle_id, connector)
+
     Returns:
-        Response containing test_name and message
+        Response containing bundle_name and message
     """
     try:
-        logger.info(f"Received benchmark execution request for test: {request.test_name}")
-        
-        # Create a daemon process (runs in background, doesn't block response)
+        # Validate bundle exists up-front to fail fast
+        bundle = benchmark_service.get_bundle_by_id(request.bundle_name)
+
+        logger.info(f"Received bundle execution request for bundle: {bundle.id}")
+
         process = multiprocessing.Process(
-            target=_run_benchmark_in_process,
-            args=(request.test_name, request.dataset, request.metric, request.connector)
+            target=_run_bundle_in_process,
+            args=(bundle.id, request.connector),
         )
         process.daemon = True
         process.start()
-        
-        logger.info(f"Benchmark execution started in daemon process for test: {request.test_name}")
-        
-        return RunBenchmarkResponseDTO(
-            test_name=request.test_name,
-            message="Benchmark execution started successfully"
+
+        logger.info(f"Bundle execution started in daemon process for bundle: {bundle.id}")
+
+        return RunBundleResponseDTO(
+            bundle_name=request.bundle_name,
+            message="Bundle execution started successfully",
         )
-        
+
+    except KeyError as e:
+        raise HTTPException(status_code=404, detail=str(e))
     except Exception as e:
-        logger.error(f"Error starting benchmark execution: {e}")
-        raise HTTPException(status_code=500, detail=f"Failed to start benchmark execution: {str(e)}")
+        logger.error(f"Error starting bundle execution: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to start bundle execution: {str(e)}")
 
 
 @app.api_route("/{file_path:path}", methods=["GET", "HEAD"])

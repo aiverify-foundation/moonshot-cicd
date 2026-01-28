@@ -29,124 +29,92 @@ class BenchmarkExecutionService:
         """Initialize the BenchmarkExecutionService."""
         logger.info("[BenchmarkExecutionService] Initializing BenchmarkExecutionService")
     
-    def execute_benchmark(
-        self,
-        test_name: str,
-        dataset: str,
-        metric: str,
-        connector: str
-    ) -> None:
+    def execute_bundle(self, bundle_id: str, connector: str) -> None:
         """
-        Execute a benchmark synchronously.
-        
-        This method converts the metric string to the required dict format,
-        generates a run_id, and executes the benchmark using TaskManager.
-        Results will be written to data/results/{run_id}.json when complete.
-        
-        Follows the same pattern as run_test: collects JSONs from run_benchmark
-        and creates a combined JSON file with run_metadata and run_results.
-        
-        Internally handles async operations using asyncio.run().
-        
+        Execute a bundle (multiple benchmark tests) synchronously and write a combined results file.
+
+        This follows the same combined JSON pattern as TaskManager.run_test:
+        - run_metadata: run_id/test_id/start/end/duration
+        - run_results: list of benchmark JSON results (one per test)
+
         Args:
-            test_name: Unique identifier for the benchmark test
-            dataset: Dataset name to load
-            metric: Metric name (e.g., "accuracy_adapter")
-            connector: Connector name to use
-            
-        Raises:
-            Exception: If benchmark execution fails (logged but not re-raised)
+            bundle_id: Bundle identifier to load (via BenchmarkService.get_bundle_by_id)
+            connector: Connector name to use for all tests in the bundle
         """
         try:
-            logger.info(f"[BenchmarkExecutionService] Starting benchmark execution for test: {test_name}")
-            
-            # Record the start time of the benchmark
-            start_time = datetime.now()
-            
-            # Convert metric string to dict format 
-            metric_dict = {"name": metric}
+            logger.info(f"[BenchmarkExecutionService] Starting bundle execution for bundle: {bundle_id}")
 
-            run_id = test_name
-            
+            # Lazy import to avoid heavy imports at module load and keep parity with api process execution
+            from application.services.benchmark import BenchmarkService  # noqa: WPS433
+
+            # Record the start time of the bundle
+            start_time = datetime.now()
+
+            benchmark_service = BenchmarkService(None, None)
+            bundle = benchmark_service.get_bundle_by_id(bundle_id)
+
             # Use default prompt processor
             prompt_processor = "asyncio_prompt_processor_adapter"
-            
-            # Create TaskManager instance
+
             task_manager = TaskManager()
-            
-            # Get JSON string from run_benchmark (with write_result=False, like run_test does)
-            # Run the async operation synchronously using asyncio.run()
-            serialized_results = asyncio.run(
-                task_manager.run_benchmark(
-                    run_id=run_id,
-                    test_name=test_name,
-                    dataset=dataset,
-                    metric=metric_dict,
-                    connector=connector,
-                    prompt_processor=prompt_processor,
-                    callback_fn=None,
-                    write_result=False,
-                    write_to_db=True
-                )
-            )
-            
+
+            async def _run_all() -> list[str]:
+                tasks = []
+                for test in bundle.tests:
+                    tasks.append(
+                        task_manager.run_benchmark(
+                            run_id=bundle_id,
+                            test_name=test.id,
+                            dataset=test.dataset.id if test.dataset else "",
+                            metric=test.metric,
+                            connector=connector,
+                            prompt_processor=prompt_processor,
+                            callback_fn=None,
+                            write_result=False,
+                            write_to_db=True,
+                        )
+                    )
+                return await asyncio.gather(*tasks)
+
+            eval_results = asyncio.run(_run_all())
+
             # Record the end time and calculate duration
             end_time = datetime.now()
             duration = (end_time - start_time).total_seconds()
-            
-            if serialized_results:
-                try:
-                    # Parse the JSON result from run_benchmark (like run_test does)
-                    json_result = json.loads(serialized_results)
-                    
-                    # Create run_metadata structure (following run_test pattern)
-                    run_metadata = {
-                        "run_metadata": {
-                            "run_id": run_id,
-                            "test_id": test_name,
-                            "start_time": start_time.strftime("%Y-%m-%d %H:%M:%S"),
-                            "end_time": end_time.strftime("%Y-%m-%d %H:%M:%S"),
-                            "duration": duration,
-                        }
-                    }
-                    
-                    # Create run_results structure (following run_test pattern)
-                    formatted_json_results = {"run_results": [json_result]}
-                    
-                    # Combine metadata and results (following run_test pattern)
-                    final_results = run_metadata | formatted_json_results
-                    final_results_str = json.dumps(final_results, indent=4)
-                    
-                    # Write to file using the same method as run_test
-                    result_path = task_manager._store_results_to_local_path(run_id, final_results_str)
-                    
-                    if result_path:
-                        logger.info(
-                            f"[BenchmarkExecutionService] Benchmark completed successfully for test: {test_name}. "
-                            f"Results written to: {result_path}"
-                        )
-                    else:
-                        logger.error(
-                            f"[BenchmarkExecutionService] Failed to write results file for test: {test_name}"
-                        )
-                except Exception as e:
-                    logger.error(
-                        f"[BenchmarkExecutionService] Error creating combined results JSON: {str(e)}",
-                        exc_info=True
-                    )
-                    # Still log success since run_benchmark completed
-                    logger.info(
-                        f"[BenchmarkExecutionService] Benchmark completed for test: {test_name}"
-                    )
-            else:
+
+            json_results = [json.loads(result) for result in eval_results if result]
+
+            if not json_results:
                 logger.warning(
-                    f"[BenchmarkExecutionService] Benchmark completed but no result was returned "
-                    f"for test: {test_name}"
+                    f"[BenchmarkExecutionService] Bundle completed but no results were returned "
+                    f"for bundle: {bundle_id}"
                 )
-                
+                return
+
+            run_metadata = {
+                "run_metadata": {
+                    "run_id": bundle_id,
+                    "test_id": bundle_id,
+                    "start_time": start_time.strftime("%Y-%m-%d %H:%M:%S"),
+                    "end_time": end_time.strftime("%Y-%m-%d %H:%M:%S"),
+                    "duration": duration,
+                }
+            }
+            final_results = run_metadata | {"run_results": json_results}
+            final_results_str = json.dumps(final_results, indent=4)
+
+            result_path = task_manager._store_results_to_local_path(bundle_id, final_results_str)
+            if result_path:
+                logger.info(
+                    f"[BenchmarkExecutionService] Bundle completed successfully for bundle: {bundle_id}. "
+                    f"Results written to: {result_path}"
+                )
+            else:
+                logger.error(f"[BenchmarkExecutionService] Failed to write results file for bundle: {bundle_id}")
+
         except Exception as e:
             logger.error(
-                f"[BenchmarkExecutionService] Error executing benchmark for test {test_name}: {str(e)}",
-                exc_info=True
+                f"[BenchmarkExecutionService] Error executing bundle for bundle {bundle_id}: {str(e)}",
+                exc_info=True,
             )
             # Don't re-raise the exception - background tasks should log errors but not crash
