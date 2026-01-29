@@ -8,7 +8,6 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 import { Button } from "@/components/ui/button";
 import { Check, ChevronsUpDown } from "lucide-react";
-import { cn } from "@/lib/utils";
 import {
     Accordion,
     AccordionContent,
@@ -17,6 +16,7 @@ import {
   } from "@/components/ui/accordion"
 import { Toggle } from '@/components/ui/toggle';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
+import { useAppSelector } from '@/hooks/reduxHooks';
 
 const CONSTANTS = {
   MINIMUM_SAMPLE_SIZE: 5,
@@ -106,6 +106,28 @@ export default function SampleSizeCard() {
   const [selectedMarginOfError, setSelectedMarginOfError] = React.useState(CONSTANTS.DEFAULT_MARGIN_OF_ERROR.toString());
   const [selectedToggleValue, setSelectedToggleValue] = React.useState("recommended");
 
+  // Get bundles and test selection to calculate total prompts
+  const bundles = useAppSelector((state) => state.bundles.data);
+  const testSelection = useAppSelector((state) => state.testSelection);
+
+  // Calculate total number of prompts from selected tests
+  const totalPromptsFromSelectedTests = React.useMemo(() => {
+    let total = 0;
+    bundles.forEach(bundle => {
+      bundle.tests.forEach(test => {
+        if (testSelection[test.name]) {
+          total += test.dataset?.num_of_dataset_prompts ?? 0;
+        }
+      });
+    });
+    return total;
+  }, [bundles, testSelection]);
+
+  // Calculate number of selected tests
+  const numberOfSelectedTests = React.useMemo(() => {
+    return Object.values(testSelection).filter(isSelected => isSelected).length;
+  }, [testSelection]);
+
   // Calculate recommended sample size based on selected values
   const calculateRecommendedSampleSize = () => {
     try {
@@ -113,7 +135,7 @@ export default function SampleSizeCard() {
       const marginOfError = parseInt(selectedMarginOfError);
       const populationMean = parseInt(selectedPopulationMean) / 100; // Convert to decimal
       
-      return calculateSampleSize(confidenceLevel, marginOfError, populationMean);
+      return calculateSampleSize(confidenceLevel, marginOfError, populationMean) * numberOfSelectedTests;
     } catch (error) {
       return 0;
     }
@@ -152,7 +174,7 @@ export default function SampleSizeCard() {
   return (
     <>
       <Card className="w-3xl mt-6 py-1">
-        <Accordion type="single" collapsible>
+        <Accordion type="single" collapsible defaultValue="item-1">
           <AccordionItem value="item-1">
             <AccordionTrigger className="flex flex-row items-center hover:no-underline px-6 py-4">
               <div className="flex-1">
@@ -205,10 +227,7 @@ export default function SampleSizeCard() {
                                   data-testid={`population-mean-option-${option.value}`}
                                 >
                                   <Check
-                                    className={cn(
-                                      "mr-2 h-4 w-4",
-                                      selectedPopulationMean === option.value ? "opacity-100" : "opacity-0"
-                                    )}
+                                    className={`mr-2 h-4 w-4 ${selectedPopulationMean === option.value ? "opacity-100" : "opacity-0"}`}
                                   />
                                   {option.label}
                                 </CommandItem>
@@ -252,10 +271,7 @@ export default function SampleSizeCard() {
                                   data-testid={`confidence-level-option-${option.value}`}
                                 >
                                   <Check
-                                    className={cn(
-                                      "mr-2 h-4 w-4",
-                                      selectedConfidenceLevel === option.value ? "opacity-100" : "opacity-0"
-                                    )}
+                                    className={`mr-2 h-4 w-4 ${selectedConfidenceLevel === option.value ? "opacity-100" : "opacity-0"}`}
                                   />
                                   {option.label}
                                 </CommandItem>
@@ -299,10 +315,7 @@ export default function SampleSizeCard() {
                                   data-testid={`margin-of-error-option-${option.value}`}
                                 >
                                   <Check
-                                    className={cn(
-                                      "mr-2 h-4 w-4",
-                                      selectedMarginOfError === option.value ? "opacity-100" : "opacity-0"
-                                    )}
+                                    className={`mr-2 h-4 w-4 ${selectedMarginOfError === option.value ? "opacity-100" : "opacity-0"}`}
                                   />
                                   {option.label}
                                 </CommandItem>
@@ -334,7 +347,7 @@ export default function SampleSizeCard() {
                             <p className="font-bold">Actual confidence interval of the test results may differ due to the following:</p>
                             <ul className="list-disc list-inside space-y-1">
                               <li>Actual test score can be different from the population mean assumed.</li>
-                              <li className="whitespace-nowrap">Margin of error will include additional measurement error due to non-determinism in LLM output.</li>
+                              <li>Margin of error will include additional measurement error due to non-determinism in LLM output.</li>
                             </ul>
                           </div>
                         </TooltipContent>
@@ -348,8 +361,8 @@ export default function SampleSizeCard() {
                   <div className="flex gap-2">
                     {[
                       { value: "calculated", label: "Calculated", count: `(${recommendedSampleSize})` },
-                      { value: "test", label: "Test Run", count: `(${CONSTANTS.MINIMUM_SAMPLE_SIZE})` },
-                      { value: "all", label: "All prompts", count: `(${CONSTANTS.DEFAULT_TOTAL_PROMPTS})` }
+                      { value: "test", label: "Test Run", count: `(${numberOfSelectedTests})` },
+                      { value: "all", label: "All prompts", count: `(${totalPromptsFromSelectedTests})` }
                     ].map((toggle) => (
                       <Toggle
                         key={toggle.value}
@@ -360,12 +373,7 @@ export default function SampleSizeCard() {
                           }
                         }}
                         variant="outline"
-                        className={cn(
-                          "transition-all duration-200",
-                          selectedToggleValue === toggle.value 
-                            ? "scale-100 px-3 py-2" 
-                            : "scale-85 px-2 py-1.5"
-                        )}
+                        className={`transition-all duration-200 ${selectedToggleValue === toggle.value ? "scale-100 px-3 py-2" : "scale-85 px-2 py-1.5"}`}
                       >
                         {toggle.label} <span className="text-muted-foreground">{toggle.count}</span>
                       </Toggle>
