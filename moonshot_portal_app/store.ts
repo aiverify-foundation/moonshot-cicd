@@ -1,4 +1,4 @@
-import { configureStore, createSlice, createAsyncThunk } from '@reduxjs/toolkit';
+import { configureStore, createSlice, createAsyncThunk, combineReducers } from '@reduxjs/toolkit';
 import { fetchBundles, Bundle, fetchFixedConfigs, FixedConfig } from './lib/api';
 
 // Async thunk for fetching bundles
@@ -115,6 +115,7 @@ const modelSelectionSlice = createSlice({
     selectedModel: '',
     selectedConfig: '',
     isConfigValid: false,
+    isTestNameValid: false,
   },
   reducers: {
     setSelectedProvider: (state, action) => {
@@ -136,11 +137,15 @@ const modelSelectionSlice = createSlice({
     updateConfigValidity: (state) => {
       state.isConfigValid = Boolean(state.selectedProvider && (state.selectedModel || state.selectedConfig));
     },
+    setTestNameFilled: (state, action) => {
+      state.isTestNameValid = action.payload;
+    },
     resetModelSelection: (state) => {
       state.selectedProvider = '';
       state.selectedModel = '';
       state.selectedConfig = '';
       state.isConfigValid = false;
+      state.isTestNameValid = false;
     },
   },
 });
@@ -150,6 +155,7 @@ export const {
   setSelectedModel, 
   setSelectedConfig, 
   updateConfigValidity, 
+  setTestNameFilled,
   resetModelSelection 
 } = modelSelectionSlice.actions;
 
@@ -190,16 +196,68 @@ export const {
   clearTestsForBundle 
 } = testSelectionSlice.actions;
 
-const store = configureStore({
-  reducer: {
-    bundles: bundlesSlice.reducer,
-    fixedConfigs: fixedConfigsSlice.reducer,
-    bundleSelection: bundleSelectionSlice.reducer,
-    modelSelection: modelSelectionSlice.reducer,
-    testSelection: testSelectionSlice.reducer,
+// Endpoint connection status slice
+// Status values: "connected", "not connected", "Invalid Token"
+const endpointStatusSlice = createSlice({
+  name: 'endpointStatus',
+  initialState: {} as Record<string, string>,
+  reducers: {
+    setEndpointStatus: (state, action) => {
+      const { configId, status } = action.payload;
+      state[configId] = status;
+    },
+    clearEndpointStatus: (state, action) => {
+      const configId = action.payload;
+      delete state[configId];
+    },
+    clearAllEndpointStatuses: (state) => {
+      return {};
+    },
   },
+});
+
+export const { 
+  setEndpointStatus, 
+  clearEndpointStatus, 
+  clearAllEndpointStatuses 
+} = endpointStatusSlice.actions;
+
+const rootReducer = combineReducers({
+  bundles: bundlesSlice.reducer,
+  fixedConfigs: fixedConfigsSlice.reducer,
+  bundleSelection: bundleSelectionSlice.reducer,
+  modelSelection: modelSelectionSlice.reducer,
+  testSelection: testSelectionSlice.reducer,
+  endpointStatus: endpointStatusSlice.reducer,
+});
+
+const store = configureStore({
+  reducer: rootReducer,
 });
 
 export type RootState = ReturnType<typeof store.getState>;
 export type AppDispatch = typeof store.dispatch;
+
+// Export function to create a test store with optional preloaded state
+export function createTestStore(preloadedState?: Partial<RootState>) {
+  const defaultState = store.getState();
+  
+  // Merge preloadedState with default state
+  const mergedState = preloadedState 
+    ? {
+        bundles: { ...defaultState.bundles, ...(preloadedState.bundles || {}) },
+        fixedConfigs: { ...defaultState.fixedConfigs, ...(preloadedState.fixedConfigs || {}) },
+        bundleSelection: { ...defaultState.bundleSelection, ...(preloadedState.bundleSelection || {}) },
+        modelSelection: { ...defaultState.modelSelection, ...(preloadedState.modelSelection || {}) },
+        testSelection: { ...defaultState.testSelection, ...(preloadedState.testSelection || {}) },
+        endpointStatus: { ...defaultState.endpointStatus, ...(preloadedState.endpointStatus || {}) },
+      }
+    : defaultState;
+  
+  return configureStore({
+    reducer: rootReducer,
+    preloadedState: mergedState as any,
+  });
+}
+
 export default store;
