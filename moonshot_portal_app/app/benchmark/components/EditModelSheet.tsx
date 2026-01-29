@@ -8,6 +8,9 @@ import { Label } from "@/components/ui/label";
 import { Trash2, Plus } from "lucide-react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { FixedConfig } from '../../../lib/api';
+import { useAppDispatch } from '../../../hooks/reduxHooks';
+import { setEndpointStatus } from '../../../store';
+import { ConnectionStatus } from './RequiredEndpointsCard';
 
 // Constants
 const DEFAULT_ADVANCED_PARAMS = [
@@ -113,6 +116,8 @@ export default function EditModelSheet({
   isMetricEndpoint = false,
   fixedConfigs
 }: EditModelSheetProps) {
+  const dispatch = useAppDispatch();
+  
   // Get provider/model info using helper function with memoization
   const { isNewModel, currentModelConfig, currentProvider, fixedConfig } = React.useMemo(() => {
     if (isMetricEndpoint && fixedConfigs) {
@@ -166,10 +171,15 @@ export default function EditModelSheet({
   };
 
   const handleTest = () => {
-    if (tokenValue.trim() && modelName.trim()) {
-      setTestResult(true);
-    } else {
-      setTestResult(false);
+    const testPassed = Boolean(tokenValue.trim() && modelName.trim());
+    setTestResult(testPassed);
+    
+    // Update endpoint status in Redux store if this is a metric endpoint
+    if (isMetricEndpoint && editingModel) {
+      const status = testPassed 
+        ? ConnectionStatus.CONNECTED 
+        : ConnectionStatus.INVALID_TOKEN;
+      dispatch(setEndpointStatus({ configId: editingModel, status }));
     }
     
     // Show popover on click
