@@ -5,7 +5,6 @@ import {
   SidebarContent,
   SidebarGroup,
   SidebarGroupContent,
-  SidebarGroupLabel,
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
@@ -21,7 +20,7 @@ const items = [
   },
   {
     title: "History",
-    url: "/",
+    url: "/history",
     icon: History,
     testId: "sidebar-history-button",
   },
