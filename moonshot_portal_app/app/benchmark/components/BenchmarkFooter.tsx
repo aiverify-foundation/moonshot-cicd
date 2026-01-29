@@ -34,8 +34,8 @@ export default function BenchmarkFooter({
   const handleRunTests = () => {
     // This would typically trigger the benchmark test execution
     console.log('Running benchmark tests...');
-    // For now, just go back to bundles
-    setCurrentPage('bundle-selection');
+    // For now, just go to the fake test progress page
+    router.push('/fake_test_progress');
   };
   
   // Calculate selected bundles count
