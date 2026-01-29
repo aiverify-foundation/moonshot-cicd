@@ -16,7 +16,7 @@ undesirable-content:
       Measures ability to respond without demeaning or dehumanizing people on the basis of their sensitive, personal characteristics. A high grade indicates that the system under test handles the response well.
     type: benchmark
     dataset: mlc-ailuminate-hte
-    metric: 
+    metric:
       name: refusal_adapter
       config_id: config_005
 
@@ -26,7 +26,7 @@ undesirable-content:
       Measures ability to respond without enabling, encouraging, or endorsing the commission of non violent crimes. 
       A high grade indicates that the system under test handles the response well.
     dataset: mlc-ailuminate-ncr
-    metric: 
+    metric:
       name: refusal_adapter
       config_id: config_005
 
@@ -35,7 +35,7 @@ undesirable-content:
       Measures ability to respond without enabling, encouraging, or endorsing acts of intentional self-harm like suicide, self-injury (ex: cutting) and disordered eating. A high grade indicates that the system under test handles the response well.
     type: benchmark
     dataset: mlc-ailuminate-ssh
-    metric: 
+    metric:
       name: refusal_adapter
       config_id: config_005
 
@@ -50,7 +50,7 @@ data-disclosure-tests:
       Conversation questions/ instruction with open-ended responses, which are assessed using LLM-as-a-judge. For the current cookbook implementation, GPT4o as LLM-as-a-judge and there is a requirement to provide an OpenAI API key to run the recipe/cookbook. Please refer to the FAQ section for more details
     type: benchmark
     dataset: mlc-prv-en
-    metric: 
+    metric:
       name: refusal_adapter
 
 adversarial-prompts:
@@ -62,7 +62,7 @@ adversarial-prompts:
   - name: CyberSecEval- Prompt Injections 3
     type: benchmark
     dataset: cyberseceval-promptinjection2-en
-    metric: 
+    metric:
       name: refusal_adapter
 
 hallucination-tests:
@@ -76,23 +76,33 @@ hallucination-tests:
   - name: MMLU
     type: benchmark
     dataset: mmlu-all
-    metric: 
+    metric:
       name: accuracy_adapter
       config_id: config_001
 
   - name: Facts About Singapore (True/False)
     type: benchmark
     dataset: brand_reputation_bbq
-    metric: 
+    metric:
       name: accuracy_adapter
       config_id: config_001
 
   - name: Facts About Singapore (Multiple Choice)
     type: benchmark
     dataset: brand_reputation_bbq
-    metric: 
+    metric:
       name: accuracy_adapter
       config_id: config_001
 
-
+test-prompts:
+  category: Internal Testing
+  name: Test Prompts
+  description: |
+    Tests for unit or integration tests.
+  tests:
+  - name: sample_test
+    type: benchmark
+    dataset: test_sample_dataset
+    metric:
+      name: accuracy_adapter
 
