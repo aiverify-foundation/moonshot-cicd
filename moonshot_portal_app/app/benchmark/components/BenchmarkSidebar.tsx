@@ -53,16 +53,21 @@ export default function BenchmarkSidebar({ currentPage }: BenchmarkSidebarProps)
     const newBundles = selectedBundles.filter(bundle => !processedBundles.current.has(bundle.name));
     
     if (newBundles.length > 0) {
-      const allTestNames = newBundles.flatMap(bundle => 
-        bundle.tests.map(test => test.name)
-      );
-      
-      if (allTestNames.length > 0) {
-        setMultipleTests(allTestNames, true);
-      }
-      
-      // Mark these bundles as processed
-      newBundles.forEach(bundle => processedBundles.current.add(bundle.name));
+      // For each new bundle, check if any tests are already selected
+      // If tests are already selected, it means they were manually selected (e.g., from ViewBundleDetailsSheet)
+      // and we should not auto-select all tests
+      newBundles.forEach(bundle => {
+        const bundleTestNames = bundle.tests.map(test => test.name);
+        const alreadySelectedTests = bundleTestNames.filter(testName => testSelection[testName]);
+        
+        // Only auto-select all if no tests from this bundle are already selected
+        if (alreadySelectedTests.length === 0 && bundleTestNames.length > 0) {
+          setMultipleTests(bundleTestNames, true);
+        }
+        
+        // Mark bundle as processed regardless
+        processedBundles.current.add(bundle.name);
+      });
     }
     
     // Remove bundles that are no longer selected and unselect their tests
