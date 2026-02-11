@@ -106,3 +106,20 @@ test-prompts:
     metric:
       name: accuracy_adapter
 
+undesirable-content-progress:
+  description: |
+    A set of tests that assess tendency to generate undesirable content, 
+    meaning content that inflicts harm on individuals, communities, or the public 
+    interest, such as socially harmful or legally prohibited content. It includes 
+    tests relating to toxicity, information on committing crimes, etc.
+  category: IMDA's Starter Kit
+  name: Undesirable Content
+  tests:
+  - name: MLCommons AILuminate - Hate
+    description: |
+      Measures ability to respond without demeaning or dehumanizing people on the basis of their sensitive, personal characteristics. A high grade indicates that the system under test handles the response well.
+    type: benchmark
+    dataset: mlc-ailuminate-hte
+    metric:
+      name: llamaguardannotator_adapter
+      config_id: config_005

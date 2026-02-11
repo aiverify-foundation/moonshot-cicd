@@ -35,10 +35,10 @@ from domain.services.app_config import AppConfig
 # Helper Functions
 # ============================================================================
 
-def _create_bundle_payload(connector="my-gpt-4o-mini"):
-    """Helper function to create a standard bundle payload."""
+def _create_bundle_payload(connector="my-gpt-4o-mini", bundle_name="test-prompts"):
+    """Helper function to create a bundle payload."""
     return {
-        "bundle_name": "test-prompts",
+        "bundle_name": bundle_name,
         "connector": connector,
     }
 
@@ -48,9 +48,8 @@ def _assert_benchmark_started_successfully(response):
     assert response.status_code == 200
 
 
-async def _wait_for_result_file_and_validate(absolute_result_path):
+async def _wait_for_result_file_and_validate(absolute_result_path, max_wait=15):
     """Helper function to wait for result file and validate JSON."""
-    max_wait = 15
     wait_interval = 0.2
     waited = 0
     
@@ -78,14 +77,16 @@ async def _wait_for_result_file_and_validate(absolute_result_path):
     return data
 
 
-async def _run_single_bundle_and_wait(absolute_result_path, connector="my-gpt-4o-mini"):
+async def _run_single_bundle_and_wait(
+    absolute_result_path, connector="my-gpt-4o-mini", bundle_name="test-prompts"
+):
     """Helper function to run a single bundle and wait for its result file."""
-    payload = _create_bundle_payload(connector)
-    
+    payload = _create_bundle_payload(connector=connector, bundle_name=bundle_name)
+
     async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
         response = await client.post("/api/run-bundle", json=payload)
         _assert_benchmark_started_successfully(response)
-    
+
     return await _wait_for_result_file_and_validate(absolute_result_path)
 
 
@@ -101,19 +102,46 @@ def _cleanup_file(file_path):
         os.remove(str(file_path.resolve()))
 
 
+def _cleanup_bundle_result_file_for(bundle_id):
+    """Return a fixture-like (setup, path, teardown) for a bundle result file."""
+    app_config = AppConfig()
+    test_file_name = f"{bundle_id}.json"
+    absolute_result_path = Path(app_config.DEFAULT_RESULTS_PATH) / test_file_name
+    absolute_result_path = absolute_result_path.resolve()
+    _cleanup_file(absolute_result_path)
+    return absolute_result_path
+
+
 @pytest.fixture
 def cleanup_bundle_result_file():
     """Fixture to clean up the bundle result file."""
-    app_config = AppConfig()
-    test_file_name = "test-prompts.json"
-    absolute_result_path = Path(app_config.DEFAULT_RESULTS_PATH) / test_file_name
-    absolute_result_path = absolute_result_path.resolve()
-    
-    _cleanup_file(absolute_result_path)
-    
+    absolute_result_path = _cleanup_bundle_result_file_for("test-prompts")
     yield absolute_result_path
-    
     _cleanup_file(absolute_result_path)
+
+
+@pytest.fixture
+def cleanup_undesirable_content_progress_result_file():
+    """Fixture to clean up the undesirable-content-progress bundle result file."""
+    absolute_result_path = _cleanup_bundle_result_file_for(
+        "undesirable-content-progress"
+    )
+    yield absolute_result_path
+    _cleanup_file(absolute_result_path)
+
+
+@pytest.fixture
+def undesirable_content_progress_result_file_keep_after():
+    """
+    Fixture for undesirable-content-progress: clean before test only.
+    Result file is left on disk after the test (no teardown cleanup).
+    TRACK: output path is data/results/undesirable-content-progress.json
+    """
+    absolute_result_path = _cleanup_bundle_result_file_for(
+        "undesirable-content-progress"
+    )
+    yield absolute_result_path
+    # Intentionally no teardown: leave result file for inspection
 
 
 # ============================================================================
@@ -127,20 +155,28 @@ def _verify_result_structure(data, bundle_id):
     assert data["run_metadata"]["test_id"] == bundle_id
 
 
-async def _run_validation_workflow_test(connector, absolute_result_path):
+async def _run_validation_workflow_test(
+    connector, absolute_result_path, bundle_id="test-prompts", max_wait=15
+):
     """Helper to run a validation workflow test with common setup.
-    
+
     Args:
         connector: Connector name to use
         absolute_result_path: Path to the result file
+        bundle_id: Bundle name (used in payload and for run_metadata.test_id check)
+        max_wait: Max seconds to wait for result file (default 15)
     """
-    payload = _create_bundle_payload(connector)
+    payload = _create_bundle_payload(
+        connector=connector, bundle_name=bundle_id
+    )
     async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
         response = await client.post("/api/run-bundle", json=payload)
         _assert_benchmark_started_successfully(response)
-    
-    data = await _wait_for_result_file_and_validate(absolute_result_path)
-    _verify_result_structure(data, "test-prompts")
+
+    data = await _wait_for_result_file_and_validate(
+        absolute_result_path, max_wait=max_wait
+    )
+    _verify_result_structure(data, bundle_id)
     return data
 
 
@@ -188,7 +224,9 @@ async def test_validation_workflow_failure_recovery(cleanup_bundle_result_file):
     absolute_result_path = cleanup_bundle_result_file
     
     # Step 1: Try with invalid connector (should fail gracefully)
-    payload = _create_bundle_payload(connector="invalid_connector")
+    payload = _create_bundle_payload(
+        connector="invalid_connector", bundle_name="test-prompts"
+    )
     async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
         response = await client.post("/api/run-bundle", json=payload)
         # The endpoint should still return 200 (it starts the task, failure happens async)
@@ -241,3 +279,27 @@ async def test_validation_workflow_concurrent_execution(cleanup_bundle_result_fi
     assert absolute_result_path.exists(), f"Result file not created: {absolute_result_path}"
     data = await _wait_for_result_file_and_validate(absolute_result_path)
     _verify_result_structure(data, "test-prompts")
+
+
+@pytest.mark.asyncio
+async def test_validation_workflow_undesirable_content_progress_bundle(
+    undesirable_content_progress_result_file_keep_after,
+):
+    """
+    Test validation workflow for the undesirable-content-progress bundle.
+
+    Runs the undesirable-content-progress bundle (LlamaGuard annotator metric),
+    waits for the result file, and validates JSON schema and structure.
+    Run only this test with:
+      pytest moonshot_core/tests/entrypoints/test_validation_workflow.py -k undesirable_content_progress -v
+
+    TRACK: Result file is left on disk after this test (not cleaned up).
+    Path: data/results/undesirable-content-progress.json
+    """
+    absolute_result_path = undesirable_content_progress_result_file_keep_after
+    await _run_validation_workflow_test(
+        "my-gpt-4o-mini",
+        absolute_result_path,
+        bundle_id="undesirable-content-progress",
+        max_wait=600,  # 10 minutes (LlamaGuard metric makes this bundle slower)
+    )
