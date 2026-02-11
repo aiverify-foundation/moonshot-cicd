@@ -17,7 +17,7 @@ class LLMProviderAdapter(ProviderRepository):
         """
         Initialize the SQLAlchemy repository adapter with the SessionManager.
         """
-        self.session_manager = SessionManager()
+        self.session_manager = SessionManager.get_instance()
         self.logger = configure_logger(__name__)
     
     def _model_to_entity(self, model: LLMProviderModel) -> ProviderEntity:
