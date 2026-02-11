@@ -1,3 +1,4 @@
+from pathlib import Path, PosixPath
 from domain.services.logger import configure_logger
 
 # Initialize a logger for this module
@@ -23,3 +24,14 @@ def load_module(loader, module_name: str, module_type, success_msg: str, error_m
     except Exception as e:
         logger.error(error_msg.format(error=str(e)))
         raise e
+
+
+def get_application_root_path() -> PosixPath:
+    """
+    Get the absolute path to the "moonshot_core" application root directory.
+    Note that changing the number of parent directories will break the code.
+
+    Returns:
+        PosixPath: The absolute path to the application root directory.
+    """
+    return Path(__file__).parent.parent.parent.parent.resolve()

@@ -1,4 +1,5 @@
 from typing import List, Optional
+from adapters.driven.repository.sqlalchemy.llm_provider_adapter import LLMProviderAdapter
 from application.ports.provider_repository import ProviderRepository
 from domain.entities.provider_entity import ProviderEntity
 from domain.entities.model_config_entity import ModelConfigEntity
@@ -24,7 +25,8 @@ class ProviderService:
         Args:
             provider_repository (ProviderRepository): The repository for provider data access.
         """
-        self.provider_repository = provider_repository
+        # self.provider_repository = provider_repository
+        self.provider_repository = LLMProviderAdapter()
         self.logger = configure_logger(__name__)
     
     def _provider_entity_to_dto(self, entity: ProviderEntity) -> ProviderDTO:
@@ -84,7 +86,7 @@ class ProviderService:
             Optional[ProviderDTO]: The provider DTO if found, None otherwise.
         """
         self.logger.info(f"Getting provider by ID: {provider_id}")
-        entity = self.provider_repository.get_provider_by_id(provider_id)
+        entity = self.provider_repository.get_llm_provider_by_id(provider_id)
         return self._provider_entity_to_dto(entity) if entity else None
     
     def get_provider_by_name(self, name: str) -> Optional[ProviderDTO]:
@@ -102,6 +104,7 @@ class ProviderService:
         return self._provider_entity_to_dto(entity) if entity else None
     
     def list_providers(self) -> List[ProviderDTO]:
+        # TODO KAYDEN: This is used by api.py
         """
         List all available providers.
         
@@ -156,6 +159,7 @@ class ProviderService:
         return self.provider_repository.delete_provider(provider_id)
 
     def get_model_configs_by_provider_id(self, provider_id: int) -> List[ModelConfigDTO]:
+        # TODO KAYDEN: This is used by api.py
         """
         Get all model configurations associated with a provider ID.
 
@@ -171,6 +175,7 @@ class ProviderService:
         return [self._model_config_entity_to_dto(entity) for entity in entities]
 
     def create_model_config(self, model_config: ModelConfigDTO) -> ModelConfigDTO:
+        # TODO KAYDEN: This is used by api.py
         """
         Create a new model configuration.
 
@@ -187,6 +192,7 @@ class ProviderService:
         return self._model_config_entity_to_dto(created_entity)
 
     def update_model_config(self, model_config: ModelConfigDTO) -> ModelConfigDTO:
+        # TODO KAYDEN: This is used by api.py
         """
         Update an existing model configuration (matched by name).
 
@@ -203,6 +209,7 @@ class ProviderService:
         return self._model_config_entity_to_dto(updated_entity)
 
     def delete_model_config(self, config_id: str) -> bool:
+        # TODO KAYDEN: This is used by api.py
         """
         Delete a model configuration (by ID or name).
 

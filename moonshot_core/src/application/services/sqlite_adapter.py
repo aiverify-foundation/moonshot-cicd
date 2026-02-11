@@ -38,7 +38,7 @@ class SQLiteAdapter:
     
     def _initialize_database(self) -> None:
         """Initialize the database schema using Alembic migrations."""
-        self._run_alembic_migrations()
+        # self._run_alembic_migrations()
     
     @contextmanager
     def get_connection(self):
