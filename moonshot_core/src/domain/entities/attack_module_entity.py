@@ -1,6 +1,6 @@
 from typing import Callable, Optional
 
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict
 
 
 class AttackModuleEntity(BaseModel):
@@ -16,8 +16,7 @@ class AttackModuleEntity(BaseModel):
         callback_fn (Optional[Callable]): The callback function to be executed after the attack module runs.
     """
 
-    class Config:
-        arbitrary_types_allowed = True
+    model_config = ConfigDict(arbitrary_types_allowed=True)
 
     # The connector to use
     connector: str

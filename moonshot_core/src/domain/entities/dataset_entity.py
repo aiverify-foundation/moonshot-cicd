@@ -1,4 +1,4 @@
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict
 
 
 class DatasetEntity(BaseModel):
@@ -16,8 +16,7 @@ class DatasetEntity(BaseModel):
         license (str): License information for the dataset. Defaults to an empty string if not provided.
     """
 
-    class Config:
-        arbitrary_types_allowed = True
+    model_config = ConfigDict(arbitrary_types_allowed=True)
 
     # Unique identifier for the dataset
     id: str

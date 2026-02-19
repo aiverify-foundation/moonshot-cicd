@@ -1,7 +1,7 @@
 from asyncio import streams
 from typing import List, Optional
 
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict
 
 from domain.entities.benchmark_test_entity import BenchmarkTestEntity
 
@@ -20,8 +20,7 @@ class TestBundleEntity(BaseModel):
         tests (List[BenchmarkTestEntity]): List of benchmark test entities in the bundle.
     """
 
-    class Config:
-        arbitrary_types_allowed = True
+    model_config = ConfigDict(arbitrary_types_allowed=True)
 
     # Name of the bundle
     name: str

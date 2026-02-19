@@ -1,6 +1,6 @@
 from typing import Any
 
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict
 
 
 class AppConfigEntity(BaseModel):
@@ -15,8 +15,7 @@ class AppConfigEntity(BaseModel):
         attack_modules (list[dict[str, Any]]): Configuration settings for different attack modules.
     """
 
-    class Config:
-        arbitrary_types_allowed = True
+    model_config = ConfigDict(arbitrary_types_allowed=True)
 
     # Common configuration settings with default values
     common: dict[str, Any] = {

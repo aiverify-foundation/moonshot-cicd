@@ -1,4 +1,4 @@
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict
 
 
 class ConnectorEntity(BaseModel):
@@ -15,8 +15,7 @@ class ConnectorEntity(BaseModel):
         system_prompt (str): System prompt text.
     """
 
-    class Config:
-        arbitrary_types_allowed = True
+    model_config = ConfigDict(arbitrary_types_allowed=True)
 
     # The connector adapter name
     connector_adapter: str

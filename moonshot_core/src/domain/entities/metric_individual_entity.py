@@ -1,6 +1,6 @@
 from typing import Any
 
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict
 
 from domain.entities.connector_response_entity import ConnectorResponseEntity
 
@@ -16,8 +16,7 @@ class MetricIndividualEntity(BaseModel):
         evaluated_result (Any | None): The result of the evaluation process, defaults to None.
     """
 
-    class Config:
-        arbitrary_types_allowed = True
+    model_config = ConfigDict(arbitrary_types_allowed=True)
 
     # The prompt used for generating predictions
     prompt: Any

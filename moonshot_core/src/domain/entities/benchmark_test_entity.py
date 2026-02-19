@@ -1,6 +1,6 @@
 from typing import Dict, Optional
 
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict
 
 from domain.services.enums.test_types import TestTypes
 from domain.entities.dataset_entity import DatasetEntity
@@ -21,8 +21,7 @@ class BenchmarkTestEntity(BaseModel):
         description (str): The description or scenario for the benchmark test.
     """
 
-    class Config:
-        arbitrary_types_allowed = True
+    model_config = ConfigDict(arbitrary_types_allowed=True)
 
     id: str
 

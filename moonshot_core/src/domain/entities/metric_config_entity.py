@@ -1,4 +1,4 @@
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict
 
 from domain.entities.connector_entity import ConnectorEntity
 
@@ -14,8 +14,7 @@ class MetricConfigEntity(BaseModel):
         params (dict): Additional parameters for the metric configuration.
     """
 
-    class Config:
-        arbitrary_types_allowed = True
+    model_config = ConfigDict(arbitrary_types_allowed=True)
 
     # The name of the metric
     name: str

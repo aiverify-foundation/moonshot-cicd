@@ -1,4 +1,4 @@
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict
 
 from domain.entities.connector_entity import ConnectorEntity
 
@@ -13,8 +13,7 @@ class AttackModuleConfigEntity(BaseModel):
         params (dict): Additional parameters for the attack module configuration.
     """
 
-    class Config:
-        arbitrary_types_allowed = True
+    model_config = ConfigDict(arbitrary_types_allowed=True)
 
     # The name of the attack module
     name: str

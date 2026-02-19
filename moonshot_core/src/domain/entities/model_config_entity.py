@@ -1,6 +1,6 @@
 from typing import Dict
 from datetime import datetime
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict
 
 
 class ModelConfigEntity(BaseModel):
@@ -16,8 +16,7 @@ class ModelConfigEntity(BaseModel):
         lastUpdated (datetime): Timestamp when this configuration was last updated.
     """
 
-    class Config:
-        arbitrary_types_allowed = True
+    model_config = ConfigDict(arbitrary_types_allowed=True)
 
     # Unique identifier for the model configuration
     id: str
