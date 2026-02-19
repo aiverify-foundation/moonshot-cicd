@@ -1,4 +1,4 @@
-"""Initial schema: create llm_provider, model, config, model_config, and config_parameters tables
+"""Initial schema: Create tables for LLM Provider and Model Configurations
 
 Revision ID: 2bf4af1172bc
 Revises: 
@@ -23,7 +23,7 @@ def upgrade() -> None:
     # Enable foreign key constraints for SQLite
     op.execute("PRAGMA foreign_keys = ON")
     
-    # Create llm_provider table
+    # Create table to store LLM Providers
     op.create_table(
         'llm_provider',
         sa.Column('id', sa.Integer(), nullable=False, autoincrement=True),
@@ -31,10 +31,14 @@ def upgrade() -> None:
         sa.PrimaryKeyConstraint('id'),
         sa.UniqueConstraint('name')
     )
+
+    # Insert default LLM Providers that officially supported by FE
+    # Future plan to auto populate from adapters.driven.connectors upon startup
+    op.execute("INSERT INTO llm_provider (name) VALUES ('Open AI'), ('Together AI')")
     
-    # Create model table
+    # Create table to store LLM name under a LLM Provider
     op.create_table(
-        'model',
+        'llm_provider_model',
         sa.Column('id', sa.Integer(), nullable=False, autoincrement=True),
         sa.Column('llm_provider_id', sa.Integer(), nullable=False),
         sa.Column('name', sa.String(), nullable=False),
@@ -44,46 +48,63 @@ def upgrade() -> None:
         sa.UniqueConstraint('llm_provider_id', 'name')
     )
     
-    # Create config table
+    # Create table to store LLM configuration
     op.create_table(
-        'config',
-        sa.Column('id', sa.Integer(), nullable=False, autoincrement=True),
-        sa.Column('name', sa.String(), nullable=False),
-        sa.Column('last_update_dt', sa.Date(), nullable=False, server_default=sa.func.now()),
-        sa.PrimaryKeyConstraint('id'),
-        sa.UniqueConstraint('name')
-    )
-    
-    # Create model_config junction table
-    op.create_table(
-        'model_config',
+        'llm_provider_model_config',
         sa.Column('id', sa.Integer(), nullable=False, autoincrement=True),
         sa.Column('model_id', sa.Integer(), nullable=False),
-        sa.Column('config_id', sa.Integer(), nullable=False),
-        sa.Column('last_run_dt', sa.Date(), nullable=False, server_default=sa.func.now()),
+        sa.Column('name', sa.String(), nullable=False),
+        sa.Column('updated_dt', sa.Date(), nullable=False, server_default=sa.func.now()),
+        sa.Column('last_used_dt', sa.Date(), nullable=True),
         sa.PrimaryKeyConstraint('id'),
         sa.ForeignKeyConstraint(['model_id'], ['model.id']),
-        sa.ForeignKeyConstraint(['config_id'], ['config.id']),
-        sa.UniqueConstraint('model_id', 'config_id')
     )
     
-    # Create config_parameters table
+    # Create table to store under LLM configuration's key-value pairs
+    # Note: This table is not meant for storing sensitive information like API keys, etc.
     op.create_table(
-        'config_parameters',
+        'llm_provider_endpoint_config_parameters',
         sa.Column('id', sa.Integer(), nullable=False, autoincrement=True),
         sa.Column('config_id', sa.Integer(), nullable=False),
         sa.Column('key', sa.String(), nullable=False),
         sa.Column('value', sa.String(), nullable=True),
-        sa.ForeignKeyConstraint(['config_id'], ['config.id']),
         sa.PrimaryKeyConstraint('id'),
+        sa.ForeignKeyConstraint(['config_id'], ['config.id']),
         sa.UniqueConstraint('config_id', 'key')
+    )
+
+    # Create table to store LLM Provider's API key (encrypted)
+    # Each LLM Provider can store multiple API keys
+    op.create_table(
+        'llm_provider_api_key',
+        sa.Column('id', sa.Integer(), nullable=False, autoincrement=True),
+        sa.Column('llm_provider_id', sa.Integer(), nullable=False),
+        sa.Column('encrypted_key', sa.String(), nullable=False),
+        sa.Column('salt', sa.String(), nullable=False),
+        sa.Column('nonce', sa.String, nullable=False),
+        sa.Column('authentication_tag', sa.String, nullable=False),
+        sa.Column('created_dt', sa.DateTime(), nullable=False, server_default=sa.func.now()),
+        sa.Column('last_used_dt', sa.DateTime(), nullable=True),
+        sa.PrimaryKeyConstraint('id'),
+        sa.ForeignKeyConstraint(['llm_provider_id'], ['llm_provider.id']),
+    )
+
+    # Create table to store application configurations as key-value pairs
+    op.create_table(
+        'app_config',
+        sa.Column('id', sa.Integer(), nullable=False, autoincrement=True),
+        sa.Column('key', sa.String(), nullable=False),
+        sa.Column('value', sa.String(), nullable=True),
+        sa.PrimaryKeyConstraint('id'),
+        sa.UniqueConstraint('key')
     )
 
 
 def downgrade() -> None:
     """Drop all tables."""
-    op.drop_table('config_parameters')
-    op.drop_table('model_config')
-    op.drop_table('config')
-    op.drop_table('model')
+    op.drop_table('app_config')
+    op.drop_table('llm_provider_api_key')
+    op.drop_table('llm_provider_endpoint_config_parameters')
+    op.drop_table('llm_provider_model_config')
+    op.drop_table('llm_provider_model')
     op.drop_table('llm_provider')
