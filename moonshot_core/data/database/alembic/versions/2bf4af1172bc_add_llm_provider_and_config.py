@@ -91,7 +91,7 @@ def upgrade() -> None:
 
     # Create table to store application configurations as key-value pairs
     op.create_table(
-        'app_config',
+        'moonshot_config',
         sa.Column('id', sa.Integer(), nullable=False, autoincrement=True),
         sa.Column('key', sa.String(), nullable=False),
         sa.Column('value', sa.String(), nullable=True),
@@ -102,7 +102,7 @@ def upgrade() -> None:
 
 def downgrade() -> None:
     """Drop all tables."""
-    op.drop_table('app_config')
+    op.drop_table('moonshot_config')
     op.drop_table('llm_provider_api_key')
     op.drop_table('llm_provider_endpoint_config_parameters')
     op.drop_table('llm_provider_model_config')
