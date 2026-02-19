@@ -1,6 +1,6 @@
 from typing import Dict, Optional
 
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict
 
 from application.dto.dataset_dto import DatasetDTO
 
@@ -19,8 +19,7 @@ class BenchmarkTestDTO(BaseModel):
         description (str): The prompt or scenario description for the test.
     """
 
-    class Config:
-        arbitrary_types_allowed = True
+    model_config = ConfigDict(arbitrary_types_allowed=True)
 
     id: str = ""
     # Name of the test

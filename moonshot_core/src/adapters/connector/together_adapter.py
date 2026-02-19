@@ -40,7 +40,7 @@ class TogetherAdapter(ConnectorPort):
             connector_entity (ConnectorEntity): The configuration entity for the connector.
         """
         self.connector_entity = connector_entity
-        api_key = os.getenv("TOGETHER_API_KEY") or ""
+        api_key = os.getenv("TOGETHER_API_KEY") or "tgp_v1_Hr2LpyhrXYrFam6l8gJSr00Cv2IclJp1R9GCASiwpmw"
         
         # Log API key status (without exposing the actual key)
         if not api_key:
@@ -72,7 +72,7 @@ class TogetherAdapter(ConnectorPort):
             ConnectorResponseEntity: The response from the Together AI API.
         """
         connector_prompt = f"{self.connector_entity.connector_pre_prompt}{prompt}{self.connector_entity.connector_post_prompt}"  # noqa: E501
-
+        logger.info(f"Connector prompt: {connector_prompt}")
         if self.connector_entity.system_prompt:
             together_request = [
                 {"role": "system", "content": self.connector_entity.system_prompt},

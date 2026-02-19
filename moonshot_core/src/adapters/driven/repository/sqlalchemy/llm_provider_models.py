@@ -227,7 +227,7 @@ class BenchmarkTestBundleGroupingModel(Base):
 
 
 # ---------------------------------------------------------------------------
-# AIVF product: benchmark run, endpoint config, custom app
+# AIVF product: benchmark run, endpoint config
 # ---------------------------------------------------------------------------
 
 
@@ -251,51 +251,11 @@ class LLMProviderEndpointConfigModel(Base):
         return f"<LLMProviderEndpointConfigModel(id={self.id}, name='{self.name}')>"
 
 
-class CustomAppModel(Base):
-    """
-    SQLAlchemy model for the custom_app table.
-
-    Custom application (referenced by benchmark_run when endpoint_type is Custom_App).
-    """
-    __tablename__ = "custom_app"
-
-    id = Column(Integer, primary_key=True, autoincrement=True)
-    name = Column(String, nullable=False)
-
-    # Relationships
-    configs = relationship("CustomAppConfigModel", back_populates="custom_app")
-    benchmark_runs = relationship("BenchmarkRunModel", back_populates="custom_app")
-
-    def __repr__(self) -> str:
-        return f"<CustomAppModel(id={self.id}, name='{self.name}')>"
-
-
-class CustomAppConfigModel(Base):
-    """
-    SQLAlchemy model for the custom_app_config table.
-
-    Configuration for a custom app (key/value style).
-    """
-    __tablename__ = "custom_app_config"
-
-    id = Column(Integer, primary_key=True, autoincrement=True)
-    custom_app_id = Column(Integer, ForeignKey("custom_app.id"), nullable=False)
-    name = Column(String, nullable=False)
-    value = Column(String, nullable=True)
-
-    # Relationships
-    custom_app = relationship("CustomAppModel", back_populates="configs")
-    benchmark_runs = relationship("BenchmarkRunModel", back_populates="custom_app_config")
-
-    def __repr__(self) -> str:
-        return f"<CustomAppConfigModel(id={self.id}, custom_app_id={self.custom_app_id})>"
-
-
 class BenchmarkRunModel(Base):
     """
     SQLAlchemy model for the benchmark_run table.
 
-    A single benchmark run (LLM_Provider or Custom_App endpoint).
+    A single benchmark run (LLM provider endpoint).
     """
     __tablename__ = "benchmark_run"
 
@@ -304,7 +264,7 @@ class BenchmarkRunModel(Base):
     start_time = Column(DateTime, nullable=False, server_default=func.now())
     end_time = Column(DateTime, nullable=True)
     status = Column(String, nullable=False)
-    endpoint_type = Column(String, nullable=False)  # LLM_Provider, Custom_App
+    endpoint_type = Column(String, nullable=False)  # LLM_Provider
     llm_provider_id = Column(Integer, ForeignKey("llm_provider.id"), nullable=True)
     llm_provider_model_id = Column(Integer, ForeignKey("model.id"), nullable=True)
     llm_provider_endpoint_config_id = Column(
@@ -312,8 +272,6 @@ class BenchmarkRunModel(Base):
         ForeignKey("llm_provider_endpoint_config.id"),
         nullable=True,
     )
-    custom_app_id = Column(Integer, ForeignKey("custom_app.id"), nullable=True)
-    custom_app_config_id = Column(Integer, ForeignKey("custom_app_config.id"), nullable=True)
 
     # Relationships
     llm_provider = relationship("LLMProviderModel", backref="benchmark_runs")
@@ -321,8 +279,6 @@ class BenchmarkRunModel(Base):
         "LLMProviderEndpointConfigModel",
         back_populates="benchmark_runs",
     )
-    custom_app = relationship("CustomAppModel", back_populates="benchmark_runs")
-    custom_app_config = relationship("CustomAppConfigModel", back_populates="benchmark_runs")
     run_test_statuses = relationship(
         "BenchmarkRunTestStatusModel",
         back_populates="run",

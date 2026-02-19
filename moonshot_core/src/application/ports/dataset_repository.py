@@ -39,3 +39,31 @@ class DatasetRepository(ABC):
             Exception: For other dataset loading errors.
         """
         pass
+
+    @abstractmethod
+    def save_dataset(
+        self,
+        dataset_entity: DatasetEntity,
+        version: int = 1,
+        replace: bool = False,
+    ) -> None:
+        """
+        Persist a dataset. If a dataset with the same identity already exists,
+        behavior depends on replace: when False, implementations may skip or raise;
+        when True, replace existing data (e.g. delete and re-insert prompts).
+
+        Args:
+            dataset_entity: The dataset to save (name, description, license,
+                reference, examples with 'input' and 'target' keys).
+            version: Dataset version number (e.g. for DB uniqueness).
+            replace: If True, replace existing dataset with same identity;
+                if False, may raise or no-op when already present.
+
+        Raises:
+            NotImplementedError: If this repository does not support saving
+                (e.g. read-only file source).
+            ValueError: If replace is False and a dataset with the same
+                system_name/version already exists, or if data is invalid.
+            Exception: For other persistence errors.
+        """
+        pass

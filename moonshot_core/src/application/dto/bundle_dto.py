@@ -1,6 +1,6 @@
 from typing import List
 
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict
 
 from application.dto.benchmark_test_dto import BenchmarkTestDTO
 
@@ -21,8 +21,7 @@ class BundleDTO(BaseModel):
         prompt_count (int): The total number of prompts across all tests in the bundle.
     """
 
-    class Config:
-        arbitrary_types_allowed = True
+    model_config = ConfigDict(arbitrary_types_allowed=True)
 
     # Unique identifier for the bundle
     id: str = ""

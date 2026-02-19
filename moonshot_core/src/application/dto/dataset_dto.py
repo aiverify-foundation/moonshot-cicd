@@ -1,4 +1,4 @@
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict
 
 
 class DatasetDTO(BaseModel):
@@ -17,8 +17,7 @@ class DatasetDTO(BaseModel):
         num_of_dataset_prompts (int): The number of dataset prompts.
     """
 
-    class Config:
-        arbitrary_types_allowed = True
+    model_config = ConfigDict(arbitrary_types_allowed=True)
 
     # Unique identifier for the dataset
     id: str

@@ -1,5 +1,5 @@
 from typing import Dict
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict
 
 
 class ProviderDTO(BaseModel):
@@ -18,8 +18,8 @@ class ProviderDTO(BaseModel):
         modelToken (str): Token or identifier used for model selection.
     """
 
-    class Config:
-        arbitrary_types_allowed = True
+    model_config = ConfigDict(arbitrary_types_allowed=True)
+
 
     # Unique identifier for the provider
     id: str
