@@ -34,7 +34,7 @@ class SQLiteAdapter:
         
         self.db_path = db_path
         self._initialize_database()
-        self._initialize_provider_names()
+        # self._initialize_provider_names()
     
     def _initialize_database(self) -> None:
         """Initialize the database schema using Alembic migrations."""
