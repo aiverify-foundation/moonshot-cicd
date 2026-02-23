@@ -48,12 +48,12 @@ class ProviderRepository(ABC):
         pass
     
     @abstractmethod
-    def add_provider(self, provider: ProviderEntity) -> ProviderEntity:
+    def add_provider(self, provider_name: str) -> ProviderEntity:
         """
-        Add a new provider.
+        Add a new LLM Provider.
         
         Args:
-            provider (ProviderEntity): The provider entity to add.
+            provider_name (str): The name of LLM Provider to add.
             
         Returns:
             ProviderEntity: The added provider entity with any generated fields.

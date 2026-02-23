@@ -126,8 +126,7 @@ class ProviderService:
             ProviderDTO: The added provider DTO with any generated fields.
         """
         self.logger.info(f"Adding provider: {provider.name}")
-        entity = self._dto_to_provider_entity(provider)
-        added_entity = self.provider_repository.add_provider(entity)
+        added_entity = self.provider_repository.add_llm_provider(provider.name)
         return self._provider_entity_to_dto(added_entity)
     
     def update_provider(self, provider: ProviderDTO) -> ProviderDTO:

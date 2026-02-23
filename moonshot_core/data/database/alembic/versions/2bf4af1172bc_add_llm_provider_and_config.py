@@ -34,7 +34,7 @@ def upgrade() -> None:
 
     # Insert default LLM Providers that officially supported by FE
     # Future plan to auto populate from adapters.driven.connectors upon startup
-    op.execute("INSERT INTO llm_provider (name) VALUES ('Open AI'), ('Together AI')")
+    op.execute("INSERT INTO llm_provider (name) VALUES ('OpenAI'), ('Together AI')")
     
     # Create table to store LLM name under a LLM Provider
     op.create_table(

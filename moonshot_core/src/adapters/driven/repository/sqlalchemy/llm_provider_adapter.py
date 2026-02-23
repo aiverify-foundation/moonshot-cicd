@@ -118,7 +118,7 @@ class LLMProviderAdapter(ProviderRepository):
             raise e
     
     @override
-    def add_provider(self, provider: ProviderEntity) -> ProviderEntity:
+    def add_provider(self, provider_name: str) -> ProviderEntity:
         """
         Add a new provider.
         
@@ -131,30 +131,24 @@ class LLMProviderAdapter(ProviderRepository):
         try:
             with self.session_manager.get_session() as session:
                 # Check if provider with same name already exists
-                existing = session.query(LLMProviderModel).filter(
-                    LLMProviderModel.name == provider.name
-                ).first()
+                existing = session \
+                    .query(LLMProviderModel) \
+                    .filter(LLMProviderModel.name == provider_name) \
+                    .first()
                 
                 if existing:
                     self.logger.warning(
-                        f"Provider with name '{provider.name}' already exists"
+                        f"Provider with name '{provider_name}' already exists"
                     )
                     return self._model_to_entity(existing)
                 
                 # Create new provider model
-                new_model = LLMProviderModel(name=provider.name)
+                new_model = LLMProviderModel(name=provider_name)
                 session.add(new_model)
                 session.flush()  # Flush to get the generated ID
                 
-                # Return the provider with the generated ID
-                return ProviderEntity(
-                    id=str(new_model.id),
-                    name=new_model.name,
-                    defaultModel=provider.defaultModel,
-                    modelTextboxExplanation=provider.modelTextboxExplanation,
-                    defaultConfigPairs=provider.defaultConfigPairs,
-                    modelToken=provider.modelToken
-                )
+                return self._model_to_entity(new_model)
+
         except Exception as e:
             self.logger.error(f"Error adding provider: {e}")
             raise

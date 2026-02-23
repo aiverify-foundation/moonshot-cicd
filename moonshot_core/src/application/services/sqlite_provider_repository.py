@@ -110,7 +110,7 @@ class SQLiteProviderRepository(ProviderRepository):
         provider_dicts = self.sqlite_adapter.list_llm_providers()
         return [self._dict_to_provider_entity(provider_dict) for provider_dict in provider_dicts]
     
-    def add_provider(self, provider: ProviderEntity) -> ProviderEntity:
+    def add_provider(self, provide_name: ProviderEntity) -> ProviderEntity:
         """
         Add a new provider.
         
@@ -120,7 +120,7 @@ class SQLiteProviderRepository(ProviderRepository):
         Returns:
             ProviderEntity: The added provider entity with any generated fields.
         """
-        provider_id = self.sqlite_adapter.add_llm_provider(name=provider.name)
+        provider_id = self.sqlite_adapter.add_llm_provider(name=provide_name)
         
         # Return the provider with the generated ID
         return ProviderEntity(
