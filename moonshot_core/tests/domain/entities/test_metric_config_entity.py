@@ -366,8 +366,7 @@ class TestMetricConfigEntity:
 
         # Assert
         assert isinstance(entity.connector_configurations, ConnectorEntity)
-        assert hasattr(entity, 'Config')
-        assert entity.Config.arbitrary_types_allowed is True
+        assert entity.model_config.get("arbitrary_types_allowed") is True
 
     @pytest.mark.parametrize("field_name,new_value", [
         ("name", "updated_metric_name"),
