@@ -5,9 +5,7 @@ This module provides a REST API interface for the Moonshot benchmarking system.
 
 from fastapi import FastAPI, Request, HTTPException
 from fastapi.responses import FileResponse
-from fastapi.middleware.cors import CORSMiddleware
 import os
-import asyncio
 import multiprocessing
 from pathlib import Path
 from urllib.parse import urlparse
@@ -15,12 +13,9 @@ from domain.services.app_config import AppConfig
 from domain.services.logger import configure_logger
 from application.services.benchmark import BenchmarkService
 from typing import List
-from datetime import datetime
 
 # Provider/model-config service & DTOs
 from application.services.provider_service import ProviderService
-from application.services.sqlite_adapter import SQLiteAdapter
-from application.services.sqlite_provider_repository import SQLiteProviderRepository
 from application.services.file_model_config_repository import FileModelConfigRepository
 from application.dto.provider_dto import ProviderDTO
 from application.dto.model_config_dto import ModelConfigDTO
@@ -109,11 +104,7 @@ async def root():
 
 # Initialize the benchmark service
 benchmark_service = BenchmarkService(None, None)
-
-# Initialize provider service with SQLite repository
-sqlite_adapter = SQLiteAdapter()
-provider_repository = SQLiteProviderRepository(sqlite_adapter)
-provider_service = ProviderService(provider_repository)
+provider_service = ProviderService()
 
 # Initialize file-based model config repository for fixed endpoint configs (lazy initialization)
 _file_model_config_repository = None

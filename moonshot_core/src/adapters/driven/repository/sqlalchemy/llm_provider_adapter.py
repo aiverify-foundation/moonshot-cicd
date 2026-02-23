@@ -74,30 +74,6 @@ class LLMProviderAdapter(ProviderRepository):
             return None
     
     @override
-    def get_provider_by_name(self, name: str) -> Optional[ProviderEntity]:
-        """
-        Get a provider by its name.
-        
-        Args:
-            name (str): The name of the provider.
-            
-        Returns:
-            Optional[ProviderEntity]: The provider entity if found, None otherwise.
-        """
-        try:
-            with self.session_manager.get_session() as session:
-                model = session.query(LLMProviderModel).filter(
-                    LLMProviderModel.name == name
-                ).first()
-                
-                if model:
-                    return self._model_to_entity(model)
-                return None
-        except Exception as e:
-            self.logger.error(f"Error getting provider by name {name}: {e}")
-            return None
-    
-    @override
     def list_providers(self) -> List[ProviderEntity]:
         """
         List all available providers.
@@ -146,84 +122,12 @@ class LLMProviderAdapter(ProviderRepository):
                 new_model = LLMProviderModel(name=provider_name)
                 session.add(new_model)
                 session.flush()  # Flush to get the generated ID
+
+                self.logger.info(f"Added provider: {new_model}")
                 
                 return self._model_to_entity(new_model)
 
         except Exception as e:
             self.logger.error(f"Error adding provider: {e}")
             raise
-    
-    @override
-    def update_provider(self, provider: ProviderEntity) -> ProviderEntity:
-        """
-        Update an existing provider.
         
-        Args:
-            provider (ProviderEntity): The provider entity to update.
-            
-        Returns:
-            ProviderEntity: The updated provider entity.
-        """
-        try:
-            if not provider.id.isdigit():
-                self.logger.error(f"Invalid provider ID format: {provider.id}")
-                raise ValueError(f"Invalid provider ID format: {provider.id}")
-            
-            db_id = int(provider.id)
-            
-            with self.session_manager.get_session() as session:
-                model = session.query(LLMProviderModel).filter(
-                    LLMProviderModel.id == db_id
-                ).first()
-                
-                if not model:
-                    self.logger.error(f"Provider with ID {provider.id} not found")
-                    raise ValueError(f"Provider with ID {provider.id} not found")
-                
-                # Update the model
-                model.name = provider.name
-                session.flush()
-                
-                return provider
-        except Exception as e:
-            self.logger.error(f"Error updating provider: {e}")
-            raise
-    
-    @override
-    def delete_provider(self, provider_id: str) -> bool:
-        """
-        Delete a provider by its ID.
-        
-        Args:
-            provider_id (str): The unique identifier of the provider to delete.
-            
-        Returns:
-            bool: True if the provider was deleted, False otherwise.
-        """
-        try:
-            if not provider_id.isdigit():
-                self.logger.error(f"Invalid provider ID format: {provider_id}")
-                return False
-                
-            db_id = int(provider_id)
-            
-            with self.session_manager.get_session() as session:
-                model = session.query(LLMProviderModel).filter(
-                    LLMProviderModel.id == db_id
-                ).first()
-                
-                if not model:
-                    self.logger.warning(f"Provider with ID {provider_id} not found")
-                    return False
-                
-                session.delete(model)
-                session.flush()
-                
-                return True
-        except (ValueError, TypeError) as e:
-            self.logger.error(f"Invalid provider ID format: {provider_id}, error: {e}")
-            return False
-        except Exception as e:
-            self.logger.error(f"Error deleting provider {provider_id}: {e}")
-            return False
-
