@@ -421,9 +421,8 @@ class TestMetricIndividualEntity:
             target="Test target"
         )
 
-        # Assert
-        assert hasattr(entity, 'Config')
-        assert entity.Config.arbitrary_types_allowed is True
+        # Assert (Pydantic v2 uses model_config)
+        assert entity.model_config.get("arbitrary_types_allowed") is True
 
     @pytest.mark.parametrize("field_name,new_value", [
         ("prompt", "Updated prompt"),
