@@ -123,14 +123,7 @@ class SQLiteProviderRepository(ProviderRepository):
         provider_id = self.sqlite_adapter.add_llm_provider(name=provide_name)
         
         # Return the provider with the generated ID
-        return ProviderEntity(
-            id=str(provider_id),
-            name=provider.name,
-            defaultModel=provider.defaultModel,
-            modelTextboxExplanation=provider.modelTextboxExplanation,
-            defaultConfigPairs=provider.defaultConfigPairs,
-            modelToken=provider.modelToken
-        )
+        return self.get_provider_by_id(provider_id)
     
     def update_provider(self, provider: ProviderEntity) -> ProviderEntity:
         """

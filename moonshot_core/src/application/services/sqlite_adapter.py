@@ -2,17 +2,17 @@
 
 import sqlite3
 import os
-import yaml
+# import yaml
 from pathlib import Path
 from typing import Optional, Dict, Any, List
 from contextlib import contextmanager
 from datetime import datetime
 from domain.entities.model_config_entity import ModelConfigEntity
-from alembic import command
-from alembic.config import Config
-from alembic import script
-from alembic.runtime.migration import MigrationContext
-from sqlalchemy import create_engine, inspect
+# from alembic import command
+# from alembic.config import Config
+# from alembic import script
+# from alembic.runtime.migration import MigrationContext
+# from sqlalchemy import create_engine, inspect
 
 
 class SQLiteAdapter:
