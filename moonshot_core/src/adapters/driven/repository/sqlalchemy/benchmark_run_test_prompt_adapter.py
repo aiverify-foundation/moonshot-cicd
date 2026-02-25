@@ -71,49 +71,60 @@ class SqlAlchemyBenchmarkRunTestPromptRepository(BenchmarkRunTestPromptRepositor
         self, entity: BenchmarkRunTestPromptEntity
     ) -> BenchmarkRunTestPromptEntity:
         """
-        Persist a run prompt. Insert if entity has no id; update if entity has id.
+        Insert a run prompt. Entity must not have id set.
         Returns the saved entity with id populated.
         """
+        if entity.id is not None and entity.id != 0:
+            raise ValueError(
+                "Cannot save: entity has id set. Use update() for existing run prompt."
+            )
         with self.session_manager.get_session() as session:
-            if entity.id is None or entity.id == 0:
-                model = BenchmarkRunTestPromptModel(
-                    run_test_id=entity.run_test_id,
-                    prompt_id=entity.prompt_id,
-                    status=entity.status,
-                    target=entity.target,
-                    prompt_additional_info=entity.prompt_additional_info,
-                    prediction_result=entity.prediction_result,
-                    prediction_context=entity.prediction_context,
-                    evaluation_prompt=entity.evaluation_prompt,
-                    evaluation_prediction_result=entity.evaluation_prediction_result,
-                    evaluation_accuracy=entity.evaluation_accuracy,
-                    user_evaluation=entity.user_evaluation,
-                    user_notes=entity.user_notes,
+            model = BenchmarkRunTestPromptModel(
+                run_test_id=entity.run_test_id,
+                prompt_id=entity.prompt_id,
+                status=entity.status,
+                target=entity.target,
+                prompt_additional_info=entity.prompt_additional_info,
+                prediction_result=entity.prediction_result,
+                prediction_context=entity.prediction_context,
+                evaluation_prompt=entity.evaluation_prompt,
+                evaluation_prediction_result=entity.evaluation_prediction_result,
+                evaluation_accuracy=entity.evaluation_accuracy,
+                user_evaluation=entity.user_evaluation,
+                user_notes=entity.user_notes,
+            )
+            session.add(model)
+            session.flush()
+            return self._model_to_entity(model)
+
+    @override
+    def update(
+        self, entity: BenchmarkRunTestPromptEntity
+    ) -> BenchmarkRunTestPromptEntity:
+        """Update an existing run prompt. Entity must have id set."""
+        if entity.id is None or entity.id == 0:
+            raise ValueError("Cannot update: entity must have id set")
+        with self.session_manager.get_session() as session:
+            model = (
+                session.query(BenchmarkRunTestPromptModel)
+                .filter(BenchmarkRunTestPromptModel.id == entity.id)
+                .first()
+            )
+            if model is None:
+                raise ValueError(
+                    f"Cannot update: no benchmark_run_test_prompt with id={entity.id}"
                 )
-                session.add(model)
-                session.flush()
-                return self._model_to_entity(model)
-            else:
-                model = (
-                    session.query(BenchmarkRunTestPromptModel)
-                    .filter(BenchmarkRunTestPromptModel.id == entity.id)
-                    .first()
-                )
-                if model is None:
-                    raise ValueError(
-                        f"Cannot update: no benchmark_run_test_prompt with id={entity.id}"
-                    )
-                model.run_test_id = entity.run_test_id
-                model.prompt_id = entity.prompt_id
-                model.status = entity.status
-                model.target = entity.target
-                model.prompt_additional_info = entity.prompt_additional_info
-                model.prediction_result = entity.prediction_result
-                model.prediction_context = entity.prediction_context
-                model.evaluation_prompt = entity.evaluation_prompt
-                model.evaluation_prediction_result = entity.evaluation_prediction_result
-                model.evaluation_accuracy = entity.evaluation_accuracy
-                model.user_evaluation = entity.user_evaluation
-                model.user_notes = entity.user_notes
-                session.flush()
-                return self._model_to_entity(model)
+            model.run_test_id = entity.run_test_id
+            model.prompt_id = entity.prompt_id
+            model.status = entity.status
+            model.target = entity.target
+            model.prompt_additional_info = entity.prompt_additional_info
+            model.prediction_result = entity.prediction_result
+            model.prediction_context = entity.prediction_context
+            model.evaluation_prompt = entity.evaluation_prompt
+            model.evaluation_prediction_result = entity.evaluation_prediction_result
+            model.evaluation_accuracy = entity.evaluation_accuracy
+            model.user_evaluation = entity.user_evaluation
+            model.user_notes = entity.user_notes
+            session.flush()
+            return self._model_to_entity(model)

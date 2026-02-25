@@ -65,40 +65,49 @@ class SqlAlchemyBenchmarkRunRepository(BenchmarkRunRepository):
 
     @override
     def save(self, entity: BenchmarkRunEntity) -> BenchmarkRunEntity:
+        """Insert only. Entity must not have id set."""
+        if entity.id is not None and entity.id != 0:
+            raise ValueError(
+                "Cannot save: entity has id set. Use update() for existing runs."
+            )
+        with self.session_manager.get_session() as session:
+            model = BenchmarkRunModel(
+                name=entity.name,
+                status=entity.status,
+                endpoint_type=entity.endpoint_type,
+                start_time=entity.start_time or datetime.now(timezone.utc),
+                end_time=entity.end_time,
+                llm_provider_id=entity.llm_provider_id,
+                llm_provider_model_id=entity.llm_provider_model_id,
+                llm_provider_endpoint_config_id=entity.llm_provider_endpoint_config_id,
+            )
+            session.add(model)
+            session.flush()
+            return self._model_to_entity(model)
+
+    @override
+    def update(self, entity: BenchmarkRunEntity) -> BenchmarkRunEntity:
         with self.session_manager.get_session() as session:
             if entity.id is None or entity.id == 0:
-                model = BenchmarkRunModel(
-                    name=entity.name,
-                    status=entity.status,
-                    endpoint_type=entity.endpoint_type,
-                    start_time=entity.start_time or datetime.now(timezone.utc),
-                    end_time=entity.end_time,
-                    llm_provider_id=entity.llm_provider_id,
-                    llm_provider_model_id=entity.llm_provider_model_id,
-                    llm_provider_endpoint_config_id=entity.llm_provider_endpoint_config_id,
+                raise ValueError("Cannot update: entity must have id set")
+            model = (
+                session.query(BenchmarkRunModel)
+                .filter(BenchmarkRunModel.id == entity.id)
+                .first()
+            )
+            if model is None:
+                raise ValueError(
+                    f"Cannot update: no benchmark_run with id={entity.id}"
                 )
-                session.add(model)
-                session.flush()
-                return self._model_to_entity(model)
-            else:
-                model = (
-                    session.query(BenchmarkRunModel)
-                    .filter(BenchmarkRunModel.id == entity.id)
-                    .first()
-                )
-                if model is None:
-                    raise ValueError(
-                        f"Cannot update: no benchmark_run with id={entity.id}"
-                    )
-                model.name = entity.name
-                model.status = entity.status
-                model.endpoint_type = entity.endpoint_type
-                model.start_time = entity.start_time
-                model.end_time = entity.end_time
-                model.llm_provider_id = entity.llm_provider_id
-                model.llm_provider_model_id = entity.llm_provider_model_id
-                model.llm_provider_endpoint_config_id = (
-                    entity.llm_provider_endpoint_config_id
-                )
-                session.flush()
-                return self._model_to_entity(model)
+            model.name = entity.name
+            model.status = entity.status
+            model.endpoint_type = entity.endpoint_type
+            model.start_time = entity.start_time
+            model.end_time = entity.end_time
+            model.llm_provider_id = entity.llm_provider_id
+            model.llm_provider_model_id = entity.llm_provider_model_id
+            model.llm_provider_endpoint_config_id = (
+                entity.llm_provider_endpoint_config_id
+            )
+            session.flush()
+            return self._model_to_entity(model)

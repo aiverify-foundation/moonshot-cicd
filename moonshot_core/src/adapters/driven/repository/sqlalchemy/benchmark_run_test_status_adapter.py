@@ -66,38 +66,50 @@ class SqlAlchemyBenchmarkRunTestStatusRepository(BenchmarkRunTestStatusRepositor
     def save(
         self, entity: BenchmarkRunTestStatusEntity
     ) -> BenchmarkRunTestStatusEntity:
+        """Insert only. Entity must not have id set."""
+        if entity.id is not None and entity.id != 0:
+            raise ValueError(
+                "Cannot save: entity has id set. Use update() for existing run test status."
+            )
         with self.session_manager.get_session() as session:
-            if entity.id is None or entity.id == 0:
-                model = BenchmarkRunTestStatusModel(
-                    run_id=entity.run_id,
-                    test_id=entity.test_id,
-                    status=entity.status,
-                    start_dt=entity.start_dt,
-                    end_dt=entity.end_dt,
-                    connector_pre_prompt=entity.connector_pre_prompt,
-                    connector_post_prompt=entity.connector_post_prompt,
-                    system_prompt=entity.system_prompt,
+            model = BenchmarkRunTestStatusModel(
+                run_id=entity.run_id,
+                test_id=entity.test_id,
+                status=entity.status,
+                start_dt=entity.start_dt,
+                end_dt=entity.end_dt,
+                connector_pre_prompt=entity.connector_pre_prompt,
+                connector_post_prompt=entity.connector_post_prompt,
+                system_prompt=entity.system_prompt,
+            )
+            session.add(model)
+            session.flush()
+            return self._model_to_entity(model)
+
+    @override
+    def update(
+        self, entity: BenchmarkRunTestStatusEntity
+    ) -> BenchmarkRunTestStatusEntity:
+        """Update an existing run test status. Entity must have id set."""
+        if entity.id is None or entity.id == 0:
+            raise ValueError("Cannot update: entity must have id set")
+        with self.session_manager.get_session() as session:
+            model = (
+                session.query(BenchmarkRunTestStatusModel)
+                .filter(BenchmarkRunTestStatusModel.id == entity.id)
+                .first()
+            )
+            if model is None:
+                raise ValueError(
+                    f"Cannot update: no benchmark_run_test_status with id={entity.id}"
                 )
-                session.add(model)
-                session.flush()
-                return self._model_to_entity(model)
-            else:
-                model = (
-                    session.query(BenchmarkRunTestStatusModel)
-                    .filter(BenchmarkRunTestStatusModel.id == entity.id)
-                    .first()
-                )
-                if model is None:
-                    raise ValueError(
-                        f"Cannot update: no benchmark_run_test_status with id={entity.id}"
-                    )
-                model.run_id = entity.run_id
-                model.test_id = entity.test_id
-                model.status = entity.status
-                model.start_dt = entity.start_dt
-                model.end_dt = entity.end_dt
-                model.connector_pre_prompt = entity.connector_pre_prompt
-                model.connector_post_prompt = entity.connector_post_prompt
-                model.system_prompt = entity.system_prompt
-                session.flush()
-                return self._model_to_entity(model)
+            model.run_id = entity.run_id
+            model.test_id = entity.test_id
+            model.status = entity.status
+            model.start_dt = entity.start_dt
+            model.end_dt = entity.end_dt
+            model.connector_pre_prompt = entity.connector_pre_prompt
+            model.connector_post_prompt = entity.connector_post_prompt
+            model.system_prompt = entity.system_prompt
+            session.flush()
+            return self._model_to_entity(model)

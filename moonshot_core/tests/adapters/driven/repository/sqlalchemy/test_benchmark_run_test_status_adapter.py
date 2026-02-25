@@ -120,7 +120,47 @@ class TestSqlAlchemyBenchmarkRunTestStatusRepository:
         assert saved.run_id == 1
         mock_session.add.assert_called_once()
 
-    def test_save_update_not_found_raises(self, mock_sm_class):
+    def test_save_with_id_raises(self, mock_sm_class):
+        mock_session = MagicMock()
+        mock_sm_class.get_instance.return_value.get_session.return_value = _session_ctx(
+            mock_session
+        )
+        repo = SqlAlchemyBenchmarkRunTestStatusRepository()
+        entity = BenchmarkRunTestStatusEntity(
+            id=999,
+            run_id=1,
+            test_id=2,
+            status="completed",
+        )
+        with pytest.raises(ValueError, match="Cannot save: entity has id set"):
+            repo.save(entity)
+
+    def test_update_returns_entity(self, mock_sm_class):
+        mock_model = _make_mock_status_model(
+            id=1,
+            run_id=1,
+            test_id=2,
+            status="in_progress",
+        )
+        mock_session = MagicMock()
+        mock_session.query.return_value.filter.return_value.first.return_value = (
+            mock_model
+        )
+        mock_sm_class.get_instance.return_value.get_session.return_value = _session_ctx(
+            mock_session
+        )
+        repo = SqlAlchemyBenchmarkRunTestStatusRepository()
+        entity = BenchmarkRunTestStatusEntity(
+            id=1,
+            run_id=1,
+            test_id=2,
+            status="completed",
+        )
+        result = repo.update(entity)
+        assert result.id == 1
+        assert result.status == "completed"
+
+    def test_update_not_found_raises(self, mock_sm_class):
         mock_session = MagicMock()
         mock_session.query.return_value.filter.return_value.first.return_value = None
         mock_sm_class.get_instance.return_value.get_session.return_value = _session_ctx(
@@ -134,4 +174,4 @@ class TestSqlAlchemyBenchmarkRunTestStatusRepository:
             status="completed",
         )
         with pytest.raises(ValueError, match="no benchmark_run_test_status"):
-            repo.save(entity)
+            repo.update(entity)

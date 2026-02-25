@@ -32,13 +32,33 @@ class BenchmarkRunTestPromptRepository(ABC):
         self, entity: BenchmarkRunTestPromptEntity
     ) -> BenchmarkRunTestPromptEntity:
         """
-        Persist a run prompt. Insert if entity has no id (id is None or 0);
-        update if entity has an existing id.
+        Insert a new run prompt. Entity must not have id set.
 
         Args:
-            entity: The run prompt to save.
+            entity: The run prompt to insert.
 
         Returns:
-            The saved entity with id populated (after insert or update).
+            The saved entity with id populated.
+
+        Raises:
+            ValueError: If entity already has an id (use update instead).
+        """
+        pass
+
+    @abstractmethod
+    def update(
+        self, entity: BenchmarkRunTestPromptEntity
+    ) -> BenchmarkRunTestPromptEntity:
+        """
+        Update an existing run prompt. Entity must have id set.
+
+        Args:
+            entity: The run prompt to update.
+
+        Returns:
+            The updated entity.
+
+        Raises:
+            ValueError: If entity has no id or no row exists with that id.
         """
         pass

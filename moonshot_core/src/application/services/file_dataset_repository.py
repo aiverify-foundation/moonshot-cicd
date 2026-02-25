@@ -65,7 +65,6 @@ class FileDatasetRepository(DatasetRepository):
         self,
         dataset_entity: DatasetEntity,
         version: int = 1,
-        replace: bool = False,
     ) -> None:
         """File-based repository does not support saving datasets."""
         raise NotImplementedError(

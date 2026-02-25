@@ -45,12 +45,33 @@ class BenchmarkRunTestStatusRepository(ABC):
         self, entity: BenchmarkRunTestStatusEntity
     ) -> BenchmarkRunTestStatusEntity:
         """
-        Persist a run test status. Insert if entity has no id; update if entity has id.
+        Insert a new run test status. Entity must not have id set.
 
         Args:
-            entity: The run test status to save.
+            entity: The run test status to insert.
 
         Returns:
             The saved entity with id populated.
+
+        Raises:
+            ValueError: If entity already has an id (use update instead).
+        """
+        pass
+
+    @abstractmethod
+    def update(
+        self, entity: BenchmarkRunTestStatusEntity
+    ) -> BenchmarkRunTestStatusEntity:
+        """
+        Update an existing run test status. Entity must have id set.
+
+        Args:
+            entity: The run test status to update.
+
+        Returns:
+            The updated entity.
+
+        Raises:
+            ValueError: If entity has no id or no row exists with that id.
         """
         pass

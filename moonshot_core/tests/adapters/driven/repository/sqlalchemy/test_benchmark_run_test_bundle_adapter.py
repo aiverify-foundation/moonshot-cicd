@@ -105,7 +105,47 @@ class TestSqlAlchemyBenchmarkRunTestBundleRepository:
         assert saved.run_id == 1
         mock_session.add.assert_called_once()
 
-    def test_save_update_not_found_raises(self, mock_sm_class):
+    def test_save_with_id_raises(self, mock_sm_class):
+        mock_session = MagicMock()
+        mock_sm_class.get_instance.return_value.get_session.return_value = _session_ctx(
+            mock_session
+        )
+        repo = SqlAlchemyBenchmarkRunTestBundleRepository()
+        entity = BenchmarkRunTestBundleEntity(
+            id=999,
+            run_id=1,
+            test_bundle_id=2,
+            test_id=3,
+        )
+        with pytest.raises(ValueError, match="Cannot save: entity has id set"):
+            repo.save(entity)
+
+    def test_update_returns_entity(self, mock_sm_class):
+        mock_model = _make_mock_bundle_model(
+            id=1,
+            run_id=1,
+            test_bundle_id=2,
+            test_id=3,
+        )
+        mock_session = MagicMock()
+        mock_session.query.return_value.filter.return_value.first.return_value = (
+            mock_model
+        )
+        mock_sm_class.get_instance.return_value.get_session.return_value = _session_ctx(
+            mock_session
+        )
+        repo = SqlAlchemyBenchmarkRunTestBundleRepository()
+        entity = BenchmarkRunTestBundleEntity(
+            id=1,
+            run_id=1,
+            test_bundle_id=2,
+            test_id=4,
+        )
+        result = repo.update(entity)
+        assert result.id == 1
+        assert result.test_id == 4
+
+    def test_update_not_found_raises(self, mock_sm_class):
         mock_session = MagicMock()
         mock_session.query.return_value.filter.return_value.first.return_value = None
         mock_sm_class.get_instance.return_value.get_session.return_value = _session_ctx(
@@ -119,4 +159,4 @@ class TestSqlAlchemyBenchmarkRunTestBundleRepository:
             test_id=3,
         )
         with pytest.raises(ValueError, match="no benchmark_run_test_bundle"):
-            repo.save(entity)
+            repo.update(entity)

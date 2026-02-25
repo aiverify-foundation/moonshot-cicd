@@ -50,12 +50,28 @@ class BenchmarkRunRepository(ABC):
     @abstractmethod
     def save(self, entity: BenchmarkRunEntity) -> BenchmarkRunEntity:
         """
-        Persist a benchmark run. Insert if entity has no id; update if entity has id.
+        Insert a new benchmark run. Entity must not have id set.
 
         Args:
-            entity: The run to save.
+            entity: The run to insert.
 
         Returns:
             The saved entity with id populated.
+
+        Raises:
+            ValueError: If entity already has an id (use update instead).
+        """
+        pass
+
+    @abstractmethod
+    def update(self, entity: BenchmarkRunEntity) -> BenchmarkRunEntity:
+        """
+        Update an existing benchmark run. Entity must have id set.
+
+        Args:
+            entity: The run to update (must have id).
+
+        Returns:
+            The updated entity.
         """
         pass

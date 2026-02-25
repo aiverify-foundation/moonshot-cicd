@@ -116,7 +116,24 @@ class TestSqlAlchemyBenchmarkRunTestPromptRepository:
         mock_session.add.assert_called_once()
         mock_session.flush.assert_called_once()
 
-    def test_save_update_returns_entity(self, mock_sm_class):
+    def test_save_with_id_raises(self, mock_sm_class):
+        mock_cm = MagicMock()
+        mock_cm.__enter__ = MagicMock(return_value=MagicMock())
+        mock_cm.__exit__ = MagicMock(return_value=False)
+        mock_sm_class.get_instance.return_value.get_session.return_value = mock_cm
+
+        repo = SqlAlchemyBenchmarkRunTestPromptRepository()
+        entity = BenchmarkRunTestPromptEntity(
+            id=10,
+            run_test_id=1,
+            prompt_id=2,
+            status="completed",
+            target="new",
+        )
+        with pytest.raises(ValueError, match="Cannot save: entity has id set"):
+            repo.save(entity)
+
+    def test_update_returns_entity(self, mock_sm_class):
         mock_model = _make_mock_model(
             id=10,
             run_test_id=1,
@@ -141,14 +158,14 @@ class TestSqlAlchemyBenchmarkRunTestPromptRepository:
             status="completed",
             target="new",
         )
-        saved = repo.save(entity)
+        result = repo.update(entity)
 
-        assert saved.id == 10
-        assert saved.status == "completed"
-        assert saved.target == "new"
+        assert result.id == 10
+        assert result.status == "completed"
+        assert result.target == "new"
         mock_session.flush.assert_called_once()
 
-    def test_save_update_not_found_raises(self, mock_sm_class):
+    def test_update_not_found_raises(self, mock_sm_class):
         mock_session = MagicMock()
         mock_session.query.return_value.filter.return_value.first.return_value = None
         mock_cm = MagicMock()
@@ -164,4 +181,4 @@ class TestSqlAlchemyBenchmarkRunTestPromptRepository:
             status="completed",
         )
         with pytest.raises(ValueError, match="no benchmark_run_test_prompt"):
-            repo.save(entity)
+            repo.update(entity)

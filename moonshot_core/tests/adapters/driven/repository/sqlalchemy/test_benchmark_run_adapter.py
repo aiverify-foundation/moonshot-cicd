@@ -132,7 +132,23 @@ class TestSqlAlchemyBenchmarkRunRepository:
         mock_session.add.assert_called_once()
         mock_session.flush.assert_called_once()
 
-    def test_save_update_returns_entity(self, mock_sm_class):
+    def test_save_with_id_raises(self, mock_sm_class):
+        mock_session = MagicMock()
+        mock_sm_class.get_instance.return_value.get_session.return_value = _session_ctx(
+            mock_session
+        )
+        repo = SqlAlchemyBenchmarkRunRepository()
+        entity = BenchmarkRunEntity(
+            id=1,
+            name="updated",
+            status="completed",
+            endpoint_type="LLM_Provider",
+        )
+        with pytest.raises(ValueError, match="Cannot save: entity has id set"):
+            repo.save(entity)
+        mock_session.add.assert_not_called()
+
+    def test_update_returns_entity(self, mock_sm_class):
         mock_model = _make_mock_run_model(
             id=1,
             name="old",
@@ -152,12 +168,12 @@ class TestSqlAlchemyBenchmarkRunRepository:
             status="completed",
             endpoint_type="LLM_Provider",
         )
-        saved = repo.save(entity)
-        assert saved.id == 1
-        assert saved.name == "updated"
-        assert saved.status == "completed"
+        result = repo.update(entity)
+        assert result.id == 1
+        assert result.name == "updated"
+        assert result.status == "completed"
 
-    def test_save_update_not_found_raises(self, mock_sm_class):
+    def test_update_not_found_raises(self, mock_sm_class):
         mock_session = MagicMock()
         mock_session.query.return_value.filter.return_value.first.return_value = None
         mock_sm_class.get_instance.return_value.get_session.return_value = _session_ctx(
@@ -171,4 +187,4 @@ class TestSqlAlchemyBenchmarkRunRepository:
             endpoint_type="LLM_Provider",
         )
         with pytest.raises(ValueError, match="no benchmark_run"):
-            repo.save(entity)
+            repo.update(entity)

@@ -45,12 +45,33 @@ class BenchmarkRunTestBundleRepository(ABC):
         self, entity: BenchmarkRunTestBundleEntity
     ) -> BenchmarkRunTestBundleEntity:
         """
-        Persist a run test bundle. Insert if entity has no id; update if entity has id.
+        Insert a new run test bundle. Entity must not have id set.
 
         Args:
-            entity: The run test bundle to save.
+            entity: The run test bundle to insert.
 
         Returns:
             The saved entity with id populated.
+
+        Raises:
+            ValueError: If entity already has an id (use update instead).
+        """
+        pass
+
+    @abstractmethod
+    def update(
+        self, entity: BenchmarkRunTestBundleEntity
+    ) -> BenchmarkRunTestBundleEntity:
+        """
+        Update an existing run test bundle. Entity must have id set.
+
+        Args:
+            entity: The run test bundle to update.
+
+        Returns:
+            The updated entity.
+
+        Raises:
+            ValueError: If entity has no id or no row exists with that id.
         """
         pass

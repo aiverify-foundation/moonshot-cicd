@@ -61,28 +61,40 @@ class SqlAlchemyBenchmarkRunTestBundleRepository(BenchmarkRunTestBundleRepositor
     def save(
         self, entity: BenchmarkRunTestBundleEntity
     ) -> BenchmarkRunTestBundleEntity:
+        """Insert only. Entity must not have id set."""
+        if entity.id is not None and entity.id != 0:
+            raise ValueError(
+                "Cannot save: entity has id set. Use update() for existing run test bundle."
+            )
         with self.session_manager.get_session() as session:
-            if entity.id is None or entity.id == 0:
-                model = BenchmarkRunTestBundleModel(
-                    run_id=entity.run_id,
-                    test_bundle_id=entity.test_bundle_id,
-                    test_id=entity.test_id,
+            model = BenchmarkRunTestBundleModel(
+                run_id=entity.run_id,
+                test_bundle_id=entity.test_bundle_id,
+                test_id=entity.test_id,
+            )
+            session.add(model)
+            session.flush()
+            return self._model_to_entity(model)
+
+    @override
+    def update(
+        self, entity: BenchmarkRunTestBundleEntity
+    ) -> BenchmarkRunTestBundleEntity:
+        """Update an existing run test bundle. Entity must have id set."""
+        if entity.id is None or entity.id == 0:
+            raise ValueError("Cannot update: entity must have id set")
+        with self.session_manager.get_session() as session:
+            model = (
+                session.query(BenchmarkRunTestBundleModel)
+                .filter(BenchmarkRunTestBundleModel.id == entity.id)
+                .first()
+            )
+            if model is None:
+                raise ValueError(
+                    f"Cannot update: no benchmark_run_test_bundle with id={entity.id}"
                 )
-                session.add(model)
-                session.flush()
-                return self._model_to_entity(model)
-            else:
-                model = (
-                    session.query(BenchmarkRunTestBundleModel)
-                    .filter(BenchmarkRunTestBundleModel.id == entity.id)
-                    .first()
-                )
-                if model is None:
-                    raise ValueError(
-                        f"Cannot update: no benchmark_run_test_bundle with id={entity.id}"
-                    )
-                model.run_id = entity.run_id
-                model.test_bundle_id = entity.test_bundle_id
-                model.test_id = entity.test_id
-                session.flush()
-                return self._model_to_entity(model)
+            model.run_id = entity.run_id
+            model.test_bundle_id = entity.test_bundle_id
+            model.test_id = entity.test_id
+            session.flush()
+            return self._model_to_entity(model)
