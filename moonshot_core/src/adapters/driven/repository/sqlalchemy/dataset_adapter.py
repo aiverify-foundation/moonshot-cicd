@@ -109,48 +109,30 @@ class SqlAlchemyDatasetRepository(DatasetRepository):
         self,
         dataset_entity: DatasetEntity,
         version: int = 1,
-        replace: bool = False,
     ) -> None:
         """
-        Persist a dataset to benchmark_test_dataset and benchmark_test_dataset_prompt.
-
-        Uses entity.name as system_name. If a row with the same system_name (and
-        version) exists: when replace=False raises ValueError; when replace=True
-        deletes existing prompts and re-inserts, and updates description/license/reference.
+        Insert a new dataset. Fails if a dataset with the same system_name and
+        version already exists.
         """
         entity = dataset_entity
         with self.session_manager.get_session() as session:
-            existing = self._find_by_name_version(
-                session, entity.name, version
-            )
-
+            existing = self._find_by_name_version(session, entity.name, version)
             if existing:
-                if not replace:
-                    raise ValueError(
-                        f"Dataset already exists: system_name={entity.name!r}, version={version}. Use replace=True to overwrite."
-                    )
-                session.query(BenchmarkTestDatasetPromptModel).filter(
-                    BenchmarkTestDatasetPromptModel.benchmark_test_dataset_id
-                    == existing.id
-                ).delete()
-                existing.description = entity.description or None
-                existing.license = entity.license or None
-                existing.reference = entity.reference or None
-                dataset_id = existing.id
-            else:
-                new = BenchmarkTestDatasetModel(
-                    version=version,
-                    system_name=entity.name,
-                    description=entity.description or None,
-                    license=entity.license or None,
-                    reference=entity.reference or None,
+                raise ValueError(
+                    f"Dataset already exists: system_name={entity.name!r}, version={version}. "
+                    "Only insert is allowed; cannot replace."
                 )
-                session.add(new)
-                session.flush()
-                dataset_id = new.id
-
+            new = BenchmarkTestDatasetModel(
+                version=version,
+                system_name=entity.name,
+                description=entity.description or None,
+                license=entity.license or None,
+                reference=entity.reference or None,
+            )
+            session.add(new)
+            session.flush()
+            dataset_id = new.id
             num_prompts = self._persist_prompts(session, dataset_id, entity.examples)
-
         self.logger.info(
             "Saved dataset: system_name=%r, version=%s, prompts=%s",
             entity.name,

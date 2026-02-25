@@ -33,25 +33,31 @@ class BenchmarkDatasetSeedService:
         self,
         dataset_id: str,
         version: int = 1,
-        replace: bool = False,
     ) -> None:
         """
-        Load a dataset by dataset_id from the source repository and persist it
-        to the target repository (e.g. DB via dataset_adapter).
+        Load a dataset by dataset_id from the source repository and insert it
+        into the target repository (e.g. DB via dataset_adapter).
+        Insert only; target will raise if a dataset with the same system_name/version exists.
 
         Args:
             dataset_id: Identifier to load from source (e.g. file name without
                 extension for FileDatasetRepository, or numeric id for DB).
             version: Dataset version for the target store (e.g. DB version).
-            replace: If True, replace existing dataset with same identity in
-                target; if False, target may raise when already present.
 
         Raises:
-            ValueError: If source does not have the dataset, or target rejects
-                (e.g. already exists and replace=False).
+            ValueError: If source does not have the dataset, or target already
+                has a dataset with the same name/version.
             NotImplementedError: If target does not support save_dataset.
         """
-        self.logger.info(f"Seeding benchmark dataset: dataset_id={dataset_id!r}, version={version}, replace={replace}")
+        self.logger.info(
+            "Seeding benchmark dataset: dataset_id=%r, version=%s",
+            dataset_id,
+            version,
+        )
         entity = self.source.get_dataset_by_id(dataset_id)
-        self.target.save_dataset(entity, version=version, replace=replace)
-        self.logger.info(f"Seeded benchmark dataset: name={entity.name!r}, prompts={entity.num_of_dataset_prompts}")
+        self.target.save_dataset(entity, version=version)
+        self.logger.info(
+            "Seeded benchmark dataset: name=%r, prompts=%s",
+            entity.name,
+            entity.num_of_dataset_prompts,
+        )
