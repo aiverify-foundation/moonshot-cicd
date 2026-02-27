@@ -45,8 +45,10 @@ class BenchmarkTestDatasetModel(Base):
     reference = Column(String, nullable=True)
 
     __table_args__ = (
-        UniqueConstraint("version", name="uq_benchmark_test_dataset_version"),
-        UniqueConstraint("system_name", name="uq_benchmark_test_dataset_system_name"),
+        UniqueConstraint(
+            "system_name", "version",
+            name="uq_benchmark_test_dataset_system_name_version",
+        ),
     )
 
     # Relationships
@@ -394,3 +396,18 @@ class BenchmarkRunTestBundleModel(Base):
     def __repr__(self) -> str:
         return f"<BenchmarkRunTestBundleModel(id={self.id}, run_id={self.run_id})>"
 
+
+class MoonshotConfigModel(Base):
+    """
+    SQLAlchemy model for the moonshot_config table.
+
+    Stores application configuration as key-value pairs.
+    """
+    __tablename__ = "moonshot_config"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    key = Column(String, nullable=False, unique=True)
+    value = Column(String, nullable=True)
+
+    def __repr__(self) -> str:
+        return f"<MoonshotConfigModel(id={self.id}, key='{self.key}')>"

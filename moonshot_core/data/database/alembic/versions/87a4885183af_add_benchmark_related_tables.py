@@ -36,8 +36,7 @@ def upgrade() -> None:
         sa.Column("license", sa.String(), nullable=True),
         sa.Column("reference", sa.String(), nullable=True),
         sa.PrimaryKeyConstraint("id"),
-        sa.UniqueConstraint("version", name="uq_benchmark_test_dataset_version"),
-        sa.UniqueConstraint("system_name", name="uq_benchmark_test_dataset_system_name"),
+        sa.UniqueConstraint("version", "system_name", name="uq_benchmark_test_dataset_system_name_version"),
     )
 
     # Create benchmark_test_dataset_prompt table
