@@ -1,9 +1,18 @@
 """SQLAlchemy-based implementation of DatasetRepository."""
 
-from typing import Iterator, Optional, override
+from typing import Optional, override
+
+from sqlalchemy import func
 
 from application.ports.dataset_repository import DatasetRepository
+from domain.entities.benchmark_test_dataset_prompt_entity import (
+    BenchmarkTestDatasetPromptEntity,
+)
 from domain.entities.dataset_entity import DatasetEntity
+from domain.services.dataset_examples_converter import (
+    examples_to_prompts,
+    prompts_to_examples,
+)
 from domain.services.logger import configure_logger
 from adapters.driven.repository.sqlalchemy.session_manager import SessionManager
 from adapters.driven.repository.sqlalchemy.llm_provider_models import (
@@ -31,14 +40,18 @@ class SqlAlchemyDatasetRepository(DatasetRepository):
             raise ValueError(f"Invalid dataset_id: {dataset_id!r}")
         return int(dataset_id)
 
-    def _example_pairs(self, examples: Optional[list]) -> Iterator[tuple[str, str]]:
-        """Yield (input, target) from each example dict; empty if examples is None."""
-        for ex in examples or []:
-            yield (ex.get("input") or "", ex.get("target") or "")
-
     def _model_to_entity(self, model: BenchmarkTestDatasetModel) -> DatasetEntity:
         """Map BenchmarkTestDatasetModel and its prompts to DatasetEntity."""
-        examples = [{"input": p.prompt, "target": p.target} for p in model.prompts]
+        prompt_entities: list[BenchmarkTestDatasetPromptEntity] = [
+            BenchmarkTestDatasetPromptEntity(
+                id=p.id,
+                benchmark_test_dataset_id=p.benchmark_test_dataset_id,
+                prompt=p.prompt,
+                target=p.target,
+            )
+            for p in model.prompts
+        ]
+        examples = prompts_to_examples(prompt_entities)
         return DatasetEntity(
             id=str(model.id),
             name=model.system_name,
@@ -63,20 +76,29 @@ class SqlAlchemyDatasetRepository(DatasetRepository):
             .first()
         )
 
+    def _get_max_version_for_name(self, session, name: str) -> int:
+        """Return the latest version for this system_name, or 0 if none."""
+        result = (
+            session.query(func.max(BenchmarkTestDatasetModel.version))
+            .filter(BenchmarkTestDatasetModel.system_name == name)
+            .scalar()
+        )
+        return result if result is not None else 0
+
     def _persist_prompts(
         self, session, dataset_id: int, examples: Optional[list]
     ) -> int:
-        """Insert prompt rows for dataset_id; return count."""
-        pairs = list(self._example_pairs(examples))
-        for prompt, target in pairs:
+        """Insert prompt rows for dataset_id; return count. examples: list of dicts (input/target)."""
+        prompts = examples_to_prompts(examples or [])
+        for p in prompts:
             session.add(
                 BenchmarkTestDatasetPromptModel(
                     benchmark_test_dataset_id=dataset_id,
-                    prompt=prompt,
-                    target=target,
+                    prompt=p.prompt,
+                    target=p.target,
                 )
             )
-        return len(pairs)
+        return len(prompts)
 
     @override
     def get_dataset_by_id(self, dataset_id: str) -> DatasetEntity:
@@ -105,26 +127,21 @@ class SqlAlchemyDatasetRepository(DatasetRepository):
         return self._model_to_entity(model)
 
     @override
-    def save_dataset(
-        self,
-        dataset_entity: DatasetEntity,
-        version: int = 1,
-    ) -> None:
+    def save_dataset(self, dataset_entity: DatasetEntity) -> None:
         """
-        Insert a new dataset. Fails if a dataset with the same system_name and
-        version already exists.
+        Insert a new dataset. If a dataset with the same system_name exists,
+        use max(version)+1; otherwise use version 1.
+        system_name is set from entity.id (config/file key) so YAML dataset keys match lookups.
         """
         entity = dataset_entity
+        # Use entity.id (loader name / file key) as system_name so config references find this row
+        name_key = entity.id
         with self.session_manager.get_session() as session:
-            existing = self._find_by_name_version(session, entity.name, version)
-            if existing:
-                raise ValueError(
-                    f"Dataset already exists: system_name={entity.name!r}, version={version}. "
-                    "Only insert is allowed; cannot replace."
-                )
+            max_version = self._get_max_version_for_name(session, name_key)
+            version = max_version + 1
             new = BenchmarkTestDatasetModel(
                 version=version,
-                system_name=entity.name,
+                system_name=name_key,
                 description=entity.description or None,
                 license=entity.license or None,
                 reference=entity.reference or None,
@@ -135,7 +152,7 @@ class SqlAlchemyDatasetRepository(DatasetRepository):
             num_prompts = self._persist_prompts(session, dataset_id, entity.examples)
         self.logger.info(
             "Saved dataset: system_name=%r, version=%s, prompts=%s",
-            entity.name,
+            name_key,
             version,
             num_prompts,
         )

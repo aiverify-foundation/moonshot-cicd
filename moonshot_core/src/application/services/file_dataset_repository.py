@@ -61,11 +61,7 @@ class FileDatasetRepository(DatasetRepository):
             self.logger.error(f"Failed to load dataset '{dataset_id}': {e}")
             raise
 
-    def save_dataset(
-        self,
-        dataset_entity: DatasetEntity,
-        version: int = 1,
-    ) -> None:
+    def save_dataset(self, dataset_entity: DatasetEntity) -> None:
         """File-based repository does not support saving datasets."""
         raise NotImplementedError(
             "File-based dataset repository does not support saving datasets. Use a database-backed repository (e.g. SqlAlchemyDatasetRepository) to persist datasets."

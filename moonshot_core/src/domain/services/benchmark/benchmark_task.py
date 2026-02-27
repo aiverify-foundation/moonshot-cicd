@@ -4,6 +4,7 @@ from domain.entities.connector_entity import ConnectorEntity
 from domain.entities.dataset_entity import DatasetEntity
 from domain.entities.prompt_entity import PromptEntity
 from domain.ports.prompt_processor_port import PromptProcessorPort
+from domain.services.dataset_examples_converter import examples_to_prompts
 from domain.services.enums.task_manager_status import TaskManagerStatus
 from domain.services.logger import configure_logger
 
@@ -60,29 +61,20 @@ class BenchmarkTask:
         """
         logger.info(self.INFO_GENERATING_PROMPTS)
 
-        # Iterate over each example in the dataset entity
+        # Convert examples dict (input/target) to prompt entities via central converter
+        prompt_entities = examples_to_prompts(self.dataset_entity.examples or [])
         prompts_list = []
-        for index, example in enumerate(self.dataset_entity.examples, 1):
-            # Extract input and target from the example, defaulting to empty strings if not present
-            input: str = example.pop("input", "")
-            target: str = example.pop("target", "")
-
-            # Collect any additional key-value pairs from the example
-            additional_info = {key: value for key, value in example.items()}
-
-            # Create a new PromptEntity and append it to the prompts list
+        for index, p in enumerate(prompt_entities, 1):
             prompts_list.append(
                 PromptEntity(
                     index=index,
-                    prompt=input,
-                    target=target,
+                    prompt=p.prompt,
+                    target=p.target,
                     model_prediction=None,
                     evaluation_result={},
-                    additional_info=additional_info,
+                    additional_info={},
                 )
             )
-
-        # Return the list of generated PromptEntity instances
         return prompts_list
 
     def generate_results(self):

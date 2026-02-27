@@ -43,12 +43,10 @@ class TestBenchmarkDatasetSeedService:
     ):
         source_repo.get_dataset_by_id.return_value = sample_entity
 
-        service.seed_benchmark_dataset("test_sample_dataset", version=1)
+        service.seed_benchmark_dataset("test_sample_dataset")
 
         source_repo.get_dataset_by_id.assert_called_once_with("test_sample_dataset")
-        target_repo.save_dataset.assert_called_once_with(
-            sample_entity, version=1
-        )
+        target_repo.save_dataset.assert_called_once_with(sample_entity)
 
     def test_seed_benchmark_dataset_propagates_value_error_from_source(
         self, service, source_repo, target_repo
@@ -69,7 +67,7 @@ class TestBenchmarkDatasetSeedService:
         )
 
         with pytest.raises(ValueError, match="Dataset already exists"):
-            service.seed_benchmark_dataset("test_sample_dataset", version=1)
+            service.seed_benchmark_dataset("test_sample_dataset")
 
     def test_seed_benchmark_dataset_propagates_not_implemented_error_from_target(
         self, service, source_repo, target_repo, sample_entity

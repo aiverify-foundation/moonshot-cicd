@@ -29,33 +29,23 @@ class BenchmarkDatasetSeedService:
         self.target = target_dataset_repository
         self.logger = configure_logger(__name__)
 
-    def seed_benchmark_dataset(
-        self,
-        dataset_id: str,
-        version: int = 1,
-    ) -> None:
+    def seed_benchmark_dataset(self, dataset_id: str) -> None:
         """
         Load a dataset by dataset_id from the source repository and insert it
         into the target repository (e.g. DB via dataset_adapter).
-        Insert only; target will raise if a dataset with the same system_name/version exists.
+        The target assigns version when persisting (e.g. max existing + 1).
 
         Args:
             dataset_id: Identifier to load from source (e.g. file name without
                 extension for FileDatasetRepository, or numeric id for DB).
-            version: Dataset version for the target store (e.g. DB version).
 
         Raises:
-            ValueError: If source does not have the dataset, or target already
-                has a dataset with the same name/version.
+            ValueError: If source does not have the dataset or target rejects the save.
             NotImplementedError: If target does not support save_dataset.
         """
-        self.logger.info(
-            "Seeding benchmark dataset: dataset_id=%r, version=%s",
-            dataset_id,
-            version,
-        )
+        self.logger.info("Seeding benchmark dataset: dataset_id=%r", dataset_id)
         entity = self.source.get_dataset_by_id(dataset_id)
-        self.target.save_dataset(entity, version=version)
+        self.target.save_dataset(entity)
         self.logger.info(
             "Seeded benchmark dataset: name=%r, prompts=%s",
             entity.name,
