@@ -5,11 +5,15 @@ from shared.yaml.
 Reads the YAML config, resolves dataset and metric references, and inserts or updates the three
 SQLAlchemy entities via BenchmarkTestConfigAdapter. Datasets must already exist in
 benchmark_test_dataset (e.g. seeded via BenchmarkDatasetSeedService).
+
+When moonshot_config_repository, shared_config_repository, and benchmark_dataset_seed_service
+are provided at construction, seed_if_test_file_changed() can be used to seed only when the
+config file has changed (mtime check), seeding datasets first then bundles/tests/groupings.
 """
 
 import re
 from pathlib import Path
-from typing import Any, Optional
+from typing import TYPE_CHECKING, Any, Optional
 
 import yaml
 
@@ -19,6 +23,15 @@ from application.services.utils import get_application_root_path
 from adapters.driven.repository.sqlalchemy.benchmark_test_config_adapter import (
     BenchmarkTestConfigAdapter,
 )
+
+if TYPE_CHECKING:
+    from application.ports.moonshot_config_repository import MoonshotConfigRepository
+    from application.ports.shared_config_repository import SharedConfigRepository
+    from application.services.benchmark_dataset_seed_service import (
+        BenchmarkDatasetSeedService,
+    )
+
+TEST_FILE_LAST_MODIFIED_KEY = "test_file_last_modified"
 
 
 def _slug(text: str) -> str:
@@ -37,7 +50,8 @@ class SharedConfigSeedService:
 
     Loads and parses the YAML file, then for each bundle and test inserts or updates the
     corresponding DB rows and groupings. Uses version=1. Referenced datasets must
-    already exist in benchmark_test_dataset.
+    already exist in benchmark_test_dataset (or use seed_if_test_file_changed to seed
+    datasets first when the three optional dependencies are provided).
     """
 
     DEFAULT_VERSION = 1
@@ -45,8 +59,14 @@ class SharedConfigSeedService:
     def __init__(
         self,
         adapter: Optional[BenchmarkTestConfigAdapter] = None,
+        moonshot_config_repository: Optional["MoonshotConfigRepository"] = None,
+        shared_config_repository: Optional["SharedConfigRepository"] = None,
+        benchmark_dataset_seed_service: Optional["BenchmarkDatasetSeedService"] = None,
     ) -> None:
         self.adapter = adapter or BenchmarkTestConfigAdapter()
+        self._moonshot_config = moonshot_config_repository
+        self._shared_config_repo = shared_config_repository
+        self._dataset_seed_service = benchmark_dataset_seed_service
         self.logger = configure_logger(__name__)
 
     def _default_config_path(self) -> Path:
@@ -118,6 +138,88 @@ class SharedConfigSeedService:
         else:
             self.logger.info("Seeding shared config from data")
         self._seed_from_data(data, config_path, version)
+
+    def seed_if_test_file_changed(
+        self,
+        config_path: Optional[Path] = None,
+        version: int = DEFAULT_VERSION,
+    ) -> bool:
+        """
+        If the test config file is newer than the stored last-modified value,
+        seed datasets then bundles/tests/groupings and update the stored value.
+        Otherwise do nothing. Requires moonshot_config_repository,
+        shared_config_repository, and benchmark_dataset_seed_service at construction.
+
+        Args:
+            config_path: Path to shared.yaml. If None, uses default from AppConfig.
+            version: Version for datasets and bundle/test rows; default 1.
+
+        Returns:
+            True if seeding was performed, False if skipped (file unchanged or not found).
+
+        Raises:
+            ValueError: If any of the three optional dependencies was not provided.
+        """
+        if (
+            self._moonshot_config is None
+            or self._shared_config_repo is None
+            or self._dataset_seed_service is None
+        ):
+            raise ValueError(
+                "seed_if_test_file_changed requires moonshot_config_repository, "
+                "shared_config_repository, and benchmark_dataset_seed_service to be "
+                "provided at construction."
+            )
+        path = config_path or self._default_config_path()
+        try:
+            mtime = self._shared_config_repo.get_last_modified(path)
+        except FileNotFoundError:
+            self.logger.warning("Config file not found: %s, skipping seed", path)
+            return False
+
+        entity = self._moonshot_config.get_by_key(TEST_FILE_LAST_MODIFIED_KEY)
+        if entity and entity.value is not None and entity.value.strip():
+            try:
+                stored = float(entity.value)
+            except ValueError:
+                stored = 0.0
+            if stored >= mtime:
+                self.logger.debug(
+                    "Test config file unchanged (stored=%s >= mtime=%s), skip seed",
+                    stored,
+                    mtime,
+                )
+                return False
+
+        self.logger.info("Test config file changed or first run, seeding from %s", path)
+        config = self._shared_config_repo.get_config(path)
+
+        dataset_names: set[str] = set()
+        for bundle_data in config.values():
+            if not isinstance(bundle_data, dict):
+                continue
+            for test in bundle_data.get("tests") or []:
+                if isinstance(test, dict) and test.get("dataset"):
+                    dataset_names.add(test["dataset"])
+
+        for name in sorted(dataset_names):
+            try:
+                self._dataset_seed_service.seed_benchmark_dataset(name)
+            except ValueError as e:
+                if "already exists" in str(e).lower():
+                    self.logger.debug("Dataset already exists: %r, skipping", name)
+                else:
+                    self.logger.warning(
+                        "Could not seed dataset %r: %s",
+                        name,
+                        e,
+                        exc_info=False,
+                    )
+
+        self._seed_from_data(config, path, version)
+        self._moonshot_config.set(TEST_FILE_LAST_MODIFIED_KEY, str(mtime))
+        self.logger.info("Seeding complete, updated %s", TEST_FILE_LAST_MODIFIED_KEY)
+        return True
 
     def _seed_from_data(
         self,
