@@ -171,3 +171,57 @@ def test_next_js_static_files_direct_access_blocked(mock_get_build_dir):
     response = client.get("/_next/static/test.js")
     assert response.status_code == 403
     assert "Direct access to static files is not allowed" in response.json()["detail"]
+
+
+@patch('entrypoints.api.get_shared_config_seed_service')
+def test_seed_shared_config_if_changed_seeded(mock_get_seed_service):
+    """POST /api/seed-shared-config-if-changed returns seeded=True when service runs."""
+    mock_service = MagicMock()
+    mock_service.seed_if_test_file_changed.return_value = True
+    mock_get_seed_service.return_value = mock_service
+
+    response = client.post("/api/seed-shared-config-if-changed")
+    assert response.status_code == 200
+    data = response.json()
+    assert data["seeded"] is True
+    assert "updated" in data["message"].lower()
+    mock_service.seed_if_test_file_changed.assert_called_once_with()
+
+
+@patch('entrypoints.api.get_shared_config_seed_service')
+def test_seed_shared_config_if_changed_skipped(mock_get_seed_service):
+    """POST /api/seed-shared-config-if-changed returns seeded=False when file unchanged."""
+    mock_service = MagicMock()
+    mock_service.seed_if_test_file_changed.return_value = False
+    mock_get_seed_service.return_value = mock_service
+
+    response = client.post("/api/seed-shared-config-if-changed")
+    assert response.status_code == 200
+    data = response.json()
+    assert data["seeded"] is False
+    assert "skipped" in data["message"].lower() or "not changed" in data["message"].lower()
+    mock_service.seed_if_test_file_changed.assert_called_once_with()
+
+
+@patch('entrypoints.api.get_shared_config_seed_service')
+def test_seed_shared_config_if_changed_404_when_file_not_found(mock_get_seed_service):
+    """POST /api/seed-shared-config-if-changed returns 404 when config file not found."""
+    mock_service = MagicMock()
+    mock_service.seed_if_test_file_changed.side_effect = FileNotFoundError("Config not found")
+    mock_get_seed_service.return_value = mock_service
+
+    response = client.post("/api/seed-shared-config-if-changed")
+    assert response.status_code == 404
+    assert "detail" in response.json()
+
+
+@patch('entrypoints.api.get_shared_config_seed_service')
+def test_seed_shared_config_if_changed_400_on_validation_error(mock_get_seed_service):
+    """POST /api/seed-shared-config-if-changed returns 400 on ValueError."""
+    mock_service = MagicMock()
+    mock_service.seed_if_test_file_changed.side_effect = ValueError("Missing dataset")
+    mock_get_seed_service.return_value = mock_service
+
+    response = client.post("/api/seed-shared-config-if-changed")
+    assert response.status_code == 400
+    assert "detail" in response.json()

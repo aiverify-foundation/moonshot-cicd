@@ -5,8 +5,8 @@ This module provides a REST API interface for the Moonshot benchmarking system.
 
 from fastapi import FastAPI, Request, HTTPException
 from fastapi.responses import FileResponse
+from fastapi.middleware.cors import CORSMiddleware
 import os
-import multiprocessing
 from pathlib import Path
 from urllib.parse import urlparse
 from domain.services.app_config import AppConfig
@@ -19,7 +19,13 @@ from application.services.provider_service import ProviderService
 from application.services.file_model_config_repository import FileModelConfigRepository
 from application.dto.provider_dto import ProviderDTO
 from application.dto.model_config_dto import ModelConfigDTO
-from application.dto.run_bundle_dto import RunBundleRequestDTO, RunBundleResponseDTO
+from application.dto.run_bundle_dto import (
+    RunBundleRequestDTO,
+    RunBundleResponseDTO,
+    StartBenchmarkRunRequestDTO,
+    StartBenchmarkRunResponseDTO,
+)
+from application.dto.seed_dto import SeedSharedConfigResponseDTO
 
 # Benchmark execution service
 from application.services.benchmark_execution_service import BenchmarkExecutionService
@@ -35,6 +41,8 @@ app = FastAPI(
     docs_url=None,
     redoc_url=None
 )
+
+
 
 
 def get_build_directory() -> Path:
@@ -105,9 +113,13 @@ async def root():
 # Initialize the benchmark service
 benchmark_service = BenchmarkService(None, None)
 provider_service = ProviderService()
+benchmark_execution_service = BenchmarkExecutionService()
 
 # Initialize file-based model config repository for fixed endpoint configs (lazy initialization)
 _file_model_config_repository = None
+
+# Lazy-initialized SharedConfigSeedService for seed-if-testfile-changed
+_shared_config_seed_service = None
 
 
 def get_file_model_config_repository():
@@ -118,6 +130,34 @@ def get_file_model_config_repository():
         config_file_path = os.path.join(AppConfig.DEFAULT_TEST_CONFIGS_PATH, "fixedEndpointConfigs.yaml")
         _file_model_config_repository = FileModelConfigRepository(config_file_path)
     return _file_model_config_repository
+
+
+def get_shared_config_seed_service():
+    """Get or create SharedConfigSeedService with full deps for seed_if_test_file_changed."""
+    global _shared_config_seed_service
+    if _shared_config_seed_service is None:
+        from application.services.shared_config_seed_service import SharedConfigSeedService
+        from application.services.file_shared_config_repository import FileSharedConfigRepository
+        from application.services.benchmark_dataset_seed_service import BenchmarkDatasetSeedService
+        from application.services.file_dataset_repository import FileDatasetRepository
+        from adapters.driven.repository.sqlalchemy.dataset_adapter import (
+            SqlAlchemyDatasetRepository,
+        )
+        from adapters.driven.repository.sqlalchemy.moonshot_config_adapter import (
+            MoonshotConfigAdapter,
+        )
+        moonshot_config = MoonshotConfigAdapter()
+        shared_config_repo = FileSharedConfigRepository()
+        dataset_seed = BenchmarkDatasetSeedService(
+            source_dataset_repository=FileDatasetRepository(),
+            target_dataset_repository=SqlAlchemyDatasetRepository(),
+        )
+        _shared_config_seed_service = SharedConfigSeedService(
+            moonshot_config_repository=moonshot_config,
+            shared_config_repository=shared_config_repo,
+            benchmark_dataset_seed_service=dataset_seed,
+        )
+    return _shared_config_seed_service
 
 
 
@@ -264,30 +304,76 @@ async def run_bundle(request: RunBundleRequestDTO) -> RunBundleResponseDTO:
         Response containing bundle_name and message
     """
     try:
-        # Validate bundle exists up-front to fail fast
-        bundle = benchmark_service.get_bundle_by_id(request.bundle_name)
-
-        logger.info(f"Received bundle execution request for bundle: {bundle.id}")
-
-        process = multiprocessing.Process(
-            target=_run_bundle_in_process,
-            args=(bundle.id, request.connector),
+        logger.info(f"Received bundle execution request for bundle: {request.bundle_name}")
+        benchmark_execution_service.start_bundle_in_background(
+            request.bundle_name, request.connector
         )
-        process.daemon = True
-        process.start()
-
-        logger.info(f"Bundle execution started in daemon process for bundle: {bundle.id}")
-
         return RunBundleResponseDTO(
             bundle_name=request.bundle_name,
             message="Bundle execution started successfully",
         )
-
     except KeyError as e:
         raise HTTPException(status_code=404, detail=str(e))
     except Exception as e:
         logger.error(f"Error starting bundle execution: {e}")
         raise HTTPException(status_code=500, detail=f"Failed to start bundle execution: {str(e)}")
+
+
+@app.post("/api/start-benchmark-run", response_model=StartBenchmarkRunResponseDTO)
+async def start_benchmark_run(request: StartBenchmarkRunRequestDTO) -> StartBenchmarkRunResponseDTO:
+    """
+    Start a benchmark run (multiple bundles in separate daemon processes).
+
+    Delegates to BenchmarkExecutionService.start_benchmark_run.
+
+    Returns:
+        Response with a message that the benchmark run has started successfully.
+    """
+    try:
+        benchmark_execution_service.start_benchmark_run(
+            run_name=request.run_name,
+            bundle_names=request.bundle_names,
+            llm_provider_name=request.llm_provider_name,
+            llm_provider_config_name=request.llm_provider_config_name,
+        )
+        return StartBenchmarkRunResponseDTO(message="Benchmark run started successfully.")
+    except KeyError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    except Exception as e:
+        logger.error(f"Error starting benchmark run: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to start benchmark run: {str(e)}")
+
+
+@app.post("/api/seed-shared-config-if-changed", response_model=SeedSharedConfigResponseDTO)
+async def seed_shared_config_if_changed() -> SeedSharedConfigResponseDTO:
+    """
+    Seed benchmark datasets and bundles/tests/groupings from the shared config file
+    only if the test file has changed since the last seed (mtime check).
+
+    Uses the default config path from AppConfig (e.g. data/test_configs/shared.yaml).
+    Returns whether seeding was performed and a short message.
+    """
+    try:
+        service = get_shared_config_seed_service()
+        did_seed = service.seed_if_test_file_changed()
+        if did_seed:
+            return SeedSharedConfigResponseDTO(
+                seeded=True,
+                message="Seeding ran: datasets and bundles/tests/groupings updated.",
+            )
+        return SeedSharedConfigResponseDTO(
+            seeded=False,
+            message="Skipped: shared config not changed since last seed.",
+        )
+    except FileNotFoundError as e:
+        logger.warning(f"Seed config file not found: {e}")
+        raise HTTPException(status_code=404, detail=str(e))
+    except ValueError as e:
+        logger.warning(f"Seed validation error: {e}")
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        logger.error(f"Error during seed-if-changed: {e}")
+        raise HTTPException(status_code=500, detail="Failed to run seed-if-changed.")
 
 
 @app.api_route("/{file_path:path}", methods=["GET", "HEAD"])
