@@ -41,25 +41,19 @@ class DatasetRepository(ABC):
         pass
 
     @abstractmethod
-    def save_dataset(
-        self,
-        dataset_entity: DatasetEntity,
-        version: int = 1,
-    ) -> None:
+    def save_dataset(self, dataset_entity: DatasetEntity) -> None:
         """
-        Insert a new dataset. Fails if a dataset with the same system_name and
-        version already exists.
+        Insert a new dataset. The implementation assigns version when persisting
+        (e.g. DB adapter uses max(existing version) + 1 per system_name).
 
         Args:
             dataset_entity: The dataset to insert (name, description, license,
                 reference, examples with 'input' and 'target' keys).
-            version: Dataset version number (e.g. for DB uniqueness).
 
         Raises:
             NotImplementedError: If this repository does not support saving
                 (e.g. read-only file source).
-            ValueError: If a dataset with the same system_name/version already
-                exists, or if data is invalid.
+            ValueError: If data is invalid or the implementation rejects the save.
             Exception: For other persistence errors.
         """
         pass

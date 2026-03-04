@@ -1,7 +1,8 @@
+from domain.entities.benchmark_test_entity import BenchmarkTestEntity
+from domain.entities.dataset_entity import DatasetEntity
 from domain.entities.test_bundle_entity import TestBundleEntity
 from domain.entities.test_config_entity import TestConfigEntity
-from domain.entities.dataset_entity import DatasetEntity
-from domain.entities.benchmark_test_entity import BenchmarkTestEntity
+from domain.services.dataset_examples_converter import prompts_to_examples
 from domain.services.logger import configure_logger
 from application.services.file_benchmark_repository import FileBenchmarkRepository
 from application.services.file_dataset_repository import FileDatasetRepository
@@ -73,13 +74,18 @@ class BenchmarkService:
         return len(test_configs)
     
     def _convert_dataset_entity_to_dto(self, dataset_entity: DatasetEntity) -> DatasetDTO:
-        """Convert DatasetEntity to DatasetDTO."""
+        """Convert DatasetEntity to DatasetDTO. Uses prompts_to_examples if examples are prompt entities."""
+        examples = dataset_entity.examples or []
+        if examples and hasattr(examples[0], "prompt"):
+            examples_for_dto = prompts_to_examples(examples)
+        else:
+            examples_for_dto = list(examples) if hasattr(examples, "__iter__") else examples
         return DatasetDTO(
             id=dataset_entity.id,
             name=dataset_entity.name,
             description=dataset_entity.description,
-            examples=list(dataset_entity.examples) if hasattr(dataset_entity.examples, '__iter__') else dataset_entity.examples,
-            num_of_dataset_prompts=dataset_entity.num_of_dataset_prompts
+            examples=examples_for_dto,
+            num_of_dataset_prompts=dataset_entity.num_of_dataset_prompts,
         )
     
     def _convert_benchmark_test_entity_to_dto(self, benchmark_test_entity: BenchmarkTestEntity) -> BenchmarkTestDTO:
