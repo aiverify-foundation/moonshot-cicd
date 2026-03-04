@@ -1,0 +1,9 @@
+# Minimal shared config for integration tests (references only test_sample_dataset).
+minimal-bundle:
+  name: Minimal Bundle
+  tests:
+    - name: Sample Test
+      type: benchmark
+      dataset: test_sample_dataset
+      metric:
+        name: refusal_adapter

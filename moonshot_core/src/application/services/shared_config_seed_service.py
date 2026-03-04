@@ -32,6 +32,7 @@ if TYPE_CHECKING:
     )
 
 TEST_FILE_LAST_MODIFIED_KEY = "test_file_last_modified"
+SHARED_CONFIG_SEED_VERSION_KEY = "shared_config_seed_version"
 
 
 def _slug(text: str) -> str:
@@ -147,12 +148,14 @@ class SharedConfigSeedService:
         """
         If the test config file is newer than the stored last-modified value,
         seed datasets then bundles/tests/groupings and update the stored value.
+        Bundle/test version is auto-incremented each time (stored in moonshot_config
+        under shared_config_seed_version) so existing rows are not replaced.
         Otherwise do nothing. Requires moonshot_config_repository,
         shared_config_repository, and benchmark_dataset_seed_service at construction.
 
         Args:
             config_path: Path to shared.yaml. If None, uses default from AppConfig.
-            version: Version for datasets and bundle/test rows; default 1.
+            version: Unused; version is auto-incremented when file has changed.
 
         Returns:
             True if seeding was performed, False if skipped (file unchanged or not found).
@@ -194,6 +197,15 @@ class SharedConfigSeedService:
         self.logger.info("Test config file changed or first run, seeding from %s", path)
         config = self._shared_config_repo.get_config(path)
 
+        version_entity = self._moonshot_config.get_by_key(SHARED_CONFIG_SEED_VERSION_KEY)
+        if version_entity and version_entity.value is not None and version_entity.value.strip():
+            try:
+                seed_version = int(version_entity.value) + 1
+            except ValueError:
+                seed_version = 1
+        else:
+            seed_version = 1
+
         dataset_names: set[str] = set()
         for bundle_data in config.values():
             if not isinstance(bundle_data, dict):
@@ -203,21 +215,11 @@ class SharedConfigSeedService:
                     dataset_names.add(test["dataset"])
 
         for name in sorted(dataset_names):
-            try:
-                self._dataset_seed_service.seed_benchmark_dataset(name)
-            except ValueError as e:
-                if "already exists" in str(e).lower():
-                    self.logger.debug("Dataset already exists: %r, skipping", name)
-                else:
-                    self.logger.warning(
-                        "Could not seed dataset %r: %s",
-                        name,
-                        e,
-                        exc_info=False,
-                    )
+            self._dataset_seed_service.seed_benchmark_dataset(name)
 
-        self._seed_from_data(config, path, version)
+        self._seed_from_data(config, path, seed_version)
         self._moonshot_config.set(TEST_FILE_LAST_MODIFIED_KEY, str(mtime))
+        self._moonshot_config.set(SHARED_CONFIG_SEED_VERSION_KEY, str(seed_version))
         self.logger.info("Seeding complete, updated %s", TEST_FILE_LAST_MODIFIED_KEY)
         return True
 
