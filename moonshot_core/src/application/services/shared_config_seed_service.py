@@ -245,7 +245,7 @@ class SharedConfigSeedService:
         for name in sorted(metric_names):
             self.adapter.get_or_create_metric(name)
 
-        # Insert or update bundles, tests, and groupings
+        # Insert bundles, tests, and groupings
         for bundle_key, bundle_data in data.items():
             if not isinstance(bundle_data, dict):
                 self.logger.warning("Skipping non-dict bundle entry: %r", bundle_key)
@@ -261,16 +261,8 @@ class SharedConfigSeedService:
                 description = str(description)
             category = bundle_data.get("category", "")
 
-            bundle_id = self.adapter.get_bundle_id(version=version, system_name=bundle_key)
-            if bundle_id is not None:
-                bundle_id = self.adapter.update_bundle(
-                    version=version,
-                    system_name=bundle_key,
-                    name=name,
-                    description=description,
-                    category=category,
-                )
-            else:
+            bundle_id = self.adapter.get_bundle_id(version, bundle_key)
+            if bundle_id is None:
                 bundle_id = self.adapter.insert_bundle(
                     version=version,
                     system_name=bundle_key,
@@ -310,16 +302,7 @@ class SharedConfigSeedService:
                 type_ = test.get("type", "benchmark")
 
                 test_id = self.adapter.get_test_id(version=version, system_name=test_system_name)
-                if test_id is not None:
-                    test_id = self.adapter.update_test(
-                        version=version,
-                        system_name=test_system_name,
-                        name=test_name,
-                        type_=type_,
-                        dataset_id=dataset_id,
-                        metric_id=metric_id,
-                    )
-                else:
+                if test_id is None:
                     test_id = self.adapter.insert_test(
                         version=version,
                         system_name=test_system_name,
