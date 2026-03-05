@@ -127,6 +127,32 @@ class SqlAlchemyDatasetRepository(DatasetRepository):
         return self._model_to_entity(model)
 
     @override
+    def get_prompts_by_dataset_id(
+        self, dataset_id: int
+    ) -> list[BenchmarkTestDatasetPromptEntity]:
+        """
+        Return all dataset prompts for the given benchmark_test_dataset id.
+        """
+        with self.session_manager.get_session() as session:
+            models = (
+                session.query(BenchmarkTestDatasetPromptModel)
+                .filter(
+                    BenchmarkTestDatasetPromptModel.benchmark_test_dataset_id
+                    == dataset_id,
+                )
+                .all()
+            )
+            return [
+                BenchmarkTestDatasetPromptEntity(
+                    id=m.id,
+                    benchmark_test_dataset_id=m.benchmark_test_dataset_id,
+                    prompt=m.prompt,
+                    target=m.target,
+                )
+                for m in models
+            ]
+
+    @override
     def save_dataset(self, dataset_entity: DatasetEntity) -> None:
         """
         Insert a new dataset. If a dataset with the same system_name exists,

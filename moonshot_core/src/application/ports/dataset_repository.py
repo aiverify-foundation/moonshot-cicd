@@ -1,6 +1,9 @@
 from abc import ABC, abstractmethod
-from typing import Any, Optional
+from typing import Any, List, Optional
 
+from domain.entities.benchmark_test_dataset_prompt_entity import (
+    BenchmarkTestDatasetPromptEntity,
+)
 from domain.entities.dataset_entity import DatasetEntity
 
 
@@ -37,6 +40,21 @@ class DatasetRepository(ABC):
             FileNotFoundError: If the dataset file cannot be found.
             PermissionError: If access to the dataset is denied.
             Exception: For other dataset loading errors.
+        """
+        pass
+
+    @abstractmethod
+    def get_prompts_by_dataset_id(
+        self, dataset_id: int
+    ) -> List[BenchmarkTestDatasetPromptEntity]:
+        """
+        Return all dataset prompts for the given benchmark_test_dataset id.
+
+        Args:
+            dataset_id: Primary key of benchmark_test_dataset.
+
+        Returns:
+            List of prompt entities (id, prompt, target); empty if none.
         """
         pass
 

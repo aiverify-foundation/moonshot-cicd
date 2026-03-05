@@ -63,6 +63,21 @@ class SqlAlchemyBenchmarkRunTestStatusRepository(BenchmarkRunTestStatusRepositor
             return [self._model_to_entity(m) for m in models]
 
     @override
+    def get_by_run_and_test(
+        self, run_id: int, test_id: int
+    ) -> Optional[BenchmarkRunTestStatusEntity]:
+        with self.session_manager.get_session() as session:
+            model = (
+                session.query(BenchmarkRunTestStatusModel)
+                .filter(
+                    BenchmarkRunTestStatusModel.run_id == run_id,
+                    BenchmarkRunTestStatusModel.test_id == test_id,
+                )
+                .first()
+            )
+            return self._model_to_entity(model) if model else None
+
+    @override
     def save(
         self, entity: BenchmarkRunTestStatusEntity
     ) -> BenchmarkRunTestStatusEntity:

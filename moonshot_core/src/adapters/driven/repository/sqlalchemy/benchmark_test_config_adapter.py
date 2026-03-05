@@ -213,6 +213,30 @@ class BenchmarkTestConfigAdapter:
             )
             return row.id if row else None
 
+    def get_test_dataset_id(self, test_id: int) -> int:
+        """
+        Return benchmark_test_dataset.id for the given benchmark_test.id.
+
+        Args:
+            test_id: FK to benchmark_test.id.
+
+        Returns:
+            int: The dataset_id (benchmark_test_dataset.id) for that test.
+
+        Raises:
+            ValueError: If no benchmark test exists with that id.
+        """
+        with self.session_manager.get_session() as session:
+            row = (
+                session.query(BenchmarkTestModel)
+                .filter(BenchmarkTestModel.id == test_id)
+                .first()
+            )
+            if row is None:
+                self.logger.error("Benchmark test not found: test_id=%s", test_id)
+                raise ValueError(f"Benchmark test not found: test_id={test_id}")
+            return row.dataset_id
+
     def insert_test(
         self,
         version: int,

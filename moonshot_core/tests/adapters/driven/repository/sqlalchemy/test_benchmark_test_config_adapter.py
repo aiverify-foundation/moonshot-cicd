@@ -252,3 +252,49 @@ class TestBenchmarkTestConfigAdapterGetTestIdsByBundleId:
 
         assert set(result) == {test_id_1, test_id_2}
         assert len(result) == 2
+
+
+class TestBenchmarkTestConfigAdapterGetTestDatasetId:
+    """Tests for get_test_dataset_id."""
+
+    def test_get_test_dataset_id_returns_dataset_id(
+        self, benchmark_config_adapter
+    ):
+        """Returns dataset_id for the given benchmark_test id."""
+        session_manager = benchmark_config_adapter.session_manager
+        with session_manager.get_session() as session:
+            metric = BenchmarkTestMetricModel(name="metric_get_ds")
+            session.add(metric)
+            session.flush()
+            dataset = BenchmarkTestDatasetModel(
+                system_name="ds_get_ds",
+                version=1,
+                description=None,
+                license=None,
+                reference=None,
+            )
+            session.add(dataset)
+            session.flush()
+            dataset_id = dataset.id
+            test = BenchmarkTestModel(
+                version=1,
+                system_name="test_get_ds",
+                name="Test",
+                type="benchmark",
+                dataset_id=dataset_id,
+                metric_id=metric.id,
+            )
+            session.add(test)
+            session.flush()
+            test_id = test.id
+
+        result = benchmark_config_adapter.get_test_dataset_id(test_id)
+
+        assert result == dataset_id
+
+    def test_get_test_dataset_id_raises_when_test_not_found(
+        self, benchmark_config_adapter
+    ):
+        """Raises ValueError when no benchmark test exists with that id."""
+        with pytest.raises(ValueError, match="Benchmark test not found"):
+            benchmark_config_adapter.get_test_dataset_id(999999)

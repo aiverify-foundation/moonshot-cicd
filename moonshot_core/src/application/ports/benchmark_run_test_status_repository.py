@@ -41,6 +41,22 @@ class BenchmarkRunTestStatusRepository(ABC):
         pass
 
     @abstractmethod
+    def get_by_run_and_test(
+        self, run_id: int, test_id: int
+    ) -> Optional[BenchmarkRunTestStatusEntity]:
+        """
+        Return the run test status for (run_id, test_id), or None if not found.
+
+        Args:
+            run_id: The benchmark_run id.
+            test_id: The benchmark_test id.
+
+        Returns:
+            The entity or None.
+        """
+        pass
+
+    @abstractmethod
     def save(
         self, entity: BenchmarkRunTestStatusEntity
     ) -> BenchmarkRunTestStatusEntity:
