@@ -1,4 +1,4 @@
-from typing import Any
+from typing import Any, Optional
 
 from pydantic import BaseModel, ConfigDict
 
@@ -45,3 +45,6 @@ class PromptEntity(BaseModel):
 
     # The current state of the prompt
     state: TaskManagerStatus = TaskManagerStatus.PENDING
+
+    # Optional id of the benchmark_run_test_prompt row to update with this prompt's results (when set, processor updates that row instead of inserting).
+    benchmark_run_test_prompt_id: Optional[int] = None

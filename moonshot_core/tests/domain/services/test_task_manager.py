@@ -54,7 +54,9 @@ async def test_run_benchmark():
         task_manager._load_module.assert_any_call(FileLoader, dataset, FileTypes.DATASET, task_manager.DATASET_LOADED_MSG, task_manager.ERROR_LOADING_DATASET)
         task_manager._load_module.assert_any_call(ModuleLoader, prompt_processor, ModuleTypes.PROMPT_PROCESSOR, task_manager.PROMPT_PROCESSOR_LOADED_MSG, task_manager.ERROR_LOADING_PROMPT_PROCESSOR)
         task_manager._generate_prompts.assert_called_once_with(mock_dataset_entity)
-        mock_prompt_processor_instance.process_prompts.assert_called_once_with([], mock_connector_entity, metric, None, False)
+        mock_prompt_processor_instance.process_prompts.assert_called_once_with(
+            [], mock_connector_entity, metric, None, False, run_id=None
+        )
         task_manager._serialize_results.assert_called_once()
         task_manager._store_results_to_local_path.assert_called_once_with(run_id, '{"mock": "result"}')
 

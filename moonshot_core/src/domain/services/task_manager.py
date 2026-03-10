@@ -10,6 +10,7 @@ from domain.entities.connector_entity import ConnectorEntity
 from domain.entities.dataset_entity import DatasetEntity
 from domain.entities.prompt_entity import PromptEntity
 from domain.services.app_config import AppConfig
+from domain.services.dataset_examples_converter import examples_to_prompts
 from domain.services.enums.file_types import FileTypes
 from domain.services.enums.module_types import ModuleTypes
 from domain.services.enums.test_types import TestTypes
@@ -84,12 +85,14 @@ class TaskManager:
         callback_fn: Callable | None = None,
         write_result: bool = True,
         write_to_db: bool = False,
+        db_run_id: Optional[int] = None,
+        test_id: Optional[int] = None,
     ) -> str:
         """
         Run a benchmark task with the specified parameters.
 
         Args:
-            run_id (str): The unique identifier for the run.
+            run_id (str): The unique identifier for the run (logging, file paths).
             test_name (str): The name of the benchmark test.
             dataset (str): The name of the dataset module to be loaded.
             metric (str): The name of the metric module to be loaded.
@@ -97,6 +100,8 @@ class TaskManager:
             prompt_processor (str): The name of the prompt processor module to be loaded.
             callback_fn (Callable, optional): A callback function to be executed at various stages of the benchmark task
             Defaults to None.
+            db_run_id (int, optional): DB benchmark_run.id when writing to DB; if None, DB write is skipped.
+            test_id (int, optional): DB benchmark_test.id for run_test_status; if None, a default is used (TODO: proper resolution).
 
         Returns:
             str: The file path where the results are stored.
@@ -104,6 +109,7 @@ class TaskManager:
         try:
             # Record the start time of the benchmark
             start_time = datetime.now()
+         
             logger.info(
                 f"Benchmark started at: {start_time.strftime('%Y-%m-%d %H:%M:%S')}"
             )
@@ -144,13 +150,71 @@ class TaskManager:
 
             # Invoke the callback function to indicate the running stage
             self._invoke_callback(callback_fn, stage=1, message="Running benchmark")
-            # Generate prompts from the dataset
-            prompts = self._generate_prompts(dataset_entity)
+            saved_benchmark_run_test_status = None
+            if write_to_db:
+                if db_run_id is None:
+                    logger.info(
+                        "[TaskManager] Skipping DB write: no run_id provided "
+                        "(use start_benchmark_run or pass db_run_id for persistence). "
+                        "run_id=%s test_name=%s",
+                        run_id,
+                        test_name,
+                    )
+                else:
+                    # TODO: proper default_test_id resolution (e.g. resolve from benchmark_test by test_name)
+                    effective_test_id = test_id if test_id is not None else 1
+                    from application.services.benchmark_run_test_status_service import (  # noqa: WPS433
+                        BenchmarkRunTestStatusService,
+                    )
+                    from domain.entities.benchmark_run_test_status_entity import (  # noqa: WPS433
+                        BenchmarkRunTestStatusEntity,
+                    )
+                    from adapters.driven.repository.sqlalchemy.benchmark_run_test_status_adapter import (  # noqa: WPS433
+                        SqlAlchemyBenchmarkRunTestStatusRepository,
+                    )
+                    status_repo = SqlAlchemyBenchmarkRunTestStatusRepository()
+                    existing_status = status_repo.get_by_run_and_test(
+                        db_run_id, effective_test_id
+                    )
+                    if (
+                        existing_status is not None
+                        and existing_status.status == "not_started"
+                    ):
+                        saved_benchmark_run_test_status = existing_status
+                        saved_benchmark_run_test_status.status = "in_progress"
+                        saved_benchmark_run_test_status.start_dt = start_time
+                        BenchmarkRunTestStatusService().update_run_test_status(
+                            saved_benchmark_run_test_status
+                        )
+                    else:
+                        run_test_status_entity = BenchmarkRunTestStatusEntity(
+                            run_id=db_run_id,
+                            test_id=effective_test_id,
+                            status="in_progress",
+                            start_dt=start_time,
+                        )
+                        saved_benchmark_run_test_status = (
+                            BenchmarkRunTestStatusService().save_run_test_status(
+                                run_test_status_entity
+                            )
+                        )
+
+            # Generate prompts: from DB run_test_prompts when write_to_db and run_test exists, else from dataset
+            run_test_id = getattr(saved_benchmark_run_test_status, "id", None)
+            if write_to_db and run_test_id is not None:
+                prompts = self._generate_prompts_from_run_test_id(run_test_id)
+            else:
+                prompts = self._generate_prompts(dataset_entity)
             logger.info(self.INFO_PROMPTS_COUNT.format(count=len(prompts)))
             # Process the prompts and get results
             prompts_with_results, evaluation_summary = (
                 await prompt_processor_instance[0].process_prompts(
-                    prompts, connector_entity, metric, callback_fn, write_to_db
+                    prompts,
+                    connector_entity,
+                    metric,
+                    callback_fn,
+                    write_to_db,
+                    run_id=run_test_id,
                 )
             )
 
@@ -176,6 +240,16 @@ class TaskManager:
             duration = (end_time - start_time).total_seconds()
             logger.info(f"Benchmark ended at: {end_time.strftime('%Y-%m-%d %H:%M:%S')}")
             logger.info(f"Benchmark duration: {duration} seconds")
+
+            if write_to_db and saved_benchmark_run_test_status is not None:
+                saved_benchmark_run_test_status.end_dt = end_time
+                saved_benchmark_run_test_status.status = "completed"
+                from application.services.benchmark_run_test_status_service import (  # noqa: WPS433
+                    BenchmarkRunTestStatusService,
+                )
+                BenchmarkRunTestStatusService().update_run_test_status(
+                    saved_benchmark_run_test_status
+                )
 
             # Update the metadata with timing information
             benchmark_results["metadata"].update(
@@ -614,6 +688,42 @@ class TaskManager:
 
         return formatted_metadata
 
+    def _generate_prompts_from_run_test_id(
+        self, run_test_id: int
+    ) -> list[PromptEntity]:
+        """
+        Generate a list of PromptEntity instances from seeded benchmark_run_test_prompt rows.
+
+        Used when write_to_db is True and a run_test_status exists, so prompts already have
+        benchmark_run_test_prompt_id set for id-based updates.
+
+        Args:
+            run_test_id: The benchmark_run_test_status.id to load run test prompts for.
+
+        Returns:
+            list[PromptEntity]: The list of prompt entities with benchmark_run_test_prompt_id set.
+        """
+        from adapters.driven.repository.sqlalchemy.benchmark_run_test_prompt_adapter import (  # noqa: WPS433
+            SqlAlchemyBenchmarkRunTestPromptRepository,
+        )
+
+        logger.info(self.INFO_GENERATING_PROMPTS)
+        repo = SqlAlchemyBenchmarkRunTestPromptRepository()
+        run_test_prompts = repo.get_all_by_run_test_id(run_test_id)
+        return [
+            PromptEntity(
+                index=index,
+                prompt=entity.prompt_additional_info or "",
+                target=entity.target or "",
+                reference_context="",
+                model_prediction=None,
+                evaluation_result={},
+                additional_info={},
+                benchmark_run_test_prompt_id=entity.id,
+            )
+            for index, entity in enumerate(run_test_prompts, 1)
+        ]
+
     def _generate_prompts(self, dataset_entity: DatasetEntity) -> list[PromptEntity]:
         """
         Generate a list of PromptEntity instances from the dataset entity.
@@ -625,17 +735,18 @@ class TaskManager:
             list[PromptEntity]: The list of generated PromptEntity instances.
         """
         logger.info(self.INFO_GENERATING_PROMPTS)
+        prompt_entities = examples_to_prompts(dataset_entity.examples or [])
         return [
             PromptEntity(
                 index=index,
-                prompt=example.pop("input", ""),
-                target=example.pop("target", ""),
-                reference_context=example.pop("reference_context", ""),
+                prompt=p.prompt,
+                target=p.target,
+                reference_context="",
                 model_prediction=None,
                 evaluation_result={},
-                additional_info={key: value for key, value in example.items()},
+                additional_info={},
             )
-            for index, example in enumerate(dataset_entity.examples, 1)
+            for index, p in enumerate(prompt_entities, 1)
         ]
 
     def _serialize_results(self, results: dict) -> Optional[str]:
