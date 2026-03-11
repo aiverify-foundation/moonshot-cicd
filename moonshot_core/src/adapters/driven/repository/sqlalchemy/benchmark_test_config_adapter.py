@@ -237,6 +237,35 @@ class BenchmarkTestConfigAdapter:
                 raise ValueError(f"Benchmark test not found: test_id={test_id}")
             return row.dataset_id
 
+    def get_test_info(self, test_id: int) -> tuple[str, str, str]:
+        """
+        Return (test_name, dataset_system_name, metric_name) for the given benchmark_test.id.
+
+        Used by execute_bundle to call run_benchmark with DB-backed test config.
+
+        Args:
+            test_id: FK to benchmark_test.id.
+
+        Returns:
+            Tuple of (test display name, dataset system_name for loader, metric name).
+
+        Raises:
+            ValueError: If no benchmark test exists with that id.
+        """
+        with self.session_manager.get_session() as session:
+            row = (
+                session.query(BenchmarkTestModel)
+                .filter(BenchmarkTestModel.id == test_id)
+                .first()
+            )
+            if row is None:
+                self.logger.error("Benchmark test not found: test_id=%s", test_id)
+                raise ValueError(f"Benchmark test not found: test_id={test_id}")
+            # Access relationships inside session (lazy load)
+            dataset_system_name = row.dataset.system_name if row.dataset else ""
+            metric_name = row.metric.name if row.metric else ""
+            return (row.name, dataset_system_name, metric_name)
+
     def insert_test(
         self,
         version: int,

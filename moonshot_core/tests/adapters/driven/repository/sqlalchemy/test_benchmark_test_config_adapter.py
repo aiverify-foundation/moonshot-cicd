@@ -298,3 +298,48 @@ class TestBenchmarkTestConfigAdapterGetTestDatasetId:
         """Raises ValueError when no benchmark test exists with that id."""
         with pytest.raises(ValueError, match="Benchmark test not found"):
             benchmark_config_adapter.get_test_dataset_id(999999)
+
+
+class TestBenchmarkTestConfigAdapterGetTestInfo:
+    """Tests for get_test_info."""
+
+    def test_get_test_info_returns_name_dataset_metric(
+        self, benchmark_config_adapter
+    ):
+        """Returns (test_name, dataset_system_name, metric_name) for the given test_id."""
+        session_manager = benchmark_config_adapter.session_manager
+        with session_manager.get_session() as session:
+            metric = BenchmarkTestMetricModel(name="refusal_adapter")
+            session.add(metric)
+            session.flush()
+            dataset = BenchmarkTestDatasetModel(
+                system_name="test_sample_dataset",
+                version=1,
+                description=None,
+                license=None,
+                reference=None,
+            )
+            session.add(dataset)
+            session.flush()
+            test = BenchmarkTestModel(
+                version=1,
+                system_name="sample_test",
+                name="Sample Test",
+                type="benchmark",
+                dataset_id=dataset.id,
+                metric_id=metric.id,
+            )
+            session.add(test)
+            session.flush()
+            test_id = test.id
+
+        result = benchmark_config_adapter.get_test_info(test_id)
+
+        assert result == ("Sample Test", "test_sample_dataset", "refusal_adapter")
+
+    def test_get_test_info_raises_when_test_not_found(
+        self, benchmark_config_adapter
+    ):
+        """Raises ValueError when no benchmark test exists with that id."""
+        with pytest.raises(ValueError, match="Benchmark test not found"):
+            benchmark_config_adapter.get_test_info(999999)
