@@ -5,6 +5,8 @@ Creates a new repository adapter per call so it is safe to use from
 async code or different threads.
 """
 
+from typing import Optional
+
 from domain.entities.benchmark_run_entity import BenchmarkRunEntity
 
 from adapters.driven.repository.sqlalchemy.benchmark_run_adapter import (
@@ -19,6 +21,19 @@ class BenchmarkRunService:
     Instantiates SqlAlchemyBenchmarkRunRepository per call (cheap)
     so usage is safe from async or multiple threads.
     """
+
+    def get_run_by_name(self, name: str) -> Optional[BenchmarkRunEntity]:
+        """
+        Return the benchmark run with the given name, or None if not found.
+
+        Args:
+            name: The unique run name.
+
+        Returns:
+            The run entity or None.
+        """
+        repo = SqlAlchemyBenchmarkRunRepository()
+        return repo.get_by_name(name)
 
     def save_run(self, entity: BenchmarkRunEntity) -> BenchmarkRunEntity:
         """

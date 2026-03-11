@@ -196,14 +196,20 @@ class BenchmarkExecutionService:
                     raise ValueError(f"Bundle has no tests: {bundle_id!r}")
                 if write_to_db:
                     if effective_run_id is None:
-                        run_entity = BenchmarkRunEntity(
-                            name=f"Bundle run: {bundle_id}",
-                            status="running",
-                            endpoint_type="LLM_Provider",
-                            start_time=datetime.now(timezone.utc),
-                        )
-                        saved_run = BenchmarkRunService().save_run(run_entity)
-                        effective_run_id = saved_run.id
+                        run_name = f"Bundle run: {bundle_id}"
+                        run_service = BenchmarkRunService()
+                        existing_run = run_service.get_run_by_name(run_name)
+                        if existing_run is not None and existing_run.id is not None:
+                            effective_run_id = existing_run.id
+                        else:
+                            run_entity = BenchmarkRunEntity(
+                                name=run_name,
+                                status="running",
+                                endpoint_type="LLM_Provider",
+                                start_time=datetime.now(timezone.utc),
+                            )
+                            saved_run = run_service.save_run(run_entity)
+                            effective_run_id = saved_run.id
                     for tid in test_ids:
                         setup_service.create_run_test_with_prompts(effective_run_id, tid)
                 for tid in test_ids:

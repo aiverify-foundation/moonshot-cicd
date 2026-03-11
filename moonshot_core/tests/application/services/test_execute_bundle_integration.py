@@ -448,3 +448,112 @@ def test_03_execute_bundle_bundle_with_two_tests(
         data = json.loads(result_file.read_text())
         assert "run_results" in data
         assert len(data["run_results"]) == 2
+
+
+@pytest.mark.integration
+def test_04_execute_bundle_duplicate_run_name_no_new_run(
+    shared_config_seed_service,
+    test_db_env,
+    tmp_path,
+):
+    """
+    When the run name would be duplicated (e.g. "Bundle run: minimal-bundle"),
+    execute_bundle must not create a new run; it must reuse the existing run.
+    We create a run with that name first, then call execute_bundle with run_id=None
+    twice; the second call must not create another run.
+    """
+    assert CONFIG_PATH.exists()
+    shared_config_seed_service.seed_if_test_file_changed(config_path=CONFIG_PATH)
+    config_adapter = BenchmarkTestConfigAdapter()
+    bundle_id = config_adapter.get_bundle_id_by_system_name_latest("minimal-bundle")
+    test_ids = config_adapter.get_test_ids_by_bundle_id(bundle_id)
+    assert len(test_ids) >= 1
+
+    from application.services.benchmark_run_service import BenchmarkRunService
+
+    session_manager = SessionManager.get_instance()
+    run_name = "Bundle run: minimal-bundle"
+    # Create the run that execute_bundle would use when run_id is None (same name)
+    run_id_created = _insert_benchmark_run(session_manager, run_name)
+    BenchmarkRunTestBundlePopulationService().populate_run_bundle(run_id_created, "minimal-bundle")
+
+    mock_connector = MagicMock()
+    mock_connector.get_response = AsyncMock(
+        return_value=ConnectorResponseEntity(response="dup-name response", context=[])
+    )
+    mock_connector.configure = MagicMock()
+    mock_metric = MagicMock()
+    mock_metric.get_individual_result = AsyncMock(return_value=1.0)
+    mock_metric.get_results = AsyncMock(return_value={})
+    mock_metric.update_metric_params = MagicMock()
+    connector_entity = ConnectorEntity(
+        connector_adapter="mock_execute_bundle_connector",
+        model="test-model",
+        model_endpoint="",
+        params={"max_concurrency": 2},
+    )
+
+    from domain.services.loader.module_loader import ModuleLoader
+    real_module_loader_load = ModuleLoader.load
+
+    def mock_load_module(module_name, module_type):
+        if module_type == ModuleTypes.CONNECTOR and module_name == "mock_execute_bundle_connector":
+            return (mock_connector, None)
+        if module_type == ModuleTypes.METRIC and module_name == "refusal_adapter":
+            return (mock_metric, "refusal_adapter")
+        return real_module_loader_load(module_name, module_type)
+
+    # 2 calls × 1 test × 3 _load_module = 6
+    load_side_effect = _make_load_module_side_effect(2)
+    with (
+        patch.object(AppConfig, "DEFAULT_RESULTS_PATH", str(tmp_path)),
+        patch.object(TaskManager, "_get_connector_config", return_value=connector_entity),
+        patch.object(TaskManager, "_load_module", side_effect=load_side_effect),
+        patch.object(ModuleLoader, "load", side_effect=mock_load_module),
+        patch("domain.services.task_manager.AppConfig") as mock_app_config_cls,
+    ):
+        mock_app_config = MagicMock()
+        mock_app_config.DEFAULT_RESULTS_PATH = str(tmp_path)
+        mock_app_config.get_metric_config.return_value = MagicMock(
+            params={"categorise_result": False}
+        )
+        mock_app_config_cls.return_value = mock_app_config
+        mock_app_config_cls.DEFAULT_RESULTS_PATH = str(tmp_path)
+        service = BenchmarkExecutionService()
+
+        # First call with run_id=None: must reuse existing run (no new run)
+        service.execute_bundle(
+            "minimal-bundle",
+            "mock_execute_bundle_connector",
+            run_id=None,
+            write_to_db=True,
+        )
+        run_after_first = BenchmarkRunService().get_run_by_name(run_name)
+        assert run_after_first is not None
+        assert run_after_first.id == run_id_created, (
+            "First execute_bundle with run_id=None must reuse existing run with same name"
+        )
+
+        # Second call with run_id=None: must still be the same run (no new run)
+        service.execute_bundle(
+            "minimal-bundle",
+            "mock_execute_bundle_connector",
+            run_id=None,
+            write_to_db=True,
+        )
+        run_after_second = BenchmarkRunService().get_run_by_name(run_name)
+        assert run_after_second is not None
+        assert run_after_second.id == run_id_created, (
+            "Duplicate run name must not create a new run; expected same run_id"
+        )
+
+    # Only one run with that name in the DB
+    from adapters.driven.repository.sqlalchemy.benchmark_run_adapter import (
+        SqlAlchemyBenchmarkRunRepository,
+    )
+    repo = SqlAlchemyBenchmarkRunRepository()
+    runs_with_name = [r for r in repo.get_all() if r.name == run_name]
+    assert len(runs_with_name) == 1, (
+        f"Expected exactly one run with name {run_name!r}, got {len(runs_with_name)}"
+    )
+    assert runs_with_name[0].id == run_id_created
