@@ -325,6 +325,24 @@ class BenchmarkExecutionService:
             else:
                 logger.error(f"[BenchmarkExecutionService] Failed to write results file for bundle: {bundle_id}")
 
+            # When all run-test statuses for this run are completed, mark the benchmark run as completed.
+            if use_db_path and effective_run_id is not None:
+                from adapters.driven.repository.sqlalchemy.benchmark_run_test_status_adapter import (  # noqa: WPS433
+                    SqlAlchemyBenchmarkRunTestStatusRepository,
+                )
+                status_repo = SqlAlchemyBenchmarkRunTestStatusRepository()
+                run_statuses = status_repo.get_all_by_run_id(effective_run_id)
+                if run_statuses and all(s.status == "completed" for s in run_statuses):
+                    run_service = BenchmarkRunService()
+                    run_entity = run_service.get_run_by_id(effective_run_id)
+                    if run_entity is not None and run_entity.status == "running":
+                        run_entity.status = "completed"
+                        run_entity.end_time = datetime.now(timezone.utc)
+                        run_service.update_run(run_entity)
+                        logger.info(
+                            f"[BenchmarkExecutionService] Benchmark run {effective_run_id} marked as completed."
+                        )
+
         except Exception as e:
             logger.error(
                 f"[BenchmarkExecutionService] Error executing bundle for bundle {bundle_id}: {str(e)}",

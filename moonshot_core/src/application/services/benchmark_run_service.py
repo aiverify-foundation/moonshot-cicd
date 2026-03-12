@@ -22,6 +22,19 @@ class BenchmarkRunService:
     so usage is safe from async or multiple threads.
     """
 
+    def get_run_by_id(self, run_id: int) -> Optional[BenchmarkRunEntity]:
+        """
+        Return the benchmark run with the given id, or None if not found.
+
+        Args:
+            run_id: The benchmark_run id.
+
+        Returns:
+            The run entity or None.
+        """
+        repo = SqlAlchemyBenchmarkRunRepository()
+        return repo.get_by_id(run_id)
+
     def get_run_by_name(self, name: str) -> Optional[BenchmarkRunEntity]:
         """
         Return the benchmark run with the given name, or None if not found.

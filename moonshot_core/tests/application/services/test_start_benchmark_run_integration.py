@@ -47,6 +47,8 @@ from domain.entities.connector_response_entity import ConnectorResponseEntity
 
 FIXTURES_DIR = Path(__file__).resolve().parent / "fixtures"
 CONFIG_PATH = FIXTURES_DIR / "shared_minimal.yaml"
+MOONSHOT_CORE_ROOT = Path(__file__).resolve().parent.parent.parent.parent
+SHARED_CONFIG_PATH = MOONSHOT_CORE_ROOT / "data" / "test_configs" / "shared.yaml"
 
 
 @pytest.fixture(scope="session")
@@ -149,6 +151,37 @@ def _assert_run_completed(session_manager, run_id: int, test_ids: list, expected
             assert evaluation_accuracy is not None
 
 
+def _assert_all_statuses_completed(session_manager, run_id: int):
+    """Assert all benchmark_run_test_status and benchmark_run_test_prompt rows for run_id are completed."""
+    with session_manager.get_session() as session:
+        run_test_statuses = (
+            session.query(BenchmarkRunTestStatusModel)
+            .filter(BenchmarkRunTestStatusModel.run_id == run_id)
+            .all()
+        )
+        assert len(run_test_statuses) >= 1, f"No run_test_status rows for run_id={run_id}"
+        for rts in run_test_statuses:
+            assert rts.status == "completed", (
+                f"run_test_status id={rts.id} (run_id={run_id}, test_id={rts.test_id}) "
+                f"expected status 'completed', got {rts.status!r}"
+            )
+            assert rts.end_dt is not None, (
+                f"run_test_status id={rts.id} (run_id={run_id}) expected end_dt set"
+            )
+        run_test_ids = [rts.id for rts in run_test_statuses]
+        for run_test_id in run_test_ids:
+            prompts = (
+                session.query(BenchmarkRunTestPromptModel)
+                .filter(BenchmarkRunTestPromptModel.run_test_id == run_test_id)
+                .all()
+            )
+            for prompt in prompts:
+                assert prompt.status == "completed", (
+                    f"benchmark_run_test_prompt id={prompt.id} (run_test_id={run_test_id}) "
+                    f"expected status 'completed', got {prompt.status!r}"
+                )
+
+
 @pytest.mark.integration
 def test_start_benchmark_run_happy_path_with_db(
     shared_config_seed_service,
@@ -244,6 +277,8 @@ def test_start_benchmark_run_happy_path_with_db(
     assert run_entity is not None, f"Expected benchmark_run row with name {run_name}"
     run_id = run_entity.id
     assert run_id is not None
+    assert run_entity.status == "completed"
+    assert run_entity.end_time is not None
 
     result_file = tmp_path / "minimal-bundle.json"
     assert result_file.exists(), f"Expected result file at {result_file}"
@@ -452,3 +487,114 @@ def test_start_benchmark_run_duplicate_name_raises(
                 llm_provider_name="TestProvider",
                 llm_provider_config_name="mock_execute_bundle_connector",
             )
+
+
+@pytest.mark.integration
+def test_start_benchmark_run_test_prompts_bundle(
+    shared_config_seed_service,
+    test_db_env,
+    tmp_path,
+):
+    """
+    Seed DB from data/test_configs/shared.yaml, then run start_benchmark_run with
+    the test-prompts bundle. Process is patched to run in-process; connector and
+    accuracy_adapter are mocked. Asserts benchmark_run row, result file
+    test-prompts.json, and completed run_test/prompts.
+    """
+    assert SHARED_CONFIG_PATH.exists(), f"Shared config missing: {SHARED_CONFIG_PATH}"
+    shared_config_seed_service.seed_if_test_file_changed(config_path=SHARED_CONFIG_PATH)
+
+    config_adapter = BenchmarkTestConfigAdapter()
+    bundle_id = config_adapter.get_bundle_id_by_system_name_latest("test-prompts")
+    test_ids = config_adapter.get_test_ids_by_bundle_id(bundle_id)
+    assert len(test_ids) >= 1
+
+    run_name = "start-benchmark-run-test-prompts-integration"
+    expected_prediction = "test_prompts integration response"
+
+    mock_connector = MagicMock()
+    mock_connector.get_response = AsyncMock(
+        return_value=ConnectorResponseEntity(response=expected_prediction, context=[])
+    )
+    mock_connector.configure = MagicMock()
+
+    mock_metric = MagicMock()
+    mock_metric.get_individual_result = AsyncMock(return_value=1.0)
+    mock_metric.get_results = AsyncMock(return_value={})
+    mock_metric.update_metric_params = MagicMock()
+
+    connector_entity = ConnectorEntity(
+        connector_adapter="mock_execute_bundle_connector",
+        model="test-model",
+        model_endpoint="",
+        params={"max_concurrency": 2},
+    )
+
+    from domain.services.loader.module_loader import ModuleLoader
+
+    real_load = ModuleLoader.load
+
+    def mock_load_module_impl(module_name, module_type):
+        if module_type == ModuleTypes.CONNECTOR and module_name == "mock_execute_bundle_connector":
+            return (mock_connector, None)
+        if module_type == ModuleTypes.METRIC and module_name == "accuracy_adapter":
+            return (mock_metric, "accuracy_adapter")
+        if module_type == ModuleTypes.METRIC and module_name == "refusal_adapter":
+            return (mock_metric, "refusal_adapter")
+        return real_load(module_name, module_type)
+
+    def fake_process(*, target=None, args=(), **kwargs):
+        fake = MagicMock()
+        def start():
+            if target is not None:
+                target(*args)
+        fake.start = start
+        return fake
+
+    with (
+        patch.object(AppConfig, "DEFAULT_RESULTS_PATH", str(tmp_path)),
+        patch.object(TaskManager, "_get_connector_config", return_value=connector_entity),
+        patch.object(
+            TaskManager,
+            "_load_module",
+            side_effect=_make_load_module_side_effect(1),
+        ),
+        patch.object(ModuleLoader, "load", side_effect=mock_load_module_impl),
+        patch(
+            "application.services.benchmark_execution_service.multiprocessing.Process",
+            side_effect=fake_process,
+        ),
+        patch("domain.services.task_manager.AppConfig") as mock_app_config_cls,
+    ):
+        mock_app_config = MagicMock()
+        mock_app_config.DEFAULT_RESULTS_PATH = str(tmp_path)
+        mock_app_config.get_metric_config.return_value = MagicMock(
+            params={"categorise_result": False}
+        )
+        mock_app_config_cls.return_value = mock_app_config
+        mock_app_config_cls.DEFAULT_RESULTS_PATH = str(tmp_path)
+
+        service = BenchmarkExecutionService()
+        service.start_benchmark_run(
+            run_name=run_name,
+            bundle_names=["test-prompts"],
+            llm_provider_name="TestProvider",
+            llm_provider_config_name="mock_execute_bundle_connector",
+        )
+
+    run_entity = BenchmarkRunService().get_run_by_name(run_name)
+    assert run_entity is not None, f"Expected benchmark_run row with name {run_name}"
+    assert run_entity.id is not None
+    assert run_entity.status == "completed"
+    assert run_entity.end_time is not None
+
+    result_file = tmp_path / "test-prompts.json"
+    assert result_file.exists(), f"Expected result file at {result_file}"
+    data = json.loads(result_file.read_text())
+    assert "run_metadata" in data
+    assert "run_results" in data
+    assert len(data["run_results"]) >= 1
+
+    session_manager = SessionManager.get_instance()
+    _assert_run_completed(session_manager, run_entity.id, test_ids, expected_prediction)
+    _assert_all_statuses_completed(session_manager, run_entity.id)
