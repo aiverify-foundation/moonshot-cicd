@@ -145,7 +145,7 @@ def upgrade() -> None:
         sa.PrimaryKeyConstraint("id"),
         sa.UniqueConstraint("name", name="uq_benchmark_run_name"),
         sa.ForeignKeyConstraint(["llm_provider_id"], ["llm_provider.id"]),
-        sa.ForeignKeyConstraint(["llm_provider_model_id"], ["model.id"]),
+        sa.ForeignKeyConstraint(["llm_provider_model_id"], ["llm_provider_model.id"]),
         sa.ForeignKeyConstraint(["llm_provider_endpoint_config_id"], ["llm_provider_endpoint_config.id"]),
         sa.ForeignKeyConstraint(["custom_app_id"], ["custom_app.id"]),
         sa.ForeignKeyConstraint(["custom_app_config_id"], ["custom_app_config.id"]),

@@ -24,6 +24,27 @@ class LLMProviderModel(Base):
         return f"<LLMProviderModel(id={self.id}, name='{self.name}')>"
 
 
+class LLMProviderModelModel(Base):
+    """
+    SQLAlchemy model for the llm_provider_model table.
+
+    Stores model names under an LLM provider (referenced by benchmark_run.llm_provider_model_id).
+    """
+    __tablename__ = "llm_provider_model"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    llm_provider_id = Column(Integer, ForeignKey("llm_provider.id"), nullable=False)
+    name = Column(String, nullable=False)
+    create_dt = Column(DateTime, nullable=False, server_default=func.now())
+
+    __table_args__ = (
+        UniqueConstraint("llm_provider_id", "name", name="uq_llm_provider_model_provider_name"),
+    )
+
+    def __repr__(self) -> str:
+        return f"<LLMProviderModelModel(id={self.id}, name='{self.name}')>"
+
+
 # ---------------------------------------------------------------------------
 # Benchmark-related models
 # ---------------------------------------------------------------------------
@@ -268,7 +289,7 @@ class BenchmarkRunModel(Base):
     status = Column(String, nullable=False)
     endpoint_type = Column(String, nullable=False)  # LLM_Provider
     llm_provider_id = Column(Integer, ForeignKey("llm_provider.id"), nullable=True)
-    llm_provider_model_id = Column(Integer, ForeignKey("model.id"), nullable=True)
+    llm_provider_model_id = Column(Integer, ForeignKey("llm_provider_model.id"), nullable=True)
     llm_provider_endpoint_config_id = Column(
         Integer,
         ForeignKey("llm_provider_endpoint_config.id"),

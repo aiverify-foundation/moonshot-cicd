@@ -60,39 +60,45 @@ class BenchmarkExecutionService:
         run_id: Optional[int] = None,
     ) -> str:
         """
-        Validate the bundle, start its execution in a daemon process, and return the bundle id.
+        Validate the bundle (DB only), start its execution in a daemon process, and return the bundle id.
 
-        Callers can map the returned bundle_id to a response DTO. Raises KeyError if the
-        bundle does not exist.
+        Resolves the bundle from the DB only (seeded config). Callers can map the returned
+        bundle_id to a response DTO. Raises KeyError if the bundle is not found in the DB.
 
         Args:
-            bundle_name: Bundle name/id from the request (used to resolve the bundle)
+            bundle_name: Bundle system name from the request (used to resolve the bundle in DB)
             connector: Connector name to use for the bundle
             run_id: Optional benchmark run id (from BenchmarkRunEntity) for the background process to use.
                 TODO: run_id will be required (non-optional) in the future.
 
         Returns:
-            The resolved bundle id (same as bundle_name when it is the id).
+            The resolved bundle id (same as bundle_name).
 
         Raises:
-            KeyError: If the bundle is not found.
+            KeyError: If the bundle is not found in the DB.
         """
-        from application.services.benchmark import BenchmarkService  # noqa: WPS433
+        from adapters.driven.repository.sqlalchemy.benchmark_test_config_adapter import (  # noqa: WPS433
+            BenchmarkTestConfigAdapter,
+        )
 
-        benchmark_service = BenchmarkService(None, None)
-        bundle = benchmark_service.get_bundle_by_id(bundle_name)
+        config_adapter = BenchmarkTestConfigAdapter()
+        try:
+            config_adapter.get_bundle_id_by_system_name_latest(bundle_name)
+        except ValueError:
+            logger.error("Bundle with ID %r not found in DB. Seed bundles first.", bundle_name)
+            raise KeyError(f"Bundle with ID '{bundle_name}' not found") from None
 
         process = multiprocessing.Process(
             target=_run_bundle_in_process,
-            args=(bundle.id, connector, run_id),
+            args=(bundle_name, connector, run_id),
         )
         process.daemon = True
         process.start()
 
         logger.info(
-            f"[BenchmarkExecutionService] Bundle execution started in daemon process for bundle: {bundle.id}"
+            f"[BenchmarkExecutionService] Bundle execution started in daemon process for bundle: {bundle_name}"
         )
-        return bundle.id
+        return bundle_name
 
     def start_benchmark_run(
         self,
