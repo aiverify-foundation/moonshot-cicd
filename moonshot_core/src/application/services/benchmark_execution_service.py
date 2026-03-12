@@ -140,8 +140,19 @@ class BenchmarkExecutionService:
         saved_run = BenchmarkRunService().save_run(run_entity)
         run_id = saved_run.id
 
+        from application.services.benchmark_run_test_bundle_population_service import (  # noqa: WPS433
+            BenchmarkRunTestBundlePopulationService,
+        )
+        pop_service = BenchmarkRunTestBundlePopulationService()
+
         for bundle_name in bundle_names:
-            #generate the benchmark run test bundle
+            try:
+                pop_service.populate_run_bundle(run_id, bundle_name)
+            except ValueError as e:
+                logger.warning(
+                    f"[BenchmarkExecutionService] Skipping populate_run_bundle for run_id={run_id}, "
+                    f"bundle={bundle_name}: {e}"
+                )
             self.start_bundle_in_background(bundle_name, connector, run_id=run_id)
 
     def execute_bundle(

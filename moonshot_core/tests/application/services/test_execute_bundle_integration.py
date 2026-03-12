@@ -31,6 +31,7 @@ from application.services.benchmark_run_test_bundle_population_service import (
     BenchmarkRunTestBundlePopulationService,
 )
 from application.services.benchmark_execution_service import BenchmarkExecutionService
+from application.services.benchmark_run_service import BenchmarkRunService
 from application.services.shared_config_seed_service import SharedConfigSeedService
 from application.services.file_shared_config_repository import (
     FileSharedConfigRepository,
