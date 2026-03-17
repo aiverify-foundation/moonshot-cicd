@@ -31,6 +31,9 @@ from application.services.benchmark_run_test_bundle_population_service import (
     BenchmarkRunTestBundlePopulationService,
 )
 from application.services.benchmark_execution_service import BenchmarkExecutionService
+from application.services.benchmark_run_prompt_service import (
+    BenchmarkRunPromptService,
+)
 from application.services.benchmark_run_service import BenchmarkRunService
 from application.services.shared_config_seed_service import SharedConfigSeedService
 from application.services.file_shared_config_repository import (
@@ -167,7 +170,7 @@ def _make_load_module_side_effect(num_tests: int):
 
 
 @pytest.mark.integration
-def test_01_execute_bundle_happy_path_with_db(
+def test_execute_bundle_happy_path_with_db(
     shared_config_seed_service,
     test_db_env,
     tmp_path,
@@ -281,7 +284,7 @@ def _assert_run_completed(session_manager, run_id: int, test_ids: list, expected
 
 
 @pytest.mark.integration
-def test_02_execute_bundle_two_runs_back_to_back(
+def test_execute_bundle_two_runs_back_to_back(
     shared_config_seed_service,
     test_db_env,
     tmp_path,
@@ -372,7 +375,7 @@ def test_02_execute_bundle_two_runs_back_to_back(
 
 
 @pytest.mark.integration
-def test_03_execute_bundle_bundle_with_two_tests(
+def test_execute_bundle_bundle_with_two_tests(
     shared_config_seed_service,
     test_db_env,
     tmp_path,
@@ -452,7 +455,7 @@ def test_03_execute_bundle_bundle_with_two_tests(
 
 
 @pytest.mark.integration
-def test_04_execute_bundle_duplicate_run_name_no_new_run(
+def test_execute_bundle_duplicate_run_name_no_new_run(
     shared_config_seed_service,
     test_db_env,
     tmp_path,
@@ -558,3 +561,103 @@ def test_04_execute_bundle_duplicate_run_name_no_new_run(
         f"Expected exactly one run with name {run_name!r}, got {len(runs_with_name)}"
     )
     assert runs_with_name[0].id == run_id_created
+
+
+@pytest.mark.integration
+def test_execute_bundle_then_get_all_prompts_by_run_id(
+    shared_config_seed_service,
+    test_db_env,
+    tmp_path,
+):
+    """
+    Run execute_bundle for a bundle with two tests, then get_all_prompts_by_run_id
+    returns all prompts for the run with prediction and evaluation set.
+    """
+    assert CONFIG_PATH_TWO_TESTS.exists(), f"Fixture missing: {CONFIG_PATH_TWO_TESTS}"
+    shared_config_seed_service.seed_if_test_file_changed(
+        config_path=CONFIG_PATH_TWO_TESTS
+    )
+    config_adapter = BenchmarkTestConfigAdapter()
+    bundle_id = config_adapter.get_bundle_id_by_system_name_latest("minimal-bundle")
+    test_ids = config_adapter.get_test_ids_by_bundle_id(bundle_id)
+    assert len(test_ids) >= 2
+
+    session_manager = SessionManager.get_instance()
+    run_id = _insert_benchmark_run(
+        session_manager, "integration-get-prompts-after-execute"
+    )
+    BenchmarkRunTestBundlePopulationService().populate_run_bundle(
+        run_id, "minimal-bundle"
+    )
+
+    mock_connector = MagicMock()
+    mock_connector.get_response = AsyncMock(
+        return_value=ConnectorResponseEntity(
+            response="get-prompts-after-execute response", context=[]
+        )
+    )
+    mock_connector.configure = MagicMock()
+    mock_metric = MagicMock()
+    mock_metric.get_individual_result = AsyncMock(return_value=1.0)
+    mock_metric.get_results = AsyncMock(return_value={})
+    mock_metric.update_metric_params = MagicMock()
+    connector_entity = ConnectorEntity(
+        connector_adapter="mock_execute_bundle_connector",
+        model="test-model",
+        model_endpoint="",
+        params={"max_concurrency": 2},
+    )
+
+    from domain.services.loader.module_loader import ModuleLoader
+
+    real_module_loader_load = ModuleLoader.load
+
+    def mock_load_module(module_name, module_type):
+        if (
+            module_type == ModuleTypes.CONNECTOR
+            and module_name == "mock_execute_bundle_connector"
+        ):
+            return (mock_connector, None)
+        if module_type == ModuleTypes.METRIC and module_name == "refusal_adapter":
+            return (mock_metric, "refusal_adapter")
+        return real_module_loader_load(module_name, module_type)
+
+    with (
+        patch.object(AppConfig, "DEFAULT_RESULTS_PATH", str(tmp_path)),
+        patch.object(TaskManager, "_get_connector_config", return_value=connector_entity),
+        patch.object(
+            TaskManager, "_load_module", side_effect=_make_load_module_side_effect(2)
+        ),
+        patch.object(ModuleLoader, "load", side_effect=mock_load_module),
+        patch("domain.services.task_manager.AppConfig") as mock_app_config_cls,
+    ):
+        mock_app_config = MagicMock()
+        mock_app_config.DEFAULT_RESULTS_PATH = str(tmp_path)
+        mock_app_config.get_metric_config.return_value = MagicMock(
+            params={"categorise_result": False}
+        )
+        mock_app_config_cls.return_value = mock_app_config
+        mock_app_config_cls.DEFAULT_RESULTS_PATH = str(tmp_path)
+        service = BenchmarkExecutionService()
+        service.execute_bundle(
+            "minimal-bundle",
+            "mock_execute_bundle_connector",
+            run_id=run_id,
+            write_to_db=True,
+        )
+
+    _assert_run_completed(
+        session_manager, run_id, test_ids, "get-prompts-after-execute response"
+    )
+
+    prompt_service = BenchmarkRunPromptService()
+    result = prompt_service.get_all_prompts_by_run_id(run_id)
+
+    assert len(result) >= 2
+    for entity in result:
+        assert entity.id is not None
+        assert entity.run_test_id is not None
+        assert entity.prompt_id is not None
+        assert entity.prediction_result is not None
+        assert entity.evaluation_prediction_result is not None
+        assert entity.evaluation_accuracy is not None
