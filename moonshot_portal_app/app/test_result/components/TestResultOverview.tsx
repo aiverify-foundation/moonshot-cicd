@@ -40,8 +40,8 @@ function TestResultNote() {
 }
 
 export interface ChartDataItem {
-    name: string
-    value: number
+    test_name: string
+    adjusted_percentage_score: number
 }
 
 interface ReportChartProps {
@@ -53,7 +53,7 @@ interface ReportChartProps {
 function ReportChartScrollAdjustableHeight({ chartData, bundleName }: ReportChartProps) {
     // Calculate average of all chart data values
     const averageValue = chartData.length > 0
-        ? Math.round(chartData.reduce((sum, item) => sum + item.value, 0) / chartData.length)
+        ? Math.round(chartData.reduce((sum, item) => sum + item.adjusted_percentage_score, 0) / chartData.length)
         : 0
 
     // Custom Y-axis ticks to match design
@@ -152,7 +152,7 @@ function ReportChartScrollAdjustableHeight({ chartData, bundleName }: ReportChar
                             />
                             <YAxis 
                                 type="category"
-                                dataKey="name"
+                                dataKey="test_name"
                                 tick={<CustomYAxisTick />}
                                 axisLine={false}
                                 tickLine={false}
@@ -174,15 +174,15 @@ function ReportChartScrollAdjustableHeight({ chartData, bundleName }: ReportChar
                                     if (active && payload && payload.length) {
                                         const data = payload[0].payload;
                                         // Calculate lower and upper bounds
-                                        const lowerBound = Math.max(0, Math.round((data.value - data.error) * 10) / 10);
-                                        const upperBound = Math.min(100, Math.round((data.value + data.error) * 10) / 10);
+                                        const lowerBound = Math.max(0, Math.round((data.adjusted_percentage_score - data.error) * 10) / 10);
+                                        const upperBound = Math.min(100, Math.round((data.adjusted_percentage_score + data.error) * 10) / 10);
                                         return (
                                             <div className="bg-white border border-slate-200 rounded-lg shadow-lg p-3">
                                                 <p className="font-semibold text-sm text-slate-700 mb-1">
-                                                    {data.name}
+                                                    {data.test_name}
                                                 </p>
                                                 <p className="font-medium text-sm text-slate-600">
-                                                    Score: {data.value}%
+                                                    Score: {data.adjusted_percentage_score}%
                                                 </p>
                                                 <p className="font-medium text-sm text-slate-600">
                                                     Confidence Interval: [{lowerBound}%, {upperBound}%]
@@ -195,7 +195,7 @@ function ReportChartScrollAdjustableHeight({ chartData, bundleName }: ReportChar
                                 }}
                             />
                             <Bar 
-                                dataKey="value" 
+                                dataKey="adjusted_percentage_score" 
                                 fill="#60A5FA"
                                 radius={0}
                             >
@@ -210,7 +210,7 @@ function ReportChartScrollAdjustableHeight({ chartData, bundleName }: ReportChar
                                     direction="x"
                                 />
                                 <LabelList 
-                                    dataKey="value" 
+                                    dataKey="adjusted_percentage_score" 
                                     position="right"
                                     content={(props: { x?: number | string; y?: number | string; value?: number | string }) => {
                                         const { x, y, value } = props;
@@ -247,35 +247,35 @@ function ReportChartScrollAdjustableHeight({ chartData, bundleName }: ReportChar
 export default function TestResultOverview() {
     // Sample data based on Figma design - 15 bars with varying heights
     const sampleChartData: ChartDataItem[] = [
-        { name: "MMLU", value: 91 },
-        { name: "Facts about Singapore", value: 35 },
-        { name: "Facts about Singapore", value: 82 },
-        { name: "Facts about Singapore", value: 14 },
-        { name: "Facts about Singapore", value: 69 },
-        { name: "Facts about Singapore", value: 82 },
-        { name: "Facts about Singapore", value: 96 },
-        { name: "Facts about Singapore", value: 58 },
-        { name: "Facts about Singapore", value: 77 },
-        { name: "Facts about Singapore", value: 97 },
-        { name: "Facts about Singapore", value: 71 },
-        { name: "Facts about Singapore", value: 76 },
-        { name: "Facts about Singapore", value: 90 },
-        { name: "Facts about Singapore", value: 60 },
-        { name: "Facts about Singapore", value: 91 },
+        { test_name: "MMLU", adjusted_percentage_score: 91 },
+        { test_name: "Facts about Singapore", adjusted_percentage_score: 35 },
+        { test_name: "Facts about Singapore", adjusted_percentage_score: 82 },
+        { test_name: "Facts about Singapore", adjusted_percentage_score: 14 },
+        { test_name: "Facts about Singapore", adjusted_percentage_score: 69 },
+        { test_name: "Facts about Singapore", adjusted_percentage_score: 82 },
+        { test_name: "Facts about Singapore", adjusted_percentage_score: 96 },
+        { test_name: "Facts about Singapore", adjusted_percentage_score: 58 },
+        { test_name: "Facts about Singapore", adjusted_percentage_score: 77 },
+        { test_name: "Facts about Singapore", adjusted_percentage_score: 97 },
+        { test_name: "Facts about Singapore", adjusted_percentage_score: 71 },
+        { test_name: "Facts about Singapore", adjusted_percentage_score: 76 },
+        { test_name: "Facts about Singapore", adjusted_percentage_score: 90 },
+        { test_name: "Facts about Singapore", adjusted_percentage_score: 60 },
+        { test_name: "Facts about Singapore", adjusted_percentage_score: 91 },
     ]
 
     const UndesirableContent: ChartDataItem[] = [
-        { name: "MLCommons AILuminate - Hate", value: 91 },
-        { name: "MLCommons AILuminate - Non Violent Crimes", value: 35 },
-        { name: "MLCommons AILuminate - Suicide and Self-harm", value: 82 },
+        { test_name: "MLCommons AILuminate - Hate", adjusted_percentage_score: 91 },
+        { test_name: "MLCommons AILuminate - Non Violent Crimes", adjusted_percentage_score: 35 },
+        { test_name: "MLCommons AILuminate - Suicide and Self-harm", adjusted_percentage_score: 82 },
     ]
 
     const UndesirableContentSingle: ChartDataItem[] = [
-        { name: "MLCommons AILuminate - Hate", value: 79 },
+        { test_name: "MLCommons AILuminate - Hate", adjusted_percentage_score: 79 },
     ]
 
     const DataDisclosure: ChartDataItem[] = [
-        { name: "MLCommons AILuminate - Privacy - English", value: 80 },
+        { test_name: "MLCommons AILuminate - Privacy - English", adjusted_percentage_score: 80 },
     ]
 
     return (

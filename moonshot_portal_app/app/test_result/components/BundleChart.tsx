@@ -3,7 +3,7 @@ import React from "react"
 import { BarChart, Bar, XAxis, YAxis, ResponsiveContainer, Tooltip, ReferenceLine, ErrorBar, Cell } from "recharts"
 
 export interface BundleChartDataItem {
-    name: string
+    test_name: string
     aiScore: number
     adjustedScore: number
     aiScoreLowerDifference: number
@@ -90,7 +90,7 @@ export default function BundleChart({ title, chartData }: BundleChartProps) {
             return (
                 <div className="bg-white border border-slate-200 rounded-lg shadow-lg p-3">
                     <p className="font-semibold text-sm text-slate-700 mb-2">
-                        {data.name}
+                        {data.test_name}
                     </p>
                     {payload.map((entry: TooltipEntry, index: number) => {
                         // Get the appropriate lower and upper differences based on the entry name
@@ -195,7 +195,7 @@ export default function BundleChart({ title, chartData }: BundleChartProps) {
                     >
                         <XAxis
                             type="category"
-                            dataKey="name"
+                            dataKey="test_name"
                             tick={<CustomXAxisTick />}
                             axisLine={false}
                             tickLine={false}
@@ -230,7 +230,7 @@ export default function BundleChart({ title, chartData }: BundleChartProps) {
                             radius={0}
                         >
                             {chartDataWithError.map((entry, index) => (
-                                <Cell key={`ai-cell-${index}-${entry.name}`} fill="#FB923C" />
+                                <Cell key={`ai-cell-${index}-${entry.test_name}`} fill="#FB923C" />
                             ))}
                             {/* Only render ErrorBar if there are actual error values */}
                             {chartDataWithError.some(entry => 
@@ -253,7 +253,7 @@ export default function BundleChart({ title, chartData }: BundleChartProps) {
                             radius={0}
                         >
                             {chartDataWithError.map((entry, index) => (
-                                <Cell key={`adjusted-cell-${index}-${entry.name}`} fill="#60A5FA" />
+                                <Cell key={`adjusted-cell-${index}-${entry.test_name}`} fill="#60A5FA" />
                             ))}
                             {/* Only render ErrorBar if there are actual error values */}
                             {chartDataWithError.some(entry => 

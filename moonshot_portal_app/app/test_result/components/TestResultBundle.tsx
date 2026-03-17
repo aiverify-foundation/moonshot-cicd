@@ -285,7 +285,7 @@ function calculateChartDataFromTableData(data: TestResultTableRow[]): BundleChar
         const roundedAdjustedScore = Math.round(adjustedScore * 100) / 100
   
         chartData.push({
-            name: testName,
+            test_name: testName,
             aiScore: roundedAiScore,
             adjustedScore: roundedAdjustedScore,
             aiScoreLowerDifference: 7.8,
@@ -302,11 +302,11 @@ function calculateChartDataFromTableData(data: TestResultTableRow[]): BundleChar
     
     chartData.forEach((item) => {
         // If we somehow have a duplicate test name (shouldn't happen after grouping), skip it
-        if (seenTestNames.has(item.name)) {
-            console.warn(`Duplicate test name detected in chart data: ${item.name}. This should not happen after grouping.`)
+        if (seenTestNames.has(item.test_name)) {
+            console.warn(`Duplicate test name detected in chart data: ${item.test_name}. This should not happen after grouping.`)
             return
         }
-        seenTestNames.add(item.name)
+        seenTestNames.add(item.test_name)
         uniqueChartData.push(item)
     })
 
