@@ -10,10 +10,12 @@ Mocks connector and metric so no real LLM calls. Asserts result file and DB stat
 
 import os
 import json
+import sys
 from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
+from fastapi.testclient import TestClient
 from sqlalchemy import text
 
 from adapters.driven.repository.sqlalchemy.llm_provider_models import (
@@ -55,6 +57,12 @@ from domain.services.enums.module_types import ModuleTypes
 from domain.entities.connector_entity import ConnectorEntity
 from domain.entities.connector_response_entity import ConnectorResponseEntity
 
+# Ensure src is on path for entrypoints.api when running this module
+_src_path = Path(__file__).resolve().parent.parent.parent / "src"
+if str(_src_path) not in sys.path:
+    sys.path.insert(0, str(_src_path))
+
+from entrypoints.api import app as fastapi_app
 
 FIXTURES_DIR = Path(__file__).resolve().parent / "fixtures"
 CONFIG_PATH = FIXTURES_DIR / "shared_minimal.yaml"
@@ -661,3 +669,108 @@ def test_execute_bundle_then_get_all_prompts_by_run_id(
         assert entity.prediction_result is not None
         assert entity.evaluation_prediction_result is not None
         assert entity.evaluation_accuracy is not None
+
+
+@pytest.mark.integration
+def test_get_benchmark_run_prompts_api(
+    shared_config_seed_service,
+    test_db_env,
+    tmp_path,
+):
+    """
+    GET /api/benchmark-runs/{run_id}/prompts returns all prompts for the run after execute_bundle.
+
+    Runs execute_bundle with a real DB and mocks, then calls the API and asserts
+    response shape and content.
+    """
+    assert CONFIG_PATH_TWO_TESTS.exists(), f"Fixture missing: {CONFIG_PATH_TWO_TESTS}"
+    shared_config_seed_service.seed_if_test_file_changed(
+        config_path=CONFIG_PATH_TWO_TESTS
+    )
+    config_adapter = BenchmarkTestConfigAdapter()
+    bundle_id = config_adapter.get_bundle_id_by_system_name_latest("minimal-bundle")
+    test_ids = config_adapter.get_test_ids_by_bundle_id(bundle_id)
+    assert len(test_ids) >= 2
+
+    session_manager = SessionManager.get_instance()
+    run_id = _insert_benchmark_run(
+        session_manager, "integration-get-prompts-api"
+    )
+    BenchmarkRunTestBundlePopulationService().populate_run_bundle(
+        run_id, "minimal-bundle"
+    )
+
+    mock_connector = MagicMock()
+    mock_connector.get_response = AsyncMock(
+        return_value=ConnectorResponseEntity(
+            response="get-prompts-api response", context=[]
+        )
+    )
+    mock_connector.configure = MagicMock()
+    mock_metric = MagicMock()
+    mock_metric.get_individual_result = AsyncMock(return_value=1.0)
+    mock_metric.get_results = AsyncMock(return_value={})
+    mock_metric.update_metric_params = MagicMock()
+    connector_entity = ConnectorEntity(
+        connector_adapter="mock_execute_bundle_connector",
+        model="test-model",
+        model_endpoint="",
+        params={"max_concurrency": 2},
+    )
+
+    from domain.services.loader.module_loader import ModuleLoader
+
+    real_module_loader_load = ModuleLoader.load
+
+    def mock_load_module(module_name, module_type):
+        if (
+            module_type == ModuleTypes.CONNECTOR
+            and module_name == "mock_execute_bundle_connector"
+        ):
+            return (mock_connector, None)
+        if module_type == ModuleTypes.METRIC and module_name == "refusal_adapter":
+            return (mock_metric, "refusal_adapter")
+        return real_module_loader_load(module_name, module_type)
+
+    with (
+        patch.object(AppConfig, "DEFAULT_RESULTS_PATH", str(tmp_path)),
+        patch.object(TaskManager, "_get_connector_config", return_value=connector_entity),
+        patch.object(
+            TaskManager, "_load_module", side_effect=_make_load_module_side_effect(2)
+        ),
+        patch.object(ModuleLoader, "load", side_effect=mock_load_module),
+        patch("domain.services.task_manager.AppConfig") as mock_app_config_cls,
+    ):
+        mock_app_config = MagicMock()
+        mock_app_config.DEFAULT_RESULTS_PATH = str(tmp_path)
+        mock_app_config.get_metric_config.return_value = MagicMock(
+            params={"categorise_result": False}
+        )
+        mock_app_config_cls.return_value = mock_app_config
+        mock_app_config_cls.DEFAULT_RESULTS_PATH = str(tmp_path)
+        service = BenchmarkExecutionService()
+        service.execute_bundle(
+            "minimal-bundle",
+            "mock_execute_bundle_connector",
+            run_id=run_id,
+            write_to_db=True,
+        )
+
+    _assert_run_completed(
+        session_manager, run_id, test_ids, "get-prompts-api response"
+    )
+
+    client = TestClient(fastapi_app)
+    response = client.get(f"/api/benchmark-runs/{run_id}/prompts")
+
+    assert response.status_code == 200, response.text
+    data = response.json()
+    assert isinstance(data, list)
+    assert len(data) >= 2
+    for item in data:
+        assert "id" in item
+        assert "run_test_id" in item
+        assert "prompt_id" in item
+        assert item.get("prediction_result") is not None
+        assert item.get("evaluation_prediction_result") is not None
+        assert item.get("evaluation_accuracy") is not None

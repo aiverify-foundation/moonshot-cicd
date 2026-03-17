@@ -3,6 +3,8 @@ FastAPI application for Moonshot CI/CD.
 This module provides a REST API interface for the Moonshot benchmarking system.
 """
 
+from contextlib import asynccontextmanager
+
 from fastapi import FastAPI, Request, HTTPException
 from fastapi.responses import FileResponse
 from fastapi.middleware.cors import CORSMiddleware
@@ -20,6 +22,7 @@ from application.services.file_model_config_repository import FileModelConfigRep
 from application.dto.provider_dto import ProviderDTO
 from application.dto.model_config_dto import ModelConfigDTO
 from application.dto.run_bundle_dto import (
+    BenchmarkRunTestPromptResponseDTO,
     RunBundleRequestDTO,
     RunBundleResponseDTO,
     StartBenchmarkRunRequestDTO,
@@ -29,9 +32,25 @@ from application.dto.seed_dto import SeedSharedConfigResponseDTO
 
 # Benchmark execution service
 from application.services.benchmark_execution_service import BenchmarkExecutionService
+from application.services.benchmark_run_prompt_service import (
+    BenchmarkRunPromptService,
+)
 
 # Configure the logger for this module
 logger = configure_logger(__name__)
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """Run startup tasks (e.g. seed shared config if changed) and yield for shutdown."""
+    try:
+        service = get_shared_config_seed_service()
+        service.seed_if_test_file_changed()
+    except Exception as e:
+        logger.warning(f"Startup seed skipped or failed: {e}")
+    yield
+    # Shutdown (if needed later)
+
 
 # Create FastAPI application instance
 app = FastAPI(
@@ -39,7 +58,8 @@ app = FastAPI(
     description="A REST API for the Moonshot benchmarking and red-teaming system",
     version="1.1.0",
     docs_url=None,
-    redoc_url=None
+    redoc_url=None,
+    lifespan=lifespan,
 )
 
 
@@ -342,6 +362,32 @@ async def start_benchmark_run(request: StartBenchmarkRunRequestDTO) -> StartBenc
     except Exception as e:
         logger.error(f"Error starting benchmark run: {e}")
         raise HTTPException(status_code=500, detail=f"Failed to start benchmark run: {str(e)}")
+
+
+@app.get(
+    "/api/benchmark-runs/{run_id}/prompts",
+    response_model=List[BenchmarkRunTestPromptResponseDTO],
+)
+async def get_benchmark_run_prompts(run_id: int) -> List[BenchmarkRunTestPromptResponseDTO]:
+    """
+    Return all benchmark run test prompts for the given benchmark run id.
+
+    Uses BenchmarkRunPromptService.get_all_prompts_by_run_id. Returns an empty list
+    if the run has no run-test statuses or prompts.
+    """
+    try:
+        service = BenchmarkRunPromptService()
+        entities = service.get_all_prompts_by_run_id(run_id)
+        return [
+            BenchmarkRunTestPromptResponseDTO.model_validate(e.model_dump())
+            for e in entities
+        ]
+    except Exception as e:
+        logger.error(f"Error fetching run prompts for run_id={run_id}: {e}")
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to fetch run prompts: {str(e)}",
+        )
 
 
 @app.post("/api/seed-shared-config-if-changed", response_model=SeedSharedConfigResponseDTO)
