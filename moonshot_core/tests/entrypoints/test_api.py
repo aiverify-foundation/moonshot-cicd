@@ -11,6 +11,9 @@ from unittest.mock import patch, MagicMock
 from fastapi.testclient import TestClient
 
 from domain.entities.benchmark_run_entity import BenchmarkRunEntity
+from domain.entities.benchmark_run_test_bundle_entity import (
+    BenchmarkRunTestBundleEntity,
+)
 
 # Add the src directory to the Python path
 src_path = Path(__file__).parent.parent.parent / "src"
@@ -126,6 +129,52 @@ def test_list_benchmark_runs_returns_runs(mock_service_class):
     assert data[1]["id"] == 2
     assert data[1]["status"] == "completed"
     mock_svc.get_all_runs.assert_called_once_with()
+
+
+@patch("entrypoints.api.BenchmarkRunTestBundleQueryService")
+def test_get_benchmark_run_test_bundles_empty(mock_service_class):
+    """GET /api/benchmark-runs/{run_id}/run-test-bundles returns [] when none."""
+    mock_svc = MagicMock()
+    mock_service_class.return_value = mock_svc
+    mock_svc.get_all_by_run_id.return_value = []
+
+    response = client.get("/api/benchmark-runs/5/run-test-bundles")
+    assert response.status_code == 200
+    assert response.json() == []
+    mock_svc.get_all_by_run_id.assert_called_once_with(5)
+
+
+@patch("entrypoints.api.BenchmarkRunTestBundleQueryService")
+def test_get_benchmark_run_test_bundles_returns_rows(mock_service_class):
+    """GET /api/benchmark-runs/{run_id}/run-test-bundles returns serialized rows."""
+    mock_svc = MagicMock()
+    mock_service_class.return_value = mock_svc
+    mock_svc.get_all_by_run_id.return_value = [
+        BenchmarkRunTestBundleEntity(
+            id=1, run_id=7, test_bundle_id=10, test_id=100
+        ),
+        BenchmarkRunTestBundleEntity(
+            id=2, run_id=7, test_bundle_id=10, test_id=101
+        ),
+    ]
+
+    response = client.get("/api/benchmark-runs/7/run-test-bundles")
+    assert response.status_code == 200
+    data = response.json()
+    assert len(data) == 2
+    assert data[0] == {
+        "id": 1,
+        "run_id": 7,
+        "test_bundle_id": 10,
+        "test_id": 100,
+    }
+    assert data[1] == {
+        "id": 2,
+        "run_id": 7,
+        "test_bundle_id": 10,
+        "test_id": 101,
+    }
+    mock_svc.get_all_by_run_id.assert_called_once_with(7)
 
 
 @patch('entrypoints.api.get_build_directory')

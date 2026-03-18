@@ -95,6 +95,21 @@ class BenchmarkRunResponseDTO(BaseModel):
     llm_provider_endpoint_config_id: Optional[int] = None
 
 
+class BenchmarkRunTestBundleResponseDTO(BaseModel):
+    """
+    Response DTO for a benchmark_run_test_bundle row (run ↔ bundle ↔ test link).
+
+    Returned by GET /api/benchmark-runs/{run_id}/run-test-bundles.
+    """
+
+    model_config = ConfigDict(arbitrary_types_allowed=True)
+
+    id: Optional[int] = None
+    run_id: int
+    test_bundle_id: int
+    test_id: int
+
+
 class BenchmarkRunTestPromptResponseDTO(BaseModel):
     """
     Response DTO for a single benchmark run test prompt (per-prompt result within a run-test).

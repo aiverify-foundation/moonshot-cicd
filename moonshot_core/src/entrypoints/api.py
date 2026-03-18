@@ -23,6 +23,7 @@ from application.dto.provider_dto import ProviderDTO
 from application.dto.model_config_dto import ModelConfigDTO
 from application.dto.run_bundle_dto import (
     BenchmarkRunResponseDTO,
+    BenchmarkRunTestBundleResponseDTO,
     BenchmarkRunTestPromptResponseDTO,
     RunBundleRequestDTO,
     RunBundleResponseDTO,
@@ -37,6 +38,9 @@ from application.services.benchmark_run_prompt_service import (
     BenchmarkRunPromptService,
 )
 from application.services.benchmark_run_service import BenchmarkRunService
+from application.services.benchmark_run_test_bundle_query_service import (
+    BenchmarkRunTestBundleQueryService,
+)
 
 # Configure the logger for this module
 logger = configure_logger(__name__)
@@ -64,19 +68,7 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
-# Add CORS middleware to allow frontend requests
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=[
-        "http://localhost:3000",  # Next.js frontend
-        "http://127.0.0.1:3000",  # Next.js frontend alternative
-        "http://localhost:8000",  # Backend URL (for reference)
-        "http://127.0.0.1:8000",  # Backend URL alternative (for reference)
-    ],
-    allow_credentials=True,
-    allow_methods=["*"],  # Allow all HTTP methods
-    allow_headers=["*"],  # Allow all headers
-)
+
 
 
 def get_build_directory() -> Path:
@@ -426,6 +418,34 @@ async def get_benchmark_run_prompts(run_id: int) -> List[BenchmarkRunTestPromptR
         raise HTTPException(
             status_code=500,
             detail=f"Failed to fetch run prompts: {str(e)}",
+        )
+
+
+@app.get(
+    "/api/benchmark-runs/{run_id}/run-test-bundles",
+    response_model=List[BenchmarkRunTestBundleResponseDTO],
+)
+async def get_benchmark_run_test_bundles(
+    run_id: int,
+) -> List[BenchmarkRunTestBundleResponseDTO]:
+    """
+    Return all benchmark_run_test_bundle rows for the given benchmark run id.
+
+    Uses BenchmarkRunTestBundleQueryService.get_all_by_run_id. Returns an empty list
+    if the run has no rows.
+    """
+    try:
+        service = BenchmarkRunTestBundleQueryService()
+        entities = service.get_all_by_run_id(run_id)
+        return [
+            BenchmarkRunTestBundleResponseDTO.model_validate(e.model_dump())
+            for e in entities
+        ]
+    except Exception as e:
+        logger.error(f"Error fetching run-test-bundles for run_id={run_id}: {e}")
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to fetch run-test-bundles: {str(e)}",
         )
 
 
