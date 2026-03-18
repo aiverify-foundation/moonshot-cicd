@@ -116,6 +116,8 @@ const modelSelectionSlice = createSlice({
     selectedConfig: '',
     isConfigValid: false,
     isTestNameValid: false,
+    /** Benchmark run name (Test Name field on model selection page) */
+    testName: '',
   },
   reducers: {
     setSelectedProvider: (state, action) => {
@@ -140,12 +142,17 @@ const modelSelectionSlice = createSlice({
     setTestNameFilled: (state, action) => {
       state.isTestNameValid = action.payload;
     },
+    setBenchmarkTestName: (state, action: { payload: string }) => {
+      state.testName = action.payload;
+      state.isTestNameValid = action.payload.trim().length > 0;
+    },
     resetModelSelection: (state) => {
       state.selectedProvider = '';
       state.selectedModel = '';
       state.selectedConfig = '';
       state.isConfigValid = false;
       state.isTestNameValid = false;
+      state.testName = '';
     },
   },
 });
@@ -156,6 +163,7 @@ export const {
   setSelectedConfig, 
   updateConfigValidity, 
   setTestNameFilled,
+  setBenchmarkTestName,
   resetModelSelection 
 } = modelSelectionSlice.actions;
 

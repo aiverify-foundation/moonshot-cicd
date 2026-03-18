@@ -143,6 +143,69 @@ export async function fetchFixedConfigs(): Promise<FixedConfig[]> {
   }
 }
 
+/** POST /api/start-benchmark-run */
+export interface StartBenchmarkRunRequest {
+  run_name: string;
+  bundle_names: string[];
+  llm_provider_name: string;
+  llm_provider_config_name: string;
+}
+
+export interface StartBenchmarkRunResponse {
+  message: string;
+}
+
+/**
+ * Starts a benchmark run (one or more bundles) on the backend.
+ * `llm_provider_config_name` must match a connector `id` in moonshot_config.yaml.
+ */
+export async function startBenchmarkRun(
+  payload: StartBenchmarkRunRequest
+): Promise<StartBenchmarkRunResponse> {
+  try {
+    const response = await fetch(`${API_BASE_URL}/api/start-benchmark-run`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text().catch(() => 'Unknown error');
+      console.error(`API Error: ${response.status} - ${errorText}`);
+      let detail = errorText;
+      try {
+        const parsed = JSON.parse(errorText) as { detail?: string | unknown };
+        if (parsed?.detail != null) {
+          detail =
+            typeof parsed.detail === 'string'
+              ? parsed.detail
+              : JSON.stringify(parsed.detail);
+        }
+      } catch {
+        /* use raw errorText */
+      }
+      throw new ApiError(
+        `Failed to start benchmark run: ${detail}`,
+        response.status,
+        response.statusText
+      );
+    }
+
+    return response.json() as Promise<StartBenchmarkRunResponse>;
+  } catch (error) {
+    console.error('Start benchmark run error:', error);
+    if (error instanceof ApiError) throw error;
+    if (error instanceof TypeError && error.message.includes('fetch')) {
+      throw new ApiError(
+        `Cannot connect to API server at ${API_BASE_URL}. Please ensure the backend is running on port 8000.`
+      );
+    }
+    throw new ApiError(
+      `Network error: ${error instanceof Error ? error.message : 'Unknown error'}`
+    );
+  }
+}
+
 /**
  * Health check for the API
  */
@@ -154,5 +217,97 @@ export async function checkApiHealth(): Promise<boolean> {
     return response.ok;
   } catch {
     return false;
+  }
+}
+
+/** GET /api/benchmark-runs */
+export interface BenchmarkRun {
+  id?: number | null;
+  name: string;
+  status: string;
+  endpoint_type: string;
+  start_time?: string | null;
+  end_time?: string | null;
+  llm_provider_id?: number | null;
+  llm_provider_model_id?: number | null;
+  llm_provider_endpoint_config_id?: number | null;
+}
+
+/** GET /api/benchmark-runs/{run_id}/run-test-bundles */
+export interface BenchmarkRunTestBundleRow {
+  id?: number | null;
+  run_id: number;
+  test_bundle_id: number;
+  test_id: number;
+}
+
+export function countBundlesAndTests(
+  rows: BenchmarkRunTestBundleRow[]
+): { bundleCount: number; testCount: number } {
+  const bundleIds = new Set(rows.map((r) => r.test_bundle_id));
+  const testIds = new Set(rows.map((r) => r.test_id));
+  return { bundleCount: bundleIds.size, testCount: testIds.size };
+}
+
+async function handleJsonGet<T>(url: string, label: string): Promise<T> {
+  const response = await fetch(url, {
+    method: 'GET',
+    headers: { 'Content-Type': 'application/json' },
+  });
+  if (!response.ok) {
+    const errorText = await response.text().catch(() => 'Unknown error');
+    console.error(`API Error: ${response.status} - ${errorText}`);
+    throw new ApiError(
+      `Failed to ${label}: ${response.statusText} (${response.status})`,
+      response.status,
+      response.statusText
+    );
+  }
+  return response.json() as Promise<T>;
+}
+
+/**
+ * Fetches all benchmark runs from the API
+ */
+export async function fetchBenchmarkRuns(): Promise<BenchmarkRun[]> {
+  try {
+    return await handleJsonGet<BenchmarkRun[]>(
+      `${API_BASE_URL}/api/benchmark-runs`,
+      'fetch benchmark runs'
+    );
+  } catch (error) {
+    if (error instanceof ApiError) throw error;
+    if (error instanceof TypeError && error.message.includes('fetch')) {
+      throw new ApiError(
+        `Cannot connect to API server at ${API_BASE_URL}. Please ensure the backend is running on port 8000.`
+      );
+    }
+    throw new ApiError(
+      `Network error: ${error instanceof Error ? error.message : 'Unknown error'}`
+    );
+  }
+}
+
+/**
+ * Fetches run-test-bundle rows for a benchmark run (for bundle/test counts).
+ */
+export async function fetchBenchmarkRunTestBundles(
+  runId: number
+): Promise<BenchmarkRunTestBundleRow[]> {
+  try {
+    return await handleJsonGet<BenchmarkRunTestBundleRow[]>(
+      `${API_BASE_URL}/api/benchmark-runs/${runId}/run-test-bundles`,
+      'fetch run-test-bundles'
+    );
+  } catch (error) {
+    if (error instanceof ApiError) throw error;
+    if (error instanceof TypeError && error.message.includes('fetch')) {
+      throw new ApiError(
+        `Cannot connect to API server at ${API_BASE_URL}. Please ensure the backend is running on port 8000.`
+      );
+    }
+    throw new ApiError(
+      `Network error: ${error instanceof Error ? error.message : 'Unknown error'}`
+    );
   }
 }

@@ -1,8 +1,15 @@
 "use client"
-import React from 'react';
+import React, { useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { Loader2 } from 'lucide-react';
 import { Button } from "@/components/ui/button";
 import { useAppSelector } from '../../../hooks/reduxHooks';
+import { startBenchmarkRun, ApiError } from '@/lib/api';
+
+/** Must match a connector id in moonshot_core/moonshot_config.yaml */
+const DEFAULT_LLM_PROVIDER_NAME = 'openai';
+const DEFAULT_CONNECTOR_ID = 'my-gpt-4o';
+const BENCHMARK_BUNDLE_NAME = 'test-prompts';
 
 interface BenchmarkFooterProps {
   currentPage: 'bundle-selection' | 'model-selection';
@@ -15,8 +22,10 @@ export default function BenchmarkFooter({
   setCurrentPage
 }: BenchmarkFooterProps) {
   const router = useRouter();
+  const [isStartingRun, setIsStartingRun] = useState(false);
   const bundleSelection = useAppSelector((state) => state.bundleSelection);
-  const { isConfigValid } = useAppSelector(state => state.modelSelection);
+  const { isConfigValid, testName } = useAppSelector(state => state.modelSelection);
+  const runName = (testName ?? '').trim();
   
   // Navigation functions
   const handleNavigateToModels = () => {
@@ -31,11 +40,32 @@ export default function BenchmarkFooter({
     router.push('/');
   };
 
-  const handleRunTests = () => {
-    // This would typically trigger the benchmark test execution
-    console.log('Running benchmark tests...');
-    // For now, just go to the fake test progress page
-    router.push('/fake_test_progress');
+  const handleRunTests = async () => {
+    if (isStartingRun) return;
+    if (!runName) {
+      window.alert('Please enter a Test Name before running.');
+      return;
+    }
+    setIsStartingRun(true);
+    try {
+      await startBenchmarkRun({
+        run_name: runName,
+        bundle_names: [BENCHMARK_BUNDLE_NAME],
+        llm_provider_name: DEFAULT_LLM_PROVIDER_NAME,
+        llm_provider_config_name: DEFAULT_CONNECTOR_ID,
+      });
+      router.push('/history');
+    } catch (e) {
+      const msg =
+        e instanceof ApiError
+          ? e.message
+          : e instanceof Error
+            ? e.message
+            : 'Failed to start benchmark run';
+      window.alert(msg);
+    } finally {
+      setIsStartingRun(false);
+    }
   };
   
   // Calculate selected bundles count
@@ -87,11 +117,18 @@ export default function BenchmarkFooter({
         return (
           <Button 
             className="flex items-center gap-2" 
-            onClick={handleRunTests}
-            disabled={!isConfigValid}
+            onClick={() => void handleRunTests()}
+            disabled={!isConfigValid || !runName || isStartingRun}
             data-testid="run-benchmark-tests"
           >
-            Run Benchmark Tests
+            {isStartingRun ? (
+              <>
+                <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
+                Starting…
+              </>
+            ) : (
+              'Run Benchmark Tests'
+            )}
           </Button>
         );
       default:
