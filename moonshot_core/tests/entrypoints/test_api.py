@@ -5,9 +5,12 @@ Tests for the FastAPI application.
 import pytest
 import sys
 import os
+from datetime import datetime, timezone
 from pathlib import Path
 from unittest.mock import patch, MagicMock
 from fastapi.testclient import TestClient
+
+from domain.entities.benchmark_run_entity import BenchmarkRunEntity
 
 # Add the src directory to the Python path
 src_path = Path(__file__).parent.parent.parent / "src"
@@ -75,6 +78,54 @@ def test_bundles_endpoint(mock_benchmark_service):
     assert "metric" in test
     assert "description" in test
     assert "dataset" in test
+
+
+@patch("entrypoints.api.BenchmarkRunService")
+def test_list_benchmark_runs_empty(mock_service_class):
+    """GET /api/benchmark-runs returns [] when no runs."""
+    mock_svc = MagicMock()
+    mock_service_class.return_value = mock_svc
+    mock_svc.get_all_runs.return_value = []
+
+    response = client.get("/api/benchmark-runs")
+    assert response.status_code == 200
+    assert response.json() == []
+
+
+@patch("entrypoints.api.BenchmarkRunService")
+def test_list_benchmark_runs_returns_runs(mock_service_class):
+    """GET /api/benchmark-runs returns serialized benchmark runs."""
+    t = datetime.now(timezone.utc)
+    mock_svc = MagicMock()
+    mock_service_class.return_value = mock_svc
+    mock_svc.get_all_runs.return_value = [
+        BenchmarkRunEntity(
+            id=1,
+            name="my-run",
+            status="running",
+            endpoint_type="LLM_Provider",
+            start_time=t,
+        ),
+        BenchmarkRunEntity(
+            id=2,
+            name="done-run",
+            status="completed",
+            endpoint_type="LLM_Provider",
+            start_time=t,
+            end_time=t,
+        ),
+    ]
+
+    response = client.get("/api/benchmark-runs")
+    assert response.status_code == 200
+    data = response.json()
+    assert len(data) == 2
+    assert data[0]["id"] == 1
+    assert data[0]["name"] == "my-run"
+    assert data[0]["status"] == "running"
+    assert data[1]["id"] == 2
+    assert data[1]["status"] == "completed"
+    mock_svc.get_all_runs.assert_called_once_with()
 
 
 @patch('entrypoints.api.get_build_directory')

@@ -191,7 +191,8 @@ def test_start_benchmark_run_happy_path_with_db(
     """
     Seed DB via seed_if_test_file_changed, then run start_benchmark_run with one bundle.
     Process is patched to run the bundle in the current process; connector/metric mocked.
-    Assert benchmark_run row exists, result file is written, and run_test/prompts completed.
+    Assert benchmark_run row exists, get_all_runs includes that run, result file is written,
+    and run_test/prompts completed.
     """
     assert CONFIG_PATH.exists(), f"Fixture config missing: {CONFIG_PATH}"
 
@@ -279,6 +280,12 @@ def test_start_benchmark_run_happy_path_with_db(
     assert run_id is not None
     assert run_entity.status == "completed"
     assert run_entity.end_time is not None
+
+    all_runs = BenchmarkRunService().get_all_runs()
+    matching = [r for r in all_runs if r.id == run_id]
+    assert len(matching) == 1, f"Expected exactly one benchmark_run with id={run_id} in get_all_runs()"
+    assert matching[0].name == run_name
+    assert matching[0].status == "completed"
 
     result_file = tmp_path / "minimal-bundle.json"
     assert result_file.exists(), f"Expected result file at {result_file}"

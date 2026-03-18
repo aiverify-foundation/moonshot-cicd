@@ -22,6 +22,7 @@ from application.services.file_model_config_repository import FileModelConfigRep
 from application.dto.provider_dto import ProviderDTO
 from application.dto.model_config_dto import ModelConfigDTO
 from application.dto.run_bundle_dto import (
+    BenchmarkRunResponseDTO,
     BenchmarkRunTestPromptResponseDTO,
     RunBundleRequestDTO,
     RunBundleResponseDTO,
@@ -35,6 +36,7 @@ from application.services.benchmark_execution_service import BenchmarkExecutionS
 from application.services.benchmark_run_prompt_service import (
     BenchmarkRunPromptService,
 )
+from application.services.benchmark_run_service import BenchmarkRunService
 
 # Configure the logger for this module
 logger = configure_logger(__name__)
@@ -62,7 +64,19 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
-
+# Add CORS middleware to allow frontend requests
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=[
+        "http://localhost:3000",  # Next.js frontend
+        "http://127.0.0.1:3000",  # Next.js frontend alternative
+        "http://localhost:8000",  # Backend URL (for reference)
+        "http://127.0.0.1:8000",  # Backend URL alternative (for reference)
+    ],
+    allow_credentials=True,
+    allow_methods=["*"],  # Allow all HTTP methods
+    allow_headers=["*"],  # Allow all headers
+)
 
 
 def get_build_directory() -> Path:
@@ -362,6 +376,31 @@ async def start_benchmark_run(request: StartBenchmarkRunRequestDTO) -> StartBenc
     except Exception as e:
         logger.error(f"Error starting benchmark run: {e}")
         raise HTTPException(status_code=500, detail=f"Failed to start benchmark run: {str(e)}")
+
+
+@app.get(
+    "/api/benchmark-runs",
+    response_model=List[BenchmarkRunResponseDTO],
+)
+async def list_benchmark_runs() -> List[BenchmarkRunResponseDTO]:
+    """
+    Return all benchmark runs (id, name, status, times, LLM FKs).
+
+    Uses BenchmarkRunService.get_all_runs.
+    """
+    try:
+        service = BenchmarkRunService()
+        entities = service.get_all_runs()
+        return [
+            BenchmarkRunResponseDTO.model_validate(e.model_dump())
+            for e in entities
+        ]
+    except Exception as e:
+        logger.error(f"Error listing benchmark runs: {e}")
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to list benchmark runs: {str(e)}",
+        )
 
 
 @app.get(

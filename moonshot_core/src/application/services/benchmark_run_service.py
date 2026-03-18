@@ -16,11 +16,21 @@ from adapters.driven.repository.sqlalchemy.benchmark_run_adapter import (
 
 class BenchmarkRunService:
     """
-    Application service for benchmark run create/update.
+    Application service for benchmark run read/create/update.
 
     Instantiates SqlAlchemyBenchmarkRunRepository per call (cheap)
     so usage is safe from async or multiple threads.
     """
+
+    def get_all_runs(self) -> list[BenchmarkRunEntity]:
+        """
+        Return all benchmark runs.
+
+        Returns:
+            List of run entities; empty if none exist.
+        """
+        repo = SqlAlchemyBenchmarkRunRepository()
+        return repo.get_all()
 
     def get_run_by_id(self, run_id: int) -> Optional[BenchmarkRunEntity]:
         """

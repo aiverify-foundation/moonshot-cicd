@@ -1,3 +1,4 @@
+from datetime import datetime
 from typing import List, Optional
 
 from pydantic import BaseModel, ConfigDict
@@ -72,6 +73,26 @@ class StartBenchmarkRunResponseDTO(BaseModel):
     """
 
     message: str
+
+
+class BenchmarkRunResponseDTO(BaseModel):
+    """
+    Response DTO for a benchmark_run row.
+
+    Returned by GET /api/benchmark-runs.
+    """
+
+    model_config = ConfigDict(arbitrary_types_allowed=True)
+
+    id: Optional[int] = None
+    name: str
+    status: str
+    endpoint_type: str
+    start_time: Optional[datetime] = None
+    end_time: Optional[datetime] = None
+    llm_provider_id: Optional[int] = None
+    llm_provider_model_id: Optional[int] = None
+    llm_provider_endpoint_config_id: Optional[int] = None
 
 
 class BenchmarkRunTestPromptResponseDTO(BaseModel):
