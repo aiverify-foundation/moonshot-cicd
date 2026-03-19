@@ -249,6 +249,25 @@ export function countBundlesAndTests(
   return { bundleCount: bundleIds.size, testCount: testIds.size };
 }
 
+/** GET /api/benchmark-runs/{run_id}/prompts */
+export interface BenchmarkRunTestPrompt {
+  id?: number | null;
+  run_test_id: number;
+  prompt_id: number;
+  status: string;
+  target?: string;
+  prompt_additional_info?: string | null;
+  prediction_result?: string | null;
+  prediction_context?: string | null;
+  evaluation_prompt?: string | null;
+  evaluation_prediction_result?: string | null;
+  evaluation_accuracy?: number | null;
+  user_evaluation?: number | null;
+  user_notes?: string | null;
+  /** Display name of the test this prompt belongs to (benchmark_test.name). */
+  test_name?: string;
+}
+
 async function handleJsonGet<T>(url: string, label: string): Promise<T> {
   const response = await fetch(url, {
     method: 'GET',
@@ -298,6 +317,52 @@ export async function fetchBenchmarkRunTestBundles(
     return await handleJsonGet<BenchmarkRunTestBundleRow[]>(
       `${API_BASE_URL}/api/benchmark-runs/${runId}/run-test-bundles`,
       'fetch run-test-bundles'
+    );
+  } catch (error) {
+    if (error instanceof ApiError) throw error;
+    if (error instanceof TypeError && error.message.includes('fetch')) {
+      throw new ApiError(
+        `Cannot connect to API server at ${API_BASE_URL}. Please ensure the backend is running on port 8000.`
+      );
+    }
+    throw new ApiError(
+      `Network error: ${error instanceof Error ? error.message : 'Unknown error'}`
+    );
+  }
+}
+
+/**
+ * Fetches a single benchmark run by id. Throws ApiError (e.g. 404) on failure.
+ */
+export async function fetchBenchmarkRunById(runId: number): Promise<BenchmarkRun> {
+  try {
+    return await handleJsonGet<BenchmarkRun>(
+      `${API_BASE_URL}/api/benchmark-runs/${runId}`,
+      'fetch benchmark run'
+    );
+  } catch (error) {
+    if (error instanceof ApiError) throw error;
+    if (error instanceof TypeError && error.message.includes('fetch')) {
+      throw new ApiError(
+        `Cannot connect to API server at ${API_BASE_URL}. Please ensure the backend is running on port 8000.`
+      );
+    }
+    throw new ApiError(
+      `Network error: ${error instanceof Error ? error.message : 'Unknown error'}`
+    );
+  }
+}
+
+/**
+ * Fetches all run-test prompts for a benchmark run (includes test_name per row).
+ */
+export async function fetchBenchmarkRunPrompts(
+  runId: number
+): Promise<BenchmarkRunTestPrompt[]> {
+  try {
+    return await handleJsonGet<BenchmarkRunTestPrompt[]>(
+      `${API_BASE_URL}/api/benchmark-runs/${runId}/prompts`,
+      'fetch benchmark run prompts'
     );
   } catch (error) {
     if (error instanceof ApiError) throw error;

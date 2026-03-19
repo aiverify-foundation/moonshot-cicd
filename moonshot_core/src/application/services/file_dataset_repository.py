@@ -1,6 +1,9 @@
 from typing import Any, Dict, List, Optional
 
 from application.ports.dataset_repository import DatasetRepository
+from domain.entities.benchmark_test_dataset_prompt_entity import (
+    BenchmarkTestDatasetPromptEntity,
+)
 from domain.entities.dataset_entity import DatasetEntity
 from domain.services.loader.file_loader import FileLoader, FileTypes
 from application.services.utils import load_module
@@ -60,6 +63,14 @@ class FileDatasetRepository(DatasetRepository):
         except Exception as e:
             self.logger.error(f"Failed to load dataset '{dataset_id}': {e}")
             raise
+
+    def get_prompts_by_dataset_id(
+        self, dataset_id: int
+    ) -> List[BenchmarkTestDatasetPromptEntity]:
+        """
+        File-based repository has no DB dataset id; return empty list.
+        """
+        return []
 
     def save_dataset(self, dataset_entity: DatasetEntity) -> None:
         """File-based repository does not support saving datasets."""

@@ -240,7 +240,7 @@ export default function TestResultSheet({
                             <p
                                 className={`font-semibold text-[12px] leading-normal whitespace-pre text-nowrap ${currentRow.score === 1 ? "text-green-800" : "text-red-800"}`}
                             >
-                                {currentRow.evaluation}
+                                {currentRow.score === 1 ? "Agree" : currentRow.score === 0 ? "Disagree" : currentRow.evaluation}
                             </p>
                         </div>
                     </div>

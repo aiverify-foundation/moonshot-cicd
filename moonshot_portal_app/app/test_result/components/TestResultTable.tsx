@@ -469,7 +469,7 @@ export default function TestResultTable({ data, pageSize = 10, onDataChange }: T
                                             <p
                                                 className={`font-semibold text-[12px] leading-normal whitespace-pre text-nowrap ${row.score === 1 ? "text-green-800" : "text-red-800"}`}
                                             >
-                                                {row.evaluation}
+                                                {row.score === 1 ? "Agree" : row.score === 0 ? "Disagree" : row.evaluation}
                                             </p>
                                         </div>
                                     </div>

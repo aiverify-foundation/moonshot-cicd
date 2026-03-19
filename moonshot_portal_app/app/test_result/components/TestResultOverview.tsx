@@ -244,46 +244,88 @@ function ReportChartScrollAdjustableHeight({ chartData, bundleName }: ReportChar
     )
 }
 
-export default function TestResultOverview() {
-    // Sample data based on Figma design - 15 bars with varying heights
-    const sampleChartData: ChartDataItem[] = [
-        { test_name: "MMLU", adjusted_percentage_score: 91 },
-        { test_name: "Facts about Singapore", adjusted_percentage_score: 35 },
-        { test_name: "Facts about Singapore", adjusted_percentage_score: 82 },
-        { test_name: "Facts about Singapore", adjusted_percentage_score: 14 },
-        { test_name: "Facts about Singapore", adjusted_percentage_score: 69 },
-        { test_name: "Facts about Singapore", adjusted_percentage_score: 82 },
-        { test_name: "Facts about Singapore", adjusted_percentage_score: 96 },
-        { test_name: "Facts about Singapore", adjusted_percentage_score: 58 },
-        { test_name: "Facts about Singapore", adjusted_percentage_score: 77 },
-        { test_name: "Facts about Singapore", adjusted_percentage_score: 97 },
-        { test_name: "Facts about Singapore", adjusted_percentage_score: 71 },
-        { test_name: "Facts about Singapore", adjusted_percentage_score: 76 },
-        { test_name: "Facts about Singapore", adjusted_percentage_score: 90 },
-        { test_name: "Facts about Singapore", adjusted_percentage_score: 60 },
-        { test_name: "Facts about Singapore", adjusted_percentage_score: 91 },
-    ]
+export interface TestResultOverviewProps {
+    /** When false, show Figma demo charts. */
+    runMode?: boolean
+    overviewLoading?: boolean
+    overviewError?: string | null
+    chartUndesirable?: ChartDataItem[]
+    chartDisclosure?: ChartDataItem[]
+}
 
-    const UndesirableContent: ChartDataItem[] = [
-        { test_name: "MLCommons AILuminate - Hate", adjusted_percentage_score: 91 },
-        { test_name: "MLCommons AILuminate - Non Violent Crimes", adjusted_percentage_score: 35 },
-        { test_name: "MLCommons AILuminate - Suicide and Self-harm", adjusted_percentage_score: 82 },
-    ]
+const demoUndesirable: ChartDataItem[] = [
+    { test_name: "MLCommons AILuminate - Hate", adjusted_percentage_score: 79 },
+]
 
-    const UndesirableContentSingle: ChartDataItem[] = [
-        { test_name: "MLCommons AILuminate - Hate", adjusted_percentage_score: 79 },
-    ]
+const demoDisclosure: ChartDataItem[] = [
+    { test_name: "MLCommons AILuminate - Privacy - English", adjusted_percentage_score: 80 },
+]
 
-    const DataDisclosure: ChartDataItem[] = [
-        { test_name: "MLCommons AILuminate - Privacy - English", adjusted_percentage_score: 80 },
-    ]
+export default function TestResultOverview({
+    runMode = false,
+    overviewLoading = false,
+    overviewError = null,
+    chartUndesirable = [],
+    chartDisclosure = [],
+}: TestResultOverviewProps) {
+    if (!runMode) {
+        return (
+            <div className="flex flex-col gap-4 mt-2">
+                <TestResultNote />
+                <div className="grid grid-cols-2 gap-4">
+                    <ReportChartScrollAdjustableHeight chartData={demoUndesirable} bundleName="Undesirable Content" />
+                    <ReportChartScrollAdjustableHeight chartData={demoDisclosure} bundleName="Data Disclosure" />
+                </div>
+            </div>
+        )
+    }
+
+    if (overviewLoading) {
+        return (
+            <div className="mt-4 text-sm text-slate-600">Loading overview…</div>
+        )
+    }
+
+    if (overviewError) {
+        return (
+            <div className="mt-4 text-sm text-red-600">{overviewError}</div>
+        )
+    }
+
+    const showUnd = chartUndesirable.length > 0
+    const showDisc = chartDisclosure.length > 0
+
+    if (!showUnd && !showDisc) {
+        return (
+            <div className="flex flex-col gap-4 mt-2">
+                <TestResultNote />
+                <p className="text-sm text-slate-600">
+                    No chart data yet (prompts need evaluation scores).
+                </p>
+            </div>
+        )
+    }
 
     return (
         <div className="flex flex-col gap-4 mt-2">
             <TestResultNote />
-            <div className="grid grid-cols-2 gap-4">
-                <ReportChartScrollAdjustableHeight chartData={UndesirableContentSingle} bundleName="Undesirable Content" />
-                <ReportChartScrollAdjustableHeight chartData={DataDisclosure} bundleName="Data Disclosure" />
+            <div
+                className={`grid gap-4 ${
+                    showUnd && showDisc ? "grid-cols-2" : "grid-cols-1 max-w-xl"
+                }`}
+            >
+                {showUnd && (
+                    <ReportChartScrollAdjustableHeight
+                        chartData={chartUndesirable}
+                        bundleName="Undesirable Content"
+                    />
+                )}
+                {showDisc && (
+                    <ReportChartScrollAdjustableHeight
+                        chartData={chartDisclosure}
+                        bundleName="Data Disclosure"
+                    />
+                )}
             </div>
         </div>
     )

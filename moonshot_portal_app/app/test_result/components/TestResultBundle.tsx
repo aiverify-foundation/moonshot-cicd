@@ -4,6 +4,77 @@ import { ThumbsUp, ThumbsDown } from "lucide-react"
 import BundleChart, { BundleChartDataItem } from "./BundleChart"
 import TestResultTable, { TestResultTableRow } from "./TestResultTable"
 import { parseCsvData } from "./parseCsvData"
+import type { BenchmarkRunTestPrompt } from "@/lib/api"
+
+const EMPTY_PROMPTS: BenchmarkRunTestPrompt[] = []
+
+function isDisclosureTestName(name: string | undefined): boolean {
+    return /privacy|disclosure/i.test(name || "")
+}
+
+/**
+ * Derive row score (0 or 1) from evaluation_prediction_result when it is structured,
+ * otherwise from evaluation_accuracy.
+ */
+function scoreFromEvaluationResult(
+    evaluationPredictionResult: string | null | undefined,
+    evaluationAccuracy: number | null | undefined
+): number {
+    const fromAccuracy = (a: number): number => {
+        if (a >= 0 && a <= 1) return Math.round(a)
+        return a >= 50 ? 1 : 0
+    }
+
+    if (evaluationPredictionResult == null || evaluationPredictionResult.trim() === "") {
+        if (evaluationAccuracy != null) return fromAccuracy(evaluationAccuracy)
+        return 0
+    }
+
+    try {
+        const parsed = JSON.parse(evaluationPredictionResult) as Record<string, unknown>
+        if (typeof parsed === "object" && parsed !== null) {
+            if (typeof parsed.score === "number") return fromAccuracy(parsed.score)
+            if (typeof parsed.accuracy === "boolean") return parsed.accuracy ? 1 : 0
+        }
+    } catch {
+        // Not valid JSON; try Python-style 'accuracy': True/False
+        const s = evaluationPredictionResult
+        if (/\baccuracy['"]?\s*:\s*True\b/i.test(s)) return 1
+        if (/\baccuracy['"]?\s*:\s*False\b/i.test(s)) return 0
+    }
+
+    if (evaluationAccuracy != null) return fromAccuracy(evaluationAccuracy)
+    return 0
+}
+
+function promptsToTableRows(prompts: BenchmarkRunTestPrompt[]): TestResultTableRow[] {
+    return prompts.map((p, idx) => {
+        const score = scoreFromEvaluationResult(
+            p.evaluation_prediction_result ?? null,
+            p.evaluation_accuracy ?? null
+        )
+        let yourVerdict: "agree" | "disagree" | null = null
+        if (p.user_evaluation === 1) yourVerdict = "agree"
+        else if (p.user_evaluation === 0) yourVerdict = "disagree"
+
+        const promptText = p.prompt_additional_info ?? "—"
+        const evalPrompt = p.evaluation_prompt ?? "—"
+
+        return {
+            id: p.id != null ? `p-${p.id}` : `p-${p.run_test_id}-${p.prompt_id}-${idx}`,
+            test: p.test_name || "—",
+            prompt: promptText.length > 2000 ? `${promptText.slice(0, 2000)}…` : promptText,
+            target: p.target || "—",
+            response: p.prediction_result ?? "—",
+            evaluation: p.evaluation_prediction_result ?? "—",
+            score,
+            yourVerdict,
+            note: p.user_notes ?? "",
+            bundle: p.test_name || "—",
+            graderLogic: evalPrompt.length > 500 ? `${evalPrompt.slice(0, 500)}…` : evalPrompt,
+        }
+    })
+}
 
 interface ScoreCardProps {
     aiScore: string
@@ -314,32 +385,74 @@ function calculateChartDataFromTableData(data: TestResultTableRow[]): BundleChar
 }
 
 interface TestResultBundleProps {
+    /** When set, load table/chart from API prompts instead of demo CSV. */
+    benchmarkRunId?: number | null
+    apiPrompts?: BenchmarkRunTestPrompt[] | null
+    apiLoading?: boolean
+    apiError?: string | null
     onAdjustedScoreChange?: (score: number) => void
 }
 
-export default function TestResultBundle({ onAdjustedScoreChange }: TestResultBundleProps) {
+export default function TestResultBundle({
+    benchmarkRunId = null,
+    apiPrompts = null,
+    apiLoading = false,
+    apiError = null,
+    onAdjustedScoreChange,
+}: TestResultBundleProps) {
     const [tableData, setTableData] = useState<TestResultTableRow[]>([])
     const [isLoading, setIsLoading] = useState(true)
     const [error, setError] = useState<string | null>(null)
 
-    // Load CSV data on component mount
+    const undesirablePrompts = useMemo(() => {
+        if (!apiPrompts?.length) return EMPTY_PROMPTS
+        return apiPrompts.filter((p) => !isDisclosureTestName(p.test_name))
+    }, [apiPrompts])
+
     useEffect(() => {
+        if (benchmarkRunId != null) {
+            if (apiLoading) {
+                setIsLoading(true)
+                setError(null)
+                return
+            }
+            setIsLoading(false)
+            if (apiError) {
+                setError(apiError)
+                setTableData([])
+                return
+            }
+            setError(null)
+            setTableData(promptsToTableRows(undesirablePrompts))
+            return
+        }
+
+        let cancelled = false
         const loadCsvData = async () => {
             try {
                 setIsLoading(true)
                 setError(null)
                 const data = await parseCsvData()
-                setTableData(data)
+                if (!cancelled) setTableData(data)
             } catch (err) {
-                setError(err instanceof Error ? err.message : "Failed to load CSV data")
-                console.error("Error loading CSV data:", err)
+                if (!cancelled) {
+                    setError(err instanceof Error ? err.message : "Failed to load CSV data")
+                    console.error("Error loading CSV data:", err)
+                }
             } finally {
-                setIsLoading(false)
+                if (!cancelled) setIsLoading(false)
             }
         }
-
         loadCsvData()
-    }, [])
+        return () => {
+            cancelled = true
+        }
+    }, [
+        benchmarkRunId,
+        apiLoading,
+        apiError,
+        undesirablePrompts,
+    ])
 
     // Calculate verdict statistics
     const verdictStats = calculateVerdictStatistics(tableData)

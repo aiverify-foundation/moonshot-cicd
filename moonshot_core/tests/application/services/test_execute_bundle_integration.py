@@ -774,6 +774,8 @@ def test_get_benchmark_run_prompts_api(
         assert item.get("prediction_result") is not None
         assert item.get("evaluation_prediction_result") is not None
         assert item.get("evaluation_accuracy") is not None
+        assert "test_name" in item
+        assert isinstance(item.get("test_name"), str)
 
 
 @pytest.mark.integration

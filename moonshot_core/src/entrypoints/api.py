@@ -41,6 +41,11 @@ from application.services.benchmark_run_service import BenchmarkRunService
 from application.services.benchmark_run_test_bundle_query_service import (
     BenchmarkRunTestBundleQueryService,
 )
+from adapters.driven.repository.sqlalchemy.benchmark_run_test_status_adapter import (
+    SqlAlchemyBenchmarkRunTestStatusRepository,
+)
+from adapters.driven.repository.sqlalchemy.llm_provider_models import BenchmarkTestModel
+from adapters.driven.repository.sqlalchemy.session_manager import SessionManager
 
 # Configure the logger for this module
 logger = configure_logger(__name__)
@@ -396,6 +401,51 @@ async def list_benchmark_runs() -> List[BenchmarkRunResponseDTO]:
 
 
 @app.get(
+    "/api/benchmark-runs/{run_id}",
+    response_model=BenchmarkRunResponseDTO,
+)
+async def get_benchmark_run(run_id: int) -> BenchmarkRunResponseDTO:
+    """
+    Return a single benchmark run by id.
+
+    Uses BenchmarkRunService.get_run_by_id. 404 if not found.
+    """
+    try:
+        service = BenchmarkRunService()
+        entity = service.get_run_by_id(run_id)
+        if entity is None:
+            raise HTTPException(
+                status_code=404,
+                detail=f"Benchmark run not found: run_id={run_id}",
+            )
+        return BenchmarkRunResponseDTO.model_validate(entity.model_dump())
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error fetching benchmark run run_id={run_id}: {e}")
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to fetch benchmark run: {str(e)}",
+        )
+
+
+def _run_test_id_to_test_name(run_id: int) -> dict[int, str]:
+    """Map benchmark_run_test_status.id -> benchmark_test.name (display name) for a run."""
+    status_repo = SqlAlchemyBenchmarkRunTestStatusRepository()
+    statuses = status_repo.get_all_by_run_id(run_id)
+    out: dict[int, str] = {}
+    with SessionManager.get_instance().get_session() as session:
+        for st in statuses:
+            model = (
+                session.query(BenchmarkTestModel)
+                .filter(BenchmarkTestModel.id == st.test_id)
+                .first()
+            )
+            out[st.id] = model.name if model else ""
+    return out
+
+
+@app.get(
     "/api/benchmark-runs/{run_id}/prompts",
     response_model=List[BenchmarkRunTestPromptResponseDTO],
 )
@@ -409,8 +459,14 @@ async def get_benchmark_run_prompts(run_id: int) -> List[BenchmarkRunTestPromptR
     try:
         service = BenchmarkRunPromptService()
         entities = service.get_all_prompts_by_run_id(run_id)
+        run_test_display_names = _run_test_id_to_test_name(run_id)
         return [
-            BenchmarkRunTestPromptResponseDTO.model_validate(e.model_dump())
+            BenchmarkRunTestPromptResponseDTO.model_validate(
+                {
+                    **e.model_dump(),
+                    "test_name": run_test_display_names.get(e.run_test_id, ""),
+                }
+            )
             for e in entities
         ]
     except Exception as e:

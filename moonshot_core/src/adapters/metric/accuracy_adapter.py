@@ -137,6 +137,7 @@ class AccuracyAdapter(MetricPort):
                 "predicted_value": entity.predicted_result.response,
                 "target": entity.target,
                 "accuracy": accuracy,
+                "score": 1.0 if accuracy else 0.0,
             }
         except Exception as e:
             logger.error(self.ERROR_EVALUATING_RESULT_MSG.format(e))

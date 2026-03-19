@@ -177,6 +177,40 @@ def test_get_benchmark_run_test_bundles_returns_rows(mock_service_class):
     mock_svc.get_all_by_run_id.assert_called_once_with(7)
 
 
+@patch("entrypoints.api.BenchmarkRunService")
+def test_get_benchmark_run_not_found(mock_service_class):
+    """GET /api/benchmark-runs/{run_id} returns 404 when missing."""
+    mock_svc = MagicMock()
+    mock_service_class.return_value = mock_svc
+    mock_svc.get_run_by_id.return_value = None
+
+    response = client.get("/api/benchmark-runs/999")
+    assert response.status_code == 404
+    mock_svc.get_run_by_id.assert_called_once_with(999)
+
+
+@patch("entrypoints.api.BenchmarkRunService")
+def test_get_benchmark_run_returns_run(mock_service_class):
+    """GET /api/benchmark-runs/{run_id} returns one serialized run."""
+    t = datetime.now(timezone.utc)
+    mock_svc = MagicMock()
+    mock_service_class.return_value = mock_svc
+    mock_svc.get_run_by_id.return_value = BenchmarkRunEntity(
+        id=3,
+        name="single-run",
+        status="completed",
+        endpoint_type="LLM_Provider",
+        start_time=t,
+        end_time=t,
+    )
+
+    response = client.get("/api/benchmark-runs/3")
+    assert response.status_code == 200
+    assert response.json()["id"] == 3
+    assert response.json()["name"] == "single-run"
+    mock_svc.get_run_by_id.assert_called_once_with(3)
+
+
 @patch('entrypoints.api.get_build_directory')
 def test_static_files_with_referer(mock_get_build_dir):
     """Test that static files are served when accessed with proper referer header."""

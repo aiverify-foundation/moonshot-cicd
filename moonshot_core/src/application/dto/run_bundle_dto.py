@@ -132,3 +132,5 @@ class BenchmarkRunTestPromptResponseDTO(BaseModel):
     evaluation_accuracy: Optional[float] = None
     user_evaluation: Optional[int] = None
     user_notes: Optional[str] = None
+    #: benchmark_test.name (display name) for the run-test this prompt belongs to (API-enriched).
+    test_name: str = ""
