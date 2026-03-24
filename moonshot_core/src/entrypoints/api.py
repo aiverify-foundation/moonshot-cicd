@@ -25,8 +25,6 @@ from application.dto.run_bundle_dto import (
     BenchmarkRunResponseDTO,
     BenchmarkRunTestBundleResponseDTO,
     BenchmarkRunTestPromptResponseDTO,
-    RunBundleRequestDTO,
-    RunBundleResponseDTO,
     StartBenchmarkRunRequestDTO,
     StartBenchmarkRunResponseDTO,
 )
@@ -304,50 +302,6 @@ async def list_all_fixed_configs():
         logger.error(f"Error fetching fixed endpoint configurations: {e}")
         raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
 
-
-def _run_bundle_in_process(bundle_id: str, connector: str) -> None:
-    """
-    Wrapper function to run a bundle in a separate process.
-
-    This function instantiates BenchmarkExecutionService and calls execute_bundle.
-    It is designed to be used as a target for multiprocessing.Process.
-
-    Args:
-        bundle_id: Bundle identifier to execute
-        connector: Connector name to use
-    """
-    execution_service = BenchmarkExecutionService()
-    execution_service.execute_bundle(bundle_id, connector)
-
-
-@app.post("/api/run-bundle", response_model=RunBundleResponseDTO)
-async def run_bundle(request: RunBundleRequestDTO) -> RunBundleResponseDTO:
-    """
-    Start a bundle execution (multiple benchmarks) in a separate daemon process.
-
-    The bundle definition is resolved via benchmark_service.get_bundle_by_id.
-    Results will be written to data/results/{bundle_id}.json when complete.
-
-    Args:
-        request: Bundle execution parameters (bundle_name/bundle_id, connector)
-
-    Returns:
-        Response containing bundle_name and message
-    """
-    try:
-        logger.info(f"Received bundle execution request for bundle: {request.bundle_name}")
-        benchmark_execution_service.start_bundle_in_background(
-            request.bundle_name, request.connector
-        )
-        return RunBundleResponseDTO(
-            bundle_name=request.bundle_name,
-            message="Bundle execution started successfully",
-        )
-    except KeyError as e:
-        raise HTTPException(status_code=404, detail=str(e))
-    except Exception as e:
-        logger.error(f"Error starting bundle execution: {e}")
-        raise HTTPException(status_code=500, detail=f"Failed to start bundle execution: {str(e)}")
 
 
 @app.post("/api/start-benchmark-run", response_model=StartBenchmarkRunResponseDTO)

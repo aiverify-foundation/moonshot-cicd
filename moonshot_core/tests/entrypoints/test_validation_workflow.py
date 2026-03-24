@@ -20,7 +20,6 @@ import os
 import asyncio
 import json
 from pathlib import Path
-from httpx import AsyncClient, ASGITransport
 
 # Add the src directory to the Python path
 src_path = Path(__file__).parent.parent.parent / "src"
@@ -32,7 +31,7 @@ sys.path.insert(0, str(repo_root))
 from sqlalchemy import text
 
 from adapters.driven.repository.sqlalchemy.session_manager import SessionManager
-from entrypoints.api import app
+from application.services.benchmark_execution_service import BenchmarkExecutionService
 from process_check_app.backend.report_validation import validate_json
 from domain.services.app_config import AppConfig
 
@@ -46,7 +45,7 @@ def _cleanup_bundle_run_db(bundle_id: str) -> None:
     Delete benchmark_run and dependent rows for execute_bundle's default name
     ``Bundle run: {bundle_id}``.
 
-    Without this, a second /api/run-bundle for the same bundle_id reuses the same
+    Without this, a second ``start_bundle_in_background`` for the same bundle_id reuses the same
     benchmark_run and can hit UNIQUE / state errors on benchmark_run_test_status.
     Tests only — production behavior unchanged.
     """
@@ -77,17 +76,9 @@ def _cleanup_bundle_run_db(bundle_id: str) -> None:
         session.execute(text("DELETE FROM benchmark_run WHERE id = :rid"), {"rid": rid})
 
 
-def _create_bundle_payload(connector="my-gpt-4o-mini", bundle_name="test-prompts"):
-    """Helper function to create a bundle payload."""
-    return {
-        "bundle_name": bundle_name,
-        "connector": connector,
-    }
-
-
-def _assert_benchmark_started_successfully(response):
-    """Helper function to assert benchmark started successfully."""
-    assert response.status_code == 200
+def _start_bundle_in_background(bundle_name: str, connector: str) -> None:
+    """Start bundle execution in a daemon process via BenchmarkExecutionService."""
+    BenchmarkExecutionService().start_bundle_in_background(bundle_name, connector)
 
 
 async def _wait_for_result_file_and_validate(absolute_result_path, max_wait=15):
@@ -112,7 +103,7 @@ async def _wait_for_result_file_and_validate(absolute_result_path, max_wait=15):
     is_valid = validate_json(data)
     
     assert is_valid, (
-        f"JSON output from API endpoint does not conform to expected schema (Schema1 or Schema2).\n"
+        f"JSON output from benchmark run does not conform to expected schema (Schema1 or Schema2).\n"
         f"Data structure: {json.dumps(data, indent=2)[:1000]}..."
     )
     
@@ -123,12 +114,7 @@ async def _run_single_bundle_and_wait(
     absolute_result_path, connector="my-gpt-4o-mini", bundle_name="test-prompts"
 ):
     """Helper function to run a single bundle and wait for its result file."""
-    payload = _create_bundle_payload(connector=connector, bundle_name=bundle_name)
-
-    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
-        response = await client.post("/api/run-bundle", json=payload)
-        _assert_benchmark_started_successfully(response)
-
+    _start_bundle_in_background(bundle_name, connector)
     return await _wait_for_result_file_and_validate(absolute_result_path)
 
 
@@ -208,12 +194,7 @@ async def _run_validation_workflow_test(
         bundle_id: Bundle name (used in payload and for run_metadata.test_id check)
         max_wait: Max seconds to wait for result file (default 15)
     """
-    payload = _create_bundle_payload(
-        connector=connector, bundle_name=bundle_id
-    )
-    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
-        response = await client.post("/api/run-bundle", json=payload)
-        _assert_benchmark_started_successfully(response)
+    _start_bundle_in_background(bundle_id, connector)
 
     data = await _wait_for_result_file_and_validate(
         absolute_result_path, max_wait=max_wait
@@ -283,15 +264,9 @@ async def test_validation_workflow_failure_recovery(
     absolute_result_path = cleanup_bundle_result_file
     _cleanup_bundle_run_db("test-prompts")
 
-    # Step 1: Try with invalid connector (should fail gracefully)
-    payload = _create_bundle_payload(
-        connector="invalid_connector", bundle_name="test-prompts"
-    )
-    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
-        response = await client.post("/api/run-bundle", json=payload)
-        # The endpoint should still return 200 (it starts the task, failure happens async)
-        assert response.status_code == 200
-    
+    # Step 1: Try with invalid connector (start succeeds; failure happens in worker process)
+    _start_bundle_in_background("test-prompts", "invalid_connector")
+
     # Wait for Step 1 to complete (it runs in a separate process)
     # Give it time to finish and ensure no file was created (or clean up if one was)
     await asyncio.sleep(2)
@@ -312,7 +287,7 @@ async def test_validation_workflow_sequential_runs(
 
     Given: OpenAI connector is configured
     When: 5 bundle runs run one after another (same connector; same result file path).
-        Parallel /api/run-bundle calls are not used: execute_bundle reuses one
+        Parallel ``start_bundle_in_background`` calls are not used: execute_bundle reuses one
         benchmark_run name per bundle_id, so concurrent subprocesses would race on the DB.
     Then: The final JSON file exists and passes process checklist validation.
     """

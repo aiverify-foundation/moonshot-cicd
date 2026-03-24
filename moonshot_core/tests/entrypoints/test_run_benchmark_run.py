@@ -121,7 +121,7 @@ async def test_run_benchmark_run_with_test_prompts_bundle(
     assert "message" in data
     assert "started" in data["message"].lower() or "success" in data["message"].lower()
 
-    # Wait for the bundle process to write the result file (same path as run-bundle)
+    # Wait for the bundle process to write the result file (data/results/{bundle}.json)
     result_data = await _wait_for_result_file_and_validate(
         absolute_result_path, max_wait=15
     )
