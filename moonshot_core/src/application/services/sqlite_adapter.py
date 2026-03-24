@@ -1,3 +1,5 @@
+##TODO: Remove this service and use the SQLAlchemy implementation instead
+## THIS IS MARKED FOR DELETION
 """SQLite database adapter for moonshot-cicd."""
 
 import sqlite3
@@ -432,44 +434,6 @@ class SQLiteAdapter:
                 conn.rollback()
                 raise e
     
-    # def add_llm_provider(self, name: str) -> int:
-    #     """
-    #     Add a new LLM provider.
-        
-    #     Args:
-    #         name: Name of the LLM provider
-            
-    #     Returns:
-    #         ID of the created provider
-            
-    #     Raises:
-    #         sqlite3.IntegrityError: If provider with same name already exists
-    #     """
-    #     with self.get_connection() as conn:
-    #         cursor = conn.execute("INSERT INTO llm_provider (name) VALUES (?)", (name,))
-    #         conn.commit()
-    #         return cursor.lastrowid
-    
-    # def get_llm_provider(self, provider_id: int) -> Optional[Dict[str, Any]]:
-    #     """Get LLM provider by ID."""
-    #     with self.get_connection() as conn:
-    #         cursor = conn.execute("SELECT * FROM llm_provider WHERE id = ?", (provider_id,))
-    #         row = cursor.fetchone()
-    #         return dict(row) if row else None
-    
-    # def get_llm_provider_by_name(self, name: str) -> Optional[Dict[str, Any]]:
-    #     """Get LLM provider by name."""
-    #     with self.get_connection() as conn:
-    #         cursor = conn.execute("SELECT * FROM llm_provider WHERE name = ?", (name,))
-    #         row = cursor.fetchone()
-    #         return dict(row) if row else None
-    
-    # def list_llm_providers(self) -> List[Dict[str, Any]]:
-    #     """List all LLM providers."""
-    #     with self.get_connection() as conn:
-    #         cursor = conn.execute("SELECT * FROM llm_provider ORDER BY name")
-    #         return [dict(row) for row in cursor.fetchall()]
-    
     def add_model(self, llm_provider_id: int, name: str) -> int:
         """
         Add a new model.
@@ -508,27 +472,3 @@ class SQLiteAdapter:
                 cursor = conn.execute("SELECT * FROM model ORDER BY name")
             return [dict(row) for row in cursor.fetchall()]
     
-
-    
-    def database_exists(self) -> bool:
-        """Check if the database file exists."""
-        return os.path.exists(self.db_path)
-    
-    def get_database_info(self) -> Dict[str, Any]:
-        """Get information about the database."""
-        info = {
-            "path": self.db_path,
-            "exists": self.database_exists(),
-            "tables": []
-        }
-        
-        if info["exists"]:
-            with self.get_connection() as conn:
-                cursor = conn.execute("""
-                    SELECT name FROM sqlite_master 
-                    WHERE type='table' AND name NOT LIKE 'sqlite_%'
-                    ORDER BY name
-                """)
-                info["tables"] = [row[0] for row in cursor.fetchall()]
-        
-        return info
