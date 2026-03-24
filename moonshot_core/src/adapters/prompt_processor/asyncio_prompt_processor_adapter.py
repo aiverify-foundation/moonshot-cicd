@@ -1,9 +1,7 @@
 import asyncio
-from datetime import datetime
 from typing import Callable
 
 from domain.entities.connector_entity import ConnectorEntity
-from domain.entities.model_config_entity import ModelConfigEntity
 from domain.entities.metric_individual_entity import MetricIndividualEntity
 from domain.entities.prompt_entity import PromptEntity
 from domain.ports.connector_port import ConnectorPort
@@ -14,11 +12,6 @@ from domain.services.enums.module_types import ModuleTypes
 from domain.services.enums.task_manager_status import TaskManagerStatus
 from domain.services.loader.module_loader import ModuleLoader
 from domain.services.logger import configure_logger
-
-# This is required code for POC but it should be removed in the future.
-from application.ports.model_config_repository import ModelConfigRepository
-from application.services.sqlite_model_config_repository import SQLiteModelConfigRepository
-from application.services.sqlite_adapter import SQLiteAdapter
 
 # Initialize a logger for this module
 logger = configure_logger(__name__)
@@ -50,9 +43,6 @@ class AsyncioPromptProcessor(PromptProcessorPort):
         prompt_entity: PromptEntity,
         connector_instance: ConnectorPort,
         metric_instance: MetricPort,
-        write_to_db: bool = False,
-        model_config_repository: ModelConfigRepository | None = None,
-        run_id: int | None = None,
     ) -> PromptEntity:
         """
         Asynchronously process a single prompt entity using the provided connector and metric instances.
@@ -61,11 +51,6 @@ class AsyncioPromptProcessor(PromptProcessorPort):
             prompt_entity (PromptEntity): The prompt entity to be processed.
             connector_instance (ConnectorPort): The connector instance to process the prompt.
             metric_instance (MetricPort): The metric instance to evaluate the processed prompt.
-            write_to_db (bool): Whether to write results to the database.
-            model_config_repository (ModelConfigRepository | None): Optional repository for database operations.
-                If write_to_db is True and this is None, database writes will be skipped with a warning.
-            run_id (int | None): Optional. When provided and write_to_db is True, used as run_test_id to persist
-                a benchmark_run_test_prompt row (benchmark run passes this when it wants to handle persistence).
 
         Returns:
             PromptEntity: The updated prompt entity with model predictions and evaluation results.
@@ -92,32 +77,6 @@ class AsyncioPromptProcessor(PromptProcessorPort):
 
             metric_entity.evaluated_result = evaluated_result
             prompt_entity.evaluation_result = metric_entity
-
-            if write_to_db and model_config_repository is not None:
-                # Create a dummy model config
-                # Use unique ID as name to avoid conflicts when multiple prompts write simultaneously
-                unique_id = f"dummy_config1_{datetime.now().strftime('%Y%m%d_%H%M%S_%f')}"
-                dummy_model_config = ModelConfigEntity(
-                    id=unique_id,
-                    name=unique_id,  # Use unique ID as name to prevent overwrites
-                    modelname="dummy-model",
-                    providerID="1",
-                    savedConfigPairs={"param1": "value1", "param2": "value2"},
-                    lastUpdated=datetime.now()
-                )
-                
-                # Save the model config using the repository
-                try:
-                    saved_config = model_config_repository.add_model_config(dummy_model_config)
-                except Exception as db_error:
-                    logger.error(
-                        f"[AsyncioPromptProcessor] Failed to save model config to database: {db_error}",
-                        exc_info=True
-                    )
-                    # Continue processing even if database write fails
-                
-
-            # When write_to_db and run_id: only update existing rows when prompt has benchmark_run_test_prompt_id (done in process_prompts after return). Do not insert.
 
             # Set the prompt entity state to completed
             prompt_entity.state = TaskManagerStatus.COMPLETED
@@ -155,12 +114,6 @@ class AsyncioPromptProcessor(PromptProcessorPort):
             predictions and evaluation results, and the evaluation summary.
         """
         # Use asyncio.gather to process all prompts concurrently
-        # Initialize database adapter and repository once if write_to_db is True
-        model_config_repository: ModelConfigRepository | None = None
-        if write_to_db:
-            sqlite_adapter = SQLiteAdapter()
-            model_config_repository = SQLiteModelConfigRepository(sqlite_adapter)
-
         # Load existing run_test_prompts by run_test_id when write_to_db and run_id (for id-based update only)
         existing_run_test_prompts: list = []
         prompt_repo = None
@@ -246,9 +199,6 @@ class AsyncioPromptProcessor(PromptProcessorPort):
                     prompt,
                     connector_instance,
                     metric_instance,
-                    write_to_db,
-                    model_config_repository,
-                    run_id=run_id,
                 )
                 completed_count += 1
 

@@ -5,9 +5,8 @@ Uses the same bundle as test_validation_workflow (test-prompts) and the same
 result file path and validation helpers. Exercises POST /api/start-benchmark-run
 with a single bundle so we can wait for the result file and validate it.
 
-Note: This test requires a properly migrated database (benchmark_run and related
-tables). If you see a 500 about 'model' table / foreign key, run Alembic
-migrations so the schema is complete.
+Note: Uses a dedicated SQLite file (MOONSHOT_DB_PATH) so benchmark_run names do not
+collide with the developer moonshot.db. Migrations run on first SessionManager init.
 """
 
 import asyncio
@@ -88,7 +87,10 @@ def cleanup_test_prompts_result_file():
 
 
 @pytest.mark.asyncio
-async def test_run_benchmark_run_with_test_prompts_bundle(cleanup_test_prompts_result_file):
+async def test_run_benchmark_run_with_test_prompts_bundle(
+    seed_shared_config,
+    cleanup_test_prompts_result_file,
+):
     """
     Run the start-benchmark-run API with the test-prompts bundle (same as
     test_validation_workflow), wait for the result file, and validate it.
