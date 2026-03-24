@@ -3,31 +3,18 @@ Integration tests for BenchmarkExecutionService.start_benchmark_run.
 
 These tests exercise the full flow: BenchmarkRunEntity creation, BenchmarkRunService
 save_run (mocked to avoid DB schema/migration dependency), and starting bundle processes.
-They touch BenchmarkExecutionService, BenchmarkRunService, BenchmarkService (mocked),
-and multiprocessing.Process (mocked). Only Process and bundle resolution are mocked
-so no subprocess or config/dataset files are required.
+BenchmarkTestConfigAdapter and BenchmarkRunTestBundlePopulationService are mocked so
+no real DB rows are required. multiprocessing.Process is mocked so no subprocess runs.
+BenchmarkService is only involved in tests that assert KeyError propagation from
+get_bundle_by_id.
 """
 
 from unittest.mock import MagicMock, patch
 
 import pytest
 
-from application.dto.bundle_dto import BundleDTO
 from application.services.benchmark_execution_service import BenchmarkExecutionService
 from domain.entities.benchmark_run_entity import BenchmarkRunEntity
-
-
-@pytest.fixture
-def minimal_bundle_dto():
-    """Minimal BundleDTO for get_bundle_by_id so we don't depend on config/dataset files."""
-    return BundleDTO(
-        id="test-bundle-1",
-        name="Test Bundle",
-        description="",
-        category="",
-        tests=[],
-        prompt_count=0,
-    )
 
 
 @pytest.fixture
@@ -39,18 +26,6 @@ def mock_process():
         mock_proc = MagicMock()
         process_class.return_value = mock_proc
         yield process_class
-
-
-@pytest.fixture
-def mock_get_bundle(minimal_bundle_dto):
-    """Mock BenchmarkService.get_bundle_by_id to return a minimal bundle."""
-    with patch(
-        "application.services.benchmark.BenchmarkService"
-    ) as mock_bs_class:
-        mock_bs = MagicMock()
-        mock_bs.get_bundle_by_id.return_value = minimal_bundle_dto
-        mock_bs_class.return_value = mock_bs
-        yield mock_bs.get_bundle_by_id
 
 
 @pytest.fixture
@@ -88,9 +63,7 @@ class TestStartBenchmarkRunIntegration:
     def test_start_benchmark_run_saves_run_and_starts_bundles(
         self,
         mock_process,
-        mock_get_bundle,
         mock_save_run,
-        minimal_bundle_dto,
     ):
         """
         start_benchmark_run creates a run entity, calls BenchmarkRunService.save_run,
@@ -101,13 +74,35 @@ class TestStartBenchmarkRunIntegration:
         llm_provider_name = "TestProvider"
         llm_provider_config_name = "test-config"
 
-        service = BenchmarkExecutionService()
-        service.start_benchmark_run(
-            run_name=run_name,
-            bundle_names=bundle_names,
-            llm_provider_name=llm_provider_name,
-            llm_provider_config_name=llm_provider_config_name,
-        )
+        with patch(
+            "application.services.benchmark_run_test_bundle_population_service.BenchmarkRunTestBundlePopulationService"
+        ) as mock_pop_class:
+            mock_pop = MagicMock()
+            mock_pop.populate_run_bundle.return_value = {
+                "run_id": 42,
+                "test_bundle_id": 1,
+                "inserted_count": 0,
+            }
+            mock_pop_class.return_value = mock_pop
+
+            with patch(
+                "adapters.driven.repository.sqlalchemy.benchmark_test_config_adapter.BenchmarkTestConfigAdapter"
+            ) as mock_cfg_cls:
+                mock_cfg = MagicMock()
+                mock_cfg.get_bundle_id_by_system_name_latest.return_value = 1
+                mock_cfg_cls.return_value = mock_cfg
+
+                service = BenchmarkExecutionService()
+                service.start_benchmark_run(
+                    run_name=run_name,
+                    bundle_names=bundle_names,
+                    llm_provider_name=llm_provider_name,
+                    llm_provider_config_name=llm_provider_config_name,
+                )
+
+                assert mock_cfg.get_bundle_id_by_system_name_latest.call_count == 2
+                mock_cfg.get_bundle_id_by_system_name_latest.assert_any_call("bundle-a")
+                mock_cfg.get_bundle_id_by_system_name_latest.assert_any_call("bundle-b")
 
         # save_run was called once with the expected entity
         assert mock_save_run.call_count == 1
@@ -121,20 +116,17 @@ class TestStartBenchmarkRunIntegration:
         # Returned run_id is used for processes (we use the value from our mock)
         run_id = 42
 
-        # get_bundle_by_id was called for each bundle name
-        assert mock_get_bundle.call_count == 2
-        mock_get_bundle.assert_any_call("bundle-a")
-        mock_get_bundle.assert_any_call("bundle-b")
-
         # Process was started twice (once per bundle) with correct args
         assert mock_process.call_count == 2
+        started_bundles = []
         for call in mock_process.call_args_list:
             _, kwargs = call
             args = kwargs["args"]
             bundle_id, connector, passed_run_id = args[0], args[1], args[2]
             assert connector == llm_provider_config_name
             assert passed_run_id == run_id
-            assert bundle_id == minimal_bundle_dto.id
+            started_bundles.append(bundle_id)
+        assert started_bundles == bundle_names
 
     def test_start_benchmark_run_raises_when_bundle_not_found(
         self,

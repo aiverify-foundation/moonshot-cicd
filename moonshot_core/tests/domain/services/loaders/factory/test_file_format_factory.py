@@ -16,6 +16,12 @@ class TestFileFormatFactory:
         FileFormatFactory._adapters = []
         FileFormatFactory._fallback_adapter = None
 
+    def teardown_method(self):
+        """Restore real file-format adapters so tests in this class do not pollute the process."""
+        FileFormatFactory._adapters = []
+        FileFormatFactory._fallback_adapter = None
+        FileFormatFactory.discover_adapters()
+
     @pytest.fixture
     def mock_json_adapter(self):
         """Create a mock JsonAdapter for testing"""

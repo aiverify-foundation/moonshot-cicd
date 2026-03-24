@@ -148,9 +148,10 @@ async def test_get_individual_result_accurate(metric_individual_entity):
         "prompt": "What is 2+2?",
         "predicted_value": "Expected answer",
         "target": "Expected answer",
-        "accuracy": True
+        "accuracy": True,
+        "score": 1.0,
     }
-    
+
     assert result == expected_result
 
 @pytest.mark.asyncio
@@ -165,6 +166,7 @@ async def test_get_individual_result_inaccurate(metric_individual_entity):
     result = await adapter.get_individual_result(metric_individual_entity)
     
     assert result["accuracy"] is False
+    assert result["score"] == 0.0
     assert result["predicted_value"] == "Wrong answer"
 
 @pytest.mark.asyncio
