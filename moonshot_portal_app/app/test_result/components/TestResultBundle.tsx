@@ -47,6 +47,19 @@ function scoreFromEvaluationResult(
     return 0
 }
 
+/**
+ * Mean accuracy % after user disagreements flip binary scores: disagree on AI 1 → 0, on AI 0 → 1.
+ */
+export function adjustedAccuracyPercent(
+    totalScore: number,
+    rowCount: number,
+    disagreeWithScore1: number,
+    disagreeWithScore0: number
+): number {
+    if (rowCount <= 0) return 0
+    return ((totalScore - disagreeWithScore1 + disagreeWithScore0) / rowCount) * 100
+}
+
 function promptsToTableRows(prompts: BenchmarkRunTestPrompt[]): TestResultTableRow[] {
     return prompts.map((p, idx) => {
         const score = scoreFromEvaluationResult(
@@ -346,10 +359,12 @@ function calculateChartDataFromTableData(data: TestResultTableRow[]): BundleChar
         // Calculate AI score as percentage (total score / total count * 100)
         const aiScore = totalCount > 0 ? (totalScore / totalCount) * 100 : 0
         
-        // Calculate adjusted score: (totalScore - disagreeWithScore1 + disagreeWithScore0) / totalCount * 100
-        const adjustedScore = totalCount > 0 
-            ? ((totalScore - disagreeWithScore1*2 + disagreeWithScore0*2) / totalCount) * 100 
-            : 0
+        const adjustedScore = adjustedAccuracyPercent(
+            totalScore,
+            totalCount,
+            disagreeWithScore1,
+            disagreeWithScore0
+        )
         
         // Round scores to avoid floating point precision issues
         const roundedAiScore = Math.round(aiScore * 100) / 100
@@ -507,10 +522,12 @@ export default function TestResultBundle({
     const overallDisagreeWithScore1 = verdictStats.disagreeWithScore1
     const overallDisagreeWithScore0 = verdictStats.disagreeWithScore0
     
-    // Calculate overall adjusted score: (totalScore - disagreeWithScore1 + disagreeWithScore0) / totalPromptsForScore * 100
-    const overallAdjustedScore = totalPromptsForScore > 0
-        ? ((totalScore - overallDisagreeWithScore1*2 + overallDisagreeWithScore0*2) / totalPromptsForScore) * 100
-        : 0
+    const overallAdjustedScore = adjustedAccuracyPercent(
+        totalScore,
+        totalPromptsForScore,
+        overallDisagreeWithScore1,
+        overallDisagreeWithScore0
+    )
     const overallScoreChange = overallAdjustedScore - overallAiScore
 
     // Notify parent component of adjusted score changes
