@@ -35,13 +35,17 @@ class ProviderRepository(ABC):
         pass
     
     @abstractmethod
-    def add_provider(self, provider_name: str) -> ProviderEntity:
+    def add_provider(self, name: str, system_name: str, version: int = 0) -> ProviderEntity:
         """
         Add a new LLM Provider.
-        
+
+        Uniqueness is enforced on (system_name, version).
+
         Args:
-            provider_name (str): The name of LLM Provider to add.
-            
+            name: Display name (not globally unique).
+            system_name: Stable machine identifier.
+            version: Provider row version.
+
         Returns:
             ProviderEntity: The added provider entity with any generated fields.
         """

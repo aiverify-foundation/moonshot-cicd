@@ -28,14 +28,18 @@ def upgrade() -> None:
         'llm_provider',
         sa.Column('id', sa.Integer(), nullable=False, autoincrement=True),
         sa.Column('name', sa.String(), nullable=False),
+        sa.Column('system_name', sa.String(), nullable=False),
         sa.Column('version', sa.Integer(), nullable=False, server_default='0'),
         sa.PrimaryKeyConstraint('id'),
-        sa.UniqueConstraint('name')
+        sa.UniqueConstraint('system_name', 'version', name='uq_llm_provider_system_name_version'),
     )
 
     # Insert default LLM Providers that officially supported by FE
     # Future plan to auto populate from adapters.driven.connectors upon startup
-    op.execute("INSERT INTO llm_provider (name) VALUES ('OpenAI'), ('Together AI')")
+    op.execute(
+        "INSERT INTO llm_provider (name, system_name, version) VALUES "
+        "('OpenAI', 'openai', 0), ('Together AI', 'together_ai', 0)"
+    )
     
     # Create table to store LLM name under a LLM Provider
     op.create_table(

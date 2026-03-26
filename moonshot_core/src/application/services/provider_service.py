@@ -36,6 +36,8 @@ class ProviderService:
         return ProviderDTO(
             id=entity.id,
             name=entity.name,
+            system_name=entity.system_name,
+            version=entity.version,
             defaultModel=entity.defaultModel,
             modelTextboxExplanation=entity.modelTextboxExplanation,
             defaultConfigPairs=entity.defaultConfigPairs,
@@ -49,6 +51,7 @@ class ProviderService:
             name=entity.name,
             modelname=entity.modelname,
             providerID=entity.providerID,
+            provider_version=entity.provider_version,
             savedConfigPairs=entity.savedConfigPairs,
             lastUpdated=entity.lastUpdated,
         )
@@ -58,6 +61,8 @@ class ProviderService:
         return ProviderEntity(
             id=dto.id,
             name=dto.name,
+            system_name=dto.system_name,
+            version=dto.version,
             defaultModel=dto.defaultModel,
             modelTextboxExplanation=dto.modelTextboxExplanation,
             defaultConfigPairs=dto.defaultConfigPairs,
@@ -73,6 +78,7 @@ class ProviderService:
             name=dto.name,
             modelname=dto.modelname,
             providerID=dto.providerID,
+            provider_version=dto.provider_version,
             savedConfigPairs=dto.savedConfigPairs,
             lastUpdated=last_updated,
         )
@@ -99,8 +105,14 @@ class ProviderService:
         Returns:
             ProviderDTO: The added provider DTO with any generated fields.
         """
-        self.logger.info(f"Adding provider: {provider.name}")
-        added_entity = self.provider_repository.add_llm_provider(provider.name)
+        self.logger.info(
+            f"Adding provider: {provider.name} ({provider.system_name} v{provider.version})"
+        )
+        added_entity = self.provider_repository.add_provider(
+            name=provider.name,
+            system_name=provider.system_name,
+            version=provider.version,
+        )
         return self._provider_entity_to_dto(added_entity)
 
 

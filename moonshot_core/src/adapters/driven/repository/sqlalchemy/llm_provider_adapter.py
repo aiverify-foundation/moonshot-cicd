@@ -33,10 +33,12 @@ class LLMProviderAdapter(ProviderRepository):
         return ProviderEntity(
             id=str(model.id),
             name=model.name,
+            system_name=model.system_name,
+            version=model.version,
             defaultModel="",  # Default values since DB doesn't store these
             modelTextboxExplanation="",
             defaultConfigPairs={},
-            modelToken=""
+            modelToken="",
         )
     
     @override
@@ -94,37 +96,43 @@ class LLMProviderAdapter(ProviderRepository):
             raise e
     
     @override
-    def add_provider(self, provider_name: str) -> ProviderEntity:
+    def add_provider(self, name: str, system_name: str, version: int = 0) -> ProviderEntity:
         """
         Add a new provider.
-        
+
         Args:
-            provider (ProviderEntity): The provider entity to add.
-            
+            name: Display name.
+            system_name: Stable identifier; unique together with version.
+            version: Row version.
+
         Returns:
             ProviderEntity: The added provider entity with any generated fields.
         """
         try:
             with self.session_manager.get_session() as session:
-                # Check if provider with same name already exists
-                existing = session \
-                    .query(LLMProviderModel) \
-                    .filter(LLMProviderModel.name == provider_name) \
+                existing = (
+                    session.query(LLMProviderModel)
+                    .filter(
+                        LLMProviderModel.system_name == system_name,
+                        LLMProviderModel.version == version,
+                    )
                     .first()
-                
+                )
+
                 if existing:
                     self.logger.warning(
-                        f"Provider with name '{provider_name}' already exists"
+                        f"Provider with system_name={system_name!r} version={version} already exists"
                     )
                     return self._model_to_entity(existing)
-                
-                # Create new provider model
-                new_model = LLMProviderModel(name=provider_name)
+
+                new_model = LLMProviderModel(
+                    name=name, system_name=system_name, version=version
+                )
                 session.add(new_model)
-                session.flush()  # Flush to get the generated ID
+                session.flush()
 
                 self.logger.info(f"Added provider: {new_model}")
-                
+
                 return self._model_to_entity(new_model)
 
         except Exception as e:

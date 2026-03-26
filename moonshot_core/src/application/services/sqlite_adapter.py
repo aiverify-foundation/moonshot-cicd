@@ -163,7 +163,8 @@ class SQLiteAdapter:
         - id: config.name
         - name: config.name
         - modelname: model.name (from the model table)
-        - providerID: llm_provider.name (provider name)
+        - providerID: llm_provider.system_name (fallback: display name for legacy rows)
+        - provider_version: llm_provider.version
         - savedConfigPairs: key/value from config_parameters for the config_id
         - lastUpdated: config.last_update_dt
         """
@@ -175,7 +176,8 @@ class SQLiteAdapter:
                     c.name AS config_name,
                     c.last_update_dt AS last_update_dt,
                     m.name AS model_name,
-                    p.name AS provider_name
+                    p.system_name AS provider_system_name,
+                    p.version AS provider_version
                 FROM config c
                 LEFT JOIN model_config mc ON mc.config_id = c.id
                 LEFT JOIN model m ON m.id = mc.model_id
@@ -204,7 +206,8 @@ class SQLiteAdapter:
                 id=row["config_name"],
                 name=row["config_name"],
                 modelname=row["model_name"] if row["model_name"] is not None else "",
-                providerID=row["provider_name"] if row["provider_name"] is not None else "",
+                providerID=row["provider_system_name"] if row["provider_system_name"] is not None else "",
+                provider_version=int(row["provider_version"] or 0),
                 savedConfigPairs=saved_params,
                 lastUpdated=parsed_last_updated,
             )
@@ -312,7 +315,8 @@ class SQLiteAdapter:
                     c.name AS config_name,
                     c.last_update_dt AS last_update_dt,
                     m.name AS model_name,
-                    p.name AS provider_name
+                    p.system_name AS provider_system_name,
+                    p.version AS provider_version
                 FROM config c
                 LEFT JOIN model_config mc ON mc.config_id = c.id
                 LEFT JOIN model m ON m.id = mc.model_id
@@ -338,7 +342,8 @@ class SQLiteAdapter:
                     id=row["config_name"],
                     name=row["config_name"],
                     modelname=row["model_name"] if row["model_name"] is not None else "",
-                    providerID=row["provider_name"] if row["provider_name"] is not None else "",
+                    providerID=row["provider_system_name"] if row["provider_system_name"] is not None else "",
+                    provider_version=int(row["provider_version"] or 0),
                     savedConfigPairs=saved_params,
                     lastUpdated=parsed_last_updated,
                 ))
@@ -391,9 +396,19 @@ class SQLiteAdapter:
                 # If we have a desired model name, map it within the preserved provider
                 if model_config.modelname:
                     if target_provider_id is None and model_config.providerID:
-                        # No prior association; try using provided provider name
-                        pcur = conn.execute("SELECT id FROM llm_provider WHERE name = ?", (model_config.providerID,))
+                        # Resolve by system_name + version, then legacy display name
+                        ver = int(model_config.provider_version or 0)
+                        pcur = conn.execute(
+                            "SELECT id FROM llm_provider WHERE system_name = ? AND version = ?",
+                            (model_config.providerID, ver),
+                        )
                         prow = pcur.fetchone()
+                        if not prow:
+                            pcur = conn.execute(
+                                "SELECT id FROM llm_provider WHERE name = ? AND version = ? LIMIT 1",
+                                (model_config.providerID, ver),
+                            )
+                            prow = pcur.fetchone()
                         if prow:
                             target_provider_id = prow["id"]
 

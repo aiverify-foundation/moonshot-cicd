@@ -68,6 +68,7 @@ class FileModelConfigRepository(ModelConfigRepository):
                         name=config_data.get('name', ''),
                         modelname=config_data.get('modelname', ''),
                         providerID=config_data.get('providerID', ''),
+                        provider_version=config_data.get('provider_version', 0),
                         savedConfigPairs=config_data.get('savedConfigPairs', {}),
                         lastUpdated=last_updated
                     )

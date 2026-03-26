@@ -34,9 +34,10 @@ def upgrade() -> None:
         "llm_provider",
         sa.Column("id", sa.Integer(), nullable=False, autoincrement=True),
         sa.Column("name", sa.String(), nullable=False),
+        sa.Column("system_name", sa.String(), nullable=False),
         sa.Column("version", sa.Integer(), nullable=False, server_default="0"),
         sa.PrimaryKeyConstraint("id"),
-        sa.UniqueConstraint("name"),
+        sa.UniqueConstraint("system_name", "version", name="uq_llm_provider_system_name_version"),
     )
     op.create_table(
         "llm_provider_api_key",

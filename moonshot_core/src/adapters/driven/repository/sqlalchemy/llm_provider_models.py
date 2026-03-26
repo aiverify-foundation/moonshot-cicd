@@ -16,13 +16,20 @@ class LLMProviderModel(Base):
     This model represents an LLM provider in the database.
     """
     __tablename__ = "llm_provider"
-    
+    __table_args__ = (
+        UniqueConstraint("system_name", "version", name="uq_llm_provider_system_name_version"),
+    )
+
     id = Column(Integer, primary_key=True, autoincrement=True)
-    name = Column(String, nullable=False, unique=True)
+    name = Column(String, nullable=False)
+    system_name = Column(String, nullable=False)
     version = Column(Integer, nullable=False, server_default=text("0"), default=0)
 
     def __repr__(self) -> str:
-        return f"<LLMProviderModel(id={self.id}, name='{self.name}', version={self.version})>"
+        return (
+            f"<LLMProviderModel(id={self.id}, name='{self.name}', "
+            f"system_name='{self.system_name}', version={self.version})>"
+        )
 
 
 class LLMProviderModelModel(Base):

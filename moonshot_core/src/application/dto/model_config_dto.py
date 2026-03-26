@@ -14,7 +14,8 @@ class ModelConfigDTO(BaseModel):
         id (str): Unique identifier for the model configuration.
         name (str): Display name of the model configuration.
         modelname (str): Name of the model this configuration is for.
-        providerID (str): ID of the provider that owns this model.
+        providerID (str): Provider system_name (preferred) or legacy display name.
+        provider_version (int): Matches llm_provider.version when resolving provider.
         savedConfigPairs (Dict[str, str]): Saved configuration key-value pairs.
         lastUpdated (datetime): Timestamp when this configuration was last updated.
     """
@@ -30,8 +31,11 @@ class ModelConfigDTO(BaseModel):
     # Name of the model this configuration is for
     modelname: str
 
-    # ID of the provider that owns this model
+    # Provider system_name (preferred) or legacy display name
     providerID: str
+
+    # Matches llm_provider.version when resolving providerID
+    provider_version: int = 0
 
     # Saved configuration key-value pairs
     savedConfigPairs: Dict[str, str] = {}
