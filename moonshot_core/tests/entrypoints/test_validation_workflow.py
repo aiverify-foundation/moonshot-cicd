@@ -274,7 +274,9 @@ async def test_validation_workflow_failure_recovery(
     _cleanup_bundle_run_db("test-prompts")
 
     # Step 2: Run test with valid connector (happy path)
-    await _run_validation_workflow_test("my-gpt-4o-mini", absolute_result_path)
+    await _run_validation_workflow_test(
+        "my-gpt-4o-mini", absolute_result_path, max_wait=30
+    )
 
 
 @pytest.mark.asyncio

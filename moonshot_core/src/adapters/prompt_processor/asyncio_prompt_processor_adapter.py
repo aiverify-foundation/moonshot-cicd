@@ -95,7 +95,7 @@ class AsyncioPromptProcessor(PromptProcessorPort):
         metric: dict,
         callback_fn: Callable | None = None,
         write_to_db: bool = False,
-        run_id: int | None = None,
+        run_test_id: int | None = None,
     ) -> tuple[list[PromptEntity], dict]:
         """
         Asynchronously process a list of prompt entities concurrently using the specified connector and metric modules.
@@ -106,28 +106,28 @@ class AsyncioPromptProcessor(PromptProcessorPort):
             metric (str): The name of the metric module to be loaded.
             callback_fn (Callable | None): The callback function to update the progress.
             write_to_db (bool): Whether to write results to the database.
-            run_id (int | None): Optional. When provided and write_to_db is True, passed to each prompt as run_test_id
-                for persisting benchmark_run_test_prompt rows (e.g. from benchmark run execution service).
+            run_test_id (int | None): Optional. When provided and write_to_db is True, used when updating
+                benchmark_run_test_prompt rows (e.g. from benchmark run execution service).
 
         Returns:
             tuple[list[PromptEntity], dict]: A tuple containing the list of processed prompt entities with model
             predictions and evaluation results, and the evaluation summary.
         """
         # Use asyncio.gather to process all prompts concurrently
-        # Load existing run_test_prompts by run_test_id when write_to_db and run_id (for id-based update only)
+        # Load existing run_test_prompts by run_test_id when write_to_db (for id-based update only)
         existing_run_test_prompts: list = []
         prompt_repo = None
-        if write_to_db and run_id is not None:
+        if write_to_db and run_test_id is not None:
             try:
                 from adapters.driven.repository.sqlalchemy.benchmark_run_test_prompt_adapter import (
                     SqlAlchemyBenchmarkRunTestPromptRepository,
                 )
                 prompt_repo = SqlAlchemyBenchmarkRunTestPromptRepository()
-                existing_run_test_prompts = prompt_repo.get_all_by_run_test_id(run_id)
+                existing_run_test_prompts = prompt_repo.get_all_by_run_test_id(run_test_id)
             except Exception as db_error:
                 logger.error(
                     "[AsyncioPromptProcessor] Failed to load run test prompts for run_test_id=%s: %s",
-                    run_id,
+                    run_test_id,
                     db_error,
                     exc_info=True,
                 )
@@ -171,7 +171,7 @@ class AsyncioPromptProcessor(PromptProcessorPort):
         semaphore = asyncio.Semaphore(max_concurrency)
 
         async def process_and_count(
-            prompt: PromptEntity, index: int, run_id: int | None = None
+            prompt: PromptEntity, index: int, run_test_id: int | None = None
         ) -> PromptEntity:
             """
             Asynchronously process a single prompt entity and update the completion count.
@@ -179,7 +179,7 @@ class AsyncioPromptProcessor(PromptProcessorPort):
             Args:
                 prompt (PromptEntity): The prompt entity to be processed.
                 index (int): The index of the prompt in the list.
-                run_id (int | None): Optional run_test_id for persisting benchmark_run_test_prompt when write_to_db.
+                run_test_id (int | None): Optional benchmark_run_test_status id for DB updates when write_to_db.
 
             Returns:
                 PromptEntity: The processed prompt entity with updated state and results.
@@ -205,7 +205,7 @@ class AsyncioPromptProcessor(PromptProcessorPort):
                 # Update existing benchmark_run_test_prompt row by id when set (no insert)
                 if (
                     write_to_db
-                    and run_id is not None
+                    and run_test_id is not None
                     and prompt_repo is not None
                     and result.benchmark_run_test_prompt_id is not None
                 ):
@@ -259,7 +259,7 @@ class AsyncioPromptProcessor(PromptProcessorPort):
         # Asynchronously send prompts
         processed_prompts = await asyncio.gather(
             *[
-                process_and_count(prompt, index, run_id)
+                process_and_count(prompt, index, run_test_id)
                 for index, prompt in enumerate(prompts, start=1)
             ]
         )
