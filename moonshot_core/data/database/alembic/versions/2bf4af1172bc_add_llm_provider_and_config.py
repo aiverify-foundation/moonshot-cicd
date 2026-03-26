@@ -28,6 +28,7 @@ def upgrade() -> None:
         'llm_provider',
         sa.Column('id', sa.Integer(), nullable=False, autoincrement=True),
         sa.Column('name', sa.String(), nullable=False),
+        sa.Column('version', sa.Integer(), nullable=False, server_default='0'),
         sa.PrimaryKeyConstraint('id'),
         sa.UniqueConstraint('name')
     )

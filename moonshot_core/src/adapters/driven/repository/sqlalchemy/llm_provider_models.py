@@ -1,6 +1,6 @@
 """SQLAlchemy ORM models for database tables."""
 
-from sqlalchemy import Column, DateTime, Float, ForeignKey, Integer, String, UniqueConstraint, func
+from sqlalchemy import Column, DateTime, Float, ForeignKey, Integer, String, UniqueConstraint, func, text
 from sqlalchemy.orm import DeclarativeBase, relationship
 
 
@@ -19,9 +19,10 @@ class LLMProviderModel(Base):
     
     id = Column(Integer, primary_key=True, autoincrement=True)
     name = Column(String, nullable=False, unique=True)
-    
+    version = Column(Integer, nullable=False, server_default=text("0"), default=0)
+
     def __repr__(self) -> str:
-        return f"<LLMProviderModel(id={self.id}, name='{self.name}')>"
+        return f"<LLMProviderModel(id={self.id}, name='{self.name}', version={self.version})>"
 
 
 class LLMProviderModelModel(Base):
