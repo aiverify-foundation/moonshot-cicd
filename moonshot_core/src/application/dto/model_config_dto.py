@@ -1,6 +1,8 @@
-from typing import Dict
+from typing import Dict, List, Optional
 from datetime import datetime
 from pydantic import BaseModel, ConfigDict
+
+from application.dto.provider_dto import ProviderDTO
 
 
 class ModelConfigDTO(BaseModel):
@@ -14,8 +16,7 @@ class ModelConfigDTO(BaseModel):
         id (str): Unique identifier for the model configuration.
         name (str): Display name of the model configuration.
         modelname (str): Name of the model this configuration is for.
-        providerID (str): Provider system_name (preferred) or legacy display name.
-        provider_version (int): Matches llm_provider.version when resolving provider.
+        providerID (str): ID of the provider that owns this model.
         savedConfigPairs (Dict[str, str]): Saved configuration key-value pairs.
         lastUpdated (datetime): Timestamp when this configuration was last updated.
     """
@@ -31,14 +32,41 @@ class ModelConfigDTO(BaseModel):
     # Name of the model this configuration is for
     modelname: str
 
-    # Provider system_name (preferred) or legacy display name
+    # ID of the provider that owns this model
     providerID: str
-
-    # Matches llm_provider.version when resolving providerID
-    provider_version: int = 0
 
     # Saved configuration key-value pairs
     savedConfigPairs: Dict[str, str] = {}
 
     # Timestamp when this configuration was last updated
     lastUpdated: datetime
+
+
+class LLMProviderModelInfoDTO(BaseModel):
+    """
+    Lightweight DTO representing a row in the llm_provider_model table for a provider.
+    """
+
+    id: int
+    name: str
+    create_dt: datetime
+
+
+class LLMProviderEndpointConfigInfoDTO(BaseModel):
+    """
+    Lightweight DTO representing a row in the llm_provider_endpoint_config table for a provider.
+    """
+
+    id: int
+    name: str
+
+
+class LLMProviderDetailsDTO(BaseModel):
+    """
+    Aggregated DTO containing an LLM provider and its related models and endpoint configs.
+    """
+
+    provider: ProviderDTO
+    models: List[LLMProviderModelInfoDTO]
+    endpoint_configs: List[LLMProviderEndpointConfigInfoDTO]
+    config_params: Optional[Dict[str, str]] = None

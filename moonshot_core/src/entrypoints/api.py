@@ -20,7 +20,10 @@ from typing import List
 from application.services.provider_service import ProviderService
 from application.services.file_model_config_repository import FileModelConfigRepository
 from application.dto.provider_dto import ProviderDTO
-from application.dto.model_config_dto import ModelConfigDTO
+from application.dto.model_config_dto import (
+    ModelConfigDTO,
+    LLMProviderDetailsDTO,
+)
 from application.dto.run_bundle_dto import (
     BenchmarkRunResponseDTO,
     BenchmarkRunTestBundleResponseDTO,
@@ -71,7 +74,19 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
-
+# Add CORS middleware to allow frontend requests
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=[
+        "http://localhost:3000",  # Next.js frontend
+        "http://127.0.0.1:3000",  # Next.js frontend alternative
+        "http://localhost:8000",  # Backend URL (for reference)
+        "http://127.0.0.1:8000",  # Backend URL alternative (for reference)
+    ],
+    allow_credentials=True,
+    allow_methods=["*"],  # Allow all HTTP methods
+    allow_headers=["*"],  # Allow all headers
+)
 
 
 def get_build_directory() -> Path:
@@ -215,6 +230,36 @@ async def list_providers():
     except Exception as e:
         logger.error(f"Error listing providers: {e}")
         raise HTTPException(status_code=500, detail="Failed to list providers")
+
+
+@app.get(
+    "/api/providers/by-system-name/{system_name}/latest-details",
+    response_model=LLMProviderDetailsDTO,
+)
+async def get_latest_provider_details_by_system_name(
+    system_name: str,
+):
+    """
+    Get the latest-version provider and its related models and endpoint configs for a system_name.
+    """
+    try:
+        details = provider_service.get_latest_provider_details_by_system_name(system_name)
+        if details is None:
+            raise HTTPException(
+                status_code=404,
+                detail=f"No provider found for system_name={system_name!r}",
+            )
+        return details
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(
+            f"Error fetching latest provider details for system_name={system_name}: {e}"
+        )
+        raise HTTPException(
+            status_code=500,
+            detail="Failed to fetch latest provider details",
+        )
 
 
 @app.get("/api/providers/{provider_id}/model-configs", response_model=List[ModelConfigDTO])

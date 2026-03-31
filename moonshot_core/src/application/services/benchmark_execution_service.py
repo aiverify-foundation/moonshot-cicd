@@ -124,8 +124,30 @@ class BenchmarkExecutionService:
             KeyError: If any bundle is not found.
         """
         from application.services.benchmark_run_service import BenchmarkRunService  # noqa: WPS433
+        from application.services.provider_service import ProviderService  # noqa: WPS433
 
         connector = llm_provider_config_name
+
+        provider_service = ProviderService()
+        provider_details = provider_service.get_latest_provider_details_by_system_name(
+            llm_provider_name
+        )
+        if provider_details is None:
+            logger.warning(
+                "[BenchmarkExecutionService] No provider details found for system_name=%s",
+                llm_provider_name,
+            )
+        else:
+            logger.info(
+                "[BenchmarkExecutionService] Using provider '%s' (system_name=%s, version=%s) "
+                "with %d models and %d endpoint configs for benchmark run.",
+                provider_details.provider.name,
+                provider_details.provider.system_name,
+                provider_details.provider.version,
+                len(provider_details.models),
+                len(provider_details.endpoint_configs),
+            )
+
         logger.info(
             f"[BenchmarkExecutionService] Starting benchmark run: run_name={run_name}, "
             f"llm_provider={llm_provider_name}, config={connector}, bundles={bundle_names}"
@@ -140,6 +162,7 @@ class BenchmarkExecutionService:
         saved_run = BenchmarkRunService().save_run(run_entity)
         run_id = saved_run.id
 
+        # can add this to save_run instead of here
         from application.services.benchmark_run_test_bundle_population_service import (  # noqa: WPS433
             BenchmarkRunTestBundlePopulationService,
         )

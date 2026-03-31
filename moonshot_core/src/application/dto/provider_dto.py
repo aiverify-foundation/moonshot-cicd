@@ -12,6 +12,8 @@ class ProviderDTO(BaseModel):
     Attributes:
         id (str): Unique identifier for the provider.
         name (str): Display name of the provider.
+        system_name (str): Stable system identifier for the provider.
+        version (int): Version number of the provider row.
         defaultModel (str): Default model to use for this provider.
         modelTextboxExplanation (str): Explanation text for the model input field.
         defaultConfigPairs (Dict[str, str]): Default configuration key-value pairs.
@@ -20,12 +22,17 @@ class ProviderDTO(BaseModel):
 
     model_config = ConfigDict(arbitrary_types_allowed=True)
 
-
     # Unique identifier for the provider
     id: str
 
     # Display name of the provider
     name: str
+
+    # Stable system identifier for the provider (e.g. "openai", "together_ai")
+    system_name: str
+
+    # Version number of the provider row
+    version: int
 
     # Default model to use for this provider
     defaultModel: str = ""

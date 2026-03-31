@@ -5,10 +5,21 @@ from typing import List, Optional
 from datetime import datetime
 
 from adapters.driven.repository.sqlalchemy.llm_provider_adapter import LLMProviderAdapter
+from adapters.driven.repository.sqlalchemy.llm_provider_models import (
+    LLMProviderModel,
+    LLMProviderModelModel,
+    LLMProviderEndpointConfigModel,
+)
+from adapters.driven.repository.sqlalchemy.session_manager import SessionManager
 from domain.entities.provider_entity import ProviderEntity
 from domain.entities.model_config_entity import ModelConfigEntity
 from application.dto.provider_dto import ProviderDTO
-from application.dto.model_config_dto import ModelConfigDTO
+from application.dto.model_config_dto import (
+    ModelConfigDTO,
+    LLMProviderDetailsDTO,
+    LLMProviderEndpointConfigInfoDTO,
+    LLMProviderModelInfoDTO,
+)
 from application.services.sqlite_adapter import SQLiteAdapter
 from domain.services.logger import configure_logger
 
@@ -30,6 +41,7 @@ class ProviderService:
         """
         self.provider_repository = LLMProviderAdapter()
         self.logger = configure_logger(__name__)
+        self._session_manager = SessionManager.get_instance()
     
     def _provider_entity_to_dto(self, entity: ProviderEntity) -> ProviderDTO:
         """Convert ProviderEntity to ProviderDTO."""
@@ -176,3 +188,85 @@ class ProviderService:
         self.logger.info(f"Deleting model config: {config_id}")
         sqlite = SQLiteAdapter()
         return sqlite.delete_model_config_entity(config_id)
+
+    def get_latest_provider_details_by_system_name(
+        self,
+        system_name: str,
+    ) -> Optional[LLMProviderDetailsDTO]:
+        """
+        Return the latest-version provider and its related models and endpoint configs for a system_name.
+
+        Args:
+            system_name: The llm_provider.system_name to look up.
+
+        Returns:
+            LLMProviderDetailsDTO if a provider exists, otherwise None.
+        """
+        self.logger.info(
+            "Fetching latest provider details for system_name=%s", system_name
+        )
+        try:
+            with self._session_manager.get_session() as session:
+                provider_model: Optional[LLMProviderModel] = (
+                    session.query(LLMProviderModel)
+                    .filter(LLMProviderModel.system_name == system_name)
+                    .order_by(LLMProviderModel.version.desc())
+                    .first()
+                )
+
+                if provider_model is None:
+                    self.logger.warning(
+                        "No provider found for system_name=%s", system_name
+                    )
+                    return None
+
+                provider_entity = self.provider_repository._model_to_entity(  # type: ignore[attr-defined]
+                    provider_model
+                )
+                provider_dto = self._provider_entity_to_dto(provider_entity)
+
+                models: list[LLMProviderModelModel] = (
+                    session.query(LLMProviderModelModel)
+                    .filter(
+                        LLMProviderModelModel.llm_provider_id == provider_model.id
+                    )
+                    .all()
+                )
+                endpoint_configs: list[LLMProviderEndpointConfigModel] = (
+                    session.query(LLMProviderEndpointConfigModel)
+                    .filter(
+                        LLMProviderEndpointConfigModel.llm_provider_id
+                        == provider_model.id
+                    )
+                    .all()
+                )
+
+                model_dtos = [
+                    LLMProviderModelInfoDTO(
+                        id=m.id,
+                        name=m.name,
+                        create_dt=m.create_dt,
+                    )
+                    for m in models
+                ]
+                endpoint_config_dtos = [
+                    LLMProviderEndpointConfigInfoDTO(
+                        id=e.id,
+                        name=e.name,
+                    )
+                    for e in endpoint_configs
+                ]
+
+                return LLMProviderDetailsDTO(
+                    provider=provider_dto,
+                    models=model_dtos,
+                    endpoint_configs=endpoint_config_dtos,
+                    config_params=None,
+                )
+        except Exception as exc:
+            self.logger.error(
+                "Error fetching latest provider details for system_name=%s: %s",
+                system_name,
+                exc,
+            )
+            return None
