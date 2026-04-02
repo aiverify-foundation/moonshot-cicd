@@ -28,6 +28,7 @@ class AppConfig:
 
     DEFAULT_DATA_PATH = "data"
     DEFAULT_TEST_CONFIGS_FILE = "tests.yaml"
+    DEFAULT_BENCHMARK_SOURCE = "shared.yaml"
     DEFAULT_DATASETS_PATH = f"{DEFAULT_DATA_PATH}/datasets"
     DEFAULT_ATTACK_MODULES_PATH = f"{DEFAULT_DATA_PATH}/attack_modules"
     DEFAULT_RESULTS_PATH = f"{DEFAULT_DATA_PATH}/results"
@@ -53,7 +54,7 @@ class AppConfig:
     )
     FILE_NOT_FOUND_ERROR = "[AppConfig] File not found: {file_name}"
     BENCHMARK_SOURCE_ENV_VAR = f"{DEFAULT_DATA_PATH}/test_configs"
-    DEFAULT_BENCHMARK_SOURCE = "shared.yaml"
+
 
     _instance: Optional[AppConfig] = None
     _config: Optional[AppConfigEntity] = None

@@ -32,7 +32,7 @@ def mock_process():
 def mock_save_run():
     """Mock BenchmarkRunService.save_run to return a run entity with id, no real DB."""
     with patch(
-        "application.services.benchmark_run_service.BenchmarkRunService"
+        "application.services.benchmark_execution_service.BenchmarkRunService"
     ) as mock_svc_class:
         mock_svc = MagicMock()
         run_id = 42
@@ -75,7 +75,7 @@ class TestStartBenchmarkRunIntegration:
         llm_provider_config_name = "test-config"
 
         with patch(
-            "application.services.benchmark_run_test_bundle_population_service.BenchmarkRunTestBundlePopulationService"
+            "application.services.benchmark_execution_service.BenchmarkRunTestBundlePopulationService"
         ) as mock_pop_class:
             mock_pop = MagicMock()
             mock_pop.populate_run_bundle.return_value = {
@@ -86,7 +86,7 @@ class TestStartBenchmarkRunIntegration:
             mock_pop_class.return_value = mock_pop
 
             with patch(
-                "adapters.driven.repository.sqlalchemy.benchmark_test_config_adapter.BenchmarkTestConfigAdapter"
+                "application.services.benchmark_execution_service.BenchmarkTestConfigAdapter"
             ) as mock_cfg_cls:
                 mock_cfg = MagicMock()
                 mock_cfg.get_bundle_id_by_system_name_latest.return_value = 1
@@ -122,9 +122,15 @@ class TestStartBenchmarkRunIntegration:
         for call in mock_process.call_args_list:
             _, kwargs = call
             args = kwargs["args"]
-            bundle_id, connector, passed_run_id = args[0], args[1], args[2]
+            bundle_id, connector, passed_run_id, skip_alembic = (
+                args[0],
+                args[1],
+                args[2],
+                args[3],
+            )
             assert connector == llm_provider_config_name
             assert passed_run_id == run_id
+            assert skip_alembic is True
             started_bundles.append(bundle_id)
         assert started_bundles == bundle_names
 
@@ -133,16 +139,18 @@ class TestStartBenchmarkRunIntegration:
         mock_process,
         mock_save_run,
     ):
-        """When get_bundle_by_id raises KeyError, start_benchmark_run propagates it."""
+        """When bundle is not in DB, start_bundle_in_background raises KeyError after save_run."""
         with patch(
-            "application.services.benchmark.BenchmarkService"
-        ) as mock_bs_class:
-            mock_bs = MagicMock()
-            mock_bs.get_bundle_by_id.side_effect = KeyError("Bundle 'missing' not found")
-            mock_bs_class.return_value = mock_bs
+            "application.services.benchmark_execution_service.BenchmarkTestConfigAdapter"
+        ) as mock_cfg_cls:
+            mock_cfg = MagicMock()
+            mock_cfg.get_bundle_id_by_system_name_latest.side_effect = ValueError(
+                "not found"
+            )
+            mock_cfg_cls.return_value = mock_cfg
 
             service = BenchmarkExecutionService()
-            with pytest.raises(KeyError, match="Bundle .* not found"):
+            with pytest.raises(KeyError, match="Bundle with ID 'missing' not found"):
                 service.start_benchmark_run(
                     run_name="run",
                     bundle_names=["missing"],

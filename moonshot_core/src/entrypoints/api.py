@@ -32,6 +32,7 @@ from application.dto.run_bundle_dto import (
     StartBenchmarkRunResponseDTO,
 )
 from application.dto.seed_dto import SeedSharedConfigResponseDTO
+from application.services.provider_seed_service import ProviderSeedService
 
 # Benchmark execution service
 from application.services.benchmark_execution_service import BenchmarkExecutionService
@@ -56,6 +57,9 @@ logger = configure_logger(__name__)
 async def lifespan(app: FastAPI):
     """Run startup tasks (e.g. seed shared config if changed) and yield for shutdown."""
     try:
+        # Seed hardcoded LLM providers (idempotent, version-aware)
+        ProviderSeedService().seed_hardcoded_providers()
+
         service = get_shared_config_seed_service()
         service.seed_if_test_file_changed()
     except Exception as e:

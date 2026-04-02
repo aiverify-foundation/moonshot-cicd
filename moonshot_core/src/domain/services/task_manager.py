@@ -186,18 +186,7 @@ class TaskManager:
                         BenchmarkRunTestStatusService().update_run_test_status(
                             saved_benchmark_run_test_status
                         )
-                    else:
-                        run_test_status_entity = BenchmarkRunTestStatusEntity(
-                            run_id=db_run_id,
-                            test_id=effective_test_id,
-                            status="in_progress",
-                            start_dt=start_time,
-                        )
-                        saved_benchmark_run_test_status = (
-                            BenchmarkRunTestStatusService().save_run_test_status(
-                                run_test_status_entity
-                            )
-                        )
+                    #else throw error
 
             # Generate prompts: from DB run_test_prompts when write_to_db and run_test exists, else from dataset
             run_test_id = getattr(saved_benchmark_run_test_status, "id", None)
@@ -214,7 +203,7 @@ class TaskManager:
                     metric,
                     callback_fn,
                     write_to_db,
-                    run_id=run_test_id,
+                    run_test_id=run_test_id,
                 )
             )
 

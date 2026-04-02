@@ -13,6 +13,19 @@ from sqlalchemy.pool import StaticPool
 from alembic import command
 from alembic.config import Config
 
+# Process-local: when True, SessionManager._run_migrations skips Alembic (bundle workers).
+_skip_alembic_upgrade: bool = False
+
+
+def set_skip_alembic_upgrade(value: bool) -> None:
+    """
+    Set whether to skip Alembic upgrade for the next SessionManager init in this process.
+
+    Used by multiprocessing worker entrypoints after the parent has migrated the same DB.
+    """
+    global _skip_alembic_upgrade
+    _skip_alembic_upgrade = value
+
 
 def singleton(cls):
     """Decorator that ensures a class has only one instance."""
@@ -83,7 +96,6 @@ class SessionManager:
             self.db_url,
             poolclass=StaticPool,
             connect_args={"check_same_thread": False},
-            echo=True,
         )
         
         self.SessionLocal = sessionmaker(bind=self.engine)
@@ -110,6 +122,9 @@ class SessionManager:
     def _run_migrations(self) -> None:
         """Run Alembic migrations to initialize and update database schema. Skips for in-memory URLs."""
         if ":memory:" in self.db_url:
+            return
+        if _skip_alembic_upgrade:
+            self.logger.debug("Skipping Alembic upgrade (worker process flag set)")
             return
         application_root_path = utils.get_application_root_path()
         alembic_ini_path: PosixPath = application_root_path / "alembic.ini"

@@ -13,6 +13,26 @@ class ConnectorPort(ABC):
     Implementations of this class should provide concrete methods for these operations.
     """
 
+    # Per-connector metadata (must be overridden by concrete adapters)
+    PROVIDER_NAME: str
+    SYSTEM_NAME: str
+    VERSION: int
+    DEFAULT_MODEL: str
+    MODEL_TEXTBOX_EXPLANATION: str
+    DEFAULT_CONFIG_PAIRS: dict[str, str]
+
+    @classmethod
+    def provider_seed_definition(cls) -> dict:
+        """Build provider seed dict (camelCase keys) from class metadata."""
+        return {
+            "name": cls.PROVIDER_NAME,
+            "system_name": cls.SYSTEM_NAME,
+            "version": cls.VERSION,
+            "defaultModel": cls.DEFAULT_MODEL,
+            "modelTextboxExplanation": cls.MODEL_TEXTBOX_EXPLANATION,
+            "defaultConfigPairs": cls.DEFAULT_CONFIG_PAIRS,
+        }
+
     @abstractmethod
     def configure(self, connector_entity: ConnectorEntity) -> None:
         """

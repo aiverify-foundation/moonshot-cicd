@@ -12,6 +12,22 @@ import multiprocessing
 from datetime import datetime, timezone
 from typing import List, Optional
 
+from adapters.driven.repository.sqlalchemy.benchmark_run_test_status_adapter import (
+    SqlAlchemyBenchmarkRunTestStatusRepository,
+)
+from adapters.driven.repository.sqlalchemy.benchmark_test_config_adapter import (
+    BenchmarkTestConfigAdapter,
+)
+from adapters.driven.repository.sqlalchemy.session_manager import set_skip_alembic_upgrade
+from application.services.benchmark import BenchmarkService
+from application.services.benchmark_run_service import BenchmarkRunService
+from application.services.benchmark_run_test_bundle_population_service import (
+    BenchmarkRunTestBundlePopulationService,
+)
+from application.services.benchmark_run_test_setup_service import (
+    BenchmarkRunTestSetupService,
+)
+from application.services.provider_service import ProviderService
 from domain.entities.benchmark_run_entity import BenchmarkRunEntity
 from domain.services.logger import configure_logger
 from domain.services.task_manager import TaskManager
@@ -22,7 +38,10 @@ logger = configure_logger(__name__)
 
 
 def _run_bundle_in_process(
-    bundle_id: str, connector: str, run_id: Optional[int] = None
+    bundle_id: str,
+    connector: str,
+    run_id: Optional[int],
+    skip_alembic_upgrade: bool,
 ) -> None:
     """
     Wrapper to run a bundle in a separate process.
@@ -30,14 +49,25 @@ def _run_bundle_in_process(
     Instantiates BenchmarkExecutionService and calls execute_bundle.
     Used as the target for multiprocessing.Process (must be module-level to be picklable).
 
+    The parent process must have run Alembic migrations on the same MOONSHOT_DB_PATH
+    before starting this worker. When skip_alembic_upgrade is True, SessionManager
+    will not run upgrade in this process (avoids races on shared SQLite).
+
     Args:
         bundle_id: Bundle identifier to execute
         connector: Connector name to use
         run_id: Optional benchmark run id (from BenchmarkRunEntity) for this run.
             TODO: run_id will be required (non-optional) in the future.
+        skip_alembic_upgrade: If True, skip Alembic in this process (set before any DB use).
     """
-    execution_service = BenchmarkExecutionService()
-    execution_service.execute_bundle(bundle_id, connector, run_id=run_id)
+    if skip_alembic_upgrade:
+        set_skip_alembic_upgrade(True)
+    try:
+        execution_service = BenchmarkExecutionService()
+        execution_service.execute_bundle(bundle_id, connector, run_id=run_id)
+    finally:
+        if skip_alembic_upgrade:
+            set_skip_alembic_upgrade(False)
 
 
 class BenchmarkExecutionService:
@@ -77,10 +107,6 @@ class BenchmarkExecutionService:
         Raises:
             KeyError: If the bundle is not found in the DB.
         """
-        from adapters.driven.repository.sqlalchemy.benchmark_test_config_adapter import (  # noqa: WPS433
-            BenchmarkTestConfigAdapter,
-        )
-
         config_adapter = BenchmarkTestConfigAdapter()
         try:
             config_adapter.get_bundle_id_by_system_name_latest(bundle_name)
@@ -90,7 +116,7 @@ class BenchmarkExecutionService:
 
         process = multiprocessing.Process(
             target=_run_bundle_in_process,
-            args=(bundle_name, connector, run_id),
+            args=(bundle_name, connector, run_id, True),
         )
         process.daemon = True
         process.start()
@@ -123,9 +149,6 @@ class BenchmarkExecutionService:
         Raises:
             KeyError: If any bundle is not found.
         """
-        from application.services.benchmark_run_service import BenchmarkRunService  # noqa: WPS433
-        from application.services.provider_service import ProviderService  # noqa: WPS433
-
         connector = llm_provider_config_name
 
         provider_service = ProviderService()
@@ -163,9 +186,6 @@ class BenchmarkExecutionService:
         run_id = saved_run.id
 
         # can add this to save_run instead of here
-        from application.services.benchmark_run_test_bundle_population_service import (  # noqa: WPS433
-            BenchmarkRunTestBundlePopulationService,
-        )
         pop_service = BenchmarkRunTestBundlePopulationService()
 
         for bundle_name in bundle_names:
@@ -208,15 +228,6 @@ class BenchmarkExecutionService:
         """
         try:
             logger.info(f"[BenchmarkExecutionService] Starting bundle execution for bundle: {bundle_id}")
-
-            # Lazy imports to avoid heavy imports at module load and keep parity with api process execution
-            from adapters.driven.repository.sqlalchemy.benchmark_test_config_adapter import (  # noqa: WPS433
-                BenchmarkTestConfigAdapter,
-            )
-            from application.services.benchmark_run_test_setup_service import (  # noqa: WPS433
-                BenchmarkRunTestSetupService,
-            )
-            from application.services.benchmark_run_service import BenchmarkRunService  # noqa: WPS433
 
             start_time = datetime.now()
             prompt_processor = "asyncio_prompt_processor_adapter"
@@ -285,8 +296,6 @@ class BenchmarkExecutionService:
                 eval_results = asyncio.run(_run_all_db())
             else:
                 # Look in file for bundle (benchmark source YAML); if found, run with file-based config.
-                from application.services.benchmark import BenchmarkService  # noqa: WPS433
-
                 benchmark_service = BenchmarkService(None, None)
                 bundle = benchmark_service.get_bundle_by_id(bundle_id)
                 effective_run_id_str = str(run_id) if run_id is not None else bundle_id
@@ -350,9 +359,6 @@ class BenchmarkExecutionService:
 
             # When all run-test statuses for this run are completed, mark the benchmark run as completed.
             if use_db_path and effective_run_id is not None:
-                from adapters.driven.repository.sqlalchemy.benchmark_run_test_status_adapter import (  # noqa: WPS433
-                    SqlAlchemyBenchmarkRunTestStatusRepository,
-                )
                 status_repo = SqlAlchemyBenchmarkRunTestStatusRepository()
                 run_statuses = status_repo.get_all_by_run_id(effective_run_id)
                 if run_statuses and all(s.status == "completed" for s in run_statuses):

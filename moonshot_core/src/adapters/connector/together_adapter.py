@@ -13,6 +13,17 @@ logger = configure_logger(__name__)
 
 
 class TogetherAdapter(ConnectorPort):
+    PROVIDER_NAME = "TogetherAI"
+    SYSTEM_NAME = "together_adapter"
+    VERSION = 1
+    DEFAULT_MODEL = "meta-llama/Meta-Llama-3-70B-Instruct"
+    MODEL_TEXTBOX_EXPLANATION = (
+        "Enter a TogetherAI model ID, e.g. meta-llama/Meta-Llama-3-70B-Instruct"
+    )
+    DEFAULT_CONFIG_PAIRS = {
+        "base_url": "https://api.together.xyz/v1",
+        "api_type": "together",
+    }
 
     ERROR_PROCESSING_PROMPT = "[TogetherAdapter] Failed to process prompt."
     INFO_CONFIGURED = "[TogetherAdapter] Configured with model: {model}, endpoint: {endpoint}"

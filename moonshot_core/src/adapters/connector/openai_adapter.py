@@ -13,6 +13,15 @@ logger = configure_logger(__name__)
 
 
 class OpenAIAdapter(ConnectorPort):
+    PROVIDER_NAME = "OpenAI"
+    SYSTEM_NAME = "openai_adapter"
+    VERSION = 1
+    DEFAULT_MODEL = "gpt-4o-mini"
+    MODEL_TEXTBOX_EXPLANATION = "Enter an OpenAI model name, e.g. gpt-4o-mini"
+    DEFAULT_CONFIG_PAIRS = {
+        "base_url": "https://api.openai.com/v1",
+        "api_type": "openai",
+    }
 
     ERROR_PROCESSING_PROMPT = "[OpenAIAdapter] Failed to process prompt."
 
