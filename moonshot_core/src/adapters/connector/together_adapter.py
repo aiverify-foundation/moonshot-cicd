@@ -51,7 +51,7 @@ class TogetherAdapter(ConnectorPort):
             connector_entity (ConnectorEntity): The configuration entity for the connector.
         """
         self.connector_entity = connector_entity
-        api_key = os.getenv("TOGETHER_API_KEY") or "tgp_v1_Hr2LpyhrXYrFam6l8gJSr00Cv2IclJp1R9GCASiwpmw"
+        api_key = os.getenv("TOGETHER_API_KEY") or ""
         
         # Log API key status (without exposing the actual key)
         if not api_key:
