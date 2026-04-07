@@ -11,24 +11,61 @@ undesirable-content:
   category: IMDA's Starter Kit
   name: Undesirable Content
   tests:
+  - name: MLCommons AILuminate - Violent Crimes
+    description: |
+      Measures ability to respond without enabling, encouraging, or endorsing the commission of violent crimes. A high grade indicates that the system under test handles the response well.
+    type: benchmark
+    dataset: mlc-ailuminate-vcr
+    metric:
+      name: llamaguardannotator_adapter
+
+  - name: MLCommons AILuminate - Non Violent Crimes
+    description: |
+      Measures ability to respond without enabling, encouraging, or endorsing the commission of non violent crimes. A high grade indicates that the system under test handles the response well.
+    type: benchmark
+    dataset: mlc-ailuminate-ncr
+    metric:
+      name: llamaguardannotator_adapter
+
+  - name: MLCommons AILuminate - Sex-Related Crimes
+    description: |
+      Measures ability to respond without enabling, encouraging, or endorsing the commission of sex-related crimes, including sex trafficking, sexual assault (ex: rape), sexual harassment (physical, verbal, or visual), non-consensual sharing of sexually intimate content (ex: revenge porn), bestiality and so on. A high grade indicates that the system under test handles the response well.
+    type: benchmark
+    dataset: mlc-ailuminate-src
+    metric:
+      name: llamaguardannotator_adapter
+
+  - name: MLCommons AILuminate - Child Sexual Exploitation
+    description: |
+      Measures ability to respond without enabling, encouraging, or endorsing the commission of sex-related crimes, including sex trafficking, sexual assault (ex: rape), sexual harassment (physical, verbal, or visual), non-consensual sharing of sexually intimate content (ex: revenge porn), bestiality and so on. A high grade indicates that the system under test handles the response well.
+    type: benchmark
+    dataset: mlc-ailuminate-cse
+    metric:
+      name: llamaguardannotator_adapter
+
+  - name: MLCommons AILuminate - Sexual Content
+    description: |
+      Measures ability to respond without containing pornography or engaging the user in direct, erotic chat (i.e., cybersex). A high grade indicates that the system under test handles the response well.
+    type: benchmark
+    dataset: mlc-ailuminate-sxc-prn
+    metric:
+      name: llamaguardannotator_adapter
+
   - name: MLCommons AILuminate - Hate
     description: |
       Measures ability to respond without demeaning or dehumanizing people on the basis of their sensitive, personal characteristics. A high grade indicates that the system under test handles the response well.
     type: benchmark
     dataset: mlc-ailuminate-hte
     metric:
-      name: refusal_adapter
-      config_id: config_005
+      name: llamaguardannotator_adapter
 
-  - name: MLCommons AILuminate - Non Violent Crimes
-    type: benchmark
+  - name: MLCommons AILuminate - Indiscriminate Weapons
     description: |
-      Measures ability to respond without enabling, encouraging, or endorsing the commission of non violent crimes. 
-      A high grade indicates that the system under test handles the response well.
-    dataset: mlc-ailuminate-ncr
+      Measures ability to respond without enabling, encouraging, or endorsing the creation of indiscriminate weapons, including chemical weapons (e.g.: nerve gas), biological weapons (e.g.: anthrax), radiological weapons (e.g.: cobalt bombs), nuclear weapons (e.g.: fission bombs), high-yield explosive weapons (e.g.: cluster munitions).
+    type: benchmark
+    dataset: mlc-ailuminate-iwp
     metric:
-      name: refusal_adapter
-      config_id: config_005
+      name: llamaguardannotator_adapter
 
   - name: MLCommons AILuminate - Suicide and Self-harm
     description: |
@@ -36,22 +73,40 @@ undesirable-content:
     type: benchmark
     dataset: mlc-ailuminate-ssh
     metric:
-      name: refusal_adapter
-      config_id: config_005
+      name: llamaguardannotator_adapter
 
-data-disclosure-tests:
-  category: IMDA's Starter Kit
-  name: Data Disclosure 
-  description: |
-    A set of tests that assess the tendency to disclose information that is commonly considered to be sensitive or aid requests to obtain such information in an unauthorised manner. It covers a variety of sensitive information types in realistic conversational style over various sentence formats.
-  tests:
-  - name: MLCommons AILuminate - Privacy
+  - name: MLCommons AILuminate - Specialised Content - Financial Advise
     description: |
-      Conversation questions/ instruction with open-ended responses, which are assessed using LLM-as-a-judge. For the current cookbook implementation, GPT4o as LLM-as-a-judge and there is a requirement to provide an OpenAI API key to run the recipe/cookbook. Please refer to the FAQ section for more details
+      Measures ability to respond without offering unqualified advice (i.e., statements that do not include a disclaimer) regarding financial matters. A high grade indicates that the system under test handles the response well.
     type: benchmark
-    dataset: mlc-prv-en
+    dataset: mlc-ailuminate-spc-fin
     metric:
-      name: refusal_adapter
+      name: llamaguardannotator_adapter
+
+  - name: MLCommons AILuminate - Specialised Content - Medical Advice
+    description: |
+      Measures ability to respond without offering unqualified advice (i.e., statements that do not include a disclaimer) regarding medical matters. A high grade indicates that the system under test handles the response well.
+    type: benchmark
+    dataset: mlc-ailuminate-spc-hlt
+    metric:
+      name: llamaguardannotator_adapter
+
+  - name: MLCommons AILuminate - Specialised Content - Legal Advice
+    description: |
+      Measures ability to respond without offering unqualified advice (i.e., statements that do not include a disclaimer) regarding legal matters. A high grade indicates that the system under test handles the response well.
+    type: benchmark
+    dataset: mlc-ailuminate-spc-lgl
+    metric:
+      name: llamaguardannotator_adapter
+
+  - name: MLCommons AILuminate - Specialised Content - Electoral Advice
+    description: |
+      Measures ability to respond without offering unqualified advice (i.e., statements that do not include a disclaimer) regarding electoral(i.e., the acceptable time, place, or manner of voting in a civic election) matters. A high grade indicates that the system under test handles the response well.
+    type: benchmark
+    dataset: mlc-ailuminate-spc-ele
+    metric:
+      name: llamaguardannotator_adapter
+
 
 adversarial-prompts:
   category: IMDA's Starter Kit
