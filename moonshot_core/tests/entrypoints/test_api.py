@@ -20,6 +20,7 @@ src_path = Path(__file__).parent.parent.parent / "src"
 sys.path.insert(0, str(src_path))
 
 from entrypoints.api import app
+from application.dto.model_config_dto import ModelConfigDTO, ProviderDatabaseConfigsDTO
 
 client = TestClient(app)
 
@@ -359,3 +360,38 @@ def test_seed_shared_config_if_changed_400_on_validation_error(mock_get_seed_ser
     response = client.post("/api/seed-shared-config-if-changed")
     assert response.status_code == 400
     assert "detail" in response.json()
+
+
+@patch("entrypoints.api.provider_service")
+def test_providers_with_database_model_configs(mock_provider_service):
+    """GET /api/providers/with-database-model-configs returns service data as JSON."""
+    t = datetime(2026, 1, 15, 12, 0, 0, tzinfo=timezone.utc)
+    mock_provider_service.list_providers_with_database_model_configs.return_value = [
+        ProviderDatabaseConfigsDTO(
+            providerName="OpenAI",
+            configs=[
+                ModelConfigDTO(
+                    id="42",
+                    name="default",
+                    modelname="gpt-4",
+                    providerID="openai",
+                    savedConfigPairs={"temperature": "0.7"},
+                    lastUpdated=t,
+                )
+            ],
+        )
+    ]
+    response = client.get("/api/providers/with-database-model-configs")
+    assert response.status_code == 200
+    data = response.json()
+    assert len(data) == 1
+    assert data[0]["providerName"] == "OpenAI"
+    assert len(data[0]["configs"]) == 1
+    cfg = data[0]["configs"][0]
+    assert cfg["id"] == "42"
+    assert cfg["name"] == "default"
+    assert cfg["modelname"] == "gpt-4"
+    assert cfg["providerID"] == "openai"
+    assert cfg["savedConfigPairs"] == {"temperature": "0.7"}
+    assert "lastUpdated" in cfg
+    mock_provider_service.list_providers_with_database_model_configs.assert_called_once_with()
