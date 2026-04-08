@@ -21,6 +21,10 @@ sys.path.insert(0, str(src_path))
 
 from entrypoints.api import app
 from application.dto.model_config_dto import ModelConfigDTO, ProviderDatabaseConfigsDTO
+from application.services.database_model_config_service import (
+    DatabaseModelConfigConflictError,
+    DatabaseModelConfigNotFoundError,
+)
 
 client = TestClient(app)
 
@@ -395,3 +399,47 @@ def test_providers_with_database_model_configs(mock_provider_service):
     assert cfg["savedConfigPairs"] == {"temperature": "0.7"}
     assert "lastUpdated" in cfg
     mock_provider_service.list_providers_with_database_model_configs.assert_called_once_with()
+
+
+@patch("entrypoints.api.database_model_config_service")
+def test_create_database_model_config_201(mock_db_cfg_svc):
+    """POST /api/database-model-configs returns 201 and body from service."""
+    t = datetime(2026, 2, 1, 10, 0, 0, tzinfo=timezone.utc)
+    mock_db_cfg_svc.create.return_value = ModelConfigDTO(
+        id="7",
+        name="prod",
+        modelname="m",
+        providerID="sys",
+        savedConfigPairs={"k": "v"},
+        lastUpdated=t,
+    )
+    response = client.post(
+        "/api/database-model-configs",
+        json={"model_id": 3, "name": "prod", "savedConfigPairs": {"k": "v"}},
+    )
+    assert response.status_code == 201
+    data = response.json()
+    assert data["id"] == "7"
+    assert data["name"] == "prod"
+    mock_db_cfg_svc.create.assert_called_once()
+
+
+@patch("entrypoints.api.database_model_config_service")
+def test_create_database_model_config_409(mock_db_cfg_svc):
+    mock_db_cfg_svc.create.side_effect = DatabaseModelConfigConflictError("exists")
+    response = client.post(
+        "/api/database-model-configs",
+        json={"model_id": 1, "name": "dup"},
+    )
+    assert response.status_code == 409
+    assert response.json()["detail"] == "exists"
+
+
+@patch("entrypoints.api.database_model_config_service")
+def test_update_database_model_config_404(mock_db_cfg_svc):
+    mock_db_cfg_svc.update.side_effect = DatabaseModelConfigNotFoundError("gone")
+    response = client.put(
+        "/api/database-model-configs/99",
+        json={"model_id": 1, "name": "n"},
+    )
+    assert response.status_code == 404
