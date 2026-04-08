@@ -488,11 +488,11 @@ class TestFileDatasetRepository:
         repository = FileDatasetRepository()
         
         # Act - Try to load a dataset that should exist
-        result = repository.get_dataset_by_id("brand_reputation_bbq")
+        result = repository.get_dataset_by_id("test_sample_dataset")
         
         # Assert
         assert isinstance(result, DatasetEntity)
-        assert result.id == "brand_reputation_bbq"
+        assert result.id == "test_sample_dataset"
         assert result.name is not None
         assert result.description is not None
         assert isinstance(result.examples, list)

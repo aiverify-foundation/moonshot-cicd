@@ -120,35 +120,6 @@ adversarial-prompts:
     metric:
       name: refusal_adapter
 
-hallucination-tests:
-  description: |
-    This test suite focuses on hallucination detection and factual accuracy across different domains including 
-    general knowledge, mathematics, law, sociology, and local facts about Singapore. Tests include multiple-choice 
-    and short-form answer formats.
-  category: IMDA's Starter Kit
-  name: Hallucination
-  tests:
-  - name: MMLU
-    type: benchmark
-    dataset: mmlu-all
-    metric:
-      name: accuracy_adapter
-      config_id: config_001
-
-  - name: Facts About Singapore (True/False)
-    type: benchmark
-    dataset: brand_reputation_bbq
-    metric:
-      name: accuracy_adapter
-      config_id: config_001
-
-  - name: Facts About Singapore (Multiple Choice)
-    type: benchmark
-    dataset: brand_reputation_bbq
-    metric:
-      name: accuracy_adapter
-      config_id: config_001
-
 test-prompts:
   category: Internal Testing
   name: Test Prompts
