@@ -104,6 +104,29 @@ class LLMProviderEndpointConfigParametersModel(Base):
         )
 
 
+class LLMProviderApiKeyModel(Base):
+    """
+    SQLAlchemy model for the llm_provider_api_key table.
+
+    Stores one encrypted API key per llm_provider row (enforced in application code).
+    """
+
+    __tablename__ = "llm_provider_api_key"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    llm_provider_id = Column(Integer, ForeignKey("llm_provider.id"), nullable=False)
+    encrypted_key = Column(String, nullable=False)
+    salt = Column(String, nullable=False)
+    nonce = Column(String, nullable=False)
+    authentication_tag = Column(String, nullable=False)
+    # DB column is created_dt (2bf4af1172bc); cd225c9 create_dt only applies if that revision completes.
+    create_dt = Column("created_dt", DateTime, nullable=False, server_default=func.now())
+    last_used_dt = Column(DateTime, nullable=True)
+
+    def __repr__(self) -> str:
+        return f"<LLMProviderApiKeyModel(id={self.id}, llm_provider_id={self.llm_provider_id})>"
+
+
 # ---------------------------------------------------------------------------
 # Benchmark-related models
 # ---------------------------------------------------------------------------
