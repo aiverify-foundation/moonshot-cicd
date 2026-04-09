@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import base64
 from pathlib import Path
 
 import pytest
@@ -19,6 +20,16 @@ from application.ports.llm_provider_api_key_repository import (
     LlmProviderApiKeyConflictError,
     LlmProviderApiKeyNotFoundError,
 )
+from domain.services.secret_encryption import EncryptedApiKeyFields
+
+
+def _fake_encrypted_fields(*, tag: bytes = b"t" * 16) -> EncryptedApiKeyFields:
+    return EncryptedApiKeyFields(
+        encrypted_key=base64.b64encode(b"ciphertext").decode("ascii"),
+        salt=base64.b64encode(b"s" * 32).decode("ascii"),
+        nonce=base64.b64encode(b"n" * 12).decode("ascii"),
+        authentication_tag=base64.b64encode(tag).decode("ascii"),
+    )
 
 
 @pytest.fixture(scope="function")
@@ -60,17 +71,24 @@ def llm_provider_id(test_db_env) -> int:
 
 class TestLLMProviderApiKeyAdapter:
     def test_insert_then_conflict(self, api_key_adapter, llm_provider_id):
-        api_key_adapter.insert(llm_provider_id, "key-one")
+        api_key_adapter.insert(llm_provider_id, _fake_encrypted_fields())
         with pytest.raises(LlmProviderApiKeyConflictError):
-            api_key_adapter.insert(llm_provider_id, "key-two")
+            api_key_adapter.insert(llm_provider_id, _fake_encrypted_fields())
 
     def test_update_not_found(self, api_key_adapter, llm_provider_id):
         with pytest.raises(LlmProviderApiKeyNotFoundError):
-            api_key_adapter.update(llm_provider_id, "x")
+            api_key_adapter.update(llm_provider_id, _fake_encrypted_fields())
 
     def test_insert_then_update(self, api_key_adapter, llm_provider_id):
-        api_key_adapter.insert(llm_provider_id, "first")
-        api_key_adapter.update(llm_provider_id, "second")
+        first = _fake_encrypted_fields()
+        second = EncryptedApiKeyFields(
+            encrypted_key=base64.b64encode(b"second-ct").decode("ascii"),
+            salt=base64.b64encode(b"a" * 32).decode("ascii"),
+            nonce=base64.b64encode(b"b" * 12).decode("ascii"),
+            authentication_tag=base64.b64encode(b"c" * 16).decode("ascii"),
+        )
+        api_key_adapter.insert(llm_provider_id, first)
+        api_key_adapter.update(llm_provider_id, second)
 
         sm = SessionManager.get_instance()
         with sm.get_session() as session:
@@ -80,7 +98,8 @@ class TestLLMProviderApiKeyAdapter:
                 .one()
             )
             stored = row.encrypted_key
-        assert stored == "second"
+            assert stored == second.encrypted_key
+            assert row.salt == second.salt
 
     def test_update_ambiguous(self, api_key_adapter, llm_provider_id):
         sm = SessionManager.get_instance()
@@ -105,4 +124,4 @@ class TestLLMProviderApiKeyAdapter:
             )
 
         with pytest.raises(LlmProviderApiKeyAmbiguousError):
-            api_key_adapter.update(llm_provider_id, "updated")
+            api_key_adapter.update(llm_provider_id, _fake_encrypted_fields())

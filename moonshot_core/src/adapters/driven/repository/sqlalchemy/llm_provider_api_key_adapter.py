@@ -13,9 +13,7 @@ from application.ports.llm_provider_api_key_repository import (
     LlmProviderApiKeyRepository,
 )
 from domain.services.logger import configure_logger
-
-# salt/nonce/authentication_tag are NOT NULL; placeholder until encryption uses them again.
-_RAW_KEY_STORAGE_UNUSED_FIELD = "unused"
+from domain.services.secret_encryption import EncryptedApiKeyFields
 
 
 class LLMProviderApiKeyAdapter(LlmProviderApiKeyRepository):
@@ -32,7 +30,7 @@ class LLMProviderApiKeyAdapter(LlmProviderApiKeyRepository):
         )
 
     @override
-    def insert(self, llm_provider_id: int, api_key: str) -> None:
+    def insert(self, llm_provider_id: int, payload: EncryptedApiKeyFields) -> None:
         with self._session_manager.get_session() as session:
             rows = self._rows_for_provider(session, llm_provider_id)
             if len(rows) > 0:
@@ -46,15 +44,15 @@ class LLMProviderApiKeyAdapter(LlmProviderApiKeyRepository):
                 )
             row = LLMProviderApiKeyModel(
                 llm_provider_id=llm_provider_id,
-                encrypted_key=api_key,
-                salt=_RAW_KEY_STORAGE_UNUSED_FIELD,
-                nonce=_RAW_KEY_STORAGE_UNUSED_FIELD,
-                authentication_tag=_RAW_KEY_STORAGE_UNUSED_FIELD,
+                encrypted_key=payload.encrypted_key,
+                salt=payload.salt,
+                nonce=payload.nonce,
+                authentication_tag=payload.authentication_tag,
             )
             session.add(row)
 
     @override
-    def update(self, llm_provider_id: int, api_key: str) -> None:
+    def update(self, llm_provider_id: int, payload: EncryptedApiKeyFields) -> None:
         with self._session_manager.get_session() as session:
             rows = self._rows_for_provider(session, llm_provider_id)
             if len(rows) == 0:
@@ -66,7 +64,7 @@ class LLMProviderApiKeyAdapter(LlmProviderApiKeyRepository):
                     f"Multiple API key rows ({len(rows)}) for llm_provider_id={llm_provider_id}"
                 )
             row = rows[0]
-            row.encrypted_key = api_key
-            row.salt = _RAW_KEY_STORAGE_UNUSED_FIELD
-            row.nonce = _RAW_KEY_STORAGE_UNUSED_FIELD
-            row.authentication_tag = _RAW_KEY_STORAGE_UNUSED_FIELD
+            row.encrypted_key = payload.encrypted_key
+            row.salt = payload.salt
+            row.nonce = payload.nonce
+            row.authentication_tag = payload.authentication_tag

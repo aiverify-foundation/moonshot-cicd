@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import base64
 from pathlib import Path
 
 import pytest
@@ -10,11 +11,16 @@ from adapters.driven.repository.sqlalchemy.llm_provider_models import (
     LLMProviderApiKeyModel,
     LLMProviderModel,
 )
+from adapters.driven.repository.sqlalchemy.moonshot_config_adapter import MoonshotConfigAdapter
 from adapters.driven.repository.sqlalchemy.session_manager import SessionManager
 from application.ports.llm_provider_api_key_repository import LlmProviderApiKeyConflictError
 from application.services.llm_provider_api_key_service import (
     LlmProviderApiKeyService,
     LlmProviderApiKeyUnknownProviderError,
+)
+from domain.services.secret_encryption import (
+    MOONSHOT_SECRETS_MASTER_KEY_CONFIG_KEY,
+    decrypt_api_key,
 )
 
 
@@ -66,8 +72,9 @@ class TestLlmProviderApiKeyService:
         with pytest.raises(ValueError, match="non-empty"):
             service.update_api_key(llm_provider_id, "")
 
-    def test_create_then_read_raw(self, service, llm_provider_id):
-        service.create_api_key(llm_provider_id, "first-key")
+    def test_create_stores_encrypted_and_round_trips(self, service, llm_provider_id):
+        plain = "first-key"
+        service.create_api_key(llm_provider_id, plain)
         sm = SessionManager.get_instance()
         with sm.get_session() as session:
             row = (
@@ -75,8 +82,22 @@ class TestLlmProviderApiKeyService:
                 .filter(LLMProviderApiKeyModel.llm_provider_id == llm_provider_id)
                 .one()
             )
-            stored = row.encrypted_key
-        assert stored == "first-key"
+            assert row.encrypted_key != plain
+            assert row.salt != "unused"
+            assert row.nonce != "unused"
+            assert row.authentication_tag != "unused"
+            enc_key, salt, nonce, tag = (
+                row.encrypted_key,
+                row.salt,
+                row.nonce,
+                row.authentication_tag,
+            )
+
+        cfg = MoonshotConfigAdapter()
+        ent = cfg.get_by_key(MOONSHOT_SECRETS_MASTER_KEY_CONFIG_KEY)
+        assert ent is not None and ent.value
+        master = base64.b64decode(ent.value.encode("ascii"))
+        assert decrypt_api_key(enc_key, salt, nonce, tag, master) == plain
 
     def test_create_conflict(self, service, llm_provider_id):
         service.create_api_key(llm_provider_id, "a")
@@ -93,5 +114,14 @@ class TestLlmProviderApiKeyService:
                 .filter(LLMProviderApiKeyModel.llm_provider_id == llm_provider_id)
                 .one()
             )
-            stored = row.encrypted_key
-        assert stored == "new"
+            enc_key, salt, nonce, tag = (
+                row.encrypted_key,
+                row.salt,
+                row.nonce,
+                row.authentication_tag,
+            )
+
+        cfg = MoonshotConfigAdapter()
+        ent = cfg.get_by_key(MOONSHOT_SECRETS_MASTER_KEY_CONFIG_KEY)
+        master = base64.b64decode(ent.value.encode("ascii"))
+        assert decrypt_api_key(enc_key, salt, nonce, tag, master) == "new"
