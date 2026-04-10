@@ -1,4 +1,4 @@
 data/results/*
 data/database/moonshot.db
-data/database/moonshot_pytest.db
+data/database/moonshot_pytest*.db
 lib/

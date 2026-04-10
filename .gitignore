@@ -171,3 +171,6 @@ cython_debug/
 
 # MacOS system file
 .DS_Store
+
+# Cursor IDE
+.cursor
