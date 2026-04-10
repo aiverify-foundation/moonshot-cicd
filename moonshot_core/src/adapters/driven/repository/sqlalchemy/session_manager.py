@@ -15,6 +15,7 @@ from alembic.config import Config
 
 # Process-local: when True, SessionManager._run_migrations skips Alembic (bundle workers).
 _skip_alembic_upgrade: bool = False
+logger = configure_logger(__name__)
 
 
 def set_skip_alembic_upgrade(value: bool) -> None:
@@ -61,7 +62,6 @@ class SessionManager:
     Database URL is configured via the DATABASE_URL environment variable.
     If not set, defaults to the application SQLite database.
     """
-    logger = configure_logger(__name__)
 
     def get_database_url(self) -> str:
         """
@@ -124,7 +124,7 @@ class SessionManager:
         if ":memory:" in self.db_url:
             return
         if _skip_alembic_upgrade:
-            self.logger.debug("Skipping Alembic upgrade (worker process flag set)")
+            logger.debug("Skipping Alembic upgrade (worker process flag set)")
             return
         application_root_path = utils.get_application_root_path()
         alembic_ini_path: PosixPath = application_root_path / "alembic.ini"
