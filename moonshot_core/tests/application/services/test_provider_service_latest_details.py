@@ -1,10 +1,13 @@
 import pytest
+from datetime import datetime, timezone
 from pathlib import Path
 
 from adapters.driven.repository.sqlalchemy.llm_provider_models import (
     LLMProviderModel,
     LLMProviderModelModel,
     LLMProviderEndpointConfigModel,
+    LLMProviderModelConfigModel,
+    LLMProviderEndpointConfigParametersModel,
 )
 from adapters.driven.repository.sqlalchemy.session_manager import SessionManager
 from application.services.provider_service import ProviderService
@@ -109,4 +112,105 @@ class TestProviderServiceLatestDetails:
 
         assert len(details.endpoint_configs) == 1
         assert details.endpoint_configs[0].name == "test-endpoint"
+
+
+def _seed_provider_with_db_model_config(
+    *,
+    provider_name: str = "DB Config Provider",
+    system_name: str = "db_cfg_provider",
+    model_name: str = "gpt-test",
+    config_name: str = "prod",
+) -> None:
+    """Insert provider, model, llm_provider_model_config, and parameter rows."""
+    session_manager = SessionManager.get_instance()
+    updated = datetime.now(timezone.utc).replace(tzinfo=None)
+    with session_manager.get_session() as session:
+        prov = LLMProviderModel(
+            name=provider_name,
+            system_name=system_name,
+            version=0,
+        )
+        session.add(prov)
+        session.flush()
+        model_row = LLMProviderModelModel(
+            llm_provider_id=prov.id,
+            name=model_name,
+        )
+        session.add(model_row)
+        session.flush()
+        cfg = LLMProviderModelConfigModel(
+            model_id=model_row.id,
+            name=config_name,
+            updated_dt=updated,
+        )
+        session.add(cfg)
+        session.flush()
+        session.add(
+            LLMProviderEndpointConfigParametersModel(
+                config_id=cfg.id,
+                key="temperature",
+                value="0.7",
+            )
+        )
+
+
+class TestProviderServiceDatabaseModelConfigs:
+    def test_returns_configs_from_relational_tables_only(
+        self,
+        provider_service: ProviderService,
+    ):
+        _seed_provider_with_db_model_config()
+        rows = provider_service.list_providers_with_database_model_configs()
+        match = [r for r in rows if r.providerName == "DB Config Provider"]
+        assert len(match) == 1
+        item = match[0]
+        assert len(item.configs) == 1
+        cfg = item.configs[0]
+        assert cfg.name == "prod"
+        assert cfg.modelname == "gpt-test"
+        assert cfg.providerID == "db_cfg_provider"
+        assert cfg.savedConfigPairs == {"temperature": "0.7"}
+        assert cfg.lastUpdated is not None
+
+    def test_provider_without_models_has_empty_configs(
+        self,
+        provider_service: ProviderService,
+    ):
+        session_manager = SessionManager.get_instance()
+        with session_manager.get_session() as session:
+            session.add(
+                LLMProviderModel(
+                    name="No Models Inc",
+                    system_name="no_models",
+                    version=0,
+                )
+            )
+        rows = provider_service.list_providers_with_database_model_configs()
+        match = [r for r in rows if r.providerName == "No Models Inc"]
+        assert len(match) == 1
+        assert match[0].configs == []
+
+    def test_provider_with_models_but_no_configs_has_empty_configs(
+        self,
+        provider_service: ProviderService,
+    ):
+        session_manager = SessionManager.get_instance()
+        with session_manager.get_session() as session:
+            prov = LLMProviderModel(
+                name="Has Model Only",
+                system_name="model_only",
+                version=0,
+            )
+            session.add(prov)
+            session.flush()
+            session.add(
+                LLMProviderModelModel(
+                    llm_provider_id=prov.id,
+                    name="orphan-model",
+                )
+            )
+        rows = provider_service.list_providers_with_database_model_configs()
+        match = [r for r in rows if r.providerName == "Has Model Only"]
+        assert len(match) == 1
+        assert match[0].configs == []
 

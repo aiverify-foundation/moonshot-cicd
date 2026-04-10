@@ -53,6 +53,80 @@ class LLMProviderModelModel(Base):
         return f"<LLMProviderModelModel(id={self.id}, name='{self.name}')>"
 
 
+class LLMProviderModelConfigModel(Base):
+    """
+    SQLAlchemy model for the llm_provider_model_config table.
+
+    Named configuration for an llm_provider_model row (key/value parameters live in
+    llm_provider_endpoint_config_parameters).
+    """
+
+    __tablename__ = "llm_provider_model_config"
+    __table_args__ = (
+        UniqueConstraint("model_id", "name", name="uq_llm_provider_model_config_model_name"),
+    )
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    model_id = Column(Integer, ForeignKey("llm_provider_model.id"), nullable=True)
+    name = Column(String, nullable=False)
+    updated_dt = Column(DateTime, nullable=False, server_default=func.now())
+    last_used_dt = Column(DateTime, nullable=True)
+
+    def __repr__(self) -> str:
+        return f"<LLMProviderModelConfigModel(id={self.id}, name='{self.name}', model_id={self.model_id})>"
+
+
+class LLMProviderEndpointConfigParametersModel(Base):
+    """
+    SQLAlchemy model for the llm_provider_endpoint_config_parameters table.
+
+    Key/value pairs attached to an llm_provider_model_config row.
+    """
+
+    __tablename__ = "llm_provider_endpoint_config_parameters"
+    __table_args__ = (
+        UniqueConstraint(
+            "config_id",
+            "key",
+            name="uq_llm_provider_endpoint_config_parameters_config_key",
+        ),
+    )
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    config_id = Column(Integer, ForeignKey("llm_provider_model_config.id"), nullable=False)
+    key = Column(String, nullable=False)
+    value = Column(String, nullable=False)
+
+    def __repr__(self) -> str:
+        return (
+            f"<LLMProviderEndpointConfigParametersModel(id={self.id}, "
+            f"config_id={self.config_id}, key='{self.key}')>"
+        )
+
+
+class LLMProviderApiKeyModel(Base):
+    """
+    SQLAlchemy model for the llm_provider_api_key table.
+
+    Stores one encrypted API key per llm_provider row (enforced in application code).
+    """
+
+    __tablename__ = "llm_provider_api_key"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    llm_provider_id = Column(Integer, ForeignKey("llm_provider.id"), nullable=False)
+    encrypted_key = Column(String, nullable=False)
+    salt = Column(String, nullable=False)
+    nonce = Column(String, nullable=False)
+    authentication_tag = Column(String, nullable=False)
+    # DB column is created_dt (2bf4af1172bc); cd225c9 create_dt only applies if that revision completes.
+    create_dt = Column("created_dt", DateTime, nullable=False, server_default=func.now())
+    last_used_dt = Column(DateTime, nullable=True)
+
+    def __repr__(self) -> str:
+        return f"<LLMProviderApiKeyModel(id={self.id}, llm_provider_id={self.llm_provider_id})>"
+
+
 # ---------------------------------------------------------------------------
 # Benchmark-related models
 # ---------------------------------------------------------------------------

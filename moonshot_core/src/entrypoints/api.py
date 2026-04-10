@@ -22,8 +22,17 @@ from application.services.provider_service import ProviderService
 from application.services.file_model_config_repository import FileModelConfigRepository
 from application.dto.provider_dto import ProviderDTO
 from application.dto.model_config_dto import (
+    CreateDatabaseModelConfigBody,
     ModelConfigDTO,
     LLMProviderDetailsDTO,
+    ProviderDatabaseConfigsDTO,
+    UpdateDatabaseModelConfigBody,
+)
+from application.services.database_model_config_service import (
+    DatabaseModelConfigBadRequestError,
+    DatabaseModelConfigConflictError,
+    DatabaseModelConfigNotFoundError,
+    DatabaseModelConfigService,
 )
 from application.dto.run_bundle_dto import (
     BenchmarkRunResponseDTO,
@@ -81,19 +90,6 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
-# Add CORS middleware to allow frontend requests
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=[
-        "http://localhost:3000",  # Next.js frontend
-        "http://127.0.0.1:3000",  # Next.js frontend alternative
-        "http://localhost:8000",  # Backend URL (for reference)
-        "http://127.0.0.1:8000",  # Backend URL alternative (for reference)
-    ],
-    allow_credentials=True,
-    allow_methods=["*"],  # Allow all HTTP methods
-    allow_headers=["*"],  # Allow all headers
-)
 
 
 def get_build_directory() -> Path:
@@ -164,6 +160,7 @@ async def root():
 # Initialize the benchmark service
 benchmark_service = BenchmarkService(None, None)
 provider_service = ProviderService()
+database_model_config_service = DatabaseModelConfigService()
 benchmark_execution_service = BenchmarkExecutionService()
 
 # Initialize file-based model config repository for fixed endpoint configs (lazy initialization)
@@ -237,6 +234,68 @@ async def list_providers():
     except Exception as e:
         logger.error(f"Error listing providers: {e}")
         raise HTTPException(status_code=500, detail="Failed to list providers")
+
+
+@app.get(
+    "/api/providers/with-database-model-configs",
+    response_model=List[ProviderDatabaseConfigsDTO],
+)
+async def list_providers_with_database_model_configs():
+    """
+    Each llm_provider row with model configs from llm_provider_model_config and parameter rows only
+    (no file or legacy SQLite model-config store).
+    """
+    try:
+        return provider_service.list_providers_with_database_model_configs()
+    except Exception as e:
+        logger.error(f"Error listing providers with database model configs: {e}")
+        raise HTTPException(
+            status_code=500,
+            detail="Failed to list providers with database model configs",
+        )
+
+
+@app.post(
+    "/api/database-model-configs",
+    response_model=ModelConfigDTO,
+    status_code=201,
+)
+async def create_database_model_config(payload: CreateDatabaseModelConfigBody):
+    """Create a database-backed llm_provider_model_config row and parameters (insert-only)."""
+    try:
+        return database_model_config_service.create(payload)
+    except DatabaseModelConfigBadRequestError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except DatabaseModelConfigConflictError as e:
+        raise HTTPException(status_code=409, detail=str(e))
+    except Exception as e:
+        logger.error(f"Error creating database model config: {e}")
+        raise HTTPException(
+            status_code=500,
+            detail="Failed to create database model config",
+        )
+
+
+@app.put("/api/database-model-configs/{config_id}", response_model=ModelConfigDTO)
+async def update_database_model_config(
+    config_id: int,
+    payload: UpdateDatabaseModelConfigBody,
+):
+    """Update a database-backed llm_provider_model_config row and replace its parameters."""
+    try:
+        return database_model_config_service.update(config_id, payload)
+    except DatabaseModelConfigNotFoundError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    except DatabaseModelConfigBadRequestError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except DatabaseModelConfigConflictError as e:
+        raise HTTPException(status_code=409, detail=str(e))
+    except Exception as e:
+        logger.error(f"Error updating database model config {config_id}: {e}")
+        raise HTTPException(
+            status_code=500,
+            detail="Failed to update database model config",
+        )
 
 
 @app.get(

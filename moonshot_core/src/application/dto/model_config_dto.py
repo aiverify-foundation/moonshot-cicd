@@ -1,8 +1,30 @@
 from typing import Dict, List, Optional
 from datetime import datetime
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, Field
 
 from application.dto.provider_dto import ProviderDTO
+
+
+class CreateDatabaseModelConfigBody(BaseModel):
+    """Payload for POST /api/database-model-configs (relational store only)."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    model_id: int
+    name: str
+    savedConfigPairs: Dict[str, str] = Field(default_factory=dict)
+    last_used_dt: Optional[datetime] = None
+
+
+class UpdateDatabaseModelConfigBody(BaseModel):
+    """Payload for PUT /api/database-model-configs/{config_id} (relational store only)."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    model_id: int
+    name: str
+    savedConfigPairs: Dict[str, str] = Field(default_factory=dict)
+    last_used_dt: Optional[datetime] = None
 
 
 class ModelConfigDTO(BaseModel):
@@ -70,3 +92,13 @@ class LLMProviderDetailsDTO(BaseModel):
     models: List[LLMProviderModelInfoDTO]
     endpoint_configs: List[LLMProviderEndpointConfigInfoDTO]
     config_params: Optional[Dict[str, str]] = None
+
+
+class ProviderDatabaseConfigsDTO(BaseModel):
+    """
+    One llm_provider row's display name plus model configs read from the database only
+    (llm_provider_model_config + llm_provider_endpoint_config_parameters), not file/SQLite stores.
+    """
+
+    providerName: str
+    configs: List[ModelConfigDTO]
