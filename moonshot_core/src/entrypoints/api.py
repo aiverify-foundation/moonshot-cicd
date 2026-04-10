@@ -4,6 +4,7 @@ This module provides a REST API interface for the Moonshot benchmarking system.
 """
 
 from contextlib import asynccontextmanager
+import sys
 
 from fastapi import FastAPI, Request, HTTPException
 from fastapi.responses import FileResponse
@@ -63,7 +64,9 @@ async def lifespan(app: FastAPI):
         service = get_shared_config_seed_service()
         service.seed_if_test_file_changed()
     except Exception as e:
-        logger.warning(f"Startup seed skipped or failed: {e}")
+        logger.exception(f"Startup seed skipped or failed: {e}")
+        sys.exit(1)
+
     yield
     # Shutdown (if needed later)
 

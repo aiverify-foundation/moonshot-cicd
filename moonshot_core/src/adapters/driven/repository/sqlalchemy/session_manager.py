@@ -120,7 +120,12 @@ class SessionManager:
     
     
     def _run_migrations(self) -> None:
-        """Run Alembic migrations to initialize and update database schema. Skips for in-memory URLs."""
+        """
+        Run Alembic migrations to initialize and update database schema. Skips for in-memory URLs.
+        
+        Raises:
+            Exception: If Alembic migration fails due to misconfiguration or version mismatch or DB error.
+        """
         if ":memory:" in self.db_url:
             return
         if _skip_alembic_upgrade:
@@ -136,6 +141,6 @@ class SessionManager:
             alembic_cfg = Config(str(alembic_ini_path))
             alembic_cfg.set_main_option("sqlalchemy.url", self.db_url)
             command.upgrade(alembic_cfg, "head")
-        except Exception as e:
-            print(f"Warning: Alembic migration failed: {e}")
-            print("Database may already be initialized. Continuing...")
+        except Exception:
+            logger.error(f"[SessionManager] Alembic migration failed.")
+            raise 
