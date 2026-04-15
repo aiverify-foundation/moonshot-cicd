@@ -25,6 +25,12 @@ from application.services.database_model_config_service import (
     DatabaseModelConfigConflictError,
     DatabaseModelConfigNotFoundError,
 )
+from application.services.llm_provider_api_key_service import (
+    LlmProviderApiKeyUnknownProviderError,
+)
+from application.ports.llm_provider_api_key_repository import (
+    LlmProviderApiKeyConflictError,
+)
 
 client = TestClient(app)
 
@@ -443,3 +449,43 @@ def test_update_database_model_config_404(mock_db_cfg_svc):
         json={"model_id": 1, "name": "n"},
     )
     assert response.status_code == 404
+
+
+@patch("entrypoints.api.llm_provider_api_key_service")
+def test_post_provider_api_key_201(mock_key_svc):
+    """POST /api/providers/{id}/api-key stores key and returns message only."""
+    response = client.post(
+        "/api/providers/1/api-key",
+        json={"api_key": "sk-test-secret"},
+    )
+    assert response.status_code == 201
+    data = response.json()
+    assert data == {"message": "API key stored"}
+    assert "api_key" not in data
+    mock_key_svc.create_api_key.assert_called_once_with(1, "sk-test-secret")
+
+
+@patch("entrypoints.api.llm_provider_api_key_service")
+def test_post_provider_api_key_404_unknown_provider(mock_key_svc):
+    mock_key_svc.create_api_key.side_effect = LlmProviderApiKeyUnknownProviderError(
+        "No llm_provider with id=99"
+    )
+    response = client.post(
+        "/api/providers/99/api-key",
+        json={"api_key": "sk-x"},
+    )
+    assert response.status_code == 404
+    assert "99" in response.json()["detail"]
+
+
+@patch("entrypoints.api.llm_provider_api_key_service")
+def test_post_provider_api_key_409_conflict(mock_key_svc):
+    mock_key_svc.create_api_key.side_effect = LlmProviderApiKeyConflictError(
+        "API key already exists for llm_provider_id=1"
+    )
+    response = client.post(
+        "/api/providers/1/api-key",
+        json={"api_key": "sk-dup"},
+    )
+    assert response.status_code == 409
+    assert "already exists" in response.json()["detail"]

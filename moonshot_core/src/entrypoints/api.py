@@ -42,7 +42,18 @@ from application.dto.run_bundle_dto import (
     StartBenchmarkRunResponseDTO,
 )
 from application.dto.seed_dto import SeedSharedConfigResponseDTO
+from application.dto.llm_provider_api_key_dto import (
+    SetLlmProviderApiKeyRequestDTO,
+    SetLlmProviderApiKeyResponseDTO,
+)
 from application.services.provider_seed_service import ProviderSeedService
+from application.services.llm_provider_api_key_service import (
+    LlmProviderApiKeyService,
+    LlmProviderApiKeyUnknownProviderError,
+)
+from application.ports.llm_provider_api_key_repository import (
+    LlmProviderApiKeyConflictError,
+)
 
 # Benchmark execution service
 from application.services.benchmark_execution_service import BenchmarkExecutionService
@@ -162,6 +173,7 @@ benchmark_service = BenchmarkService(None, None)
 provider_service = ProviderService()
 database_model_config_service = DatabaseModelConfigService()
 benchmark_execution_service = BenchmarkExecutionService()
+llm_provider_api_key_service = LlmProviderApiKeyService()
 
 # Initialize file-based model config repository for fixed endpoint configs (lazy initialization)
 _file_model_config_repository = None
@@ -337,6 +349,38 @@ async def get_model_configs_by_provider(provider_id: int):
     except Exception as e:
         logger.error(f"Error fetching model configs for provider {provider_id}: {e}")
         raise HTTPException(status_code=500, detail="Failed to get model configs")
+
+
+@app.post(
+    "/api/providers/{provider_id}/api-key",
+    response_model=SetLlmProviderApiKeyResponseDTO,
+    status_code=201,
+)
+async def set_llm_provider_api_key(
+    provider_id: int,
+    payload: SetLlmProviderApiKeyRequestDTO,
+):
+    """
+    Register an encrypted API key for an llm_provider row (write-only).
+
+    The plaintext key is never returned. There is no authentication on this API yet; use only
+    on trusted networks (e.g. local dev) until auth is added.
+    """
+    try:
+        llm_provider_api_key_service.create_api_key(provider_id, payload.api_key)
+        return SetLlmProviderApiKeyResponseDTO(message="API key stored")
+    except LlmProviderApiKeyUnknownProviderError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    except LlmProviderApiKeyConflictError as e:
+        raise HTTPException(status_code=409, detail=str(e))
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        logger.error(f"Error storing API key for provider {provider_id}: {e}")
+        raise HTTPException(
+            status_code=500,
+            detail="Failed to store provider API key",
+        )
 
 
 @app.post("/api/model-configs", response_model=ModelConfigDTO)
