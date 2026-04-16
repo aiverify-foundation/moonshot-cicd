@@ -6,7 +6,7 @@ import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, Command
 import { Card, CardContent, CardDescription, CardTitle } from "@/components/ui/card";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { Check, ChevronsUpDown, Edit, Plus, CircleAlert, CircleCheckBig } from "lucide-react";
-import { type Provider, type ModelConfig, type Config, type ModelApp } from "./MockData";
+import type { Provider, ModelConfig, Config, ModelApp } from "../types/modelSelection";
 import { useAppDispatch, useAppSelector } from "@/hooks/reduxHooks";
 import { setSelectedProvider, setSelectedModel, setSelectedConfig, updateConfigValidity } from "@/store";
 import EditModelSheet from "./EditModelSheet";
@@ -18,6 +18,8 @@ interface SelectAppOrModelCardProps {
   models: ModelConfig[];
   custom_connectors: ModelApp[];
   configs: Config[];
+  /** Called after a new DB model config is saved from EditModelSheet */
+  onModelsSaved?: () => void | Promise<void>;
 }
 
 export default function SelectAppOrModelCard({
@@ -25,6 +27,7 @@ export default function SelectAppOrModelCard({
   models,
   custom_connectors,
   configs,
+  onModelsSaved,
 }: SelectAppOrModelCardProps) {
   const dispatch = useAppDispatch();
   
@@ -374,6 +377,7 @@ export default function SelectAppOrModelCard({
       editingModel={editingModel}
       providers={allProviders}
       models={models}
+      onSaved={onModelsSaved}
     />
     
     {/* Edit Custom Application Sheet */}

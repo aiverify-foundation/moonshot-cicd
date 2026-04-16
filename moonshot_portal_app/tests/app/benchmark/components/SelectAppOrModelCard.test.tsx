@@ -1,7 +1,26 @@
 import { render, screen } from '@/tests/utils/test-utils';
 import SelectAppOrModelCard from '@/app/benchmark/components/SelectAppOrModelCard';
-import { providers, custom_connectors, models, configs } from '@/app/benchmark/components/MockData';
+import { custom_connectors, configs } from '@/app/benchmark/components/MockData';
+import type { Provider, ModelConfig } from '@/app/benchmark/types/modelSelection';
 import { createTestStore } from '@/tests/utils/test-utils';
+
+/** Minimal fixtures for standard provider/model props (production uses API data). */
+const testProviders: Provider[] = [
+  {
+    id: '1',
+    name: 'Test Provider',
+    type: 'provider',
+    defaultModel: 'gpt-4',
+    modelTextboxExplanation: 'Example',
+    configPairs: [{ key: 'timeout', value: '30' }],
+    modelToken: 'model',
+    system_name: 'test_provider',
+  },
+];
+
+const testModels: ModelConfig[] = [
+  { id: '10', name: 'Test Model', modelname: 'gpt-4', provider: '1' },
+];
 
 describe('SelectAppOrModelCard', () => {
   beforeEach(() => {
@@ -18,14 +37,15 @@ describe('SelectAppOrModelCard', () => {
           selectedConfig: '',
           isConfigValid: false,
           isTestNameValid: false,
+          testName: '',
         },
       });
 
       // Render component with all required props
       render(
         <SelectAppOrModelCard
-          providers={providers}
-          models={models}
+          providers={testProviders}
+          models={testModels}
           custom_connectors={custom_connectors}
           configs={configs}
         />,
@@ -52,4 +72,3 @@ describe('SelectAppOrModelCard', () => {
     });
   });
 });
-

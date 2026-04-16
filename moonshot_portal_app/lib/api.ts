@@ -285,6 +285,158 @@ async function handleJsonGet<T>(url: string, label: string): Promise<T> {
   return response.json() as Promise<T>;
 }
 
+function parseErrorDetail(errorText: string): string {
+  let detail = errorText;
+  try {
+    const parsed = JSON.parse(errorText) as { detail?: string | unknown };
+    if (parsed?.detail != null) {
+      detail =
+        typeof parsed.detail === 'string'
+          ? parsed.detail
+          : JSON.stringify(parsed.detail);
+    }
+  } catch {
+    /* use raw errorText */
+  }
+  return detail;
+}
+
+function handleConnectError(error: unknown, label: string): never {
+  if (error instanceof ApiError) throw error;
+  if (error instanceof TypeError && error.message.includes('fetch')) {
+    throw new ApiError(
+      `Cannot connect to API server at ${API_BASE_URL}. Please ensure the backend is running on port 8000.`
+    );
+  }
+  throw new ApiError(
+    `${label}: ${error instanceof Error ? error.message : 'Unknown error'}`
+  );
+}
+
+/** GET /api/providers */
+export interface LlmProviderDTO {
+  id: string;
+  name: string;
+  system_name: string;
+  version: number;
+  defaultModel?: string;
+  modelTextboxExplanation?: string;
+  defaultConfigPairs?: Record<string, string>;
+  modelToken?: string;
+}
+
+export async function fetchProviders(): Promise<LlmProviderDTO[]> {
+  try {
+    return await handleJsonGet<LlmProviderDTO[]>(
+      `${API_BASE_URL}/api/providers`,
+      'fetch providers'
+    );
+  } catch (error) {
+    handleConnectError(error, 'Network error');
+  }
+}
+
+/** GET /api/providers/by-system-name/{system_name}/latest-details */
+export interface LlmProviderModelInfoDTO {
+  id: number;
+  name: string;
+  create_dt: string;
+}
+
+export interface LlmProviderDetailsDTO {
+  provider: LlmProviderDTO;
+  models: LlmProviderModelInfoDTO[];
+  endpoint_configs: Array<{ id: number; name: string }>;
+  config_params?: Record<string, string> | null;
+}
+
+export async function fetchProviderLatestDetails(
+  systemName: string
+): Promise<LlmProviderDetailsDTO> {
+  const encoded = encodeURIComponent(systemName);
+  try {
+    return await handleJsonGet<LlmProviderDetailsDTO>(
+      `${API_BASE_URL}/api/providers/by-system-name/${encoded}/latest-details`,
+      'fetch provider details'
+    );
+  } catch (error) {
+    handleConnectError(error, 'Network error');
+  }
+}
+
+/** POST /api/providers/{provider_id}/api-key */
+export interface SetLlmProviderApiKeyResponse {
+  message: string;
+}
+
+export async function setLlmProviderApiKey(
+  providerId: number,
+  apiKey: string
+): Promise<SetLlmProviderApiKeyResponse> {
+  try {
+    const response = await fetch(
+      `${API_BASE_URL}/api/providers/${providerId}/api-key`,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ api_key: apiKey }),
+      }
+    );
+    if (!response.ok) {
+      const errorText = await response.text().catch(() => 'Unknown error');
+      console.error(`API Error: ${response.status} - ${errorText}`);
+      const detail = parseErrorDetail(errorText);
+      throw new ApiError(detail, response.status, response.statusText);
+    }
+    return response.json() as Promise<SetLlmProviderApiKeyResponse>;
+  } catch (error) {
+    console.error('Set LLM provider API key error:', error);
+    handleConnectError(error, 'Network error');
+  }
+}
+
+/** POST /api/database-model-configs */
+export interface CreateDatabaseModelConfigPayload {
+  model_id: number;
+  name: string;
+  savedConfigPairs?: Record<string, string>;
+}
+
+export interface DatabaseModelConfigDTO {
+  id: string;
+  name: string;
+  modelname: string;
+  providerID: string;
+  savedConfigPairs: Record<string, string>;
+  lastUpdated: string;
+}
+
+export async function createDatabaseModelConfig(
+  payload: CreateDatabaseModelConfigPayload
+): Promise<DatabaseModelConfigDTO> {
+  try {
+    const response = await fetch(`${API_BASE_URL}/api/database-model-configs`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        model_id: payload.model_id,
+        name: payload.name,
+        savedConfigPairs: payload.savedConfigPairs ?? {},
+      }),
+    });
+    if (!response.ok) {
+      const errorText = await response.text().catch(() => 'Unknown error');
+      console.error(`API Error: ${response.status} - ${errorText}`);
+      const detail = parseErrorDetail(errorText);
+      throw new ApiError(detail, response.status, response.statusText);
+    }
+    return response.json() as Promise<DatabaseModelConfigDTO>;
+  } catch (error) {
+    console.error('Create database model config error:', error);
+    handleConnectError(error, 'Network error');
+  }
+}
+
 /**
  * Fetches all benchmark runs from the API
  */

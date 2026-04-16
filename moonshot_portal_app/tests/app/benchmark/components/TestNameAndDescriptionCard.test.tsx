@@ -17,6 +17,7 @@ describe('TestNameAndDescriptionCard', () => {
             selectedConfig: '',
             isConfigValid: false,
             isTestNameValid: false,
+            testName: '',
           },
         },
       });
@@ -66,6 +67,7 @@ describe('TestNameAndDescriptionCard', () => {
             selectedConfig: '',
             isConfigValid: false,
             isTestNameValid: false,
+            testName: '',
           },
         },
       });
@@ -105,6 +107,7 @@ describe('TestNameAndDescriptionCard', () => {
             selectedConfig: '',
             isConfigValid: false,
             isTestNameValid: false,
+            testName: '',
           },
         },
       });
@@ -142,6 +145,7 @@ describe('TestNameAndDescriptionCard', () => {
             selectedConfig: '',
             isConfigValid: false,
             isTestNameValid: true, // Start with valid state
+            testName: '',
           },
         },
       });
@@ -213,6 +217,7 @@ describe('TestNameAndDescriptionCard', () => {
                 selectedConfig: '',
                 isConfigValid: false,
                 isTestNameValid: false,
+                testName: '',
               },
             },
           });
@@ -242,6 +247,7 @@ describe('TestNameAndDescriptionCard', () => {
                 selectedConfig: '',
                 isConfigValid: false,
                 isTestNameValid: false,
+                testName: '',
               },
             },
           });
@@ -285,6 +291,7 @@ describe('TestNameAndDescriptionCard', () => {
             selectedConfig: '',
             isConfigValid: false,
             isTestNameValid: false,
+            testName: '',
           },
         },
       });
@@ -338,6 +345,7 @@ describe('TestNameAndDescriptionCard', () => {
             selectedConfig: '',
             isConfigValid: false,
             isTestNameValid: true, // Valid test name
+            testName: 'Valid',
           },
         },
       });

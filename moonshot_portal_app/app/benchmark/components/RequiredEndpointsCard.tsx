@@ -11,7 +11,6 @@ import {
     AccordionTrigger,
   } from "@/components/ui/accordion"
 import EditModelSheet from './EditModelSheet';
-import { providers, models } from './MockData';
 import { useFixedConfigsForSelectedTests } from '../../../hooks/useFixedConfigsRedux';
 import { useCheckedTestNames } from '../../../hooks/useTestSelection';
 import { useAppSelector } from '../../../hooks/reduxHooks';
@@ -192,8 +191,8 @@ export default function RequiredEndpointsCard() {
         open={isEditModelSheetOpen}
         onOpenChange={setIsEditModelSheetOpen}
         editingModel={editingConfigId}
-        providers={providers}
-        models={models}
+        providers={[]}
+        models={[]}
         isMetricEndpoint={true}
         fixedConfigs={fixedConfigs}
       />

@@ -299,7 +299,7 @@ test.describe('Model Selection Page Integration Tests', () => {
       // Wait for configurations to load
       await page.waitForSelector('[data-testid^="config-option-"]', { timeout: 5000 });
       
-      // Check for specific configuration labels that we know exist in MockData
+      // Check for specific configuration labels from custom-application fixtures (MockData.ts)
       const basicConfig = page.locator('[data-testid^="config-option-"]').first();
       await expect(basicConfig).toBeVisible();
 

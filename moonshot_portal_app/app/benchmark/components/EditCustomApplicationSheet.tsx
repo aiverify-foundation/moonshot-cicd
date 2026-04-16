@@ -7,23 +7,10 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Trash2, Plus } from "lucide-react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import type { ModelApp, Config } from "../types/modelSelection";
 
 // Constants
 const TEST_POPOVER_TIMEOUT = 3000;
-
-// Type definitions
-interface ModelApp {
-  id: string;
-  name: string;
-  type: string;
-}
-
-interface Config {
-  id: string;
-  name: string;
-  connector: string;
-  configPairs: Array<{ key: string; value: string }>;
-}
 
 interface AdvancedParam {
   parameter: string;

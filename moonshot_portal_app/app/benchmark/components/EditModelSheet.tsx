@@ -7,10 +7,18 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Trash2, Plus } from "lucide-react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { FixedConfig } from '../../../lib/api';
+import {
+  FixedConfig,
+  ApiError,
+  createDatabaseModelConfig,
+  fetchProviderLatestDetails,
+  setLlmProviderApiKey,
+  type LlmProviderDetailsDTO,
+} from '../../../lib/api';
 import { useAppDispatch } from '../../../hooks/reduxHooks';
 import { setEndpointStatus } from '../../../store';
 import { ConnectionStatus } from './RequiredEndpointsCard';
+import type { Provider, ModelConfig, ProviderListEntry } from '../types/modelSelection';
 
 // Constants
 const DEFAULT_ADVANCED_PARAMS = [
@@ -19,24 +27,6 @@ const DEFAULT_ADVANCED_PARAMS = [
 ];
 
 const TEST_POPOVER_TIMEOUT = 3000;
-
-// Type definitions
-interface Provider {
-  id: string;
-  name: string;
-  type: string;
-  defaultModel?: string;
-  modelTextboxExplanation?: string;
-  configPairs?: Array<{ key: string; value: string }>;
-  modelToken?: string;
-}
-
-interface Model {
-  id: string;
-  name: string;
-  modelname: string;
-  provider: string;
-}
 
 interface AdvancedParam {
   parameter: string;
@@ -55,7 +45,12 @@ const getProviderModelInfoFromFixedConfig = (editingModel: string, fixedConfigs:
   const currentProvider: Provider = {
     id: fixedConfig.providerID,
     name: fixedConfig.providerID,
-    type: 'provider'
+    type: 'provider',
+    system_name: fixedConfig.providerID,
+    defaultModel: '',
+    modelTextboxExplanation: '',
+    configPairs: [],
+    modelToken: '',
   };
   
   // Create a mock model config from fixedConfig
@@ -69,7 +64,11 @@ const getProviderModelInfoFromFixedConfig = (editingModel: string, fixedConfigs:
   return { isNewModel: false, currentModelConfig, currentProvider, fixedConfig };
 };
 
-const getProviderModelInfoFromProviders = (editingModel: string, providers: Provider[], models: Model[]) => {
+const getProviderModelInfoFromProviders = (
+  editingModel: string,
+  providers: ProviderListEntry[],
+  models: ModelConfig[]
+) => {
   const isNewModel = providers.some(p => p.id === editingModel);
   const currentModelConfig = isNewModel ? null : models.find(m => m.id === editingModel);
   const currentProvider = isNewModel 
@@ -79,7 +78,10 @@ const getProviderModelInfoFromProviders = (editingModel: string, providers: Prov
   return { isNewModel, currentModelConfig, currentProvider, fixedConfig: undefined };
 };
 
-const getAdvancedParamsFromProvider = (currentProvider: Provider | undefined, fixedConfig?: FixedConfig): AdvancedParam[] => {
+const getAdvancedParamsFromProvider = (
+  currentProvider: ProviderListEntry | undefined,
+  fixedConfig?: FixedConfig
+): AdvancedParam[] => {
   // If fixed config is provided, use its savedConfigPairs
   if (fixedConfig?.savedConfigPairs) {
     return Object.entries(fixedConfig.savedConfigPairs).map(([key, value]) => ({
@@ -88,7 +90,11 @@ const getAdvancedParamsFromProvider = (currentProvider: Provider | undefined, fi
     }));
   }
   
-  if (currentProvider?.configPairs && currentProvider.configPairs.length > 0) {
+  if (
+    currentProvider &&
+    'configPairs' in currentProvider &&
+    currentProvider.configPairs.length > 0
+  ) {
     return currentProvider.configPairs.map((cp) => ({
       parameter: cp.key,
       value: cp.value
@@ -101,10 +107,11 @@ interface EditModelSheetProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   editingModel: string;
-  providers: Provider[];
-  models: Model[];
+  providers: ProviderListEntry[];
+  models: ModelConfig[];
   isMetricEndpoint?: boolean;
   fixedConfigs?: FixedConfig[];
+  onSaved?: () => void | Promise<void>;
 }
 
 export default function EditModelSheet({ 
@@ -114,9 +121,11 @@ export default function EditModelSheet({
   providers, 
   models,
   isMetricEndpoint = false,
-  fixedConfigs
+  fixedConfigs,
+  onSaved,
 }: EditModelSheetProps) {
   const dispatch = useAppDispatch();
+  const [saving, setSaving] = React.useState(false);
   
   // Get provider/model info using helper function with memoization
   const { isNewModel, currentModelConfig, currentProvider, fixedConfig } = React.useMemo(() => {
@@ -140,7 +149,11 @@ export default function EditModelSheet({
   React.useEffect(() => {
     setModelConfigName(isNewModel ? 'New Model' : currentModelConfig?.name || 'New Model');
     setModelName(isNewModel ? '' : currentModelConfig?.modelname || '');
-    setTokenValue(currentProvider?.modelToken || ''); // Use modelToken as default
+    setTokenValue(
+      currentProvider && 'modelToken' in currentProvider
+        ? currentProvider.modelToken || ''
+        : ''
+    );
     setTestResult(null);
     setPopoverOpen(false);
     setAdvancedParams(getAdvancedParamsFromProvider(currentProvider, fixedConfig));
@@ -157,17 +170,92 @@ export default function EditModelSheet({
 
   const resetForm = () => {
     setModelConfigName('New Model');
-    setTokenValue(currentProvider?.modelToken || ''); // Use modelToken as default
+    setTokenValue(
+      currentProvider && 'modelToken' in currentProvider
+        ? currentProvider.modelToken || ''
+        : ''
+    );
     setModelName('');
     setTestResult(null);
     setPopoverOpen(false);
     setAdvancedParams(getAdvancedParamsFromProvider(currentProvider, fixedConfig));
   };
 
-  const handleSave = () => {
-    // Add your save logic here
-    resetForm();
-    onOpenChange(false);
+  const buildSavedConfigPairs = (): Record<string, string> => {
+    const out: Record<string, string> = {};
+    for (const row of advancedParams) {
+      const k = row.parameter.trim();
+      if (k) out[k] = row.value;
+    }
+    return out;
+  };
+
+  const resolveProviderIdNumeric = (
+    details: LlmProviderDetailsDTO,
+    provider: ProviderListEntry
+  ): number => {
+    if (/^\d+$/.test(provider.id)) {
+      return parseInt(provider.id, 10);
+    }
+    return parseInt(details.provider.id, 10);
+  };
+
+  const handleSave = async () => {
+    if (testResult !== true) return;
+    if (!currentProvider) {
+      window.alert('No provider context for this configuration.');
+      return;
+    }
+    setSaving(true);
+    try {
+      const systemName =
+        'system_name' in currentProvider
+          ? (currentProvider.system_name ?? currentProvider.id)
+          : currentProvider.id;
+      if (!systemName.trim()) {
+        window.alert('Missing provider system name.');
+        return;
+      }
+      const details = await fetchProviderLatestDetails(systemName);
+      const providerId = resolveProviderIdNumeric(details, currentProvider);
+      const trimmedModel = modelName.trim();
+      const modelRow = details.models.find((m) => m.name === trimmedModel);
+      if (!modelRow) {
+        window.alert(
+          `No model named "${trimmedModel}" exists for this provider. Use a name that exists in the provider's model list.`
+        );
+        return;
+      }
+      try {
+        await setLlmProviderApiKey(providerId, tokenValue.trim());
+      } catch (e) {
+        if (e instanceof ApiError && e.status === 409) {
+          window.alert(
+            'An API key is already stored for this provider. The backend does not support rotating keys via the UI yet.'
+          );
+          return;
+        }
+        throw e;
+      }
+      await createDatabaseModelConfig({
+        model_id: modelRow.id,
+        name: modelConfigName.trim(),
+        savedConfigPairs: buildSavedConfigPairs(),
+      });
+      await onSaved?.();
+      resetForm();
+      onOpenChange(false);
+    } catch (e) {
+      const msg =
+        e instanceof ApiError
+          ? e.message
+          : e instanceof Error
+            ? e.message
+            : 'Save failed';
+      window.alert(msg);
+    } finally {
+      setSaving(false);
+    }
   };
 
   const handleTest = () => {
@@ -281,12 +369,20 @@ export default function EditModelSheet({
               </Label>
               {isMetricEndpoint ? (
                 <div className="text-sm text-gray-700 bg-gray-50 px-3 py-2 rounded-md border">
-                  {modelName || currentProvider?.defaultModel || 'No model selected'}
+                  {modelName ||
+                    (currentProvider && 'defaultModel' in currentProvider
+                      ? currentProvider.defaultModel
+                      : '') ||
+                    'No model selected'}
                 </div>
               ) : (
                 <Input
                   id="model"
-                  placeholder={currentProvider?.defaultModel || 'Enter model name'}
+                  placeholder={
+                    currentProvider && 'defaultModel' in currentProvider
+                      ? currentProvider.defaultModel || 'Enter model name'
+                      : 'Enter model name'
+                  }
                   value={modelName}
                   onChange={(e) => setModelName(e.target.value)}
                   tabIndex={-1}
@@ -297,7 +393,9 @@ export default function EditModelSheet({
             {/* Configuration Notes */}
             <div className="space-y-2">
               <p className="text-sm text-gray-600">
-                {currentProvider?.modelTextboxExplanation || ''}
+                {currentProvider && 'modelTextboxExplanation' in currentProvider
+                  ? currentProvider.modelTextboxExplanation
+                  : ''}
               </p>
             </div>
 
@@ -351,7 +449,10 @@ export default function EditModelSheet({
                     {!isMetricEndpoint && (
                       <div className="flex items-center gap-1 w-16">
                         {/* Only show delete button for rows beyond the default rows */}
-                        {index >= (currentProvider?.configPairs?.length || 0) && (
+                        {index >=
+                          (currentProvider && 'configPairs' in currentProvider
+                            ? currentProvider.configPairs.length
+                            : 0) && (
                           <Button
                             variant="ghost"
                             size="sm"
@@ -405,11 +506,11 @@ export default function EditModelSheet({
                   )}
                 </Popover>
                 <Button 
-                  onClick={handleSave} 
-                  disabled={testResult !== true}
-                  className={testResult !== true ? "opacity-50 bg-gray-100 text-gray-400" : ""}
+                  onClick={() => void handleSave()} 
+                  disabled={testResult !== true || saving}
+                  className={testResult !== true || saving ? "opacity-50 bg-gray-100 text-gray-400" : ""}
                 >
-                  Save
+                  {saving ? 'Saving…' : 'Save'}
                 </Button>
               </div>
             </div>
