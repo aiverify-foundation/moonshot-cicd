@@ -32,13 +32,13 @@ class TestBenchmarkRunEntity:
             end_time=now,
             llm_provider_id=2,
             llm_provider_model_id=3,
-            llm_provider_endpoint_config_id=4,
+            llm_provider_model_config_id=4,
         )
         assert entity.id == 1
         assert entity.start_time == now
         assert entity.llm_provider_id == 2
         assert entity.llm_provider_model_id == 3
-        assert entity.llm_provider_endpoint_config_id == 4
+        assert entity.llm_provider_model_config_id == 4
 
     def test_missing_required_raises(self):
         with pytest.raises(ValidationError):

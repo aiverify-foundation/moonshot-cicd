@@ -1,15 +1,11 @@
 "use client"
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Loader2 } from 'lucide-react';
 import { Button } from "@/components/ui/button";
 import { useAppSelector } from '../../../hooks/reduxHooks';
 import { startBenchmarkRun, ApiError } from '@/lib/api';
-
-/** Must match a connector id in moonshot_core/moonshot_config.yaml */
-const DEFAULT_LLM_PROVIDER_NAME = 'openai';
-const DEFAULT_CONNECTOR_ID = 'my-gpt-4o';
-const BENCHMARK_BUNDLE_NAME = 'test-prompts';
+import { custom_connectors } from './MockData';
 
 interface BenchmarkFooterProps {
   currentPage: 'bundle-selection' | 'model-selection';
@@ -24,8 +20,29 @@ export default function BenchmarkFooter({
   const router = useRouter();
   const [isStartingRun, setIsStartingRun] = useState(false);
   const bundleSelection = useAppSelector((state) => state.bundleSelection);
-  const { isConfigValid, testName } = useAppSelector(state => state.modelSelection);
+  const {
+    isConfigValid,
+    testName,
+    selectedProvider,
+    benchmarkLlmProviderId,
+    benchmarkLlmProviderModelId,
+    benchmarkLlmProviderModelConfigId,
+  } = useAppSelector((state) => state.modelSelection);
   const runName = (testName ?? '').trim();
+
+  const selectedBundleNames = useMemo(
+    () => Object.entries(bundleSelection).filter(([, v]) => v).map(([name]) => name),
+    [bundleSelection]
+  );
+
+  const isCustomConnector = custom_connectors.some((c) => c.id === selectedProvider);
+
+  const canStartDbBenchmark =
+    !isCustomConnector &&
+    benchmarkLlmProviderId != null &&
+    benchmarkLlmProviderModelId != null &&
+    benchmarkLlmProviderModelConfigId != null &&
+    selectedBundleNames.length > 0;
   
   // Navigation functions
   const handleNavigateToModels = () => {
@@ -46,13 +63,22 @@ export default function BenchmarkFooter({
       window.alert('Please enter a Test Name before running.');
       return;
     }
+    if (
+      benchmarkLlmProviderId == null ||
+      benchmarkLlmProviderModelId == null ||
+      benchmarkLlmProviderModelConfigId == null
+    ) {
+      window.alert('Select a database-backed model with a saved configuration before running.');
+      return;
+    }
     setIsStartingRun(true);
     try {
       await startBenchmarkRun({
         run_name: runName,
-        bundle_names: [BENCHMARK_BUNDLE_NAME],
-        llm_provider_name: DEFAULT_LLM_PROVIDER_NAME,
-        llm_provider_config_name: DEFAULT_CONNECTOR_ID,
+        bundle_names: selectedBundleNames,
+        llm_provider_id: benchmarkLlmProviderId,
+        llm_provider_model_id: benchmarkLlmProviderModelId,
+        llm_provider_model_config_id: benchmarkLlmProviderModelConfigId,
       });
       router.push('/history');
     } catch (e) {
@@ -69,7 +95,7 @@ export default function BenchmarkFooter({
   };
   
   // Calculate selected bundles count
-  const selectedBundlesCount = Object.values(bundleSelection).filter(Boolean).length;
+  const selectedBundlesCount = selectedBundleNames.length;
 
   const getLeftButton = () => {
     switch (currentPage) {
@@ -118,7 +144,13 @@ export default function BenchmarkFooter({
           <Button 
             className="flex items-center gap-2" 
             onClick={() => void handleRunTests()}
-            disabled={!isConfigValid || !runName || isStartingRun}
+            disabled={
+              !isConfigValid ||
+              !runName ||
+              isStartingRun ||
+              isCustomConnector ||
+              !canStartDbBenchmark
+            }
             data-testid="run-benchmark-tests"
           >
             {isStartingRun ? (

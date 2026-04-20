@@ -7,6 +7,7 @@ Create Date: 2026-02-12 10:15:11.720319
 Benchmark test/dataset/metric/bundle tables + AIVF product tables
 (benchmark_run, run_test_status, run_test_prompt, run_test_bundle,
 llm_provider_endpoint_config, custom_app, custom_app_config).
+benchmark_run references llm_provider_model_config for saved model configuration.
 """
 from typing import Sequence, Union
 
@@ -139,14 +140,18 @@ def upgrade() -> None:
         sa.Column("endpoint_type", sa.String(), nullable=False),  # LLM_Provider, Custom_App
         sa.Column("llm_provider_id", sa.Integer(), nullable=True),
         sa.Column("llm_provider_model_id", sa.Integer(), nullable=True),
-        sa.Column("llm_provider_endpoint_config_id", sa.Integer(), nullable=True),
+        sa.Column("llm_provider_model_config_id", sa.Integer(), nullable=True),
         sa.Column("custom_app_id", sa.Integer(), nullable=True),
         sa.Column("custom_app_config_id", sa.Integer(), nullable=True),
         sa.PrimaryKeyConstraint("id"),
         sa.UniqueConstraint("name", name="uq_benchmark_run_name"),
         sa.ForeignKeyConstraint(["llm_provider_id"], ["llm_provider.id"]),
         sa.ForeignKeyConstraint(["llm_provider_model_id"], ["llm_provider_model.id"]),
-        sa.ForeignKeyConstraint(["llm_provider_endpoint_config_id"], ["llm_provider_endpoint_config.id"]),
+        sa.ForeignKeyConstraint(
+            ["llm_provider_model_config_id"],
+            ["llm_provider_model_config.id"],
+            name="fk_benchmark_run_llm_provider_model_config_id",
+        ),
         sa.ForeignKeyConstraint(["custom_app_id"], ["custom_app.id"]),
         sa.ForeignKeyConstraint(["custom_app_config_id"], ["custom_app_config.id"]),
     )

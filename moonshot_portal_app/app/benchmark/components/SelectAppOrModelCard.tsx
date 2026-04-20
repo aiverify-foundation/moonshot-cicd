@@ -8,7 +8,13 @@ import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/
 import { Check, ChevronsUpDown, Edit, Plus, CircleAlert, CircleCheckBig } from "lucide-react";
 import type { Provider, ModelConfig, Config, ModelApp } from "../types/modelSelection";
 import { useAppDispatch, useAppSelector } from "@/hooks/reduxHooks";
-import { setSelectedProvider, setSelectedModel, setSelectedConfig, updateConfigValidity } from "@/store";
+import {
+  setSelectedProvider,
+  setSelectedModel,
+  setSelectedConfig,
+  setBenchmarkRunFks,
+  updateConfigValidity,
+} from "@/store";
 import EditModelSheet from "./EditModelSheet";
 import EditCustomApplicationSheet from "./EditCustomApplicationSheet";
 
@@ -321,6 +327,30 @@ export default function SelectAppOrModelCard({
                                 onSelect={(currentValue) => {
                                   const newModel = currentValue === selectedModel ? "" : currentValue;
                                   dispatch(setSelectedModel(newModel));
+                                  if (newModel && !isCustomConnector) {
+                                    const pid = parseInt(selectedProvider, 10);
+                                    const row = filteredModels.find((mo) => mo.id === newModel);
+                                    const mcid = row?.modelConfigId
+                                      ? parseInt(row.modelConfigId, 10)
+                                      : NaN;
+                                    dispatch(
+                                      setBenchmarkRunFks({
+                                        llm_provider_id: Number.isFinite(pid) ? pid : null,
+                                        llm_provider_model_id: parseInt(newModel, 10),
+                                        llm_provider_model_config_id: Number.isFinite(mcid)
+                                          ? mcid
+                                          : null,
+                                      })
+                                    );
+                                  } else {
+                                    dispatch(
+                                      setBenchmarkRunFks({
+                                        llm_provider_id: null,
+                                        llm_provider_model_id: null,
+                                        llm_provider_model_config_id: null,
+                                      })
+                                    );
+                                  }
                                   setModelOpen(false);
                                 }}
                                 data-testid={`model-option-${model.id}`}

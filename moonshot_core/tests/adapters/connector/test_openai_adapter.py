@@ -8,6 +8,8 @@ communication with OpenAI's API for chat completions using AsyncOpenAI client.
 import os
 import pytest
 from unittest.mock import AsyncMock, patch, Mock, MagicMock, ANY
+from openai import BadRequestError
+
 from adapters.connector.openai_adapter import OpenAIAdapter
 from domain.entities.connector_entity import ConnectorEntity
 
@@ -316,6 +318,34 @@ async def test_get_response_api_exception(openai_adapter, connector_entity):
         mock_logger.error.assert_called_once()
         assert OpenAIAdapter.ERROR_PROCESSING_PROMPT in mock_logger.error.call_args.args[0]
 
+
+@pytest.mark.asyncio
+async def test_get_response_strips_api_type_from_create_kwargs(openai_adapter, connector_entity):
+    """DB/YAML merges may include api_type; it must not be passed to the SDK."""
+    connector_entity.params = {"api_type": "openai", "temperature": 0.2}
+    connector_entity.system_prompt = ""
+
+    mock_response = MagicMock()
+    mock_response.choices = [MagicMock()]
+    mock_response.choices[0].message = MagicMock()
+    mock_response.choices[0].message.content = "ok"
+
+    with patch("adapters.connector.openai_adapter.os.getenv") as mock_getenv, patch(
+        "adapters.connector.openai_adapter.AsyncOpenAI"
+    ) as mock_openai_class:
+        mock_getenv.return_value = "test-api-key"
+        mock_client = MagicMock()
+        mock_openai_class.return_value = mock_client
+        mock_client.chat.completions.create = AsyncMock(return_value=mock_response)
+
+        openai_adapter.configure(connector_entity)
+        await openai_adapter.get_response("Hi")
+
+        kwargs = mock_client.chat.completions.create.call_args.kwargs
+        assert "api_type" not in kwargs
+        assert kwargs.get("temperature") == 0.2
+
+
 @pytest.mark.asyncio
 async def test_get_response_additional_params(openai_adapter, connector_entity):
     """
@@ -355,3 +385,117 @@ async def test_get_response_additional_params(openai_adapter, connector_entity):
         assert call_args["max_tokens"] == 2000
         assert call_args["top_p"] == 0.8
         assert call_args["model"] == "gpt-4"
+
+
+@pytest.mark.asyncio
+async def test_get_response_logs_on_unexpected_keyword_typeerror(
+    openai_adapter, connector_entity
+):
+    connector_entity.params = {"temperature": 0.1}
+    connector_entity.system_prompt = ""
+
+    with (
+        patch("adapters.connector.openai_adapter.os.getenv") as mock_getenv,
+        patch("adapters.connector.openai_adapter.AsyncOpenAI") as mock_openai_class,
+        patch("adapters.connector.openai_adapter.logger") as mock_logger,
+    ):
+        mock_getenv.return_value = "test-api-key"
+        mock_client = MagicMock()
+        mock_openai_class.return_value = mock_client
+        mock_client.chat.completions.create = AsyncMock(
+            side_effect=TypeError("got an unexpected keyword argument 'bad_key'")
+        )
+
+        openai_adapter.configure(connector_entity)
+        with pytest.raises(TypeError):
+            await openai_adapter.get_response("Hi")
+
+        mock_logger.error.assert_called_once()
+        logged = mock_logger.error.call_args.args[0]
+        assert OpenAIAdapter.LOG_UNSUPPORTED_CHAT_KWARG in logged
+        assert "unexpected keyword argument" in logged.lower()
+        assert "connector_param_keys=" in logged
+
+
+@pytest.mark.asyncio
+async def test_get_response_logs_on_bad_request_error(openai_adapter, connector_entity):
+    connector_entity.system_prompt = ""
+    mock_response = MagicMock()
+    mock_response.status_code = 400
+    err = BadRequestError(
+        "invalid parameter",
+        response=mock_response,
+        body={"error": {"message": "invalid"}},
+    )
+
+    with (
+        patch("adapters.connector.openai_adapter.os.getenv") as mock_getenv,
+        patch("adapters.connector.openai_adapter.AsyncOpenAI") as mock_openai_class,
+        patch("adapters.connector.openai_adapter.logger") as mock_logger,
+    ):
+        mock_getenv.return_value = "test-api-key"
+        mock_client = MagicMock()
+        mock_openai_class.return_value = mock_client
+        mock_client.chat.completions.create = AsyncMock(side_effect=err)
+
+        openai_adapter.configure(connector_entity)
+        with pytest.raises(BadRequestError):
+            await openai_adapter.get_response("Hi")
+
+        mock_logger.error.assert_called_once()
+        logged = mock_logger.error.call_args.args[0]
+        assert OpenAIAdapter.LOG_API_REJECTED_CHAT in logged
+        assert "invalid parameter" in logged
+
+
+@pytest.mark.asyncio
+async def test_get_response_logs_generic_on_runtime_error(
+    openai_adapter, connector_entity
+):
+    connector_entity.system_prompt = ""
+
+    with (
+        patch("adapters.connector.openai_adapter.os.getenv") as mock_getenv,
+        patch("adapters.connector.openai_adapter.AsyncOpenAI") as mock_openai_class,
+        patch("adapters.connector.openai_adapter.logger") as mock_logger,
+    ):
+        mock_getenv.return_value = "test-api-key"
+        mock_client = MagicMock()
+        mock_openai_class.return_value = mock_client
+        mock_client.chat.completions.create = AsyncMock(side_effect=RuntimeError("network"))
+
+        openai_adapter.configure(connector_entity)
+        with pytest.raises(RuntimeError, match="network"):
+            await openai_adapter.get_response("Hi")
+
+        mock_logger.error.assert_called_once()
+        assert OpenAIAdapter.ERROR_PROCESSING_PROMPT in mock_logger.error.call_args.args[0]
+
+
+@pytest.mark.asyncio
+async def test_get_response_typeerror_without_unexpected_keyword_uses_generic_log(
+    openai_adapter, connector_entity
+):
+    """TypeError that does not match the unexpected-kwarg heuristic uses generic logging."""
+    connector_entity.system_prompt = ""
+
+    with (
+        patch("adapters.connector.openai_adapter.os.getenv") as mock_getenv,
+        patch("adapters.connector.openai_adapter.AsyncOpenAI") as mock_openai_class,
+        patch("adapters.connector.openai_adapter.logger") as mock_logger,
+    ):
+        mock_getenv.return_value = "test-api-key"
+        mock_client = MagicMock()
+        mock_openai_class.return_value = mock_client
+        mock_client.chat.completions.create = AsyncMock(
+            side_effect=TypeError("unsupported operand type(s)")
+        )
+
+        openai_adapter.configure(connector_entity)
+        with pytest.raises(TypeError, match="unsupported operand"):
+            await openai_adapter.get_response("Hi")
+
+        mock_logger.error.assert_called_once()
+        logged = mock_logger.error.call_args.args[0]
+        assert OpenAIAdapter.ERROR_PROCESSING_PROMPT in logged
+        assert OpenAIAdapter.LOG_UNSUPPORTED_CHAT_KWARG not in logged

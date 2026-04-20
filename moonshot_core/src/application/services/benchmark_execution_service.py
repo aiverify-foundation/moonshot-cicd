@@ -27,7 +27,10 @@ from application.services.benchmark_run_test_bundle_population_service import (
 from application.services.benchmark_run_test_setup_service import (
     BenchmarkRunTestSetupService,
 )
-from application.services.provider_service import ProviderService
+from application.services.database_connector_config_service import (
+    DatabaseConnectorConfigError,
+    DatabaseConnectorConfigService,
+)
 from domain.entities.benchmark_run_entity import BenchmarkRunEntity
 from domain.services.logger import configure_logger
 from domain.services.task_manager import TaskManager
@@ -39,14 +42,16 @@ logger = configure_logger(__name__)
 
 def _run_bundle_in_process(
     bundle_id: str,
-    connector: str,
-    run_id: Optional[int],
+    run_id: int,
     skip_alembic_upgrade: bool,
+    llm_provider_id: int,
+    llm_provider_model_id: int,
+    llm_provider_model_config_id: int,
 ) -> None:
     """
     Wrapper to run a bundle in a separate process.
 
-    Instantiates BenchmarkExecutionService and calls execute_bundle.
+    Instantiates BenchmarkExecutionService and calls execute_bundle on the DB-backed path.
     Used as the target for multiprocessing.Process (must be module-level to be picklable).
 
     The parent process must have run Alembic migrations on the same MOONSHOT_DB_PATH
@@ -55,16 +60,23 @@ def _run_bundle_in_process(
 
     Args:
         bundle_id: Bundle identifier to execute
-        connector: Connector name to use
-        run_id: Optional benchmark run id (from BenchmarkRunEntity) for this run.
-            TODO: run_id will be required (non-optional) in the future.
+        run_id: benchmark_run.id for this run
         skip_alembic_upgrade: If True, skip Alembic in this process (set before any DB use).
+        llm_provider_id / llm_provider_model_id / llm_provider_model_config_id: DB connector FKs.
     """
     if skip_alembic_upgrade:
         set_skip_alembic_upgrade(True)
     try:
         execution_service = BenchmarkExecutionService()
-        execution_service.execute_bundle(bundle_id, connector, run_id=run_id)
+        execution_service.execute_bundle(
+            bundle_id,
+            None,
+            run_id=run_id,
+            write_to_db=True,
+            llm_provider_id=llm_provider_id,
+            llm_provider_model_id=llm_provider_model_id,
+            llm_provider_model_config_id=llm_provider_model_config_id,
+        )
     finally:
         if skip_alembic_upgrade:
             set_skip_alembic_upgrade(False)
@@ -86,8 +98,10 @@ class BenchmarkExecutionService:
     def start_bundle_in_background(
         self,
         bundle_name: str,
-        connector: str,
-        run_id: Optional[int] = None,
+        run_id: int,
+        llm_provider_id: int,
+        llm_provider_model_id: int,
+        llm_provider_model_config_id: int,
     ) -> str:
         """
         Validate the bundle (DB only), start its execution in a daemon process, and return the bundle id.
@@ -97,9 +111,8 @@ class BenchmarkExecutionService:
 
         Args:
             bundle_name: Bundle system name from the request (used to resolve the bundle in DB)
-            connector: Connector name to use for the bundle
-            run_id: Optional benchmark run id (from BenchmarkRunEntity) for the background process to use.
-                TODO: run_id will be required (non-optional) in the future.
+            run_id: benchmark_run.id for the background process.
+            llm_provider_id / llm_provider_model_id / llm_provider_model_config_id: DB-backed connector FKs.
 
         Returns:
             The resolved bundle id (same as bundle_name).
@@ -116,7 +129,14 @@ class BenchmarkExecutionService:
 
         process = multiprocessing.Process(
             target=_run_bundle_in_process,
-            args=(bundle_name, connector, run_id, True),
+            args=(
+                bundle_name,
+                run_id,
+                True,
+                llm_provider_id,
+                llm_provider_model_id,
+                llm_provider_model_config_id,
+            ),
         )
         process.daemon = True
         process.start()
@@ -130,50 +150,43 @@ class BenchmarkExecutionService:
         self,
         run_name: str,
         bundle_names: List[str],
-        llm_provider_name: str,
-        llm_provider_config_name: str,
+        llm_provider_id: int,
+        llm_provider_model_id: int,
+        llm_provider_model_config_id: int,
     ) -> None:
         """
         Start a benchmark run: create a benchmark run entity, then execute multiple bundles
         in separate daemon processes, passing the run id for them to use.
 
-        Uses a single run name, LLM provider name, and LLM provider config name for all bundles.
-        The provider config name is used as the connector id for benchmark execution.
+        Uses relational llm_provider / llm_provider_model / llm_provider_model_config ids
+        (no YAML connector) for benchmark execution.
 
         Args:
             run_name: Name for this benchmark run.
             bundle_names: Names/ids of the bundles to execute.
-            llm_provider_name: Name of the LLM provider (for logging).
-            llm_provider_config_name: Name of the LLM provider config (connector id for execution).
+            llm_provider_id: FK llm_provider.id
+            llm_provider_model_id: FK llm_provider_model.id
+            llm_provider_model_config_id: FK llm_provider_model_config.id
 
         Raises:
             KeyError: If any bundle is not found.
+            DatabaseConnectorConfigError: If DB connector resolution fails.
         """
-        connector = llm_provider_config_name
-
-        provider_service = ProviderService()
-        provider_details = provider_service.get_latest_provider_details_by_system_name(
-            llm_provider_name
+        # Validate connector resolution before spawning workers
+        DatabaseConnectorConfigService().build_connector_entity(
+            llm_provider_id=llm_provider_id,
+            llm_provider_model_id=llm_provider_model_id,
+            llm_provider_model_config_id=llm_provider_model_config_id,
         )
-        if provider_details is None:
-            logger.warning(
-                "[BenchmarkExecutionService] No provider details found for system_name=%s",
-                llm_provider_name,
-            )
-        else:
-            logger.info(
-                "[BenchmarkExecutionService] Using provider '%s' (system_name=%s, version=%s) "
-                "with %d models and %d endpoint configs for benchmark run.",
-                provider_details.provider.name,
-                provider_details.provider.system_name,
-                provider_details.provider.version,
-                len(provider_details.models),
-                len(provider_details.endpoint_configs),
-            )
 
         logger.info(
-            f"[BenchmarkExecutionService] Starting benchmark run: run_name={run_name}, "
-            f"llm_provider={llm_provider_name}, config={connector}, bundles={bundle_names}"
+            "[BenchmarkExecutionService] Starting benchmark run: run_name=%s, "
+            "llm_provider_id=%s, llm_provider_model_id=%s, llm_provider_model_config_id=%s, bundles=%s",
+            run_name,
+            llm_provider_id,
+            llm_provider_model_id,
+            llm_provider_model_config_id,
+            bundle_names,
         )
 
         run_entity = BenchmarkRunEntity(
@@ -181,11 +194,15 @@ class BenchmarkExecutionService:
             status="running",
             endpoint_type="LLM_Provider",
             start_time=datetime.now(timezone.utc),
+            llm_provider_id=llm_provider_id,
+            llm_provider_model_id=llm_provider_model_id,
+            llm_provider_model_config_id=llm_provider_model_config_id,
         )
         saved_run = BenchmarkRunService().save_run(run_entity)
         run_id = saved_run.id
+        if run_id is None:
+            raise RuntimeError("BenchmarkRunService.save_run did not return a persisted run id")
 
-        # can add this to save_run instead of here
         pop_service = BenchmarkRunTestBundlePopulationService()
 
         for bundle_name in bundle_names:
@@ -196,14 +213,23 @@ class BenchmarkExecutionService:
                     f"[BenchmarkExecutionService] Skipping populate_run_bundle for run_id={run_id}, "
                     f"bundle={bundle_name}: {e}"
                 )
-            self.start_bundle_in_background(bundle_name, connector, run_id=run_id)
+            self.start_bundle_in_background(
+                bundle_name,
+                run_id,
+                llm_provider_id,
+                llm_provider_model_id,
+                llm_provider_model_config_id,
+            )
 
     def execute_bundle(
         self,
         bundle_id: str,
-        connector: str,
+        connector: Optional[str] = None,
         run_id: Optional[int] = None,
         write_to_db: bool = True,
+        llm_provider_id: Optional[int] = None,
+        llm_provider_model_id: Optional[int] = None,
+        llm_provider_model_config_id: Optional[int] = None,
     ) -> None:
         """
         Execute a bundle (multiple benchmark tests) synchronously and write a combined results file.
@@ -222,12 +248,34 @@ class BenchmarkExecutionService:
 
         Args:
             bundle_id: Bundle system name (e.g. minimal-bundle) for DB lookup, or bundle id for file fallback.
-            connector: Connector name to use for all tests in the bundle.
+            connector: YAML connector id when using legacy path (mutually exclusive with DB ids).
             run_id: Optional benchmark run id (from BenchmarkRunEntity). Required for DB path; if None on DB path, a run is created.
+            llm_provider_id / llm_provider_model_id / llm_provider_model_config_id: When all set, build ConnectorEntity from DB (no YAML).
             write_to_db: If True (default), run_benchmark writes results to DB when run_test/prompts exist. If False, prompts come from dataset load and no DB write.
         """
         try:
             logger.info(f"[BenchmarkExecutionService] Starting bundle execution for bundle: {bundle_id}")
+
+            use_db_connector = (
+                llm_provider_id is not None
+                and llm_provider_model_id is not None
+                and llm_provider_model_config_id is not None
+            )
+            db_connector_entity = None
+            if use_db_connector:
+                db_connector_entity = DatabaseConnectorConfigService().build_connector_entity(
+                    llm_provider_id=llm_provider_id,
+                    llm_provider_model_id=llm_provider_model_id,
+                    llm_provider_model_config_id=llm_provider_model_config_id,
+                )
+                bench_connector = ""
+            elif connector is not None:
+                bench_connector = connector
+            else:
+                logger.error(
+                    "[BenchmarkExecutionService] execute_bundle requires connector or DB id trio"
+                )
+                return
 
             start_time = datetime.now()
             prompt_processor = "asyncio_prompt_processor_adapter"
@@ -282,13 +330,14 @@ class BenchmarkExecutionService:
                             test_name=test_name,
                             dataset=dataset_system_name,
                             metric=metric_dict,
-                            connector=connector,
+                            connector=bench_connector,
                             prompt_processor=prompt_processor,
                             callback_fn=None,
                             write_result=False,
                             write_to_db=write_to_db,
                             db_run_id=effective_run_id if write_to_db else None,
                             test_id=tid,
+                            connector_entity=db_connector_entity,
                         )
                         results.append(result)
                     return results
@@ -309,13 +358,14 @@ class BenchmarkExecutionService:
                                 test_name=test.id,
                                 dataset=test.dataset.id if test.dataset else "",
                                 metric=test.metric,
-                                connector=connector,
+                                connector=bench_connector,
                                 prompt_processor=prompt_processor,
                                 callback_fn=None,
                                 write_result=False,
                                 write_to_db=write_to_db,
                                 db_run_id=run_id if write_to_db else None,
                                 test_id=1,  # Placeholder: file path does not create run_test/prompts per test
+                                connector_entity=db_connector_entity,
                             )
                         )
                     return await asyncio.gather(*tasks)

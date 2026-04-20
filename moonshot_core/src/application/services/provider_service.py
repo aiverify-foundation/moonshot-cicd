@@ -10,7 +10,7 @@ from adapters.driven.repository.sqlalchemy.llm_provider_models import (
     LLMProviderModelModel,
     LLMProviderEndpointConfigModel,
     LLMProviderModelConfigModel,
-    LLMProviderEndpointConfigParametersModel,
+    LLMProviderModelConfigParametersModel,
 )
 from adapters.driven.repository.sqlalchemy.session_manager import SessionManager
 from domain.entities.provider_entity import ProviderEntity
@@ -97,8 +97,62 @@ class ProviderService:
             savedConfigPairs=dto.savedConfigPairs,
             lastUpdated=last_updated,
         )
-    
-    
+
+    def _database_model_config_dtos_for_provider(
+        self,
+        session,
+        provider: LLMProviderModel,
+    ) -> List[ModelConfigDTO]:
+        """Build ModelConfigDTO rows from relational llm_provider_model_config (+ parameters)."""
+        models: List[LLMProviderModelModel] = (
+            session.query(LLMProviderModelModel)
+            .filter(LLMProviderModelModel.llm_provider_id == provider.id)
+            .all()
+        )
+        model_id_to_name: Dict[int, str] = {int(m.id): m.name for m in models}
+        if not model_id_to_name:
+            return []
+        model_ids = list(model_id_to_name.keys())
+        config_rows: List[LLMProviderModelConfigModel] = (
+            session.query(LLMProviderModelConfigModel)
+            .filter(LLMProviderModelConfigModel.model_id.in_(model_ids))
+            .order_by(LLMProviderModelConfigModel.id)
+            .all()
+        )
+        if not config_rows:
+            return []
+        config_ids = [int(r.id) for r in config_rows]
+        param_rows: List[LLMProviderModelConfigParametersModel] = (
+            session.query(LLMProviderModelConfigParametersModel)
+            .filter(LLMProviderModelConfigParametersModel.config_id.in_(config_ids))
+            .all()
+        )
+        pairs_by_config: Dict[int, Dict[str, str]] = {}
+        for prow in param_rows:
+            cid = int(prow.config_id)
+            pairs_by_config.setdefault(cid, {})[str(prow.key)] = str(prow.value)
+
+        config_dtos: List[ModelConfigDTO] = []
+        for row in config_rows:
+            mid = row.model_id
+            if mid is None:
+                continue
+            mid_int = int(mid)
+            modelname = model_id_to_name.get(mid_int, "")
+            cid = int(row.id)
+            config_dtos.append(
+                ModelConfigDTO(
+                    id=str(cid),
+                    name=str(row.name),
+                    modelname=modelname,
+                    modelId=mid_int,
+                    providerID=provider.system_name,
+                    savedConfigPairs=pairs_by_config.get(cid, {}),
+                    lastUpdated=row.updated_dt,
+                )
+            )
+        return config_dtos
+
     def list_providers(self) -> List[ProviderDTO]:
         """
         List all available providers.
@@ -260,11 +314,16 @@ class ProviderService:
                     for e in endpoint_configs
                 ]
 
+                db_model_cfgs = self._database_model_config_dtos_for_provider(
+                    session, provider_model
+                )
+
                 return LLMProviderDetailsDTO(
                     provider=provider_dto,
                     models=model_dtos,
                     endpoint_configs=endpoint_config_dtos,
                     config_params=None,
+                    database_model_configs=db_model_cfgs,
                 )
         except Exception as exc:
             self.logger.error(
@@ -280,7 +339,7 @@ class ProviderService:
 
         For each provider, loads llm_provider_model rows, then llm_provider_model_config rows whose
         model_id references those models (configs with NULL model_id are omitted). For each config,
-        savedConfigPairs is built solely from llm_provider_endpoint_config_parameters rows for that
+        savedConfigPairs is built solely from llm_provider_model_config_parameters rows for that
         config_id. providerID on each ModelConfigDTO is llm_provider.system_name; modelname is
         llm_provider_model.name.
         """
@@ -292,71 +351,7 @@ class ProviderService:
                 session.query(LLMProviderModel).order_by(LLMProviderModel.id).all()
             )
             for provider in providers:
-                models: List[LLMProviderModelModel] = (
-                    session.query(LLMProviderModelModel)
-                    .filter(LLMProviderModelModel.llm_provider_id == provider.id)
-                    .all()
-                )
-                model_id_to_name: Dict[int, str] = {m.id: m.name for m in models}
-                if not model_id_to_name:
-                    out.append(
-                        ProviderDatabaseConfigsDTO(
-                            providerName=provider.name,
-                            configs=[],
-                        )
-                    )
-                    continue
-
-                model_ids = list(model_id_to_name.keys())
-                config_rows: List[LLMProviderModelConfigModel] = (
-                    session.query(LLMProviderModelConfigModel)
-                    .filter(LLMProviderModelConfigModel.model_id.in_(model_ids))
-                    .order_by(LLMProviderModelConfigModel.id)
-                    .all()
-                )
-
-                if not config_rows:
-                    out.append(
-                        ProviderDatabaseConfigsDTO(
-                            providerName=provider.name,
-                            configs=[],
-                        )
-                    )
-                    continue
-
-                config_ids = [int(r.id) for r in config_rows]
-                param_rows: List[LLMProviderEndpointConfigParametersModel] = (
-                    session.query(LLMProviderEndpointConfigParametersModel)
-                    .filter(
-                        LLMProviderEndpointConfigParametersModel.config_id.in_(
-                            config_ids
-                        )
-                    )
-                    .all()
-                )
-                pairs_by_config: Dict[int, Dict[str, str]] = {}
-                for prow in param_rows:
-                    cid = int(prow.config_id)
-                    pairs_by_config.setdefault(cid, {})[str(prow.key)] = str(prow.value)
-
-                config_dtos: List[ModelConfigDTO] = []
-                for row in config_rows:
-                    mid = row.model_id
-                    if mid is None:
-                        continue
-                    modelname = model_id_to_name.get(int(mid), "")
-                    cid = int(row.id)
-                    config_dtos.append(
-                        ModelConfigDTO(
-                            id=str(cid),
-                            name=str(row.name),
-                            modelname=modelname,
-                            providerID=provider.system_name,
-                            savedConfigPairs=pairs_by_config.get(cid, {}),
-                            lastUpdated=row.updated_dt,
-                        )
-                    )
-
+                config_dtos = self._database_model_config_dtos_for_provider(session, provider)
                 out.append(
                     ProviderDatabaseConfigsDTO(
                         providerName=provider.name,

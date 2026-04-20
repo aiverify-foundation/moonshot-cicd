@@ -20,6 +20,8 @@ export interface ModelConfig {
   name: string;
   modelname: string;
   provider: string;
+  /** llm_provider_model_config.id when loaded from database_model_configs */
+  modelConfigId?: string;
 }
 
 /** Saved connector configuration row (custom-application path; static data until a backend API exists). */

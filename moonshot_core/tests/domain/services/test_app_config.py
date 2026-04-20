@@ -41,7 +41,10 @@ metrics:
 
 @pytest.fixture(autouse=True)
 def reset_app_config():
-    # Reset the singleton instance before each test
+    # Reset before and after each test so partial AppConfigEntity state from
+    # mocked FileLoader.load cannot leak to other modules in the same pytest session.
+    AppConfig._instance = None
+    yield
     AppConfig._instance = None
 
 @pytest.fixture

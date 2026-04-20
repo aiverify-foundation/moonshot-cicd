@@ -28,6 +28,7 @@ from application.services.file_shared_config_repository import (  # noqa: E402
 from application.services.shared_config_seed_service import (  # noqa: E402
     SharedConfigSeedService,
 )
+from domain.services.app_config import AppConfig  # noqa: E402
 
 SHARED_CONFIG_PATH = MOONSHOT_CORE_ROOT / "data" / "test_configs" / "shared.yaml"
 
@@ -46,6 +47,9 @@ def test_db_env(test_db_path):
     """Set MOONSHOT_DB_PATH and reset SessionManager singleton."""
     old_val = os.environ.get("MOONSHOT_DB_PATH")
     os.environ["MOONSHOT_DB_PATH"] = test_db_path
+    # Ensure AppConfig reloads from moonshot_config.yaml (not a polluted singleton
+    # from other test modules that mocked FileLoader with partial config).
+    AppConfig._instance = None
     SessionManager.reset_instance()
     yield
     SessionManager.reset_instance()

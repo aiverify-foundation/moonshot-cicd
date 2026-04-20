@@ -21,4 +21,4 @@ class BenchmarkRunEntity(BaseModel):
     end_time: Optional[datetime] = None
     llm_provider_id: Optional[int] = None
     llm_provider_model_id: Optional[int] = None
-    llm_provider_endpoint_config_id: Optional[int] = None
+    llm_provider_model_config_id: Optional[int] = None

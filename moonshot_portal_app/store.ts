@@ -118,6 +118,10 @@ const modelSelectionSlice = createSlice({
     isTestNameValid: false,
     /** Benchmark run name (Test Name field on model selection page) */
     testName: '',
+    /** Relational FKs for POST /api/start-benchmark-run (standard providers only) */
+    benchmarkLlmProviderId: null as number | null,
+    benchmarkLlmProviderModelId: null as number | null,
+    benchmarkLlmProviderModelConfigId: null as number | null,
   },
   reducers: {
     setSelectedProvider: (state, action) => {
@@ -125,6 +129,9 @@ const modelSelectionSlice = createSlice({
       // Reset model and config when provider changes
       state.selectedModel = '';
       state.selectedConfig = '';
+      state.benchmarkLlmProviderId = null;
+      state.benchmarkLlmProviderModelId = null;
+      state.benchmarkLlmProviderModelConfigId = null;
     },
     setSelectedModel: (state, action) => {
       state.selectedModel = action.payload;
@@ -135,9 +142,39 @@ const modelSelectionSlice = createSlice({
       state.selectedConfig = action.payload;
       // Clear model when config is selected
       state.selectedModel = '';
+      state.benchmarkLlmProviderId = null;
+      state.benchmarkLlmProviderModelId = null;
+      state.benchmarkLlmProviderModelConfigId = null;
+    },
+    setBenchmarkRunFks: (
+      state,
+      action: {
+        payload: {
+          llm_provider_id: number | null;
+          llm_provider_model_id: number | null;
+          llm_provider_model_config_id: number | null;
+        };
+      }
+    ) => {
+      state.benchmarkLlmProviderId = action.payload.llm_provider_id;
+      state.benchmarkLlmProviderModelId = action.payload.llm_provider_model_id;
+      state.benchmarkLlmProviderModelConfigId = action.payload.llm_provider_model_config_id;
     },
     updateConfigValidity: (state) => {
-      state.isConfigValid = Boolean(state.selectedProvider && (state.selectedModel || state.selectedConfig));
+      const base =
+        Boolean(state.selectedProvider) &&
+        (Boolean(state.selectedModel) || Boolean(state.selectedConfig));
+      if (!base) {
+        state.isConfigValid = false;
+        return;
+      }
+      if (state.selectedModel) {
+        state.isConfigValid =
+          state.benchmarkLlmProviderModelConfigId != null &&
+          state.benchmarkLlmProviderModelConfigId > 0;
+      } else {
+        state.isConfigValid = Boolean(state.selectedConfig);
+      }
     },
     setTestNameFilled: (state, action) => {
       state.isTestNameValid = action.payload;
@@ -153,6 +190,9 @@ const modelSelectionSlice = createSlice({
       state.isConfigValid = false;
       state.isTestNameValid = false;
       state.testName = '';
+      state.benchmarkLlmProviderId = null;
+      state.benchmarkLlmProviderModelId = null;
+      state.benchmarkLlmProviderModelConfigId = null;
     },
   },
 });
@@ -161,6 +201,7 @@ export const {
   setSelectedProvider, 
   setSelectedModel, 
   setSelectedConfig, 
+  setBenchmarkRunFks,
   updateConfigValidity, 
   setTestNameFilled,
   setBenchmarkTestName,

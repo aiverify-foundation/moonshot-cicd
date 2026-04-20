@@ -5,8 +5,8 @@ These tests exercise the full flow: BenchmarkRunEntity creation, BenchmarkRunSer
 save_run (mocked to avoid DB schema/migration dependency), and starting bundle processes.
 BenchmarkTestConfigAdapter and BenchmarkRunTestBundlePopulationService are mocked so
 no real DB rows are required. multiprocessing.Process is mocked so no subprocess runs.
-BenchmarkService is only involved in tests that assert KeyError propagation from
-get_bundle_by_id.
+DatabaseConnectorConfigService.build_connector_entity is mocked so no relational
+connector rows are required.
 """
 
 from unittest.mock import MagicMock, patch
@@ -14,7 +14,9 @@ from unittest.mock import MagicMock, patch
 import pytest
 
 from application.services.benchmark_execution_service import BenchmarkExecutionService
+from application.services.database_connector_config_service import DatabaseConnectorConfigService
 from domain.entities.benchmark_run_entity import BenchmarkRunEntity
+from domain.entities.connector_entity import ConnectorEntity
 
 
 @pytest.fixture
@@ -38,7 +40,6 @@ def mock_save_run():
         run_id = 42
 
         def _save_run(entity):
-            # Return entity with id set, as the real save would
             return BenchmarkRunEntity(
                 id=run_id,
                 name=entity.name,
@@ -48,12 +49,22 @@ def mock_save_run():
                 end_time=entity.end_time,
                 llm_provider_id=entity.llm_provider_id,
                 llm_provider_model_id=entity.llm_provider_model_id,
-                llm_provider_endpoint_config_id=entity.llm_provider_endpoint_config_id,
+                llm_provider_model_config_id=entity.llm_provider_model_config_id,
             )
 
         mock_svc.save_run.side_effect = _save_run
         mock_svc_class.return_value = mock_svc
         yield mock_svc.save_run
+
+
+@pytest.fixture
+def stub_connector_entity():
+    return ConnectorEntity(
+        connector_adapter="mock_adapter",
+        model="m",
+        model_endpoint="",
+        params={},
+    )
 
 
 @pytest.mark.integration
@@ -64,15 +75,17 @@ class TestStartBenchmarkRunIntegration:
         self,
         mock_process,
         mock_save_run,
+        stub_connector_entity,
     ):
         """
         start_benchmark_run creates a run entity, calls BenchmarkRunService.save_run,
-        and starts a background process per bundle with the correct run_id.
+        and starts a background process per bundle with DB id trio in Process args.
         """
         run_name = "integration-test-run"
         bundle_names = ["bundle-a", "bundle-b"]
-        llm_provider_name = "TestProvider"
-        llm_provider_config_name = "test-config"
+        llm_provider_id = 10
+        llm_provider_model_id = 20
+        llm_provider_model_config_id = 30
 
         with patch(
             "application.services.benchmark_execution_service.BenchmarkRunTestBundlePopulationService"
@@ -92,19 +105,24 @@ class TestStartBenchmarkRunIntegration:
                 mock_cfg.get_bundle_id_by_system_name_latest.return_value = 1
                 mock_cfg_cls.return_value = mock_cfg
 
-                service = BenchmarkExecutionService()
-                service.start_benchmark_run(
-                    run_name=run_name,
-                    bundle_names=bundle_names,
-                    llm_provider_name=llm_provider_name,
-                    llm_provider_config_name=llm_provider_config_name,
-                )
+                with patch.object(
+                    DatabaseConnectorConfigService,
+                    "build_connector_entity",
+                    return_value=stub_connector_entity,
+                ):
+                    service = BenchmarkExecutionService()
+                    service.start_benchmark_run(
+                        run_name=run_name,
+                        bundle_names=bundle_names,
+                        llm_provider_id=llm_provider_id,
+                        llm_provider_model_id=llm_provider_model_id,
+                        llm_provider_model_config_id=llm_provider_model_config_id,
+                    )
 
                 assert mock_cfg.get_bundle_id_by_system_name_latest.call_count == 2
                 mock_cfg.get_bundle_id_by_system_name_latest.assert_any_call("bundle-a")
                 mock_cfg.get_bundle_id_by_system_name_latest.assert_any_call("bundle-b")
 
-        # save_run was called once with the expected entity
         assert mock_save_run.call_count == 1
         (call_entity,) = mock_save_run.call_args[0]
         assert call_entity.name == run_name
@@ -112,32 +130,37 @@ class TestStartBenchmarkRunIntegration:
         assert call_entity.endpoint_type == "LLM_Provider"
         assert call_entity.start_time is not None
         assert call_entity.id is None
+        assert call_entity.llm_provider_id == llm_provider_id
+        assert call_entity.llm_provider_model_id == llm_provider_model_id
+        assert call_entity.llm_provider_model_config_id == llm_provider_model_config_id
 
-        # Returned run_id is used for processes (we use the value from our mock)
         run_id = 42
-
-        # Process was started twice (once per bundle) with correct args
         assert mock_process.call_count == 2
         started_bundles = []
         for call in mock_process.call_args_list:
             _, kwargs = call
             args = kwargs["args"]
-            bundle_id, connector, passed_run_id, skip_alembic = (
-                args[0],
-                args[1],
-                args[2],
-                args[3],
-            )
-            assert connector == llm_provider_config_name
+            (
+                bundle_name,
+                passed_run_id,
+                skip_alembic,
+                pid,
+                mid,
+                mcid,
+            ) = args
             assert passed_run_id == run_id
             assert skip_alembic is True
-            started_bundles.append(bundle_id)
+            assert pid == llm_provider_id
+            assert mid == llm_provider_model_id
+            assert mcid == llm_provider_model_config_id
+            started_bundles.append(bundle_name)
         assert started_bundles == bundle_names
 
     def test_start_benchmark_run_raises_when_bundle_not_found(
         self,
         mock_process,
         mock_save_run,
+        stub_connector_entity,
     ):
         """When bundle is not in DB, start_bundle_in_background raises KeyError after save_run."""
         with patch(
@@ -149,14 +172,19 @@ class TestStartBenchmarkRunIntegration:
             )
             mock_cfg_cls.return_value = mock_cfg
 
-            service = BenchmarkExecutionService()
-            with pytest.raises(KeyError, match="Bundle with ID 'missing' not found"):
-                service.start_benchmark_run(
-                    run_name="run",
-                    bundle_names=["missing"],
-                    llm_provider_name="P",
-                    llm_provider_config_name="cfg",
-                )
+            with patch.object(
+                DatabaseConnectorConfigService,
+                "build_connector_entity",
+                return_value=stub_connector_entity,
+            ):
+                service = BenchmarkExecutionService()
+                with pytest.raises(KeyError, match="Bundle with ID 'missing' not found"):
+                    service.start_benchmark_run(
+                        run_name="run",
+                        bundle_names=["missing"],
+                        llm_provider_id=1,
+                        llm_provider_model_id=2,
+                        llm_provider_model_config_id=3,
+                    )
 
-        # save_run was still called (run is created before iterating bundles)
         assert mock_save_run.call_count == 1

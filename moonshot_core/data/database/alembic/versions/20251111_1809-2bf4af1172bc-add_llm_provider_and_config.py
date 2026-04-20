@@ -62,20 +62,24 @@ def upgrade() -> None:
         sa.Column('updated_dt', sa.Date(), nullable=False, server_default=sa.func.now()),
         sa.Column('last_used_dt', sa.Date(), nullable=True),
         sa.PrimaryKeyConstraint('id'),
-        sa.ForeignKeyConstraint(['model_id'], ['model.id']),
+        sa.ForeignKeyConstraint(['model_id'], ['llm_provider_model.id']),
     )
     
     # Create table to store under LLM configuration's key-value pairs
     # Note: This table is not meant for storing sensitive information like API keys, etc.
     op.create_table(
-        'llm_provider_endpoint_config_parameters',
+        'llm_provider_model_config_parameters',
         sa.Column('id', sa.Integer(), nullable=False, autoincrement=True),
         sa.Column('config_id', sa.Integer(), nullable=False),
         sa.Column('key', sa.String(), nullable=False),
-        sa.Column('value', sa.String(), nullable=True),
+        sa.Column('value', sa.String(), nullable=False),
         sa.PrimaryKeyConstraint('id'),
-        sa.ForeignKeyConstraint(['config_id'], ['config.id']),
-        sa.UniqueConstraint('config_id', 'key')
+        sa.ForeignKeyConstraint(['config_id'], ['llm_provider_model_config.id']),
+        sa.UniqueConstraint(
+            'config_id',
+            'key',
+            name='uq_llm_provider_model_config_parameters_config_key',
+        ),
     )
 
     # Create table to store LLM Provider's API key (encrypted)
@@ -109,7 +113,7 @@ def downgrade() -> None:
     """Drop all tables."""
     op.drop_table('moonshot_config')
     op.drop_table('llm_provider_api_key')
-    op.drop_table('llm_provider_endpoint_config_parameters')
+    op.drop_table('llm_provider_model_config_parameters')
     op.drop_table('llm_provider_model_config')
     op.drop_table('llm_provider_model')
     op.drop_table('llm_provider')

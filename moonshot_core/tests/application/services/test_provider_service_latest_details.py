@@ -7,7 +7,7 @@ from adapters.driven.repository.sqlalchemy.llm_provider_models import (
     LLMProviderModelModel,
     LLMProviderEndpointConfigModel,
     LLMProviderModelConfigModel,
-    LLMProviderEndpointConfigParametersModel,
+    LLMProviderModelConfigParametersModel,
 )
 from adapters.driven.repository.sqlalchemy.session_manager import SessionManager
 from application.services.provider_service import ProviderService
@@ -146,12 +146,13 @@ def _seed_provider_with_db_model_config(
         session.add(cfg)
         session.flush()
         session.add(
-            LLMProviderEndpointConfigParametersModel(
+            LLMProviderModelConfigParametersModel(
                 config_id=cfg.id,
                 key="temperature",
                 value="0.7",
             )
         )
+        session.commit()
 
 
 class TestProviderServiceDatabaseModelConfigs:
@@ -171,6 +172,22 @@ class TestProviderServiceDatabaseModelConfigs:
         assert cfg.providerID == "db_cfg_provider"
         assert cfg.savedConfigPairs == {"temperature": "0.7"}
         assert cfg.lastUpdated is not None
+        assert cfg.modelId > 0
+
+    def test_latest_details_includes_database_model_configs(
+        self,
+        provider_service: ProviderService,
+    ):
+        _seed_provider_with_db_model_config()
+        details = provider_service.get_latest_provider_details_by_system_name(
+            "db_cfg_provider"
+        )
+        assert details is not None
+        assert len(details.database_model_configs) == 1
+        dmc = details.database_model_configs[0]
+        assert dmc.name == "prod"
+        assert dmc.modelname == "gpt-test"
+        assert dmc.modelId > 0
 
     def test_provider_without_models_has_empty_configs(
         self,

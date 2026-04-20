@@ -58,7 +58,7 @@ class LLMProviderModelConfigModel(Base):
     SQLAlchemy model for the llm_provider_model_config table.
 
     Named configuration for an llm_provider_model row (key/value parameters live in
-    llm_provider_endpoint_config_parameters).
+    llm_provider_model_config_parameters).
     """
 
     __tablename__ = "llm_provider_model_config"
@@ -72,23 +72,28 @@ class LLMProviderModelConfigModel(Base):
     updated_dt = Column(DateTime, nullable=False, server_default=func.now())
     last_used_dt = Column(DateTime, nullable=True)
 
+    benchmark_runs = relationship(
+        "BenchmarkRunModel",
+        back_populates="llm_provider_model_config",
+    )
+
     def __repr__(self) -> str:
         return f"<LLMProviderModelConfigModel(id={self.id}, name='{self.name}', model_id={self.model_id})>"
 
 
-class LLMProviderEndpointConfigParametersModel(Base):
+class LLMProviderModelConfigParametersModel(Base):
     """
-    SQLAlchemy model for the llm_provider_endpoint_config_parameters table.
+    SQLAlchemy model for the llm_provider_model_config_parameters table.
 
     Key/value pairs attached to an llm_provider_model_config row.
     """
 
-    __tablename__ = "llm_provider_endpoint_config_parameters"
+    __tablename__ = "llm_provider_model_config_parameters"
     __table_args__ = (
         UniqueConstraint(
             "config_id",
             "key",
-            name="uq_llm_provider_endpoint_config_parameters_config_key",
+            name="uq_llm_provider_model_config_parameters_config_key",
         ),
     )
 
@@ -99,9 +104,13 @@ class LLMProviderEndpointConfigParametersModel(Base):
 
     def __repr__(self) -> str:
         return (
-            f"<LLMProviderEndpointConfigParametersModel(id={self.id}, "
+            f"<LLMProviderModelConfigParametersModel(id={self.id}, "
             f"config_id={self.config_id}, key='{self.key}')>"
         )
+
+
+# Backwards-compatible alias (deprecated): use LLMProviderModelConfigParametersModel
+LLMProviderEndpointConfigParametersModel = LLMProviderModelConfigParametersModel
 
 
 class LLMProviderApiKeyModel(Base):
@@ -350,7 +359,6 @@ class LLMProviderEndpointConfigModel(Base):
 
     # Relationships
     llm_provider = relationship("LLMProviderModel", backref="endpoint_configs")
-    benchmark_runs = relationship("BenchmarkRunModel", back_populates="llm_provider_endpoint_config")
 
     def __repr__(self) -> str:
         return f"<LLMProviderEndpointConfigModel(id={self.id}, name='{self.name}')>"
@@ -372,16 +380,16 @@ class BenchmarkRunModel(Base):
     endpoint_type = Column(String, nullable=False)  # LLM_Provider
     llm_provider_id = Column(Integer, ForeignKey("llm_provider.id"), nullable=True)
     llm_provider_model_id = Column(Integer, ForeignKey("llm_provider_model.id"), nullable=True)
-    llm_provider_endpoint_config_id = Column(
+    llm_provider_model_config_id = Column(
         Integer,
-        ForeignKey("llm_provider_endpoint_config.id"),
+        ForeignKey("llm_provider_model_config.id"),
         nullable=True,
     )
 
     # Relationships
     llm_provider = relationship("LLMProviderModel", backref="benchmark_runs")
-    llm_provider_endpoint_config = relationship(
-        "LLMProviderEndpointConfigModel",
+    llm_provider_model_config = relationship(
+        "LLMProviderModelConfigModel",
         back_populates="benchmark_runs",
     )
     run_test_statuses = relationship(

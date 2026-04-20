@@ -11,8 +11,8 @@ from sqlalchemy.orm import Session
 from adapters.driven.repository.sqlalchemy.llm_provider_models import (
     LLMProviderModel,
     LLMProviderModelConfigModel,
+    LLMProviderModelConfigParametersModel,
     LLMProviderModelModel,
-    LLMProviderEndpointConfigParametersModel,
 )
 from adapters.driven.repository.sqlalchemy.session_manager import SessionManager
 from application.dto.model_config_dto import (
@@ -144,12 +144,12 @@ class DatabaseModelConfigService:
     def _replace_parameters(
         self, session: Session, config_id: int, pairs: Dict[str, str]
     ) -> None:
-        session.query(LLMProviderEndpointConfigParametersModel).filter(
-            LLMProviderEndpointConfigParametersModel.config_id == config_id
+        session.query(LLMProviderModelConfigParametersModel).filter(
+            LLMProviderModelConfigParametersModel.config_id == config_id
         ).delete(synchronize_session=False)
         for key, value in pairs.items():
             session.add(
-                LLMProviderEndpointConfigParametersModel(
+                LLMProviderModelConfigParametersModel(
                     config_id=config_id,
                     key=key,
                     value=str(value),
@@ -190,9 +190,9 @@ class DatabaseModelConfigService:
                 f"llm_provider id={model_row.llm_provider_id} missing for config id={config_id}"
             )
         param_rows = (
-            session.query(LLMProviderEndpointConfigParametersModel)
+            session.query(LLMProviderModelConfigParametersModel)
             .filter(
-                LLMProviderEndpointConfigParametersModel.config_id == config_id,
+                LLMProviderModelConfigParametersModel.config_id == config_id,
             )
             .all()
         )
@@ -201,6 +201,7 @@ class DatabaseModelConfigService:
             id=str(config_id),
             name=str(row.name),
             modelname=str(model_row.name),
+            modelId=int(model_row.id),
             providerID=str(provider.system_name),
             savedConfigPairs=pairs,
             lastUpdated=row.updated_dt,

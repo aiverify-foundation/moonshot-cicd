@@ -7,19 +7,21 @@ from pydantic import BaseModel, ConfigDict
 class StartBenchmarkRunRequestDTO(BaseModel):
     """
     StartBenchmarkRunRequestDTO represents the request for starting a benchmark run
-    (one or more bundles with a single run name and LLM config).
+    (one or more bundles with a single run name and relational LLM config).
 
     Attributes:
         bundle_names (List[str]): Names/ids of the bundles to execute.
         run_name (str): Name for this benchmark run.
-        llm_provider_name (str): Name of the LLM provider to use.
-        llm_provider_config_name (str): Name of the LLM provider config to use (connector id).
+        llm_provider_id (int): FK llm_provider.id
+        llm_provider_model_id (int): FK llm_provider_model.id
+        llm_provider_model_config_id (int): FK llm_provider_model_config.id
     """
 
     bundle_names: List[str]
     run_name: str
-    llm_provider_name: str
-    llm_provider_config_name: str
+    llm_provider_id: int
+    llm_provider_model_id: int
+    llm_provider_model_config_id: int
 
 
 class StartBenchmarkRunResponseDTO(BaseModel):
@@ -50,7 +52,7 @@ class BenchmarkRunResponseDTO(BaseModel):
     end_time: Optional[datetime] = None
     llm_provider_id: Optional[int] = None
     llm_provider_model_id: Optional[int] = None
-    llm_provider_endpoint_config_id: Optional[int] = None
+    llm_provider_model_config_id: Optional[int] = None
 
 
 class BenchmarkRunTestBundleResponseDTO(BaseModel):

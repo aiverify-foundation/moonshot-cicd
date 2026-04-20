@@ -3,6 +3,9 @@ from typing import Any
 
 from together import AsyncTogether
 
+from adapters.connector.strip_connector_chat_kwargs import (
+    strip_connector_keys_for_chat_completion,
+)
 from domain.entities.connector_entity import ConnectorEntity
 from domain.entities.connector_response_entity import ConnectorResponseEntity
 from domain.ports.connector_port import ConnectorPort
@@ -98,7 +101,8 @@ class TogetherAdapter(ConnectorPort):
             "model": self.connector_entity.model,
             "messages": together_request,
         }
-        
+        new_params = strip_connector_keys_for_chat_completion(new_params)
+
         endpoint = self.connector_entity.model_endpoint or "default (api.together.xyz/v1)"
         logger.info(
             self.INFO_MAKING_REQUEST.format(

@@ -150,6 +150,11 @@ class AsyncioPromptProcessor(PromptProcessorPort):
             # Update the metric instance with the params from the metric config
             app_config = AppConfig()
             metric_config = app_config.get_metric_config(met_id)
+            if metric_config is None:
+                raise ValueError(
+                    f"No metric configuration found for {met_id!r} in app config "
+                    "(check moonshot_config.yaml metrics section)."
+                )
             metric_instance.update_metric_params(metric_config.params)
         except Exception as e:
             logger.error(f"{self.ERROR_LOADING_METRIC} {e}")

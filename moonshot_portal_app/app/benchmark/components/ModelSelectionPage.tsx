@@ -89,12 +89,19 @@ export default function ModelSelectionPage() {
     setModelsError(null);
     try {
       const details = await fetchProviderLatestDetails(systemName);
+      const byModelId = new Map<number, string>();
+      for (const c of details.database_model_configs ?? []) {
+        if (c.modelId != null && c.modelId > 0) {
+          byModelId.set(c.modelId, c.id);
+        }
+      }
       setApiModels(
         details.models.map((m) => ({
           id: String(m.id),
           name: m.name,
           modelname: m.name,
           provider: providerId,
+          modelConfigId: byModelId.get(m.id),
         }))
       );
     } catch (e) {

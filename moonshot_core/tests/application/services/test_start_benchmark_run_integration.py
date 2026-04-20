@@ -17,13 +17,20 @@ from sqlalchemy.exc import IntegrityError
 from adapters.driven.repository.sqlalchemy.llm_provider_models import (
     BenchmarkRunTestPromptModel,
     BenchmarkRunTestStatusModel,
+    LLMProviderModel,
+    LLMProviderModelConfigModel,
+    LLMProviderModelModel,
 )
 from adapters.driven.repository.sqlalchemy.session_manager import SessionManager
 from adapters.driven.repository.sqlalchemy.benchmark_test_config_adapter import (
     BenchmarkTestConfigAdapter,
 )
 from application.services.benchmark_execution_service import BenchmarkExecutionService
+from application.services.database_connector_config_service import (
+    DatabaseConnectorConfigService,
+)
 from application.services.benchmark_run_service import BenchmarkRunService
+from application.services.provider_seed_service import ProviderSeedService
 from application.services.shared_config_seed_service import SharedConfigSeedService
 from application.services.file_shared_config_repository import (
     FileSharedConfigRepository,
@@ -44,11 +51,17 @@ from domain.services.enums.module_types import ModuleTypes
 from domain.entities.connector_entity import ConnectorEntity
 from domain.entities.connector_response_entity import ConnectorResponseEntity
 
+import time
+import uuid
 
 FIXTURES_DIR = Path(__file__).resolve().parent / "fixtures"
 CONFIG_PATH = FIXTURES_DIR / "shared_minimal.yaml"
 MOONSHOT_CORE_ROOT = Path(__file__).resolve().parent.parent.parent.parent
 SHARED_CONFIG_PATH = MOONSHOT_CORE_ROOT / "data" / "test_configs" / "shared.yaml"
+
+STUB_LLM_PROVIDER_ID = 1
+STUB_LLM_PROVIDER_MODEL_ID = 1
+STUB_LLM_PROVIDER_MODEL_CONFIG_ID = 1
 
 
 @pytest.fixture(scope="session")
@@ -110,7 +123,10 @@ def _get_run_test_status(session_manager, run_id: int, test_id: int):
 
 
 def _get_run_test_prompts(session_manager, run_test_id: int):
-    """Return list of (prediction_result, evaluation_prediction_result, evaluation_accuracy)."""
+    """Return list of (prediction_result, evaluation_prediction_result, evaluation_accuracy) per row.
+
+    Callers assert on prediction and evaluation text; ``evaluation_accuracy`` may be NULL for some metrics.
+    """
     with session_manager.get_session() as session:
         rows = (
             session.query(BenchmarkRunTestPromptModel)
@@ -136,7 +152,7 @@ def _make_load_module_side_effect(num_tests: int):
 
 
 def _assert_run_completed(session_manager, run_id: int, test_ids: list, expected_prediction: str):
-    """Assert all tests for run_id are completed with prompt results."""
+    """Assert all tests for run_id are completed with prediction and evaluation text (not ``evaluation_accuracy``)."""
     for test_id in test_ids:
         run_test_id, status, end_dt = _get_run_test_status(session_manager, run_id, test_id)
         assert run_test_id is not None, f"run_test_status missing for run_id={run_id}, test_id={test_id}"
@@ -144,11 +160,10 @@ def _assert_run_completed(session_manager, run_id: int, test_ids: list, expected
         assert end_dt is not None
         prompts = _get_run_test_prompts(session_manager, run_test_id)
         assert len(prompts) >= 1
-        for prediction_result, evaluation_prediction_result, evaluation_accuracy in prompts:
+        for prediction_result, evaluation_prediction_result, _ in prompts:
             assert prediction_result is not None
             assert prediction_result == expected_prediction
             assert evaluation_prediction_result is not None
-            assert evaluation_accuracy is not None
 
 
 def _assert_all_statuses_completed(session_manager, run_id: int):
@@ -245,7 +260,11 @@ def test_start_benchmark_run_happy_path_with_db(
 
     with (
         patch.object(AppConfig, "DEFAULT_RESULTS_PATH", str(tmp_path)),
-        patch.object(TaskManager, "_get_connector_config", return_value=connector_entity),
+        patch.object(
+            DatabaseConnectorConfigService,
+            "build_connector_entity",
+            return_value=connector_entity,
+        ),
         patch.object(
             TaskManager,
             "_load_module",
@@ -270,8 +289,9 @@ def test_start_benchmark_run_happy_path_with_db(
         service.start_benchmark_run(
             run_name=run_name,
             bundle_names=["minimal-bundle"],
-            llm_provider_name="TestProvider",
-            llm_provider_config_name="mock_execute_bundle_connector",
+            llm_provider_id=STUB_LLM_PROVIDER_ID,
+            llm_provider_model_id=STUB_LLM_PROVIDER_MODEL_ID,
+            llm_provider_model_config_id=STUB_LLM_PROVIDER_MODEL_CONFIG_ID,
         )
 
     run_entity = BenchmarkRunService().get_run_by_name(run_name)
@@ -357,7 +377,11 @@ def test_start_benchmark_run_two_runs_back_to_back(
 
     with (
         patch.object(AppConfig, "DEFAULT_RESULTS_PATH", str(tmp_path)),
-        patch.object(TaskManager, "_get_connector_config", return_value=connector_entity),
+        patch.object(
+            DatabaseConnectorConfigService,
+            "build_connector_entity",
+            return_value=connector_entity,
+        ),
         patch.object(
             TaskManager,
             "_load_module",
@@ -382,14 +406,16 @@ def test_start_benchmark_run_two_runs_back_to_back(
         service.start_benchmark_run(
             run_name=run_name_1,
             bundle_names=["minimal-bundle"],
-            llm_provider_name="TestProvider",
-            llm_provider_config_name="mock_execute_bundle_connector",
+            llm_provider_id=STUB_LLM_PROVIDER_ID,
+            llm_provider_model_id=STUB_LLM_PROVIDER_MODEL_ID,
+            llm_provider_model_config_id=STUB_LLM_PROVIDER_MODEL_CONFIG_ID,
         )
         service.start_benchmark_run(
             run_name=run_name_2,
             bundle_names=["minimal-bundle"],
-            llm_provider_name="TestProvider",
-            llm_provider_config_name="mock_execute_bundle_connector",
+            llm_provider_id=STUB_LLM_PROVIDER_ID,
+            llm_provider_model_id=STUB_LLM_PROVIDER_MODEL_ID,
+            llm_provider_model_config_id=STUB_LLM_PROVIDER_MODEL_CONFIG_ID,
         )
 
     run_entity_1 = BenchmarkRunService().get_run_by_name(run_name_1)
@@ -459,7 +485,11 @@ def test_start_benchmark_run_duplicate_name_raises(
 
     with (
         patch.object(AppConfig, "DEFAULT_RESULTS_PATH", str(tmp_path)),
-        patch.object(TaskManager, "_get_connector_config", return_value=connector_entity),
+        patch.object(
+            DatabaseConnectorConfigService,
+            "build_connector_entity",
+            return_value=connector_entity,
+        ),
         patch.object(
             TaskManager,
             "_load_module",
@@ -484,15 +514,17 @@ def test_start_benchmark_run_duplicate_name_raises(
         service.start_benchmark_run(
             run_name=run_name,
             bundle_names=["minimal-bundle"],
-            llm_provider_name="TestProvider",
-            llm_provider_config_name="mock_execute_bundle_connector",
+            llm_provider_id=STUB_LLM_PROVIDER_ID,
+            llm_provider_model_id=STUB_LLM_PROVIDER_MODEL_ID,
+            llm_provider_model_config_id=STUB_LLM_PROVIDER_MODEL_CONFIG_ID,
         )
         with pytest.raises(IntegrityError):
             service.start_benchmark_run(
                 run_name=run_name,
                 bundle_names=["minimal-bundle"],
-                llm_provider_name="TestProvider",
-                llm_provider_config_name="mock_execute_bundle_connector",
+                llm_provider_id=STUB_LLM_PROVIDER_ID,
+                llm_provider_model_id=STUB_LLM_PROVIDER_MODEL_ID,
+                llm_provider_model_config_id=STUB_LLM_PROVIDER_MODEL_CONFIG_ID,
             )
 
 
@@ -560,7 +592,11 @@ def test_start_benchmark_run_test_prompts_bundle(
 
     with (
         patch.object(AppConfig, "DEFAULT_RESULTS_PATH", str(tmp_path)),
-        patch.object(TaskManager, "_get_connector_config", return_value=connector_entity),
+        patch.object(
+            DatabaseConnectorConfigService,
+            "build_connector_entity",
+            return_value=connector_entity,
+        ),
         patch.object(
             TaskManager,
             "_load_module",
@@ -585,8 +621,9 @@ def test_start_benchmark_run_test_prompts_bundle(
         service.start_benchmark_run(
             run_name=run_name,
             bundle_names=["test-prompts"],
-            llm_provider_name="TestProvider",
-            llm_provider_config_name="mock_execute_bundle_connector",
+            llm_provider_id=STUB_LLM_PROVIDER_ID,
+            llm_provider_model_id=STUB_LLM_PROVIDER_MODEL_ID,
+            llm_provider_model_config_id=STUB_LLM_PROVIDER_MODEL_CONFIG_ID,
         )
 
     run_entity = BenchmarkRunService().get_run_by_name(run_name)
@@ -605,3 +642,145 @@ def test_start_benchmark_run_test_prompts_bundle(
     session_manager = SessionManager.get_instance()
     _assert_run_completed(session_manager, run_entity.id, test_ids, expected_prediction)
     _assert_all_statuses_completed(session_manager, run_entity.id)
+
+
+def _ensure_openai_benchmark_ids() -> tuple[int, int, int]:
+    ProviderSeedService().seed_hardcoded_providers()
+    session_manager = SessionManager.get_instance()
+    with session_manager.get_session() as session:
+        provider = (
+            session.query(LLMProviderModel)
+            .filter(LLMProviderModel.system_name == "openai_adapter")
+            .order_by(LLMProviderModel.id.desc())
+            .first()
+        )
+        assert provider is not None
+        model = (
+            session.query(LLMProviderModelModel)
+            .filter(
+                LLMProviderModelModel.llm_provider_id == provider.id,
+                LLMProviderModelModel.name == "gpt-4o-mini",
+            )
+            .first()
+        )
+        if model is None:
+            model = LLMProviderModelModel(
+                llm_provider_id=provider.id,
+                name="gpt-4o-mini",
+            )
+            session.add(model)
+            session.flush()
+        cfg = (
+            session.query(LLMProviderModelConfigModel)
+            .filter(LLMProviderModelConfigModel.model_id == model.id)
+            .first()
+        )
+        if cfg is None:
+            cfg = LLMProviderModelConfigModel(
+                model_id=model.id,
+                name="pytest-live-openai-default",
+            )
+            session.add(cfg)
+            session.flush()
+        session.commit()
+        return int(provider.id), int(model.id), int(cfg.id)
+
+
+def _poll_benchmark_run_completed(run_name: str, timeout_s: float = 300.0, interval_s: float = 0.5):
+    deadline = time.monotonic() + timeout_s
+    while time.monotonic() < deadline:
+        run_entity = BenchmarkRunService().get_run_by_name(run_name)
+        if run_entity is not None and run_entity.status == "completed":
+            return run_entity
+        if run_entity is not None and run_entity.status not in ("running", "completed"):
+            pytest.fail(f"benchmark_run ended unexpectedly: status={run_entity.status!r}")
+        time.sleep(interval_s)
+    pytest.fail(f"benchmark_run {run_name!r} not completed within {timeout_s}s")
+
+
+def _assert_predictions_from_real_model(session_manager, run_id: int, test_ids: list[int]):
+    for test_id in test_ids:
+        run_test_id, status, end_dt = _get_run_test_status(session_manager, run_id, test_id)
+        assert run_test_id is not None
+        assert status == "completed"
+        assert end_dt is not None
+        prompts = _get_run_test_prompts(session_manager, run_test_id)
+        assert len(prompts) >= 1
+        for prediction_result, evaluation_prediction_result, _ in prompts:
+            assert prediction_result and prediction_result.strip()
+            assert evaluation_prediction_result is not None
+            assert evaluation_prediction_result.strip()
+
+
+@pytest.mark.live_openai
+@pytest.mark.skipif(
+    not (os.getenv("OPENAI_API_KEY") or "").strip(),
+    reason="OPENAI_API_KEY not set (live OpenAI test skipped)",
+)
+def test_start_benchmark_run_live_openai_real_api(
+    shared_config_seed_service,
+    test_db_env,
+    tmp_path,
+):
+    """
+    Live OpenAI: real ``multiprocessing.Process``, ``BenchmarkExecutionService.start_benchmark_run``,
+    real ``openai_adapter`` and ``AsyncOpenAI.chat.completions.create`` (benchmark + refusal metric).
+
+    Preconditions:
+    - ``OPENAI_API_KEY`` in the environment (parent and worker inherit env).
+    - Session-scoped SQLite via ``MOONSHOT_DB_PATH`` (``test_db_env``); migrations applied by seed flow.
+    - Relational ids from seeded ``llm_provider`` / model / ``model_config`` (``openai_adapter`` + ``gpt-4o-mini``),
+      not hard-coded stub ids.
+    - Bundle ``minimal-bundle`` from ``fixtures/shared_minimal.yaml`` (``refusal_adapter``).
+
+    Opt-in: default pytest excludes ``live_openai`` (see ``pytest.ini`` ``addopts``). Run explicitly, e.g.:
+    ``cd moonshot_core && pytest -o addopts= -m live_openai tests/application/services/test_start_benchmark_run_integration.py::test_start_benchmark_run_live_openai_real_api``
+
+    Asserts run reaches ``completed``, result JSON exists under ``tmp_path`` (via ``MOONSHOT_BENCHMARK_RESULTS_DIR``),
+    and prompt rows have non-empty ``prediction_result`` and non-empty ``evaluation_prediction_result``.
+    Does not require ``evaluation_accuracy`` (nullable for dict-shaped metric results). Uses ``moonshot_config.yaml`` via ``MS_CONFIG_PATH``.
+    """
+    assert CONFIG_PATH.exists(), f"Fixture config missing: {CONFIG_PATH}"
+    shared_config_seed_service.seed_if_test_file_changed(config_path=CONFIG_PATH)
+
+    config_adapter = BenchmarkTestConfigAdapter()
+    bundle_db_id = config_adapter.get_bundle_id_by_system_name_latest("minimal-bundle")
+    test_ids = config_adapter.get_test_ids_by_bundle_id(bundle_db_id)
+    assert len(test_ids) >= 1
+
+    llm_provider_id, llm_provider_model_id, llm_provider_model_config_id = _ensure_openai_benchmark_ids()
+
+    run_name = f"live-openai-{uuid.uuid4().hex[:12]}"
+    old_results = os.environ.get("MOONSHOT_BENCHMARK_RESULTS_DIR")
+    old_ms_config = os.environ.get("MS_CONFIG_PATH")
+    os.environ["MOONSHOT_BENCHMARK_RESULTS_DIR"] = str(tmp_path)
+    os.environ["MS_CONFIG_PATH"] = str(MOONSHOT_CORE_ROOT / "moonshot_config.yaml")
+    try:
+        BenchmarkExecutionService().start_benchmark_run(
+            run_name=run_name,
+            bundle_names=["minimal-bundle"],
+            llm_provider_id=llm_provider_id,
+            llm_provider_model_id=llm_provider_model_id,
+            llm_provider_model_config_id=llm_provider_model_config_id,
+        )
+        run_entity = _poll_benchmark_run_completed(run_name)
+        assert run_entity.id is not None
+        assert run_entity.end_time is not None
+
+        result_file = tmp_path / "minimal-bundle.json"
+        assert result_file.exists(), f"Expected result file at {result_file}"
+        data = json.loads(result_file.read_text())
+        assert "run_results" in data and len(data["run_results"]) >= 1
+
+        session_manager = SessionManager.get_instance()
+        _assert_predictions_from_real_model(session_manager, run_entity.id, test_ids)
+        _assert_all_statuses_completed(session_manager, run_entity.id)
+    finally:
+        if old_results is None:
+            os.environ.pop("MOONSHOT_BENCHMARK_RESULTS_DIR", None)
+        else:
+            os.environ["MOONSHOT_BENCHMARK_RESULTS_DIR"] = old_results
+        if old_ms_config is None:
+            os.environ.pop("MS_CONFIG_PATH", None)
+        else:
+            os.environ["MS_CONFIG_PATH"] = old_ms_config

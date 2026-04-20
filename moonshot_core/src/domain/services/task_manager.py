@@ -1,5 +1,6 @@
 import asyncio
 import json
+import os
 from datetime import datetime
 from typing import Callable, Optional
 
@@ -87,6 +88,7 @@ class TaskManager:
         write_to_db: bool = False,
         db_run_id: Optional[int] = None,
         test_id: Optional[int] = None,
+        connector_entity: Optional[ConnectorEntity] = None,
     ) -> str:
         """
         Run a benchmark task with the specified parameters.
@@ -96,12 +98,13 @@ class TaskManager:
             test_name (str): The name of the benchmark test.
             dataset (str): The name of the dataset module to be loaded.
             metric (str): The name of the metric module to be loaded.
-            connector (str): The name of the connector configuration to be loaded.
+            connector (str): YAML connector id when connector_entity is None.
             prompt_processor (str): The name of the prompt processor module to be loaded.
             callback_fn (Callable, optional): A callback function to be executed at various stages of the benchmark task
             Defaults to None.
             db_run_id (int, optional): DB benchmark_run.id when writing to DB; if None, DB write is skipped.
             test_id (int, optional): DB benchmark_test.id for run_test_status; if None, a default is used (TODO: proper resolution).
+            connector_entity (Optional[ConnectorEntity]): When set, used instead of YAML connector lookup.
 
         Returns:
             str: The file path where the results are stored.
@@ -123,10 +126,14 @@ class TaskManager:
             self._invoke_callback(callback_fn, stage=0, message="Loading modules")
             logger.info(self.LOADING_MODULES_MSG)
 
-            # Get the connector configuration
-            connector_entity = self._get_connector_config(connector)
-            if connector_entity is None:
+            # Get the connector configuration (DB-built entity or YAML id)
+            if connector_entity is not None:
+                resolved_connector = connector_entity
+            else:
+                resolved_connector = self._get_connector_config(connector)
+            if resolved_connector is None:
                 return ""
+            connector_entity = resolved_connector
 
             # Load the dataset and prompt processor modules
             dataset_entity, prompt_processor_instance = (
@@ -531,7 +538,10 @@ class TaskManager:
         # Initialize the local storage adapter
         local_adapter = LocalStorageAdapter()
         # Define the file path for storing the results
-        file_path = f"{AppConfig.DEFAULT_RESULTS_PATH}/{run_id}.json"
+        results_dir = os.environ.get(
+            "MOONSHOT_BENCHMARK_RESULTS_DIR", AppConfig.DEFAULT_RESULTS_PATH
+        )
+        file_path = f"{results_dir}/{run_id}.json"
         try:
             # Write the results to the file
             success, message = local_adapter.write_file(

@@ -54,8 +54,14 @@ class ModelConfigDTO(BaseModel):
     # Name of the model this configuration is for
     modelname: str
 
+    # llm_provider_model.id this configuration belongs to (for portal FK wiring)
+    modelId: int = 0
+
     # ID of the provider that owns this model
     providerID: str
+
+    # Matches llm_provider.version when resolving providerID (file/SQLite configs)
+    provider_version: int = 0
 
     # Saved configuration key-value pairs
     savedConfigPairs: Dict[str, str] = {}
@@ -92,12 +98,16 @@ class LLMProviderDetailsDTO(BaseModel):
     models: List[LLMProviderModelInfoDTO]
     endpoint_configs: List[LLMProviderEndpointConfigInfoDTO]
     config_params: Optional[Dict[str, str]] = None
+    database_model_configs: List[ModelConfigDTO] = Field(
+        default_factory=list,
+        description="Relational model configs (llm_provider_model_config + parameters) for benchmark FKs.",
+    )
 
 
 class ProviderDatabaseConfigsDTO(BaseModel):
     """
     One llm_provider row's display name plus model configs read from the database only
-    (llm_provider_model_config + llm_provider_endpoint_config_parameters), not file/SQLite stores.
+    (llm_provider_model_config + llm_provider_model_config_parameters), not file/SQLite stores.
     """
 
     providerName: str

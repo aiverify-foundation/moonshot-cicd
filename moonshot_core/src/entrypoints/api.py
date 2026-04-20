@@ -57,6 +57,9 @@ from application.ports.llm_provider_api_key_repository import (
 
 # Benchmark execution service
 from application.services.benchmark_execution_service import BenchmarkExecutionService
+from application.services.database_connector_config_service import (
+    DatabaseConnectorConfigError,
+)
 from application.services.benchmark_run_prompt_service import (
     BenchmarkRunPromptService,
 )
@@ -473,12 +476,15 @@ async def start_benchmark_run(request: StartBenchmarkRunRequestDTO) -> StartBenc
         benchmark_execution_service.start_benchmark_run(
             run_name=request.run_name,
             bundle_names=request.bundle_names,
-            llm_provider_name=request.llm_provider_name,
-            llm_provider_config_name=request.llm_provider_config_name,
+            llm_provider_id=request.llm_provider_id,
+            llm_provider_model_id=request.llm_provider_model_id,
+            llm_provider_model_config_id=request.llm_provider_model_config_id,
         )
         return StartBenchmarkRunResponseDTO(message="Benchmark run started successfully.")
     except KeyError as e:
         raise HTTPException(status_code=404, detail=str(e))
+    except DatabaseConnectorConfigError as e:
+        raise HTTPException(status_code=400, detail=str(e)) from e
     except Exception as e:
         logger.error(f"Error starting benchmark run: {e}")
         raise HTTPException(status_code=500, detail=f"Failed to start benchmark run: {str(e)}")

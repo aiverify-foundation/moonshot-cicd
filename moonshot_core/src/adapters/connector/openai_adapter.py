@@ -1,8 +1,11 @@
 import os
 from typing import Any
 
-from openai import AsyncOpenAI
+from openai import AsyncOpenAI, BadRequestError
 
+from adapters.connector.strip_connector_chat_kwargs import (
+    strip_connector_keys_for_chat_completion,
+)
 from domain.entities.connector_entity import ConnectorEntity
 from domain.entities.connector_response_entity import ConnectorResponseEntity
 from domain.ports.connector_port import ConnectorPort
@@ -24,6 +27,12 @@ class OpenAIAdapter(ConnectorPort):
     }
 
     ERROR_PROCESSING_PROMPT = "[OpenAIAdapter] Failed to process prompt."
+    LOG_UNSUPPORTED_CHAT_KWARG = (
+        "[OpenAIAdapter] Unsupported keyword argument for chat.completions.create"
+    )
+    LOG_API_REJECTED_CHAT = (
+        "[OpenAIAdapter] API rejected the chat completion request (invalid parameters)"
+    )
 
     """
     Adapter for interacting with the OpenAI API.
@@ -76,14 +85,28 @@ class OpenAIAdapter(ConnectorPort):
             "model": self.connector_entity.model,
             "messages": openai_request,
         }
+        create_kwargs = strip_connector_keys_for_chat_completion(new_params)
         try:
-            response = await self._client.chat.completions.create(**new_params)
+            response = await self._client.chat.completions.create(**create_kwargs)
             return ConnectorResponseEntity(
                 response=await self._process_response(response)
             )
+        except TypeError as e:
+            if "unexpected keyword argument" in str(e).lower():
+                param_keys = sorted(self.connector_entity.params)
+                logger.error(
+                    f"{self.LOG_UNSUPPORTED_CHAT_KWARG}: {e} "
+                    f"connector_param_keys={param_keys}"
+                )
+            else:
+                logger.error(f"{self.ERROR_PROCESSING_PROMPT} {e}")
+            raise
+        except BadRequestError as e:
+            logger.error(f"{self.LOG_API_REJECTED_CHAT}: {e}")
+            raise
         except Exception as e:
             logger.error(f"{self.ERROR_PROCESSING_PROMPT} {e}")
-            raise (e)
+            raise
 
     async def _process_response(self, response: Any) -> str:
         """
