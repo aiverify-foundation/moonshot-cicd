@@ -93,6 +93,7 @@ export const { clearFixedConfigsError } = fixedConfigsSlice.actions;
 
 const bundleSelectionSlice = createSlice({
   name: 'bundleSelection',
+  /** Keys: bundle system_name (`Bundle.id` from GET /api/bundles), not display `name`. */
   initialState: {} as Record<string, boolean>,
   reducers: {
     setBundleSelected: (state, action) => {

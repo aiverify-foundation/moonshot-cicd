@@ -47,10 +47,10 @@ export default function BenchmarkSidebar({ currentPage }: BenchmarkSidebarProps)
 
   // Auto-select all tests from selected bundles by default (only for new bundles)
   useEffect(() => {
-    const currentBundleNames = new Set(selectedBundles.map(b => b.name));
+    const currentBundleIds = new Set(selectedBundles.map(b => b.id));
     
     // Find new bundles that haven't been processed yet
-    const newBundles = selectedBundles.filter(bundle => !processedBundles.current.has(bundle.name));
+    const newBundles = selectedBundles.filter(bundle => !processedBundles.current.has(bundle.id));
     
     if (newBundles.length > 0) {
       // For each new bundle, check if any tests are already selected
@@ -66,22 +66,22 @@ export default function BenchmarkSidebar({ currentPage }: BenchmarkSidebarProps)
         }
         
         // Mark bundle as processed regardless
-        processedBundles.current.add(bundle.name);
+        processedBundles.current.add(bundle.id);
       });
     }
     
     // Remove bundles that are no longer selected and unselect their tests
-    Array.from(processedBundles.current).forEach(bundleName => {
-      if (!currentBundleNames.has(bundleName)) {
+    Array.from(processedBundles.current).forEach(bundleId => {
+      if (!currentBundleIds.has(bundleId)) {
         // Find the bundle and unselect all its tests
-        const deselectedBundle = bundles.find(b => b.name === bundleName);
+        const deselectedBundle = bundles.find(b => b.id === bundleId);
         if (deselectedBundle) {
           const testNamesToUnselect = deselectedBundle.tests.map((test: { name: string }) => test.name);
           if (testNamesToUnselect.length > 0) {
             setMultipleTests(testNamesToUnselect, false);
           }
         }
-        processedBundles.current.delete(bundleName);
+        processedBundles.current.delete(bundleId);
       }
     });
   }, [selectedBundles, bundles, setMultipleTests]);
@@ -91,8 +91,8 @@ export default function BenchmarkSidebar({ currentPage }: BenchmarkSidebarProps)
   };
 
   // Helper function to handle parent checkbox (select/deselect all)
-  const handleParentCheckChange = (bundleName: string) => {
-    const bundle = selectedBundles.find(b => b.name === bundleName);
+  const handleParentCheckChange = (bundleId: string) => {
+    const bundle = selectedBundles.find(b => b.id === bundleId);
     if (!bundle) return;
 
     const testNames = bundle.tests.map(test => test.name);
@@ -176,7 +176,7 @@ export default function BenchmarkSidebar({ currentPage }: BenchmarkSidebarProps)
   };
 
   const createParentAccordion = (data: BundleAccordionData) => {
-    const bundle = selectedBundles.find(b => b.name === data.id);
+    const bundle = selectedBundles.find(b => b.id === data.id);
     const testNames = bundle ? bundle.tests.map(test => test.name) : [];
     const allChecked = testNames.length > 0 && testNames.every(testName => testSelection[testName]);
     
@@ -208,7 +208,7 @@ export default function BenchmarkSidebar({ currentPage }: BenchmarkSidebarProps)
 
   // Transform selected bundles into accordion data
   const parentAccordionData: BundleAccordionData[] = selectedBundles.map(bundle => ({
-    id: bundle.name,
+    id: bundle.id,
     title: bundle.name,
     items: bundle.tests.map(test => ({
       id: test.name,

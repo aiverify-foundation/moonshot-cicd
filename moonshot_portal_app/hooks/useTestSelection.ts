@@ -40,7 +40,9 @@ export function useHasSelectedTests(): boolean {
 }
 
 /**
- * Get all checked tests with their bundle information
+ * Get all checked tests with their bundle information.
+ * `bundleName` is the bundle display title (`Bundle.name`), not `Bundle.id` / system_name.
+ * Per-test toggles here do not affect POST `/api/start-benchmark-run` (`bundle_names` is full bundles only).
  */
 export function useCheckedTestsWithBundles(): Array<{
   testName: string;

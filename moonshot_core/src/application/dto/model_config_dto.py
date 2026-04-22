@@ -1,6 +1,6 @@
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, Self
 from datetime import datetime
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 from application.dto.provider_dto import ProviderDTO
 
@@ -10,10 +10,31 @@ class CreateDatabaseModelConfigBody(BaseModel):
 
     model_config = ConfigDict(extra="forbid")
 
-    model_id: int
+    model_id: Optional[int] = None
+    llm_provider_id: Optional[int] = None
+    model_name: Optional[str] = None
     name: str
     savedConfigPairs: Dict[str, str] = Field(default_factory=dict)
     last_used_dt: Optional[datetime] = None
+
+    @model_validator(mode="after")
+    def validate_model_reference(self) -> Self:
+        by_id = self.model_id is not None
+        if by_id:
+            if self.llm_provider_id is not None or (
+                self.model_name is not None and self.model_name.strip() != ""
+            ):
+                raise ValueError(
+                    "When model_id is set, omit llm_provider_id and model_name"
+                )
+            return self
+        if self.llm_provider_id is None:
+            raise ValueError(
+                "Provide model_id or both llm_provider_id and a non-empty model_name"
+            )
+        if not self.model_name or not self.model_name.strip():
+            raise ValueError("model_name must be non-empty when creating by provider")
+        return self
 
 
 class UpdateDatabaseModelConfigBody(BaseModel):

@@ -33,13 +33,6 @@ def upgrade() -> None:
         sa.PrimaryKeyConstraint('id'),
         sa.UniqueConstraint('system_name', 'version', name='uq_llm_provider_system_name_version'),
     )
-
-    # Insert default LLM Providers that officially supported by FE
-    # Future plan to auto populate from adapters.driven.connectors upon startup
-    op.execute(
-        "INSERT INTO llm_provider (name, system_name, version) VALUES "
-        "('OpenAI', 'openai', 0), ('Together AI', 'together_ai', 0)"
-    )
     
     # Create table to store LLM name under a LLM Provider
     op.create_table(

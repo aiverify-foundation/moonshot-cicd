@@ -28,9 +28,6 @@ from application.services.database_model_config_service import (
 from application.services.llm_provider_api_key_service import (
     LlmProviderApiKeyUnknownProviderError,
 )
-from application.ports.llm_provider_api_key_repository import (
-    LlmProviderApiKeyConflictError,
-)
 
 client = TestClient(app)
 
@@ -411,7 +408,7 @@ def test_providers_with_database_model_configs(mock_provider_service):
 def test_create_database_model_config_201(mock_db_cfg_svc):
     """POST /api/database-model-configs returns 201 and body from service."""
     t = datetime(2026, 2, 1, 10, 0, 0, tzinfo=timezone.utc)
-    mock_db_cfg_svc.create.return_value = ModelConfigDTO(
+    dto = ModelConfigDTO(
         id="7",
         name="prod",
         modelname="m",
@@ -419,6 +416,7 @@ def test_create_database_model_config_201(mock_db_cfg_svc):
         savedConfigPairs={"k": "v"},
         lastUpdated=t,
     )
+    mock_db_cfg_svc.create.return_value = (dto, True)
     response = client.post(
         "/api/database-model-configs",
         json={"model_id": 3, "name": "prod", "savedConfigPairs": {"k": "v"}},
@@ -428,6 +426,27 @@ def test_create_database_model_config_201(mock_db_cfg_svc):
     assert data["id"] == "7"
     assert data["name"] == "prod"
     mock_db_cfg_svc.create.assert_called_once()
+
+
+@patch("entrypoints.api.database_model_config_service")
+def test_create_database_model_config_200_when_updated(mock_db_cfg_svc):
+    """POST returns 200 when service updates an existing (model_id, name) config."""
+    t = datetime(2026, 2, 1, 10, 0, 0, tzinfo=timezone.utc)
+    dto = ModelConfigDTO(
+        id="7",
+        name="prod",
+        modelname="m",
+        providerID="sys",
+        savedConfigPairs={"k": "v2"},
+        lastUpdated=t,
+    )
+    mock_db_cfg_svc.create.return_value = (dto, False)
+    response = client.post(
+        "/api/database-model-configs",
+        json={"model_id": 3, "name": "prod", "savedConfigPairs": {"k": "v2"}},
+    )
+    assert response.status_code == 200
+    assert response.json()["id"] == "7"
 
 
 @patch("entrypoints.api.database_model_config_service")
@@ -462,12 +481,12 @@ def test_post_provider_api_key_201(mock_key_svc):
     data = response.json()
     assert data == {"message": "API key stored"}
     assert "api_key" not in data
-    mock_key_svc.create_api_key.assert_called_once_with(1, "sk-test-secret")
+    mock_key_svc.set_api_key.assert_called_once_with(1, "sk-test-secret")
 
 
 @patch("entrypoints.api.llm_provider_api_key_service")
 def test_post_provider_api_key_404_unknown_provider(mock_key_svc):
-    mock_key_svc.create_api_key.side_effect = LlmProviderApiKeyUnknownProviderError(
+    mock_key_svc.set_api_key.side_effect = LlmProviderApiKeyUnknownProviderError(
         "No llm_provider with id=99"
     )
     response = client.post(
@@ -476,19 +495,6 @@ def test_post_provider_api_key_404_unknown_provider(mock_key_svc):
     )
     assert response.status_code == 404
     assert "99" in response.json()["detail"]
-
-
-@patch("entrypoints.api.llm_provider_api_key_service")
-def test_post_provider_api_key_409_conflict(mock_key_svc):
-    mock_key_svc.create_api_key.side_effect = LlmProviderApiKeyConflictError(
-        "API key already exists for llm_provider_id=1"
-    )
-    response = client.post(
-        "/api/providers/1/api-key",
-        json={"api_key": "sk-dup"},
-    )
-    assert response.status_code == 409
-    assert "already exists" in response.json()["detail"]
 
 
 def test_api_bundles_cors_preflight():

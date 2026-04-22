@@ -4,6 +4,7 @@ from typing import Any
 from openai import AsyncOpenAI, BadRequestError
 
 from adapters.connector.strip_connector_chat_kwargs import (
+    coerce_numeric_string_chat_params,
     strip_connector_keys_for_chat_completion,
 )
 from domain.entities.connector_entity import ConnectorEntity
@@ -85,7 +86,9 @@ class OpenAIAdapter(ConnectorPort):
             "model": self.connector_entity.model,
             "messages": openai_request,
         }
-        create_kwargs = strip_connector_keys_for_chat_completion(new_params)
+        create_kwargs = coerce_numeric_string_chat_params(
+            strip_connector_keys_for_chat_completion(new_params)
+        )
         try:
             response = await self._client.chat.completions.create(**create_kwargs)
             return ConnectorResponseEntity(

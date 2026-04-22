@@ -10,12 +10,12 @@ export function useSelectedBundles(): Bundle[] {
   const bundles = useAppSelector((state) => state.bundles.data);
 
   return useMemo(() => {
-    return bundles.filter(bundle => bundleSelection[bundle.name]);
+    return bundles.filter(bundle => bundleSelection[bundle.id]);
   }, [bundles, bundleSelection]);
 }
 
 /**
- * Get all selected bundle names as strings
+ * Selected bundle system names (`Bundle.id`), suitable for POST `bundle_names`.
  */
 export function useSelectedBundleNames(): string[] {
   const bundleSelection = useAppSelector((state) => state.bundleSelection);
@@ -23,16 +23,16 @@ export function useSelectedBundleNames(): string[] {
   return useMemo(() => {
     return Object.entries(bundleSelection)
       .filter(([_, isSelected]) => isSelected)
-      .map(([bundleName, _]) => bundleName);
+      .map(([bundleSystemName, _]) => bundleSystemName);
   }, [bundleSelection]);
 }
 
 /**
- * Check if a specific bundle is selected
+ * @param bundleSystemName Bundle `id` (system_name), not display `name`
  */
-export function useIsBundleSelected(bundleName: string): boolean {
+export function useIsBundleSelected(bundleSystemName: string): boolean {
   const bundleSelection = useAppSelector((state) => state.bundleSelection);
-  return Boolean(bundleSelection[bundleName]);
+  return Boolean(bundleSelection[bundleSystemName]);
 }
 
 /**

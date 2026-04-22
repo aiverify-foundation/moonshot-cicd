@@ -93,38 +93,13 @@ class TestLLMProviderAdapter:
         assert entity.model_dump() == expected_llm_provider_entity_dict
 
 
-    def test_list_providers_default(self, llm_provider_adapter):
-        """Upon first startup, OpenAI and Together AI are inserted into DB by default."""
-        # Act
+    def test_list_providers_empty_after_migrations(self, llm_provider_adapter):
+        """Migrations create schema only; provider rows are added by application seeding or users."""
         result: List[ProviderEntity] = llm_provider_adapter.list_providers()
-
-        # Assert
-        expected_llm_provider_openai: str = "OpenAI"
-        expected_llm_provider_openai_entity_dict = generate_expected_llm_provider_entity_dict(
-            expected_llm_provider_openai, system_name="openai", version=0
-        )
-
-        expected_llm_provider_togetherai: str = "Together AI"
-        expected_llm_provider_togetherai_entity_dict = generate_expected_llm_provider_entity_dict(
-            expected_llm_provider_togetherai, system_name="together_ai", version=0
-        )
-
-        assert len(result) == 2, f"Expected 2 providers as OpenAI and TogetherAI are inserted by Alembic by default, instead got {len(result)}."
-        for llm_provider_entity in result:
-            assert isinstance(llm_provider_entity, ProviderEntity), f"Expected results to be ProviderEntity type, got {type(llm_provider_entity)}."
-
-        result_openai_index: int = next((i for i, llm_provider_entity in enumerate(result) if llm_provider_entity.name==expected_llm_provider_openai), None)
-        assert result_openai_index is not None, f"Expected LLM Provider OpenAI is not in result: {result}"
-        assert result[result_openai_index].model_dump() == expected_llm_provider_openai_entity_dict, f"Expected LLM Provider OpenAI not in result: {result[result_openai_index]}."
-
-        result_togetherai_index: int = next((i for i, llm_provider_entity in enumerate(result) if llm_provider_entity.name==expected_llm_provider_togetherai), None)
-        assert result_togetherai_index is not None, f"Expected LLM Provider Together AI is not in result: {result}"
-        assert result[result_togetherai_index].model_dump() == expected_llm_provider_togetherai_entity_dict, f"Expected LLM Provider Together AI not in result: {result[result_togetherai_index]}."
-
-        assert result_openai_index < result_togetherai_index, f"Expected OpenAI (index={result_openai_index}) to be before Together AI (index={result_togetherai_index})."
+        assert result == []
 
     def test_adding_providers(self, llm_provider_adapter):
-        """Upon first startup, OpenAI and Together AI are inserted into DB by default."""
+        """list_providers returns added rows ordered by name."""
         # Act: add 2 LLM Providers to DB, add b before a to test result ordering
         llm_provider_adapter.add_provider(name="provider_b", system_name="provider_b", version=0)
         llm_provider_adapter.add_provider(name="provider_a", system_name="provider_a", version=0)
@@ -141,7 +116,7 @@ class TestLLMProviderAdapter:
             expected_llm_provider_b, system_name="provider_b", version=0
         )
 
-        assert len(result) == 4, f"Expected 2 default and 2 added LLM Providers, instead got {len(result)}."
+        assert len(result) == 2, f"Expected 2 added LLM Providers, instead got {len(result)}."
         for llm_provider_entity in result:
             assert isinstance(llm_provider_entity, ProviderEntity), f"Expected results to be ProviderEntity type, got {type(llm_provider_entity)}."
 

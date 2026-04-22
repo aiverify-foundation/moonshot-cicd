@@ -6,7 +6,7 @@ This module provides a REST API interface for the Moonshot benchmarking system.
 from contextlib import asynccontextmanager
 import sys
 
-from fastapi import FastAPI, Request, HTTPException
+from fastapi import FastAPI, Request, Response, HTTPException
 from fastapi.responses import FileResponse
 import os
 from pathlib import Path
@@ -50,10 +50,6 @@ from application.services.llm_provider_api_key_service import (
     LlmProviderApiKeyService,
     LlmProviderApiKeyUnknownProviderError,
 )
-from application.ports.llm_provider_api_key_repository import (
-    LlmProviderApiKeyConflictError,
-)
-
 # Benchmark execution service
 from application.services.benchmark_execution_service import BenchmarkExecutionService
 from application.services.database_connector_config_service import (
@@ -276,12 +272,15 @@ async def list_providers_with_database_model_configs():
 @app.post(
     "/api/database-model-configs",
     response_model=ModelConfigDTO,
-    status_code=201,
 )
-async def create_database_model_config(payload: CreateDatabaseModelConfigBody):
-    """Create a database-backed llm_provider_model_config row and parameters (insert-only)."""
+async def create_database_model_config(
+    payload: CreateDatabaseModelConfigBody, response: Response
+):
+    """Create a database-backed model config, or update it if the same model and name exist."""
     try:
-        return database_model_config_service.create(payload)
+        dto, created = database_model_config_service.create(payload)
+        response.status_code = 201 if created else 200
+        return dto
     except DatabaseModelConfigBadRequestError as e:
         raise HTTPException(status_code=400, detail=str(e))
     except DatabaseModelConfigConflictError as e:
@@ -367,18 +366,16 @@ async def set_llm_provider_api_key(
     payload: SetLlmProviderApiKeyRequestDTO,
 ):
     """
-    Register an encrypted API key for an llm_provider row (write-only).
+    Register or replace an encrypted API key for an llm_provider row (write-only).
 
     The plaintext key is never returned. There is no authentication on this API yet; use only
     on trusted networks (e.g. local dev) until auth is added.
     """
     try:
-        llm_provider_api_key_service.create_api_key(provider_id, payload.api_key)
+        llm_provider_api_key_service.set_api_key(provider_id, payload.api_key)
         return SetLlmProviderApiKeyResponseDTO(message="API key stored")
     except LlmProviderApiKeyUnknownProviderError as e:
         raise HTTPException(status_code=404, detail=str(e))
-    except LlmProviderApiKeyConflictError as e:
-        raise HTTPException(status_code=409, detail=str(e))
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:

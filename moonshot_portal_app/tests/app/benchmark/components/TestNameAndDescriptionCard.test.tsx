@@ -18,6 +18,9 @@ describe('TestNameAndDescriptionCard', () => {
             isConfigValid: false,
             isTestNameValid: false,
             testName: '',
+            benchmarkLlmProviderId: null,
+            benchmarkLlmProviderModelId: null,
+            benchmarkLlmProviderModelConfigId: null,
           },
         },
       });
@@ -68,6 +71,9 @@ describe('TestNameAndDescriptionCard', () => {
             isConfigValid: false,
             isTestNameValid: false,
             testName: '',
+            benchmarkLlmProviderId: null,
+            benchmarkLlmProviderModelId: null,
+            benchmarkLlmProviderModelConfigId: null,
           },
         },
       });
@@ -108,6 +114,9 @@ describe('TestNameAndDescriptionCard', () => {
             isConfigValid: false,
             isTestNameValid: false,
             testName: '',
+            benchmarkLlmProviderId: null,
+            benchmarkLlmProviderModelId: null,
+            benchmarkLlmProviderModelConfigId: null,
           },
         },
       });
@@ -146,6 +155,9 @@ describe('TestNameAndDescriptionCard', () => {
             isConfigValid: false,
             isTestNameValid: true, // Start with valid state
             testName: '',
+            benchmarkLlmProviderId: null,
+            benchmarkLlmProviderModelId: null,
+            benchmarkLlmProviderModelConfigId: null,
           },
         },
       });
@@ -218,6 +230,9 @@ describe('TestNameAndDescriptionCard', () => {
                 isConfigValid: false,
                 isTestNameValid: false,
                 testName: '',
+                benchmarkLlmProviderId: null,
+                benchmarkLlmProviderModelId: null,
+                benchmarkLlmProviderModelConfigId: null,
               },
             },
           });
@@ -248,6 +263,9 @@ describe('TestNameAndDescriptionCard', () => {
                 isConfigValid: false,
                 isTestNameValid: false,
                 testName: '',
+                benchmarkLlmProviderId: null,
+                benchmarkLlmProviderModelId: null,
+                benchmarkLlmProviderModelConfigId: null,
               },
             },
           });
@@ -292,6 +310,9 @@ describe('TestNameAndDescriptionCard', () => {
             isConfigValid: false,
             isTestNameValid: false,
             testName: '',
+            benchmarkLlmProviderId: null,
+            benchmarkLlmProviderModelId: null,
+            benchmarkLlmProviderModelConfigId: null,
           },
         },
       });
@@ -346,6 +367,9 @@ describe('TestNameAndDescriptionCard', () => {
             isConfigValid: false,
             isTestNameValid: true, // Valid test name
             testName: 'Valid',
+            benchmarkLlmProviderId: null,
+            benchmarkLlmProviderModelId: null,
+            benchmarkLlmProviderModelConfigId: null,
           },
         },
       });

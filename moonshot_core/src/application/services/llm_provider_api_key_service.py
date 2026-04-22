@@ -62,6 +62,14 @@ class LlmProviderApiKeyService:
         self._logger.info("Creating API key row for llm_provider_id=%s", llm_provider_id)
         self._repository.insert(llm_provider_id, self._encrypt(api_key))
 
+    def set_api_key(self, llm_provider_id: int, api_key: str) -> None:
+        """Store an API key for the provider, replacing any existing row(s)."""
+        if not api_key:
+            raise ValueError("api_key must be non-empty")
+        self._ensure_provider_exists(llm_provider_id)
+        self._logger.info("Setting API key for llm_provider_id=%s", llm_provider_id)
+        self._repository.replace(llm_provider_id, self._encrypt(api_key))
+
     def update_api_key(self, llm_provider_id: int, api_key: str) -> None:
         if not api_key:
             raise ValueError("api_key must be non-empty")

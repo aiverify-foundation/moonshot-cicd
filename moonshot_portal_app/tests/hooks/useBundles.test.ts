@@ -46,6 +46,7 @@ describe('useBundles', () => {
   it('should fetch and return bundles successfully', async () => {
     const mockBundles = [
       {
+        id: 'test-bundle',
         name: 'Test Bundle',
         description: 'Test Description',
         category: 'test',
@@ -97,6 +98,7 @@ describe('useBundles', () => {
   it('should provide refetch function', async () => {
     const mockBundles = [
       {
+        id: 'test-bundle',
         name: 'Test Bundle',
         description: 'Test Description',
         category: 'test',
@@ -119,6 +121,7 @@ describe('useBundles', () => {
     // Test refetch with new bundles
     const newBundles = [
       {
+        id: 'new-bundle',
         name: 'New Bundle',
         description: 'New Description',
         category: 'new',
@@ -142,6 +145,7 @@ describe('useBundles', () => {
   it('should set loading to true when refetching', async () => {
     const mockBundles = [
       {
+        id: 'test-bundle',
         name: 'Test Bundle',
         description: 'Test Description',
         category: 'test',

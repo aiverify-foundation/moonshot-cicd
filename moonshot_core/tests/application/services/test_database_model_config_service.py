@@ -69,6 +69,20 @@ def _seed_provider_with_model(*, system_name: str = "db_cfg_svc") -> int:
         return int(model_row.id)
 
 
+def _seed_provider_only(*, system_name: str = "db_cfg_by_name") -> int:
+    """Returns llm_provider.id (no llm_provider_model rows)."""
+    sm = SessionManager.get_instance()
+    with sm.get_session() as session:
+        prov = LLMProviderModel(
+            name="ByName Provider",
+            system_name=system_name,
+            version=0,
+        )
+        session.add(prov)
+        session.flush()
+        return int(prov.id)
+
+
 class TestDatabaseModelConfigServiceCreate:
     def test_create_persists_config_and_parameters(
         self, db_model_config_service: DatabaseModelConfigService
@@ -79,7 +93,8 @@ class TestDatabaseModelConfigServiceCreate:
             name="prod",
             savedConfigPairs={"temperature": "0.5", "top_p": "1"},
         )
-        dto = db_model_config_service.create(body)
+        dto, created = db_model_config_service.create(body)
+        assert created is True
         assert dto.id.isdigit()
         assert dto.name == "prod"
         assert dto.modelname == "model-a"
@@ -96,15 +111,72 @@ class TestDatabaseModelConfigServiceCreate:
                 CreateDatabaseModelConfigBody(model_id=999_999, name="x")
             )
 
-    def test_create_conflict_when_same_model_id_and_name(
+    def test_create_updates_when_same_model_id_and_name(
         self, db_model_config_service: DatabaseModelConfigService
     ):
         model_id = _seed_provider_with_model()
-        first = CreateDatabaseModelConfigBody(model_id=model_id, name="dup")
-        db_model_config_service.create(first)
-        with pytest.raises(DatabaseModelConfigConflictError, match="already exists"):
+        first = CreateDatabaseModelConfigBody(
+            model_id=model_id,
+            name="dup",
+            savedConfigPairs={"temperature": "0.1"},
+        )
+        dto1, created1 = db_model_config_service.create(first)
+        assert created1 is True
+        second = CreateDatabaseModelConfigBody(
+            model_id=model_id,
+            name="dup",
+            savedConfigPairs={"temperature": "0.9"},
+        )
+        dto2, created2 = db_model_config_service.create(second)
+        assert created2 is False
+        assert dto2.id == dto1.id
+        assert dto2.savedConfigPairs == {"temperature": "0.9"}
+
+    def test_create_by_provider_creates_model_row(
+        self, db_model_config_service: DatabaseModelConfigService
+    ):
+        provider_id = _seed_provider_only()
+        body = CreateDatabaseModelConfigBody(
+            llm_provider_id=provider_id,
+            model_name="  gpt-new  ",
+            name="cfg-a",
+            savedConfigPairs={"temperature": "0.2"},
+        )
+        dto, _ = db_model_config_service.create(body)
+        assert dto.name == "cfg-a"
+        assert dto.modelname == "gpt-new"
+        assert dto.providerID == "db_cfg_by_name"
+        assert dto.savedConfigPairs == {"temperature": "0.2"}
+
+    def test_create_by_provider_reuses_existing_model(
+        self, db_model_config_service: DatabaseModelConfigService
+    ):
+        provider_id = _seed_provider_only(system_name="db_reuse")
+        first = CreateDatabaseModelConfigBody(
+            llm_provider_id=provider_id,
+            model_name="shared-model",
+            name="cfg-one",
+        )
+        dto1, _ = db_model_config_service.create(first)
+        second = CreateDatabaseModelConfigBody(
+            llm_provider_id=provider_id,
+            model_name="shared-model",
+            name="cfg-two",
+        )
+        dto2, _ = db_model_config_service.create(second)
+        assert dto1.modelId == dto2.modelId
+        assert dto1.modelname == dto2.modelname == "shared-model"
+
+    def test_create_by_provider_rejects_unknown_provider(
+        self, db_model_config_service: DatabaseModelConfigService
+    ):
+        with pytest.raises(DatabaseModelConfigBadRequestError, match="No llm_provider"):
             db_model_config_service.create(
-                CreateDatabaseModelConfigBody(model_id=model_id, name="dup")
+                CreateDatabaseModelConfigBody(
+                    llm_provider_id=99_999_999,
+                    model_name="m",
+                    name="n",
+                )
             )
 
 

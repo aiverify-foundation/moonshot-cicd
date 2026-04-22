@@ -5,6 +5,8 @@
 const API_BASE_URL = 'http://localhost:8000';
 
 export interface Bundle {
+  /** Bundle system_name (YAML key); use for Redux keys and POST `bundle_names`. */
+  id: string;
   name: string;
   description: string;
   category: string;
@@ -23,6 +25,8 @@ export interface Bundle {
       [key: string]: string | undefined; //Undefined in order to accomodate the optional fields name and config_id
     };
   }>;
+  /** Total prompts across tests; from GET /api/bundles. */
+  prompt_count?: number;
 }
 
 export interface BundlesResponse {
@@ -146,6 +150,7 @@ export async function fetchFixedConfigs(): Promise<FixedConfig[]> {
 /** POST /api/start-benchmark-run */
 export interface StartBenchmarkRunRequest {
   run_name: string;
+  /** Each entry is a bundle system_name (same as `Bundle.id` from GET /api/bundles). Not filtered by per-test UI selection. */
   bundle_names: string[];
   llm_provider_id: number;
   llm_provider_model_id: number;
@@ -409,7 +414,10 @@ export async function setLlmProviderApiKey(
 
 /** POST /api/database-model-configs */
 export interface CreateDatabaseModelConfigPayload {
-  model_id: number;
+  /** Use either `model_id` or both `llm_provider_id` and `model_name`. */
+  model_id?: number;
+  llm_provider_id?: number;
+  model_name?: string;
   name: string;
   savedConfigPairs?: Record<string, string>;
 }
@@ -427,14 +435,23 @@ export async function createDatabaseModelConfig(
   payload: CreateDatabaseModelConfigPayload
 ): Promise<DatabaseModelConfigDTO> {
   try {
+    const body: Record<string, unknown> = {
+      name: payload.name,
+      savedConfigPairs: payload.savedConfigPairs ?? {},
+    };
+    if (payload.model_id !== undefined && payload.model_id !== null) {
+      body.model_id = payload.model_id;
+    }
+    if (payload.llm_provider_id !== undefined && payload.llm_provider_id !== null) {
+      body.llm_provider_id = payload.llm_provider_id;
+    }
+    if (payload.model_name !== undefined) {
+      body.model_name = payload.model_name;
+    }
     const response = await fetch(`${API_BASE_URL}/api/database-model-configs`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        model_id: payload.model_id,
-        name: payload.name,
-        savedConfigPairs: payload.savedConfigPairs ?? {},
-      }),
+      body: JSON.stringify(body),
     });
     if (!response.ok) {
       const errorText = await response.text().catch(() => 'Unknown error');

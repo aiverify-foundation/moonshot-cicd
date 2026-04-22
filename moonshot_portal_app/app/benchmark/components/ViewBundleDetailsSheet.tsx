@@ -17,23 +17,7 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/comp
 import { useAppSelector, useAppDispatch } from '../../../hooks/reduxHooks';
 import { toggleBundleSelected } from '../../../store';
 import { useTestSelectionActions } from '../../../hooks/useTestSelection';
-
-interface Bundle {
-  name: string;
-  description: string;
-  category: string;
-  tests: Array<{
-    name: string;
-    description?: string;
-    dataset: {
-      id: string;
-      name: string;
-      description: string;
-      num_of_dataset_prompts: number;
-    };
-  }>;
-  prompt_count?: number;
-}
+import type { Bundle } from '@/lib/api';
 
 interface ViewBundleDetailsSheetProps {
   open: boolean;
@@ -175,9 +159,9 @@ export default function ViewBundleDetailsSheet({
 
     // Then ensure the bundle is selected (only toggle if not already selected)
     // The sidebar will detect that tests are already selected and won't auto-select all
-    const isBundleSelected = Boolean(bundleSelection[bundle.name]);
+    const isBundleSelected = Boolean(bundleSelection[bundle.id]);
     if (!isBundleSelected) {
-      dispatch(toggleBundleSelected(bundle.name));
+      dispatch(toggleBundleSelected(bundle.id));
     }
 
     // Clear the local selection state and close the sheet

@@ -21,7 +21,6 @@ logger = configure_logger(__name__)
 
 # llm_provider.system_name (DB) -> connector module name for ModuleLoader
 SYSTEM_NAME_TO_ADAPTER_MODULE: dict[str, str] = {
-    "openai": "openai_adapter",
     "together_ai": "together_adapter",
     "openai_adapter": "openai_adapter",
     "together_adapter": "together_adapter",

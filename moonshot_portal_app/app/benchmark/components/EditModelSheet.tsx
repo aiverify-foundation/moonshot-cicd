@@ -206,39 +206,27 @@ export default function EditModelSheet({
       window.alert('No provider context for this configuration.');
       return;
     }
+    if (!modelName.trim()) {
+      window.alert('Enter a model name.');
+      return;
+    }
+    const systemName =
+      'system_name' in currentProvider
+        ? (currentProvider.system_name ?? currentProvider.id)
+        : currentProvider.id;
+    if (!systemName.trim()) {
+      window.alert('Missing provider system name.');
+      return;
+    }
     setSaving(true);
     try {
-      const systemName =
-        'system_name' in currentProvider
-          ? (currentProvider.system_name ?? currentProvider.id)
-          : currentProvider.id;
-      if (!systemName.trim()) {
-        window.alert('Missing provider system name.');
-        return;
-      }
       const details = await fetchProviderLatestDetails(systemName);
       const providerId = resolveProviderIdNumeric(details, currentProvider);
       const trimmedModel = modelName.trim();
-      const modelRow = details.models.find((m) => m.name === trimmedModel);
-      if (!modelRow) {
-        window.alert(
-          `No model named "${trimmedModel}" exists for this provider. Use a name that exists in the provider's model list.`
-        );
-        return;
-      }
-      try {
-        await setLlmProviderApiKey(providerId, tokenValue.trim());
-      } catch (e) {
-        if (e instanceof ApiError && e.status === 409) {
-          window.alert(
-            'An API key is already stored for this provider. The backend does not support rotating keys via the UI yet.'
-          );
-          return;
-        }
-        throw e;
-      }
+      await setLlmProviderApiKey(providerId, tokenValue.trim());
       await createDatabaseModelConfig({
-        model_id: modelRow.id,
+        llm_provider_id: providerId,
+        model_name: trimmedModel,
         name: modelConfigName.trim(),
         savedConfigPairs: buildSavedConfigPairs(),
       });

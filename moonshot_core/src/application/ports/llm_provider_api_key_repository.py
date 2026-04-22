@@ -16,7 +16,7 @@ class LlmProviderApiKeyAmbiguousError(Exception):
 
 
 class LlmProviderApiKeyRepository(ABC):
-    """Persistence for llm_provider_api_key rows (insert vs update, no upsert)."""
+    """Persistence for llm_provider_api_key rows (insert, update, replace)."""
 
     @abstractmethod
     def insert(self, llm_provider_id: int, payload: EncryptedApiKeyFields) -> None:
@@ -31,5 +31,12 @@ class LlmProviderApiKeyRepository(ABC):
         """
         Update the single API key row for llm_provider_id.
         Raises LlmProviderApiKeyNotFoundError if none, LlmProviderApiKeyAmbiguousError if many.
+        """
+        raise NotImplementedError
+
+    @abstractmethod
+    def replace(self, llm_provider_id: int, payload: EncryptedApiKeyFields) -> None:
+        """
+        Remove any existing API key rows for llm_provider_id and insert one new row.
         """
         raise NotImplementedError

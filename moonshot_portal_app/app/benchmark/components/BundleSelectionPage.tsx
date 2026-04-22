@@ -18,6 +18,7 @@ import { Breadcrumb, BreadcrumbList, BreadcrumbItem, BreadcrumbPage, BreadcrumbS
 import { useAppSelector, useAppDispatch } from '../../../hooks/reduxHooks';
 import { useBundlesRedux } from '../../../hooks/useBundlesRedux';
 import { setBundleSelected } from '../../../store';
+import type { Bundle } from '@/lib/api';
 import ViewBundleDetailsSheet from './ViewBundleDetailsSheet';
 
 export default function BundleSelectionPage() {
@@ -25,22 +26,7 @@ export default function BundleSelectionPage() {
   const dispatch = useAppDispatch();
   const { bundles, loading, error, refetch } = useBundlesRedux();
   const [sheetOpen, setSheetOpen] = React.useState(false);
-  const [selectedBundle, setSelectedBundle] = React.useState<{
-    name: string;
-    description: string;
-    category: string;
-    tests: Array<{
-      name: string;
-      description?: string;
-      dataset: {
-        id: string;
-        name: string;
-        description: string;
-        num_of_dataset_prompts: number;
-      };
-    }>;
-    prompt_count?: number;
-  } | undefined>(undefined);
+  const [selectedBundle, setSelectedBundle] = React.useState<Bundle | undefined>(undefined);
 
   function CheckboxToggleButton({ checked, onCheckedChange, ...props }: { checked: boolean; onCheckedChange: (checked: boolean) => void; [key: string]: unknown }) {
     return (
@@ -67,12 +53,12 @@ export default function BundleSelectionPage() {
       name: string;
       description: string;
     };
-  }>, bundleName: string) {
+  }>, bundleSystemId: string) {
     return (
       <ul style={{ padding: 0, margin: 0 }}>
         {tests.slice(0, 2).map((test, idx: number) => (
           <li
-            key={bundleName + '-' + test.name + '-' + idx}
+            key={bundleSystemId + '-' + test.name + '-' + idx}
             style={{
               display: 'flex',
               alignItems: 'center',
@@ -95,26 +81,11 @@ export default function BundleSelectionPage() {
     );
   }
 
-  function renderCard(bundle: {
-    name: string;
-    description: string;
-    category: string;
-    tests: Array<{
-      name: string;
-      description?: string;
-      dataset: {
-        id: string;
-        name: string;
-        description: string;
-        num_of_dataset_prompts: number;
-      };
-    }>;
-    prompt_count?: number;
-  }) {
-    const { name, description, category, tests, prompt_count } = bundle;
-    const selected = bundleSelection[name] || false;
+  function renderCard(bundle: Bundle) {
+    const { id, name, description, category, tests, prompt_count } = bundle;
+    const selected = bundleSelection[id] || false;
     return (
-      <Card style={{ width: '400px', height: '470px', display: 'flex', flexDirection: 'column' }} data-testid={`bundle-card-${name}`}>
+      <Card style={{ width: '400px', height: '470px', display: 'flex', flexDirection: 'column' }} data-testid={`bundle-card-${id}`}>
         <CardHeader>
           <div data-testid="bundle-group" className="mb-3">
             <Badge
@@ -155,13 +126,13 @@ export default function BundleSelectionPage() {
         <Separator style={{ width: 'calc(100% - 2rem)', margin: '0 1rem' }} />
         <CardContent style={{ flex: 1 }}>
           <div style={{ marginBottom: '1rem' }}>Includes:</div>
-          {renderTestList(tests, name)}
+          {renderTestList(tests, id)}
         </CardContent>
         <CardFooter className="flex items-center justify-between gap-2">
           <CheckboxToggleButton
             checked={selected}
-            onCheckedChange={(checked: boolean) => dispatch(setBundleSelected({ bundleId: name, selected: checked }))}
-            data-testid={`toggle-${name}`}
+            onCheckedChange={(checked: boolean) => dispatch(setBundleSelected({ bundleId: id, selected: checked }))}
+            data-testid={`toggle-${id}`}
           >
             selected
           </CheckboxToggleButton>
@@ -240,7 +211,7 @@ export default function BundleSelectionPage() {
       ) : (
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '1.5rem' }}>
           {bundles.map((bundle, idx) => (
-            <React.Fragment key={bundle.name + '-' + idx}>
+            <React.Fragment key={bundle.id + '-' + idx}>
               {renderCard(bundle)}
             </React.Fragment>
           ))}

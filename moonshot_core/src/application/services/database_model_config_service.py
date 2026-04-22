@@ -46,21 +46,60 @@ class DatabaseModelConfigService:
         self._session_manager = session_manager or SessionManager.get_instance()
         self._logger = configure_logger(__name__)
 
-    def create(self, body: CreateDatabaseModelConfigBody) -> ModelConfigDTO:
-        self._logger.info(
-            "Creating database model config model_id=%s name=%r", body.model_id, body.name
-        )
+    def create(self, body: CreateDatabaseModelConfigBody) -> tuple[ModelConfigDTO, bool]:
+        """
+        Insert a new model config, or update parameters/timestamps if one already exists
+        for the same resolved model_id and name.
+
+        Returns (dto, created) where created is True for a new row and False when an existing
+        row was updated.
+        """
         try:
             with self._session_manager.get_session() as session:
-                self._ensure_model_exists(session, body.model_id)
-                if self._config_exists(session, body.model_id, body.name):
-                    raise DatabaseModelConfigConflictError(
-                        f"Model config already exists for model_id={body.model_id} "
-                        f"name={body.name!r}"
+                if body.model_id is not None:
+                    resolved_model_id = int(body.model_id)
+                else:
+                    if body.llm_provider_id is None or body.model_name is None:
+                        raise DatabaseModelConfigBadRequestError(
+                            "llm_provider_id and model_name are required when model_id is omitted"
+                        )
+                    resolved_model_id = self._get_or_create_llm_provider_model(
+                        session,
+                        int(body.llm_provider_id),
+                        body.model_name.strip(),
                     )
+                self._ensure_model_exists(session, resolved_model_id)
+                existing = (
+                    session.query(LLMProviderModelConfigModel)
+                    .filter(
+                        LLMProviderModelConfigModel.model_id == resolved_model_id,
+                        LLMProviderModelConfigModel.name == body.name,
+                    )
+                    .first()
+                )
+                if existing is not None:
+                    cid = int(existing.id)
+                    self._logger.info(
+                        "Updating existing database model config id=%s model_id=%s name=%r",
+                        cid,
+                        resolved_model_id,
+                        body.name,
+                    )
+                    existing.updated_dt = _utc_naive_now()
+                    if body.last_used_dt is not None:
+                        existing.last_used_dt = body.last_used_dt
+                    self._replace_parameters(session, cid, body.savedConfigPairs)
+                    session.flush()
+                    return self._to_model_config_dto(session, cid), False
+
+                self._logger.info(
+                    "Creating database model config model_id=%s name=%r",
+                    resolved_model_id,
+                    body.name,
+                )
                 now = _utc_naive_now()
                 cfg = LLMProviderModelConfigModel(
-                    model_id=body.model_id,
+                    model_id=resolved_model_id,
                     name=body.name,
                     updated_dt=now,
                     last_used_dt=body.last_used_dt,
@@ -69,11 +108,41 @@ class DatabaseModelConfigService:
                 session.flush()
                 cid = int(cfg.id)
                 self._replace_parameters(session, cid, body.savedConfigPairs)
-                return self._to_model_config_dto(session, cid)
+                return self._to_model_config_dto(session, cid), True
         except IntegrityError as exc:
             raise DatabaseModelConfigConflictError(
                 "Database constraint violation while creating model config"
             ) from exc
+
+    def _get_or_create_llm_provider_model(
+        self, session: Session, llm_provider_id: int, model_name: str
+    ) -> int:
+        provider = (
+            session.query(LLMProviderModel)
+            .filter(LLMProviderModel.id == llm_provider_id)
+            .first()
+        )
+        if provider is None:
+            raise DatabaseModelConfigBadRequestError(
+                f"No llm_provider with id={llm_provider_id}"
+            )
+        existing = (
+            session.query(LLMProviderModelModel)
+            .filter(
+                LLMProviderModelModel.llm_provider_id == llm_provider_id,
+                LLMProviderModelModel.name == model_name,
+            )
+            .first()
+        )
+        if existing is not None:
+            return int(existing.id)
+        row = LLMProviderModelModel(
+            llm_provider_id=llm_provider_id,
+            name=model_name,
+        )
+        session.add(row)
+        session.flush()
+        return int(row.id)
 
     def update(self, config_id: int, body: UpdateDatabaseModelConfigBody) -> ModelConfigDTO:
         self._logger.info(
@@ -129,17 +198,6 @@ class DatabaseModelConfigService:
             raise DatabaseModelConfigBadRequestError(
                 f"No llm_provider_model with id={model_id}"
             )
-
-    def _config_exists(self, session: Session, model_id: int, name: str) -> bool:
-        return (
-            session.query(LLMProviderModelConfigModel)
-            .filter(
-                LLMProviderModelConfigModel.model_id == model_id,
-                LLMProviderModelConfigModel.name == name,
-            )
-            .first()
-            is not None
-        )
 
     def _replace_parameters(
         self, session: Session, config_id: int, pairs: Dict[str, str]

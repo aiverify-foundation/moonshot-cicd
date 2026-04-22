@@ -19,7 +19,13 @@ const testProviders: Provider[] = [
 ];
 
 const testModels: ModelConfig[] = [
-  { id: '10', name: 'Test Model', modelname: 'gpt-4', provider: '1' },
+  {
+    id: '10',
+    name: 'Test Model',
+    modelname: 'gpt-4',
+    provider: '1',
+    modelConfigId: '20',
+  },
 ];
 
 describe('SelectAppOrModelCard', () => {
@@ -38,6 +44,9 @@ describe('SelectAppOrModelCard', () => {
           isConfigValid: false,
           isTestNameValid: false,
           testName: '',
+          benchmarkLlmProviderId: null,
+          benchmarkLlmProviderModelId: null,
+          benchmarkLlmProviderModelConfigId: null,
         },
       });
 

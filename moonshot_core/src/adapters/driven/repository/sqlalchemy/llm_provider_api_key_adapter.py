@@ -68,3 +68,26 @@ class LLMProviderApiKeyAdapter(LlmProviderApiKeyRepository):
             row.salt = payload.salt
             row.nonce = payload.nonce
             row.authentication_tag = payload.authentication_tag
+
+    @override
+    def replace(self, llm_provider_id: int, payload: EncryptedApiKeyFields) -> None:
+        with self._session_manager.get_session() as session:
+            n = (
+                session.query(LLMProviderApiKeyModel)
+                .filter(LLMProviderApiKeyModel.llm_provider_id == llm_provider_id)
+                .delete(synchronize_session=False)
+            )
+            if n:
+                self._logger.info(
+                    "Replaced %s API key row(s) for llm_provider_id=%s",
+                    n,
+                    llm_provider_id,
+                )
+            row = LLMProviderApiKeyModel(
+                llm_provider_id=llm_provider_id,
+                encrypted_key=payload.encrypted_key,
+                salt=payload.salt,
+                nonce=payload.nonce,
+                authentication_tag=payload.authentication_tag,
+            )
+            session.add(row)

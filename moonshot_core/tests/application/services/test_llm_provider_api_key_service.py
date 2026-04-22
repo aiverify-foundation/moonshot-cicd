@@ -65,10 +65,14 @@ class TestLlmProviderApiKeyService:
     def test_unknown_provider(self, service):
         with pytest.raises(LlmProviderApiKeyUnknownProviderError):
             service.create_api_key(999_999, "secret")
+        with pytest.raises(LlmProviderApiKeyUnknownProviderError):
+            service.set_api_key(999_999, "secret")
 
     def test_empty_api_key_rejected(self, service, llm_provider_id):
         with pytest.raises(ValueError, match="non-empty"):
             service.create_api_key(llm_provider_id, "")
+        with pytest.raises(ValueError, match="non-empty"):
+            service.set_api_key(llm_provider_id, "")
         with pytest.raises(ValueError, match="non-empty"):
             service.update_api_key(llm_provider_id, "")
 
@@ -103,6 +107,33 @@ class TestLlmProviderApiKeyService:
         service.create_api_key(llm_provider_id, "a")
         with pytest.raises(LlmProviderApiKeyConflictError):
             service.create_api_key(llm_provider_id, "b")
+
+    def test_set_api_key_replaces_existing(self, service, llm_provider_id):
+        service.create_api_key(llm_provider_id, "first")
+        service.set_api_key(llm_provider_id, "second")
+        sm = SessionManager.get_instance()
+        with sm.get_session() as session:
+            assert (
+                session.query(LLMProviderApiKeyModel)
+                .filter(LLMProviderApiKeyModel.llm_provider_id == llm_provider_id)
+                .count()
+                == 1
+            )
+            row = (
+                session.query(LLMProviderApiKeyModel)
+                .filter(LLMProviderApiKeyModel.llm_provider_id == llm_provider_id)
+                .one()
+            )
+            enc_key, salt, nonce, tag = (
+                row.encrypted_key,
+                row.salt,
+                row.nonce,
+                row.authentication_tag,
+            )
+        cfg = MoonshotConfigAdapter()
+        ent = cfg.get_by_key(MOONSHOT_SECRETS_MASTER_KEY_CONFIG_KEY)
+        master = base64.b64decode(ent.value.encode("ascii"))
+        assert decrypt_api_key(enc_key, salt, nonce, tag, master) == "second"
 
     def test_update_changes_value(self, service, llm_provider_id):
         service.create_api_key(llm_provider_id, "old")

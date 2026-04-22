@@ -347,6 +347,37 @@ async def test_get_response_strips_api_type_from_create_kwargs(openai_adapter, c
 
 
 @pytest.mark.asyncio
+async def test_get_response_coerces_string_temperature_to_float(
+    openai_adapter, connector_entity
+):
+    """Relational DB stores numeric params as strings; SDK must receive a float."""
+    connector_entity.params = {"api_type": "openai", "temperature": "0.2", "max_tokens": "100"}
+    connector_entity.system_prompt = ""
+
+    mock_response = MagicMock()
+    mock_response.choices = [MagicMock()]
+    mock_response.choices[0].message = MagicMock()
+    mock_response.choices[0].message.content = "ok"
+
+    with patch("adapters.connector.openai_adapter.os.getenv") as mock_getenv, patch(
+        "adapters.connector.openai_adapter.AsyncOpenAI"
+    ) as mock_openai_class:
+        mock_getenv.return_value = "test-api-key"
+        mock_client = MagicMock()
+        mock_openai_class.return_value = mock_client
+        mock_client.chat.completions.create = AsyncMock(return_value=mock_response)
+
+        openai_adapter.configure(connector_entity)
+        await openai_adapter.get_response("Hi")
+
+        kwargs = mock_client.chat.completions.create.call_args.kwargs
+        assert kwargs.get("temperature") == 0.2
+        assert isinstance(kwargs.get("temperature"), float)
+        assert kwargs.get("max_tokens") == 100
+        assert isinstance(kwargs.get("max_tokens"), int)
+
+
+@pytest.mark.asyncio
 async def test_get_response_additional_params(openai_adapter, connector_entity):
     """
     Test response with additional OpenAI parameters.

@@ -125,3 +125,44 @@ class TestLLMProviderApiKeyAdapter:
 
         with pytest.raises(LlmProviderApiKeyAmbiguousError):
             api_key_adapter.update(llm_provider_id, _fake_encrypted_fields())
+
+    def test_replace_clears_prior_rows(self, api_key_adapter, llm_provider_id):
+        api_key_adapter.insert(llm_provider_id, _fake_encrypted_fields())
+        replacement = EncryptedApiKeyFields(
+            encrypted_key=base64.b64encode(b"replaced").decode("ascii"),
+            salt=base64.b64encode(b"x" * 32).decode("ascii"),
+            nonce=base64.b64encode(b"y" * 12).decode("ascii"),
+            authentication_tag=base64.b64encode(b"z" * 16).decode("ascii"),
+        )
+        api_key_adapter.replace(llm_provider_id, replacement)
+        sm = SessionManager.get_instance()
+        with sm.get_session() as session:
+            rows = (
+                session.query(LLMProviderApiKeyModel)
+                .filter(LLMProviderApiKeyModel.llm_provider_id == llm_provider_id)
+                .all()
+            )
+            assert len(rows) == 1
+            assert rows[0].encrypted_key == replacement.encrypted_key
+
+    def test_replace_after_multiple_rows(self, api_key_adapter, llm_provider_id):
+        sm = SessionManager.get_instance()
+        with sm.get_session() as session:
+            for suffix in ("1", "2"):
+                session.add(
+                    LLMProviderApiKeyModel(
+                        llm_provider_id=llm_provider_id,
+                        encrypted_key=f"k{suffix}",
+                        salt=f"s{suffix}",
+                        nonce=f"n{suffix}",
+                        authentication_tag=f"t{suffix}",
+                    )
+                )
+        api_key_adapter.replace(llm_provider_id, _fake_encrypted_fields())
+        with sm.get_session() as session:
+            rows = (
+                session.query(LLMProviderApiKeyModel)
+                .filter(LLMProviderApiKeyModel.llm_provider_id == llm_provider_id)
+                .all()
+            )
+            assert len(rows) == 1

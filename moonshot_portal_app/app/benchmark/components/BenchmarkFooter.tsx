@@ -30,8 +30,8 @@ export default function BenchmarkFooter({
   } = useAppSelector((state) => state.modelSelection);
   const runName = (testName ?? '').trim();
 
-  const selectedBundleNames = useMemo(
-    () => Object.entries(bundleSelection).filter(([, v]) => v).map(([name]) => name),
+  const selectedBundleSystemNames = useMemo(
+    () => Object.entries(bundleSelection).filter(([, v]) => v).map(([id]) => id),
     [bundleSelection]
   );
 
@@ -42,7 +42,7 @@ export default function BenchmarkFooter({
     benchmarkLlmProviderId != null &&
     benchmarkLlmProviderModelId != null &&
     benchmarkLlmProviderModelConfigId != null &&
-    selectedBundleNames.length > 0;
+    selectedBundleSystemNames.length > 0;
   
   // Navigation functions
   const handleNavigateToModels = () => {
@@ -75,7 +75,7 @@ export default function BenchmarkFooter({
     try {
       await startBenchmarkRun({
         run_name: runName,
-        bundle_names: selectedBundleNames,
+        bundle_names: selectedBundleSystemNames,
         llm_provider_id: benchmarkLlmProviderId,
         llm_provider_model_id: benchmarkLlmProviderModelId,
         llm_provider_model_config_id: benchmarkLlmProviderModelConfigId,
@@ -95,7 +95,7 @@ export default function BenchmarkFooter({
   };
   
   // Calculate selected bundles count
-  const selectedBundlesCount = selectedBundleNames.length;
+  const selectedBundlesCount = selectedBundleSystemNames.length;
 
   const getLeftButton = () => {
     switch (currentPage) {
