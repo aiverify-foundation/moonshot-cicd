@@ -147,8 +147,9 @@ export async function fetchFixedConfigs(): Promise<FixedConfig[]> {
 export interface StartBenchmarkRunRequest {
   run_name: string;
   bundle_names: string[];
-  llm_provider_name: string;
-  llm_provider_config_name: string;
+  llm_provider_id: number;
+  llm_provider_model_id: number;
+  llm_provider_model_config_id: number;
 }
 
 export interface StartBenchmarkRunResponse {
@@ -156,8 +157,8 @@ export interface StartBenchmarkRunResponse {
 }
 
 /**
- * Starts a benchmark run (one or more bundles) on the backend.
- * `llm_provider_config_name` must match a connector `id` in moonshot_config.yaml.
+ * Starts a benchmark run (one or more bundles) on the backend using relational
+ * llm_provider / llm_provider_model / llm_provider_model_config ids.
  */
 export async function startBenchmarkRun(
   payload: StartBenchmarkRunRequest
@@ -230,7 +231,7 @@ export interface BenchmarkRun {
   end_time?: string | null;
   llm_provider_id?: number | null;
   llm_provider_model_id?: number | null;
-  llm_provider_endpoint_config_id?: number | null;
+  llm_provider_model_config_id?: number | null;
 }
 
 /** GET /api/benchmark-runs/{run_id}/run-test-bundles */
@@ -343,11 +344,22 @@ export interface LlmProviderModelInfoDTO {
   create_dt: string;
 }
 
+export interface DatabaseModelConfigDTO {
+  id: string;
+  name: string;
+  modelname: string;
+  modelId: number;
+  providerID: string;
+  savedConfigPairs: Record<string, string>;
+  lastUpdated: string;
+}
+
 export interface LlmProviderDetailsDTO {
   provider: LlmProviderDTO;
   models: LlmProviderModelInfoDTO[];
   endpoint_configs: Array<{ id: number; name: string }>;
   config_params?: Record<string, string> | null;
+  database_model_configs?: DatabaseModelConfigDTO[];
 }
 
 export async function fetchProviderLatestDetails(

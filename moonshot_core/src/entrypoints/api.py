@@ -8,7 +8,6 @@ import sys
 
 from fastapi import FastAPI, Request, HTTPException
 from fastapi.responses import FileResponse
-from fastapi.middleware.cors import CORSMiddleware
 import os
 from pathlib import Path
 from urllib.parse import urlparse
@@ -72,6 +71,8 @@ from adapters.driven.repository.sqlalchemy.benchmark_run_test_status_adapter imp
 )
 from adapters.driven.repository.sqlalchemy.llm_provider_models import BenchmarkTestModel
 from adapters.driven.repository.sqlalchemy.session_manager import SessionManager
+# Comment out this import to disable CORS middleware ( This is used for local development only)
+from entrypoints.cors_middleware_setup import configure_cors_middleware
 
 # Configure the logger for this module
 logger = configure_logger(__name__)
@@ -104,6 +105,8 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
+# Comment out this import to disable CORS middleware ( This is used for local development only)
+configure_cors_middleware(app)
 
 
 def get_build_directory() -> Path:

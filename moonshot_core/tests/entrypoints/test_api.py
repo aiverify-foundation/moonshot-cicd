@@ -489,3 +489,39 @@ def test_post_provider_api_key_409_conflict(mock_key_svc):
     )
     assert response.status_code == 409
     assert "already exists" in response.json()["detail"]
+
+
+def test_api_bundles_cors_preflight():
+    response = client.options(
+        "/api/bundles",
+        headers={
+            "Origin": "http://localhost:3000",
+            "Access-Control-Request-Method": "GET",
+        },
+    )
+    assert response.status_code == 200
+    assert response.headers.get("access-control-allow-origin") == "http://localhost:3000"
+
+
+def test_configure_cors_middleware_respects_ms_cors_origins_env(monkeypatch):
+    monkeypatch.setenv("MS_CORS_ORIGINS", "http://custom.test:9000")
+    from fastapi import FastAPI
+    from entrypoints.cors_middleware_setup import configure_cors_middleware
+
+    app = FastAPI()
+    configure_cors_middleware(app)
+
+    @app.get("/api/bundles")
+    def _bundles():
+        return {"bundles": []}
+
+    isolated = TestClient(app)
+    response = isolated.options(
+        "/api/bundles",
+        headers={
+            "Origin": "http://custom.test:9000",
+            "Access-Control-Request-Method": "GET",
+        },
+    )
+    assert response.status_code == 200
+    assert response.headers.get("access-control-allow-origin") == "http://custom.test:9000"
