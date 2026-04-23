@@ -15,6 +15,17 @@ import {
   type LlmProviderDTO,
 } from "@/lib/api";
 
+function sortModelConfigRows(a: ModelConfig, b: ModelConfig): number {
+  const primary = (id: string) => {
+    const i = id.indexOf(":");
+    return i === -1 ? parseInt(id, 10) : parseInt(id.slice(0, i), 10);
+  };
+  const pa = primary(a.id);
+  const pb = primary(b.id);
+  if (pa !== pb) return pa - pb;
+  return a.name.localeCompare(b.name);
+}
+
 function mapLlmProviderDtoToProvider(dto: LlmProviderDTO): Provider {
   const pairs = dto.defaultConfigPairs ?? {};
   return {
@@ -33,9 +44,8 @@ function mapLlmProviderDtoToProvider(dto: LlmProviderDTO): Provider {
 }
 
 export default function ModelSelectionPage() {
-  const { selectedProvider, selectedModel, selectedConfig, isTestNameValid } = useAppSelector(
-    (state) => state.modelSelection
-  );
+  const { selectedProvider, selectedModel, selectedConfig, isTestNameValid } =
+    useAppSelector((state) => state.modelSelection);
 
   const [apiProviders, setApiProviders] = useState<Provider[]>([]);
   const [apiModels, setApiModels] = useState<ModelConfig[]>([]);
@@ -90,26 +100,42 @@ export default function ModelSelectionPage() {
     try {
       const details = await fetchProviderLatestDetails(systemName);
       const dbConfigs = details.database_model_configs ?? [];
-      const byModelId = new Map<number, string>();
+      const modelById = new Map(details.models.map((m) => [m.id, m]));
+      const modelIdsWithConfig = new Set(
+        dbConfigs
+          .map((c) => Number(c.modelId))
+          .filter((n) => Number.isFinite(n) && n > 0)
+      );
+
+      const rows: ModelConfig[] = [];
+
       for (const c of dbConfigs) {
-        if (c.modelId != null && c.modelId > 0) {
-          byModelId.set(c.modelId, c.id);
+        const mid = Number(c.modelId);
+        if (!Number.isFinite(mid) || mid <= 0) continue;
+        const base = modelById.get(mid);
+        rows.push({
+          id: `${mid}:${c.id}`,
+          name: (c.name ?? "").trim() ? c.name : base?.name ?? `Model ${mid}`,
+          modelname: (c.modelname ?? "").trim() ? c.modelname : base?.name ?? "",
+          provider: providerId,
+          modelConfigId: String(c.id),
+          savedConfigPairs: c.savedConfigPairs ?? {},
+        });
+      }
+
+      for (const m of details.models) {
+        if (!modelIdsWithConfig.has(m.id)) {
+          rows.push({
+            id: String(m.id),
+            name: m.name,
+            modelname: m.name,
+            provider: providerId,
+          });
         }
       }
-      const configById = new Map(dbConfigs.map((c) => [c.id, c]));
-      setApiModels(
-        details.models.map((m) => {
-          const configId = byModelId.get(m.id);
-          const configRow = configId ? configById.get(configId) : undefined;
-          return {
-            id: String(m.id),
-            name: configRow?.name?.trim() ? configRow.name : m.name,
-            modelname: configRow?.modelname ?? m.name,
-            provider: providerId,
-            modelConfigId: configId,
-          };
-        })
-      );
+
+      rows.sort(sortModelConfigRows);
+      setApiModels(rows);
     } catch (e) {
       setModelsError(e instanceof ApiError ? e.message : "Failed to load models");
       setApiModels([]);

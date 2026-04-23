@@ -468,6 +468,43 @@ export async function createDatabaseModelConfig(
   }
 }
 
+/** PUT /api/database-model-configs/{config_id} */
+export interface UpdateDatabaseModelConfigPayload {
+  model_id: number;
+  name: string;
+  savedConfigPairs?: Record<string, string>;
+}
+
+export async function updateDatabaseModelConfig(
+  configId: number,
+  payload: UpdateDatabaseModelConfigPayload
+): Promise<DatabaseModelConfigDTO> {
+  try {
+    const response = await fetch(
+      `${API_BASE_URL}/api/database-model-configs/${configId}`,
+      {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          model_id: payload.model_id,
+          name: payload.name,
+          savedConfigPairs: payload.savedConfigPairs ?? {},
+        }),
+      }
+    );
+    if (!response.ok) {
+      const errorText = await response.text().catch(() => 'Unknown error');
+      console.error(`API Error: ${response.status} - ${errorText}`);
+      const detail = parseErrorDetail(errorText);
+      throw new ApiError(detail, response.status, response.statusText);
+    }
+    return response.json() as Promise<DatabaseModelConfigDTO>;
+  } catch (error) {
+    console.error('Update database model config error:', error);
+    handleConnectError(error, 'Network error');
+  }
+}
+
 /**
  * Fetches all benchmark runs from the API
  */

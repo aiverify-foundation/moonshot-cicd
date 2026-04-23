@@ -49,6 +49,7 @@ export default function SelectAppOrModelCard({
   // Sheet state management
   const [sheetOpen, setSheetOpen] = useState(false);
   const [editingModel, setEditingModel] = useState<string>("");
+  const [editingDatabaseConfigId, setEditingDatabaseConfigId] = useState<string | null>(null);
   const [customSheetOpen, setCustomSheetOpen] = useState(false);
   const [editingConfig, setEditingConfig] = useState<string>("");
   
@@ -74,13 +75,19 @@ export default function SelectAppOrModelCard({
   );
   
   // Sheet handlers
-  const handleEditModel = (modelId: string) => {
+  const handleEditModel = (modelId: string, databaseConfigId?: string | null) => {
     setEditingModel(modelId);
+    setEditingDatabaseConfigId(
+      databaseConfigId != null && String(databaseConfigId).trim() !== ""
+        ? String(databaseConfigId)
+        : null
+    );
     setSheetOpen(true);
   };
 
   const handleAddNewModel = () => {
     setEditingModel(selectedProvider); // Set selected provider to indicate new model creation for this provider
+    setEditingDatabaseConfigId(null);
     setSheetOpen(true);
   };
 
@@ -95,9 +102,9 @@ export default function SelectAppOrModelCard({
   };
   
   // Handle edit actions with event.stopPropagation
-  const handleEditModelClick = (modelId: string, event: React.MouseEvent) => {
+  const handleEditModelClick = (model: ModelConfig, event: React.MouseEvent) => {
     event.stopPropagation();
-    handleEditModel(modelId);
+    handleEditModel(model.id, model.modelConfigId ?? null);
     setModelOpen(false);
   };
   
@@ -366,7 +373,7 @@ export default function SelectAppOrModelCard({
                                   variant="ghost"
                                   size="sm"
                                   className="h-6 w-6 p-0 hover:bg-gray-100"
-                                  onClick={(e) => handleEditModelClick(model.id, e)}
+                                  onClick={(e) => handleEditModelClick(model, e)}
                                   data-testid={`edit-model-${model.id}`}
                                 >
                                   <Edit className="h-3 w-3" />
@@ -403,8 +410,12 @@ export default function SelectAppOrModelCard({
     {/* Edit Model Sheet */}
     <EditModelSheet
       open={sheetOpen}
-      onOpenChange={setSheetOpen}
+      onOpenChange={(open) => {
+        setSheetOpen(open);
+        if (!open) setEditingDatabaseConfigId(null);
+      }}
       editingModel={editingModel}
+      editingDatabaseConfigId={editingDatabaseConfigId}
       providers={allProviders}
       models={models}
       onSaved={onModelsSaved}

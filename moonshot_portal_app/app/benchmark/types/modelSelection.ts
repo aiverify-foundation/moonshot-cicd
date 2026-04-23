@@ -16,12 +16,18 @@ export interface Provider {
 }
 
 export interface ModelConfig {
+  /**
+   * Unique row key for the combobox. With a DB-backed config: `${llm_provider_model.id}:${config.id}`.
+   * With no saved config for that model: `String(llm_provider_model.id)` (parseInt(id) yields the model id).
+   */
   id: string;
   name: string;
   modelname: string;
   provider: string;
   /** llm_provider_model_config.id when loaded from database_model_configs */
   modelConfigId?: string;
+  /** From database_model_configs when this model row has a saved config (latest-details). */
+  savedConfigPairs?: Record<string, string>;
 }
 
 /** Saved connector configuration row (custom-application path; static data until a backend API exists). */

@@ -13,9 +13,11 @@ import {
   createDatabaseModelConfig,
   fetchProviderLatestDetails,
   setLlmProviderApiKey,
+  updateDatabaseModelConfig,
+  type DatabaseModelConfigDTO,
   type LlmProviderDetailsDTO,
 } from '../../../lib/api';
-import { useAppDispatch } from '../../../hooks/reduxHooks';
+import { useAppDispatch, useAppSelector } from '../../../hooks/reduxHooks';
 import { setEndpointStatus } from '../../../store';
 import { ConnectionStatus } from './RequiredEndpointsCard';
 import type { Provider, ModelConfig, ProviderListEntry } from '../types/modelSelection';
@@ -27,6 +29,22 @@ const DEFAULT_ADVANCED_PARAMS = [
 ];
 
 const TEST_POPOVER_TIMEOUT = 3000;
+
+const resolveLlmProviderModelIdForSave = (editingModel: string): number => {
+  const i = editingModel.indexOf(':');
+  if (i !== -1) return parseInt(editingModel.slice(0, i), 10);
+  return parseInt(editingModel, 10);
+};
+
+const resolveExistingDatabaseConfigId = (
+  editingDatabaseConfigId: string | null | undefined,
+  currentModelConfig: ModelConfig | null | undefined
+): number | null => {
+  const raw = editingDatabaseConfigId ?? currentModelConfig?.modelConfigId;
+  if (raw == null || String(raw).trim() === '') return null;
+  const n = parseInt(String(raw), 10);
+  return Number.isFinite(n) && n > 0 ? n : null;
+};
 
 interface AdvancedParam {
   parameter: string;
@@ -53,12 +71,11 @@ const getProviderModelInfoFromFixedConfig = (editingModel: string, fixedConfigs:
     modelToken: '',
   };
   
-  // Create a mock model config from fixedConfig
-  const currentModelConfig = {
+  const currentModelConfig: ModelConfig = {
     id: fixedConfig.id,
     name: fixedConfig.name,
     modelname: fixedConfig.modelname,
-    provider: fixedConfig.providerID
+    provider: fixedConfig.providerID,
   };
   
   return { isNewModel: false, currentModelConfig, currentProvider, fixedConfig };
@@ -67,14 +84,24 @@ const getProviderModelInfoFromFixedConfig = (editingModel: string, fixedConfigs:
 const getProviderModelInfoFromProviders = (
   editingModel: string,
   providers: ProviderListEntry[],
-  models: ModelConfig[]
+  models: ModelConfig[],
+  editingDatabaseConfigId?: string | null
 ) => {
-  const isNewModel = providers.some(p => p.id === editingModel);
-  const currentModelConfig = isNewModel ? null : models.find(m => m.id === editingModel);
-  const currentProvider = isNewModel 
-    ? providers.find(p => p.id === editingModel)
-    : providers.find(p => p.id === currentModelConfig?.provider);
-  
+  const isNewModel = providers.some((p) => p.id === editingModel);
+  const currentModelConfig = isNewModel
+    ? null
+    : editingDatabaseConfigId != null &&
+        String(editingDatabaseConfigId).trim() !== ""
+      ? models.find(
+          (m) =>
+            m.modelConfigId != null &&
+            String(m.modelConfigId) === String(editingDatabaseConfigId)
+        ) ?? models.find((m) => m.id === editingModel)
+      : models.find((m) => m.id === editingModel);
+  const currentProvider = isNewModel
+    ? providers.find((p) => p.id === editingModel)
+    : providers.find((p) => p.id === currentModelConfig?.provider);
+
   return { isNewModel, currentModelConfig, currentProvider, fixedConfig: undefined };
 };
 
@@ -88,8 +115,10 @@ const resolveSystemName = (
 };
 
 const getAdvancedParamsFromProvider = (
+  isNewModel: boolean,
   currentProvider: ProviderListEntry | undefined,
-  fixedConfig?: FixedConfig
+  fixedConfig?: FixedConfig,
+  savedConfigPairs?: Record<string, string>
 ): AdvancedParam[] => {
   // If fixed config is provided, use its savedConfigPairs
   if (fixedConfig?.savedConfigPairs) {
@@ -98,7 +127,14 @@ const getAdvancedParamsFromProvider = (
       value: value
     }));
   }
-  
+
+  if (!isNewModel && savedConfigPairs !== undefined) {
+    return Object.entries(savedConfigPairs).map(([key, value]) => ({
+      parameter: key,
+      value: String(value),
+    }));
+  }
+
   if (
     currentProvider &&
     'configPairs' in currentProvider &&
@@ -112,10 +148,76 @@ const getAdvancedParamsFromProvider = (
   return DEFAULT_ADVANCED_PARAMS;
 };
 
+const providerDefaultConfigPairCount = (
+  currentProvider: ProviderListEntry | undefined
+): number =>
+  currentProvider && 'configPairs' in currentProvider
+    ? currentProvider.configPairs.length
+    : 0;
+
+/** Resolve which database_model_configs row the sheet should load (handles multiple configs per model_id). */
+function pickDatabaseModelConfigFromDetails(
+  dbConfigs: DatabaseModelConfigDTO[] | undefined,
+  explicitDatabaseConfigId: string | null | undefined,
+  editingModel: string,
+  currentModelConfig: ModelConfig | null | undefined,
+  preferredConfigId: number | null
+): DatabaseModelConfigDTO | undefined {
+  const list = dbConfigs ?? [];
+  if (
+    explicitDatabaseConfigId != null &&
+    String(explicitDatabaseConfigId).trim() !== ""
+  ) {
+    const byExplicit = list.find(
+      (c) => String(c.id) === String(explicitDatabaseConfigId)
+    );
+    if (byExplicit) return byExplicit;
+  }
+
+  const mid = parseInt(editingModel, 10);
+  if (!Number.isFinite(mid)) return undefined;
+
+  if (preferredConfigId != null && preferredConfigId > 0) {
+    const byPreferred = list.find(
+      (c) =>
+        parseInt(String(c.id), 10) === preferredConfigId &&
+        Number(c.modelId) === mid
+    );
+    if (byPreferred) return byPreferred;
+  }
+
+  const mcid = currentModelConfig?.modelConfigId;
+  if (mcid != null && String(mcid).trim() !== "") {
+    const byStored = list.find((c) => String(c.id) === String(mcid));
+    if (byStored && Number(byStored.modelId) === mid) return byStored;
+  }
+
+  const forModel = list.filter((c) => Number(c.modelId) === mid);
+  if (forModel.length === 0) return undefined;
+  if (forModel.length === 1) return forModel[0];
+
+  const wantName = currentModelConfig?.name?.trim();
+  if (wantName) {
+    const byName = forModel.find((c) => (c.name ?? "").trim() === wantName);
+    if (byName) return byName;
+  }
+
+  return forModel
+    .slice()
+    .sort((a, b) => {
+      const tb = new Date(b.lastUpdated).getTime();
+      const ta = new Date(a.lastUpdated).getTime();
+      if (tb !== ta) return tb - ta;
+      return parseInt(String(b.id), 10) - parseInt(String(a.id), 10);
+    })[0];
+}
+
 interface EditModelSheetProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   editingModel: string;
+  /** When set, load parameters for this llm_provider_model_config id (strongest disambiguator). */
+  editingDatabaseConfigId?: string | null;
   providers: ProviderListEntry[];
   models: ModelConfig[];
   isMetricEndpoint?: boolean;
@@ -127,6 +229,7 @@ export default function EditModelSheet({
   open, 
   onOpenChange, 
   editingModel, 
+  editingDatabaseConfigId = null,
   providers, 
   models,
   isMetricEndpoint = false,
@@ -134,6 +237,12 @@ export default function EditModelSheet({
   onSaved,
 }: EditModelSheetProps) {
   const dispatch = useAppDispatch();
+  const benchmarkLlmProviderModelId = useAppSelector(
+    (s) => s.modelSelection.benchmarkLlmProviderModelId
+  );
+  const benchmarkLlmProviderModelConfigId = useAppSelector(
+    (s) => s.modelSelection.benchmarkLlmProviderModelConfigId
+  );
   const [saving, setSaving] = React.useState(false);
   
   // Get provider/model info using helper function with memoization
@@ -141,17 +250,24 @@ export default function EditModelSheet({
     if (isMetricEndpoint && fixedConfigs) {
       // If fixed config is found, use it, otherwise use providers which has default behaviour
       return getProviderModelInfoFromFixedConfig(editingModel, fixedConfigs) || 
-             getProviderModelInfoFromProviders(editingModel, providers, models);
+             getProviderModelInfoFromProviders(editingModel, providers, models, editingDatabaseConfigId);
     }
-    return getProviderModelInfoFromProviders(editingModel, providers, models);
-  }, [editingModel, providers, models, isMetricEndpoint, fixedConfigs]);
+    return getProviderModelInfoFromProviders(editingModel, providers, models, editingDatabaseConfigId);
+  }, [editingModel, editingDatabaseConfigId, providers, models, isMetricEndpoint, fixedConfigs]);
 
   const [modelConfigName, setModelConfigName] = React.useState(isNewModel ? 'New Model' : currentModelConfig?.name || 'New Model');
   const [tokenValue, setTokenValue] = React.useState('');
   const [modelName, setModelName] = React.useState(isNewModel ? '' : currentModelConfig?.modelname || '');
   const [testResult, setTestResult] = React.useState<boolean | null>(null);
   const [popoverOpen, setPopoverOpen] = React.useState(false);
-  const [advancedParams, setAdvancedParams] = React.useState(getAdvancedParamsFromProvider(currentProvider, fixedConfig));
+  const [advancedParams, setAdvancedParams] = React.useState(() =>
+    getAdvancedParamsFromProvider(
+      isNewModel,
+      currentProvider,
+      fixedConfig,
+      currentModelConfig?.savedConfigPairs
+    )
+  );
   const [apiKeyConfigured, setApiKeyConfigured] = React.useState(false);
   const timeoutRef = React.useRef<NodeJS.Timeout | null>(null);
 
@@ -162,8 +278,15 @@ export default function EditModelSheet({
     setTokenValue('');
     setTestResult(null);
     setPopoverOpen(false);
-    setAdvancedParams(getAdvancedParamsFromProvider(currentProvider, fixedConfig));
-  }, [isNewModel, currentModelConfig, currentProvider, fixedConfig]);
+    setAdvancedParams(
+      getAdvancedParamsFromProvider(
+        isNewModel,
+        currentProvider,
+        fixedConfig,
+        currentModelConfig?.savedConfigPairs
+      )
+    );
+  }, [isNewModel, currentModelConfig, currentProvider, fixedConfig, editingDatabaseConfigId]);
 
   React.useEffect(() => {
     if (open) {
@@ -183,8 +306,33 @@ export default function EditModelSheet({
     void (async () => {
       try {
         const details = await fetchProviderLatestDetails(systemName);
-        if (!cancelled) {
-          setApiKeyConfigured(Boolean(details.api_key_configured));
+        if (cancelled) return;
+        setApiKeyConfigured(Boolean(details.api_key_configured));
+
+        if (isMetricEndpoint || isNewModel || !currentModelConfig) {
+          return;
+        }
+        const mid = parseInt(editingModel, 10);
+        const preferConfigId =
+          Number.isFinite(mid) &&
+          benchmarkLlmProviderModelId != null &&
+          mid === benchmarkLlmProviderModelId
+            ? benchmarkLlmProviderModelConfigId
+            : null;
+        const dbRow = pickDatabaseModelConfigFromDetails(
+          details.database_model_configs,
+          editingDatabaseConfigId,
+          editingModel,
+          currentModelConfig,
+          preferConfigId
+        );
+        if (dbRow) {
+          setAdvancedParams(
+            Object.entries(dbRow.savedConfigPairs ?? {}).map(([parameter, value]) => ({
+              parameter,
+              value: String(value),
+            }))
+          );
         }
       } catch {
         if (!cancelled) setApiKeyConfigured(false);
@@ -193,7 +341,17 @@ export default function EditModelSheet({
     return () => {
       cancelled = true;
     };
-  }, [open, currentProvider, editingModel]);
+  }, [
+    open,
+    currentProvider,
+    editingModel,
+    isMetricEndpoint,
+    isNewModel,
+    currentModelConfig,
+    benchmarkLlmProviderModelId,
+    benchmarkLlmProviderModelConfigId,
+    editingDatabaseConfigId,
+  ]);
 
   // Cleanup timeout on unmount
   React.useEffect(() => {
@@ -210,7 +368,14 @@ export default function EditModelSheet({
     setModelName('');
     setTestResult(null);
     setPopoverOpen(false);
-    setAdvancedParams(getAdvancedParamsFromProvider(currentProvider, fixedConfig));
+    setAdvancedParams(
+      getAdvancedParamsFromProvider(
+        isNewModel,
+        currentProvider,
+        fixedConfig,
+        currentModelConfig?.savedConfigPairs
+      )
+    );
   };
 
   const buildSavedConfigPairs = (): Record<string, string> => {
@@ -261,12 +426,42 @@ export default function EditModelSheet({
       if (trimmedToken) {
         await setLlmProviderApiKey(providerId, trimmedToken);
       }
-      await createDatabaseModelConfig({
-        llm_provider_id: providerId,
-        model_name: trimmedModel,
-        name: modelConfigName.trim(),
-        savedConfigPairs: buildSavedConfigPairs(),
-      });
+
+      const existingConfigId = resolveExistingDatabaseConfigId(
+        editingDatabaseConfigId,
+        currentModelConfig
+      );
+
+      if (
+        !isNewModel &&
+        !isMetricEndpoint &&
+        existingConfigId != null
+      ) {
+        const baseModelId = resolveLlmProviderModelIdForSave(editingModel);
+        let resolvedModelId = baseModelId;
+        const modelMatch = details.models.find(
+          (m) => (m.name ?? '').trim() === trimmedModel
+        );
+        if (modelMatch != null && Number.isFinite(modelMatch.id)) {
+          resolvedModelId = modelMatch.id;
+        }
+        if (!Number.isFinite(resolvedModelId) || resolvedModelId <= 0) {
+          window.alert('Invalid model reference for this configuration.');
+          return;
+        }
+        await updateDatabaseModelConfig(existingConfigId, {
+          model_id: resolvedModelId,
+          name: modelConfigName.trim(),
+          savedConfigPairs: buildSavedConfigPairs(),
+        });
+      } else {
+        await createDatabaseModelConfig({
+          llm_provider_id: providerId,
+          model_name: trimmedModel,
+          name: modelConfigName.trim(),
+          savedConfigPairs: buildSavedConfigPairs(),
+        });
+      }
       await onSaved?.();
       resetForm();
       onOpenChange(false);
@@ -484,9 +679,7 @@ export default function EditModelSheet({
                       <div className="flex items-center gap-1 w-16">
                         {/* Only show delete button for rows beyond the default rows */}
                         {index >=
-                          (currentProvider && 'configPairs' in currentProvider
-                            ? currentProvider.configPairs.length
-                            : 0) && (
+                          (isNewModel ? providerDefaultConfigPairCount(currentProvider) : 0) && (
                           <Button
                             variant="ghost"
                             size="sm"
