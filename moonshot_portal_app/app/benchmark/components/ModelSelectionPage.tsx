@@ -89,20 +89,26 @@ export default function ModelSelectionPage() {
     setModelsError(null);
     try {
       const details = await fetchProviderLatestDetails(systemName);
+      const dbConfigs = details.database_model_configs ?? [];
       const byModelId = new Map<number, string>();
-      for (const c of details.database_model_configs ?? []) {
+      for (const c of dbConfigs) {
         if (c.modelId != null && c.modelId > 0) {
           byModelId.set(c.modelId, c.id);
         }
       }
+      const configById = new Map(dbConfigs.map((c) => [c.id, c]));
       setApiModels(
-        details.models.map((m) => ({
-          id: String(m.id),
-          name: m.name,
-          modelname: m.name,
-          provider: providerId,
-          modelConfigId: byModelId.get(m.id),
-        }))
+        details.models.map((m) => {
+          const configId = byModelId.get(m.id);
+          const configRow = configId ? configById.get(configId) : undefined;
+          return {
+            id: String(m.id),
+            name: configRow?.name?.trim() ? configRow.name : m.name,
+            modelname: configRow?.modelname ?? m.name,
+            provider: providerId,
+            modelConfigId: configId,
+          };
+        })
       );
     } catch (e) {
       setModelsError(e instanceof ApiError ? e.message : "Failed to load models");

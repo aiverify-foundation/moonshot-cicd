@@ -134,7 +134,7 @@ export default function RequiredEndpointsCard() {
       const status = storedStatus ? storedStatus as ConnectionStatus : ConnectionStatus.NOT_CONNECTED;
 
       return {
-        modelName: config.modelname || config.name,
+        modelName: config.name?.trim() || config.modelname,
         status,
         tests: associatedTests,
         configId: config.id
