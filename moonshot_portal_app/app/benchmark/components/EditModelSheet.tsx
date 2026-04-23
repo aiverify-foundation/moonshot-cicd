@@ -149,7 +149,7 @@ export default function EditModelSheet({
   const [modelConfigName, setModelConfigName] = React.useState(isNewModel ? 'New Model' : currentModelConfig?.name || 'New Model');
   const [tokenValue, setTokenValue] = React.useState('');
   const [modelName, setModelName] = React.useState(isNewModel ? '' : currentModelConfig?.modelname || '');
-  const [testResult, setTestResult] = React.useState<boolean | null>(true);
+  const [testResult, setTestResult] = React.useState<boolean | null>(null);
   const [popoverOpen, setPopoverOpen] = React.useState(false);
   const [advancedParams, setAdvancedParams] = React.useState(getAdvancedParamsFromProvider(currentProvider, fixedConfig));
   const [apiKeyConfigured, setApiKeyConfigured] = React.useState(false);
@@ -160,10 +160,16 @@ export default function EditModelSheet({
     setModelConfigName(isNewModel ? 'New Model' : currentModelConfig?.name || 'New Model');
     setModelName(isNewModel ? '' : currentModelConfig?.modelname || '');
     setTokenValue('');
-    setTestResult(true);
+    setTestResult(null);
     setPopoverOpen(false);
     setAdvancedParams(getAdvancedParamsFromProvider(currentProvider, fixedConfig));
   }, [isNewModel, currentModelConfig, currentProvider, fixedConfig]);
+
+  React.useEffect(() => {
+    if (open) {
+      setTestResult(null);
+    }
+  }, [open]);
 
   React.useEffect(() => {
     if (!open) {
@@ -202,7 +208,7 @@ export default function EditModelSheet({
     setModelConfigName('New Model');
     setTokenValue('');
     setModelName('');
-    setTestResult(true);
+    setTestResult(null);
     setPopoverOpen(false);
     setAdvancedParams(getAdvancedParamsFromProvider(currentProvider, fixedConfig));
   };
@@ -227,6 +233,7 @@ export default function EditModelSheet({
   };
 
   const handleSave = async () => {
+    if (testResult !== true) return;
     if (!currentProvider) {
       window.alert('No provider context for this configuration.');
       return;
@@ -532,7 +539,15 @@ export default function EditModelSheet({
                     </PopoverContent>
                   )}
                 </Popover>
-                <Button onClick={() => void handleSave()} disabled={saving}>
+                <Button
+                  onClick={() => void handleSave()}
+                  disabled={saving || testResult !== true}
+                  className={
+                    saving || testResult !== true
+                      ? 'opacity-50 bg-gray-100 text-gray-400'
+                      : ''
+                  }
+                >
                   {saving ? 'Saving…' : 'Save'}
                 </Button>
               </div>
