@@ -1,8 +1,10 @@
+import base64
 import pytest
 from datetime import datetime, timezone
 from pathlib import Path
 
 from adapters.driven.repository.sqlalchemy.llm_provider_models import (
+    LLMProviderApiKeyModel,
     LLMProviderModel,
     LLMProviderModelModel,
     LLMProviderEndpointConfigModel,
@@ -112,6 +114,32 @@ class TestProviderServiceLatestDetails:
 
         assert len(details.endpoint_configs) == 1
         assert details.endpoint_configs[0].name == "test-endpoint"
+        assert details.api_key_configured is False
+
+    def test_latest_details_api_key_configured_true_when_key_row_exists(
+        self,
+        provider_service: ProviderService,
+    ):
+        system_name = "test_system_with_api_key"
+        latest_id = _seed_provider_with_models_and_endpoints(system_name)
+        session_manager = SessionManager.get_instance()
+        with session_manager.get_session() as session:
+            session.add(
+                LLMProviderApiKeyModel(
+                    llm_provider_id=latest_id,
+                    encrypted_key=base64.b64encode(b"ciphertext").decode("ascii"),
+                    salt=base64.b64encode(b"s" * 32).decode("ascii"),
+                    nonce=base64.b64encode(b"n" * 12).decode("ascii"),
+                    authentication_tag=base64.b64encode(b"t" * 16).decode("ascii"),
+                )
+            )
+            session.commit()
+
+        details = provider_service.get_latest_provider_details_by_system_name(
+            system_name
+        )
+        assert details is not None
+        assert details.api_key_configured is True
 
 
 def _seed_provider_with_db_model_config(
@@ -188,6 +216,7 @@ class TestProviderServiceDatabaseModelConfigs:
         assert dmc.name == "prod"
         assert dmc.modelname == "gpt-test"
         assert dmc.modelId > 0
+        assert details.api_key_configured is False
 
     def test_provider_without_models_has_empty_configs(
         self,

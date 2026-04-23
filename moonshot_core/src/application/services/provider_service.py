@@ -11,6 +11,7 @@ from adapters.driven.repository.sqlalchemy.llm_provider_models import (
     LLMProviderEndpointConfigModel,
     LLMProviderModelConfigModel,
     LLMProviderModelConfigParametersModel,
+    LLMProviderApiKeyModel,
 )
 from adapters.driven.repository.sqlalchemy.session_manager import SessionManager
 from domain.entities.provider_entity import ProviderEntity
@@ -318,12 +319,22 @@ class ProviderService:
                     session, provider_model
                 )
 
+                api_key_configured = (
+                    session.query(LLMProviderApiKeyModel)
+                    .filter(
+                        LLMProviderApiKeyModel.llm_provider_id == provider_model.id
+                    )
+                    .count()
+                    > 0
+                )
+
                 return LLMProviderDetailsDTO(
                     provider=provider_dto,
                     models=model_dtos,
                     endpoint_configs=endpoint_config_dtos,
                     config_params=None,
                     database_model_configs=db_model_cfgs,
+                    api_key_configured=api_key_configured,
                 )
         except Exception as exc:
             self.logger.error(

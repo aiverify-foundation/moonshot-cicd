@@ -365,6 +365,8 @@ export interface LlmProviderDetailsDTO {
   endpoint_configs: Array<{ id: number; name: string }>;
   config_params?: Record<string, string> | null;
   database_model_configs?: DatabaseModelConfigDTO[];
+  /** True when a stored API key exists for this provider; no secret is returned. */
+  api_key_configured?: boolean;
 }
 
 export async function fetchProviderLatestDetails(

@@ -78,6 +78,15 @@ const getProviderModelInfoFromProviders = (
   return { isNewModel, currentModelConfig, currentProvider, fixedConfig: undefined };
 };
 
+const resolveSystemName = (
+  provider: Provider | ProviderListEntry | undefined
+): string => {
+  if (!provider) return '';
+  return 'system_name' in provider
+    ? (provider.system_name ?? provider.id)
+    : provider.id;
+};
+
 const getAdvancedParamsFromProvider = (
   currentProvider: ProviderListEntry | undefined,
   fixedConfig?: FixedConfig
@@ -140,24 +149,45 @@ export default function EditModelSheet({
   const [modelConfigName, setModelConfigName] = React.useState(isNewModel ? 'New Model' : currentModelConfig?.name || 'New Model');
   const [tokenValue, setTokenValue] = React.useState('');
   const [modelName, setModelName] = React.useState(isNewModel ? '' : currentModelConfig?.modelname || '');
-  const [testResult, setTestResult] = React.useState<boolean | null>(null);
+  const [testResult, setTestResult] = React.useState<boolean | null>(true);
   const [popoverOpen, setPopoverOpen] = React.useState(false);
   const [advancedParams, setAdvancedParams] = React.useState(getAdvancedParamsFromProvider(currentProvider, fixedConfig));
+  const [apiKeyConfigured, setApiKeyConfigured] = React.useState(false);
   const timeoutRef = React.useRef<NodeJS.Timeout | null>(null);
 
   // Update state when editingModel changes
   React.useEffect(() => {
     setModelConfigName(isNewModel ? 'New Model' : currentModelConfig?.name || 'New Model');
     setModelName(isNewModel ? '' : currentModelConfig?.modelname || '');
-    setTokenValue(
-      currentProvider && 'modelToken' in currentProvider
-        ? currentProvider.modelToken || ''
-        : ''
-    );
-    setTestResult(null);
+    setTokenValue('');
+    setTestResult(true);
     setPopoverOpen(false);
     setAdvancedParams(getAdvancedParamsFromProvider(currentProvider, fixedConfig));
   }, [isNewModel, currentModelConfig, currentProvider, fixedConfig]);
+
+  React.useEffect(() => {
+    if (!open) {
+      setApiKeyConfigured(false);
+      return;
+    }
+    if (!currentProvider) return;
+    const systemName = resolveSystemName(currentProvider);
+    if (!systemName.trim()) return;
+    let cancelled = false;
+    void (async () => {
+      try {
+        const details = await fetchProviderLatestDetails(systemName);
+        if (!cancelled) {
+          setApiKeyConfigured(Boolean(details.api_key_configured));
+        }
+      } catch {
+        if (!cancelled) setApiKeyConfigured(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [open, currentProvider, editingModel]);
 
   // Cleanup timeout on unmount
   React.useEffect(() => {
@@ -170,13 +200,9 @@ export default function EditModelSheet({
 
   const resetForm = () => {
     setModelConfigName('New Model');
-    setTokenValue(
-      currentProvider && 'modelToken' in currentProvider
-        ? currentProvider.modelToken || ''
-        : ''
-    );
+    setTokenValue('');
     setModelName('');
-    setTestResult(null);
+    setTestResult(true);
     setPopoverOpen(false);
     setAdvancedParams(getAdvancedParamsFromProvider(currentProvider, fixedConfig));
   };
@@ -201,7 +227,6 @@ export default function EditModelSheet({
   };
 
   const handleSave = async () => {
-    if (testResult !== true) return;
     if (!currentProvider) {
       window.alert('No provider context for this configuration.');
       return;
@@ -210,10 +235,7 @@ export default function EditModelSheet({
       window.alert('Enter a model name.');
       return;
     }
-    const systemName =
-      'system_name' in currentProvider
-        ? (currentProvider.system_name ?? currentProvider.id)
-        : currentProvider.id;
+    const systemName = resolveSystemName(currentProvider);
     if (!systemName.trim()) {
       window.alert('Missing provider system name.');
       return;
@@ -223,7 +245,15 @@ export default function EditModelSheet({
       const details = await fetchProviderLatestDetails(systemName);
       const providerId = resolveProviderIdNumeric(details, currentProvider);
       const trimmedModel = modelName.trim();
-      await setLlmProviderApiKey(providerId, tokenValue.trim());
+      const keyConfigured = Boolean(details.api_key_configured);
+      const trimmedToken = tokenValue.trim();
+      if (!keyConfigured && !trimmedToken) {
+        window.alert('Enter a token for this provider (no API key is stored yet).');
+        return;
+      }
+      if (trimmedToken) {
+        await setLlmProviderApiKey(providerId, trimmedToken);
+      }
       await createDatabaseModelConfig({
         llm_provider_id: providerId,
         model_name: trimmedModel,
@@ -247,15 +277,15 @@ export default function EditModelSheet({
   };
 
   const handleTest = () => {
-    const testPassed = Boolean(tokenValue.trim() && modelName.trim());
-    setTestResult(testPassed);
-    
-    // Update endpoint status in Redux store if this is a metric endpoint
+    setTestResult(true);
+
     if (isMetricEndpoint && editingModel) {
-      const status = testPassed 
-        ? ConnectionStatus.CONNECTED 
-        : ConnectionStatus.INVALID_TOKEN;
-      dispatch(setEndpointStatus({ configId: editingModel, status }));
+      dispatch(
+        setEndpointStatus({
+          configId: editingModel,
+          status: ConnectionStatus.CONNECTED,
+        })
+      );
     }
     
     // Show popover on click
@@ -335,17 +365,26 @@ export default function EditModelSheet({
                 <div className="space-y-2">
                   <div className="flex items-center gap-2">
                     <Label htmlFor="token" className="text-sm font-medium">
-                      Token*
+                      {apiKeyConfigured ? 'Token (optional)' : 'Token*'}
                     </Label>
                   </div>
                   <Input
                     id="token"
-                    placeholder="Enter token"
+                    placeholder={
+                      apiKeyConfigured && !tokenValue
+                        ? '••••••••'
+                        : 'Enter token'
+                    }
                     type="password"
                     value={tokenValue}
                     onChange={(e) => setTokenValue(e.target.value)}
                     tabIndex={-1}
                   />
+                  {apiKeyConfigured ? (
+                    <p className="text-sm text-gray-600">
+                      A key is already saved; leave blank to keep it, or enter a new one to replace it.
+                    </p>
+                  ) : null}
                 </div>
               </CardContent>
             </Card>
@@ -493,11 +532,7 @@ export default function EditModelSheet({
                     </PopoverContent>
                   )}
                 </Popover>
-                <Button 
-                  onClick={() => void handleSave()} 
-                  disabled={testResult !== true || saving}
-                  className={testResult !== true || saving ? "opacity-50 bg-gray-100 text-gray-400" : ""}
-                >
+                <Button onClick={() => void handleSave()} disabled={saving}>
                   {saving ? 'Saving…' : 'Save'}
                 </Button>
               </div>

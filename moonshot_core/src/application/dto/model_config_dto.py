@@ -123,6 +123,10 @@ class LLMProviderDetailsDTO(BaseModel):
         default_factory=list,
         description="Relational model configs (llm_provider_model_config + parameters) for benchmark FKs.",
     )
+    api_key_configured: bool = Field(
+        default=False,
+        description="True if at least one llm_provider_api_key row exists for this provider (no secret exposed).",
+    )
 
 
 class ProviderDatabaseConfigsDTO(BaseModel):
