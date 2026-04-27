@@ -2,12 +2,11 @@
 Integration tests for start_benchmark_run with real database.
 
 Seeds config via seed_if_test_file_changed, then calls BenchmarkExecutionService.start_benchmark_run
-with Process patched to run in-process. Asserts benchmark_run row, result file, run_test/prompts,
-and duplicate run name rejection.
+with Process patched to run in-process. Asserts benchmark_run row, no combined bundle JSON file
+(API path), run_test/prompts, and duplicate run name rejection.
 """
 
 import os
-import json
 from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock, patch
 
@@ -206,7 +205,7 @@ def test_start_benchmark_run_happy_path_with_db(
     """
     Seed DB via seed_if_test_file_changed, then run start_benchmark_run with one bundle.
     Process is patched to run the bundle in the current process; connector/metric mocked.
-    Assert benchmark_run row exists, get_all_runs includes that run, result file is written,
+    Assert benchmark_run row exists, get_all_runs includes that run, no combined bundle JSON file,
     and run_test/prompts completed.
     """
     assert CONFIG_PATH.exists(), f"Fixture config missing: {CONFIG_PATH}"
@@ -308,11 +307,9 @@ def test_start_benchmark_run_happy_path_with_db(
     assert matching[0].status == "completed"
 
     result_file = tmp_path / "minimal-bundle.json"
-    assert result_file.exists(), f"Expected result file at {result_file}"
-    data = json.loads(result_file.read_text())
-    assert "run_metadata" in data
-    assert "run_results" in data
-    assert len(data["run_results"]) >= 1
+    assert not result_file.exists(), (
+        f"API-started runs should not write combined bundle JSON; unexpected file: {result_file}"
+    )
 
     session_manager = SessionManager.get_instance()
     _assert_run_completed(session_manager, run_id, test_ids, expected_prediction)
@@ -425,9 +422,9 @@ def test_start_benchmark_run_two_runs_back_to_back(
     assert run_entity_1.id != run_entity_2.id
 
     result_file = tmp_path / "minimal-bundle.json"
-    assert result_file.exists(), f"Expected result file at {result_file}"
-    data = json.loads(result_file.read_text())
-    assert "run_metadata" in data and "run_results" in data
+    assert not result_file.exists(), (
+        f"API-started runs should not write combined bundle JSON; unexpected file: {result_file}"
+    )
 
     session_manager = SessionManager.get_instance()
     _assert_run_completed(session_manager, run_entity_1.id, test_ids, expected_prediction)
@@ -537,8 +534,8 @@ def test_start_benchmark_run_test_prompts_bundle(
     """
     Seed DB from data/test_configs/shared.yaml, then run start_benchmark_run with
     the test-prompts bundle. Process is patched to run in-process; connector and
-    accuracy_adapter are mocked. Asserts benchmark_run row, result file
-    test-prompts.json, and completed run_test/prompts.
+    accuracy_adapter are mocked. Asserts benchmark_run row, no combined bundle JSON file,
+    and completed run_test/prompts.
     """
     assert SHARED_CONFIG_PATH.exists(), f"Shared config missing: {SHARED_CONFIG_PATH}"
     shared_config_seed_service.seed_if_test_file_changed(config_path=SHARED_CONFIG_PATH)
@@ -633,11 +630,9 @@ def test_start_benchmark_run_test_prompts_bundle(
     assert run_entity.end_time is not None
 
     result_file = tmp_path / "test-prompts.json"
-    assert result_file.exists(), f"Expected result file at {result_file}"
-    data = json.loads(result_file.read_text())
-    assert "run_metadata" in data
-    assert "run_results" in data
-    assert len(data["run_results"]) >= 1
+    assert not result_file.exists(), (
+        f"API-started runs should not write combined bundle JSON; unexpected file: {result_file}"
+    )
 
     session_manager = SessionManager.get_instance()
     _assert_run_completed(session_manager, run_entity.id, test_ids, expected_prediction)
@@ -736,7 +731,7 @@ def test_start_benchmark_run_live_openai_real_api(
     Opt-in: default pytest excludes ``live_openai`` (see ``pytest.ini`` ``addopts``). Run explicitly, e.g.:
     ``cd moonshot_core && pytest -o addopts= -m live_openai tests/application/services/test_start_benchmark_run_integration.py::test_start_benchmark_run_live_openai_real_api``
 
-    Asserts run reaches ``completed``, result JSON exists under ``tmp_path`` (via ``MOONSHOT_BENCHMARK_RESULTS_DIR``),
+    Asserts run reaches ``completed``, no combined bundle JSON under ``tmp_path`` (API path skips file),
     and prompt rows have non-empty ``prediction_result`` and non-empty ``evaluation_prediction_result``.
     Does not require ``evaluation_accuracy`` (nullable for dict-shaped metric results). Uses ``moonshot_config.yaml`` via ``MS_CONFIG_PATH``.
     """
@@ -768,9 +763,9 @@ def test_start_benchmark_run_live_openai_real_api(
         assert run_entity.end_time is not None
 
         result_file = tmp_path / "minimal-bundle.json"
-        assert result_file.exists(), f"Expected result file at {result_file}"
-        data = json.loads(result_file.read_text())
-        assert "run_results" in data and len(data["run_results"]) >= 1
+        assert not result_file.exists(), (
+            f"API-started runs should not write combined bundle JSON; unexpected file: {result_file}"
+        )
 
         session_manager = SessionManager.get_instance()
         _assert_predictions_from_real_model(session_manager, run_entity.id, test_ids)

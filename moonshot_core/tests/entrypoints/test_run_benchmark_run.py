@@ -29,12 +29,15 @@ from adapters.driven.repository.sqlalchemy.benchmark_test_config_adapter import 
     BenchmarkTestConfigAdapter,
 )
 from adapters.driven.repository.sqlalchemy.llm_provider_models import (
+    BenchmarkRunTestPromptModel,
+    BenchmarkRunTestStatusModel,
     LLMProviderModel,
     LLMProviderModelConfigModel,
     LLMProviderModelModel,
 )
 from adapters.driven.repository.sqlalchemy.session_manager import SessionManager
 from application.services.benchmark_execution_service import BenchmarkExecutionService
+from application.services.benchmark_run_service import BenchmarkRunService
 from application.services.database_connector_config_service import (
     DatabaseConnectorConfigService,
 )
@@ -122,6 +125,55 @@ def _wait_for_result_file(absolute_result_path: Path, max_wait: float = 15) -> d
         return json.load(f)
 
 
+def _poll_benchmark_run_completed_by_name(run_name: str, max_wait: float = 15):
+    """Wait until benchmark_run named ``run_name`` has status ``completed``."""
+    wait_interval = 0.2
+    waited = 0.0
+    run_entity = None
+    while waited < max_wait:
+        run_entity = BenchmarkRunService().get_run_by_name(run_name)
+        if run_entity is not None and run_entity.status == "completed":
+            return run_entity
+        time.sleep(wait_interval)
+        waited += wait_interval
+    status = run_entity.status if run_entity is not None else None
+    pytest.fail(
+        f"benchmark_run {run_name!r} not completed within {max_wait}s (last status={status!r})"
+    )
+
+
+def _assert_db_results_for_run(
+    session_manager: SessionManager,
+    run_id: int,
+    test_ids: list[int],
+    expected_prediction: str,
+) -> None:
+    """Assert each test has completed run_test_status and prompts with expected prediction."""
+    for test_id in test_ids:
+        with session_manager.get_session() as session:
+            row = (
+                session.query(BenchmarkRunTestStatusModel)
+                .filter(
+                    BenchmarkRunTestStatusModel.run_id == run_id,
+                    BenchmarkRunTestStatusModel.test_id == test_id,
+                )
+                .first()
+            )
+            assert row is not None, f"run_test_status missing for run_id={run_id}, test_id={test_id}"
+            assert row.status == "completed"
+            assert row.end_dt is not None
+            prompts = (
+                session.query(BenchmarkRunTestPromptModel)
+                .filter(BenchmarkRunTestPromptModel.run_test_id == row.id)
+                .order_by(BenchmarkRunTestPromptModel.id)
+                .all()
+            )
+            assert len(prompts) >= 1
+            for p in prompts:
+                assert p.prediction_result == expected_prediction
+                assert p.evaluation_prediction_result is not None
+
+
 def test_run_benchmark_run_with_test_prompts_bundle(
     seed_shared_config,
     test_db_env,
@@ -130,7 +182,7 @@ def test_run_benchmark_run_with_test_prompts_bundle(
     """
     DB connector path: relational FK trio + ``start_benchmark_run`` (same as
     ``POST /api/start-benchmark-run``). ``build_connector_entity`` is mocked to a fake connector;
-    worker runs in-process via patched ``Process``.
+    worker runs in-process via patched ``Process``. Results are asserted via DB (no combined JSON file).
     """
     result_file = tmp_path / f"{BUNDLE_NAME}.json"
     if result_file.exists():
@@ -234,12 +286,15 @@ def test_run_benchmark_run_with_test_prompts_bundle(
             llm_provider_model_config_id=payload["llm_provider_model_config_id"],
         )
 
-    result_data = _wait_for_result_file(result_file, max_wait=15)
-
-    assert "run_metadata" in result_data
-    assert "run_results" in result_data
-    assert len(result_data["run_results"]) >= 1
-    assert result_data["run_metadata"]["test_id"] == BUNDLE_NAME
+    run_entity = _poll_benchmark_run_completed_by_name(run_name, max_wait=15)
+    assert run_entity.id is not None
+    assert not result_file.exists(), (
+        f"API-started runs should not write combined bundle JSON; unexpected file: {result_file}"
+    )
+    session_manager = SessionManager.get_instance()
+    _assert_db_results_for_run(
+        session_manager, run_entity.id, test_ids, expected_prediction
+    )
 
 
 def test_execute_bundle_yaml_connector_path(seed_shared_config, test_db_env, tmp_path):

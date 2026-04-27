@@ -73,6 +73,7 @@ def _run_bundle_in_process(
             None,
             run_id=run_id,
             write_to_db=True,
+            write_combined_results_file=False,
             llm_provider_id=llm_provider_id,
             llm_provider_model_id=llm_provider_model_id,
             llm_provider_model_config_id=llm_provider_model_config_id,
@@ -230,9 +231,10 @@ class BenchmarkExecutionService:
         llm_provider_id: Optional[int] = None,
         llm_provider_model_id: Optional[int] = None,
         llm_provider_model_config_id: Optional[int] = None,
+        write_combined_results_file: bool = True,
     ) -> None:
         """
-        Execute a bundle (multiple benchmark tests) synchronously and write a combined results file.
+        Execute a bundle (multiple benchmark tests) synchronously and optionally write a combined results file.
 
         Prefer DB path when the bundle exists in the database (seeded config): loads bundle and test
         list from DB, creates benchmark_run_test_status and benchmark_run_test_prompt for each test
@@ -252,6 +254,8 @@ class BenchmarkExecutionService:
             run_id: Optional benchmark run id (from BenchmarkRunEntity). Required for DB path; if None on DB path, a run is created.
             llm_provider_id / llm_provider_model_id / llm_provider_model_config_id: When all set, build ConnectorEntity from DB (no YAML).
             write_to_db: If True (default), run_benchmark writes results to DB when run_test/prompts exist. If False, prompts come from dataset load and no DB write.
+            write_combined_results_file: If True (default), write combined bundle JSON under MOONSHOT_BENCHMARK_RESULTS_DIR.
+                Background workers for ``start_benchmark_run`` pass False so API runs persist only to the DB.
         """
         try:
             logger.info(f"[BenchmarkExecutionService] Starting bundle execution for bundle: {bundle_id}")
@@ -398,14 +402,22 @@ class BenchmarkExecutionService:
             final_results = run_metadata | {"run_results": json_results}
             final_results_str = json.dumps(final_results, indent=4)
 
-            result_path = task_manager._store_results_to_local_path(bundle_id, final_results_str)
-            if result_path:
+            if write_combined_results_file:
+                result_path = task_manager._store_results_to_local_path(bundle_id, final_results_str)
+                if result_path:
+                    logger.info(
+                        f"[BenchmarkExecutionService] Bundle completed successfully for bundle: {bundle_id}. "
+                        f"Results written to: {result_path}"
+                    )
+                else:
+                    logger.error(
+                        f"[BenchmarkExecutionService] Failed to write results file for bundle: {bundle_id}"
+                    )
+            else:
                 logger.info(
                     f"[BenchmarkExecutionService] Bundle completed successfully for bundle: {bundle_id}. "
-                    f"Results written to: {result_path}"
+                    "Combined results file skipped (persisted via DB when write_to_db is enabled)."
                 )
-            else:
-                logger.error(f"[BenchmarkExecutionService] Failed to write results file for bundle: {bundle_id}")
 
             # When all run-test statuses for this run are completed, mark the benchmark run as completed.
             if use_db_path and effective_run_id is not None:
