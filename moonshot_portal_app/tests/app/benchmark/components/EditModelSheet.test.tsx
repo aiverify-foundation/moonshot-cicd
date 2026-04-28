@@ -334,4 +334,37 @@ describe('EditModelSheet', () => {
       expect(screen.getByDisplayValue('30')).toBeInTheDocument();
     });
   });
+
+  it('dispatches endpoint status to endpointStatusKey when set (non-metric)', async () => {
+    const user = userEvent.setup();
+    const store = createTestStore({
+      modelSelection: {
+        selectedProvider: '1',
+        selectedModel: '',
+        selectedConfig: '',
+        isConfigValid: false,
+        isTestNameValid: true,
+        testName: 't',
+        benchmarkLlmProviderId: null,
+        benchmarkLlmProviderModelId: null,
+        benchmarkLlmProviderModelConfigId: null,
+      },
+    });
+
+    render(
+      <EditModelSheet
+        open
+        onOpenChange={() => {}}
+        editingModel="1"
+        providers={[highTempProvider]}
+        models={[]}
+        isMetricEndpoint={false}
+        endpointStatusKey="aaj:together_adapter"
+      />,
+      { store }
+    );
+
+    await user.click(screen.getByRole('button', { name: /Test/i }));
+    expect(store.getState().endpointStatus['aaj:together_adapter']).toBe('connected');
+  });
 });

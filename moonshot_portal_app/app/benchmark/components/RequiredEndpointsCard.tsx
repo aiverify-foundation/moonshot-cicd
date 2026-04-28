@@ -1,6 +1,6 @@
 "use client"
-import React, { useMemo } from 'react';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import React, { useEffect, useMemo, useState } from 'react';
+import { Card, CardContent, CardDescription, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { CircleCheckBig, CircleAlert } from 'lucide-react';
@@ -10,11 +10,11 @@ import {
     AccordionItem,
     AccordionTrigger,
   } from "@/components/ui/accordion"
-import EditModelSheet from './EditModelSheet';
-import { useFixedConfigsForSelectedTests } from '../../../hooks/useFixedConfigsRedux';
+import EditLlmAajProviderSheet from './EditLlmAajProviderSheet';
 import { useCheckedTestNames } from '../../../hooks/useTestSelection';
 import { useAppSelector } from '../../../hooks/reduxHooks';
-import { Bundle } from '../../../lib/api';
+import { ApiError, Bundle, fetchProviders, type LlmProviderDTO } from '../../../lib/api';
+import type { Provider } from '../types/modelSelection';
 
 enum ConnectionStatus {
   CONNECTED = "connected",
@@ -22,8 +22,45 @@ enum ConnectionStatus {
   INVALID_TOKEN = "Invalid Token"
 }
 
-// Helper function to render endpoint status card
-const renderEndpointStatusCard = (modelName: string, status: ConnectionStatus, tests: string[], onConnect: () => void) => {
+/** Redux `endpointStatus` key for LLM-as-judge provider rows (DB `metric_provider_system_name`). */
+export function aajEndpointStatusKey(metricProviderSystemName: string): string {
+  return `aaj:${metricProviderSystemName}`;
+}
+
+function mapLlmProviderDtoToProvider(dto: LlmProviderDTO): Provider {
+  const pairs = dto.defaultConfigPairs ?? {};
+  return {
+    id: dto.id,
+    name: dto.name,
+    type: "provider",
+    defaultModel: dto.defaultModel ?? "",
+    modelTextboxExplanation: dto.modelTextboxExplanation ?? "",
+    configPairs: Object.keys(pairs).map((key) => ({
+      key,
+      value: String(pairs[key]),
+    })),
+    modelToken: dto.modelToken ?? "",
+    system_name: dto.system_name,
+  };
+}
+
+export type AajEndpointRow = {
+  rowKey: string;
+  modelName: string;
+  status: ConnectionStatus;
+  tests: string[];
+  systemName: string;
+  providerId: string | null;
+  connectDisabled: boolean;
+};
+
+function renderEndpointStatusCard(
+  modelName: string,
+  status: ConnectionStatus,
+  tests: string[],
+  onConnect: () => void,
+  connectDisabled: boolean
+) {
   const getBadgeClasses = (status: ConnectionStatus) => {
     switch (status) {
       case ConnectionStatus.CONNECTED:
@@ -50,6 +87,8 @@ const renderEndpointStatusCard = (modelName: string, status: ConnectionStatus, t
     }
   };
 
+  const firstTest = tests.length > 0 ? tests[0] : '—';
+
   return (
     <Card className={`border ${getBorderClasses(status)} p-2 w-80`}>
       <CardContent className="px-1 py-1">
@@ -59,7 +98,7 @@ const renderEndpointStatusCard = (modelName: string, status: ConnectionStatus, t
           <div>
             <h3 className="font-semibold text-sm text-gray-700 mb-2">Tests</h3>
             <div className="space-y-1">
-              <div className="text-sm text-gray-600">{tests[0]}</div>
+              <div className="text-sm text-gray-600">{firstTest}</div>
               <div className="text-sm text-gray-500 h-5">
                 {tests.length > 1 ? `+${tests.length - 1} more` : '\u00A0'}
               </div>
@@ -74,82 +113,151 @@ const renderEndpointStatusCard = (modelName: string, status: ConnectionStatus, t
         </div>
         
         <div className="mt-4 flex justify-start">
-          <Button size="sm" className="text-xs" onClick={onConnect}>
+          <Button size="sm" className="text-xs" onClick={onConnect} disabled={connectDisabled}>
             Connect
           </Button>
         </div>
       </CardContent>
     </Card>
   );
-};
+}
 
-// Helper function to render multiple endpoint status cards in a 2-column grid
-const renderEndpointStatusCardsGrid = (endpoints: Array<{modelName: string, status: ConnectionStatus, tests: string[], configId?: string}>, onConnect: (configId: string) => void) => {
+function renderEndpointStatusCardsGrid(
+  endpoints: AajEndpointRow[],
+  onConnect: (row: AajEndpointRow) => void
+) {
   return (
     <div className="max-h-[400px] overflow-y-auto">
       <div className="grid grid-cols-2 gap-4">
-        {endpoints.map((endpoint, index) => (
-          <div key={index}>
-            {renderEndpointStatusCard(endpoint.modelName, endpoint.status, endpoint.tests, () => onConnect(endpoint.configId || ''))}
+        {endpoints.map((endpoint) => (
+          <div key={endpoint.rowKey}>
+            {renderEndpointStatusCard(
+              endpoint.modelName,
+              endpoint.status,
+              endpoint.tests,
+              () => onConnect(endpoint),
+              endpoint.connectDisabled
+            )}
           </div>
         ))}
       </div>
     </div>
   );
-};
+}
+
+type AajSheetState =
+  | { kind: 'closed' }
+  | { kind: 'open'; providerId: string; systemName: string; statusKey: string };
 
 export default function RequiredEndpointsCard() {
-  const [isEditModelSheetOpen, setIsEditModelSheetOpen] = React.useState(false);
-  const [editingConfigId, setEditingConfigId] = React.useState<string>('');
-  
-  
-  const handleConnect = (configId: string) => {
-    setEditingConfigId(configId);
-    setIsEditModelSheetOpen(true);
-  };
+  const [isAajSheetOpen, setIsAajSheetOpen] = useState(false);
+  const [sheet, setSheet] = useState<AajSheetState>({ kind: 'closed' });
+  const [apiProviders, setApiProviders] = useState<Provider[]>([]);
+  const [providersLoading, setProvidersLoading] = useState(true);
+  const [providersError, setProvidersError] = useState<string | null>(null);
 
-  // Get fixed configs that are referenced by selected tests
-  const fixedConfigs = useFixedConfigsForSelectedTests();
   const selectedTestNames = useCheckedTestNames();
   const bundles = useAppSelector((state) => state.bundles.data) as Bundle[];
   const endpointStatuses = useAppSelector((state) => state.endpointStatus) as Record<string, string>;
 
-  // Map fixed configs to endpoints with their associated tests
-  const endpoints = useMemo(() => {
-  
-    return fixedConfigs.map(config => {
-      // Find only the SELECTED tests that reference this config_id
-      const associatedTests: string[] = [];
-      bundles.forEach(bundle => {
-        bundle.tests.forEach(test => {
-          // Only include the test if it's selected AND references this config
-          if (selectedTestNames.includes(test.name) && test.metric?.config_id === config.id) {
-            associatedTests.push(test.name);
-          }
-        });
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      setProvidersLoading(true);
+      setProvidersError(null);
+      try {
+        const dtos = await fetchProviders();
+        if (!cancelled) {
+          setApiProviders(dtos.map(mapLlmProviderDtoToProvider));
+        }
+      } catch (e) {
+        if (!cancelled) {
+          setProvidersError(e instanceof ApiError ? e.message : "Failed to load providers");
+          setApiProviders([]);
+        }
+      } finally {
+        if (!cancelled) {
+          setProvidersLoading(false);
+        }
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const sheetProvider = useMemo((): Provider | null => {
+    if (sheet.kind !== "open") return null;
+    return apiProviders.find((p) => p.id === sheet.providerId) ?? null;
+  }, [sheet, apiProviders]);
+
+  const endpoints = useMemo((): AajEndpointRow[] => {
+    const bySystem = new Map<string, Set<string>>();
+    bundles.forEach((bundle) => {
+      bundle.tests.forEach((test) => {
+        if (!selectedTestNames.includes(test.name)) return;
+        if (!test.requires_llm_aaj || !test.metric_provider_system_name?.trim()) return;
+        const sn = test.metric_provider_system_name.trim();
+        if (!bySystem.has(sn)) {
+          bySystem.set(sn, new Set());
+        }
+        bySystem.get(sn)!.add(test.name);
       });
-
-      // Get status from Redux store, default to NOT_CONNECTED if not set
-      const storedStatus = endpointStatuses[config.id];
-      const status = storedStatus ? storedStatus as ConnectionStatus : ConnectionStatus.NOT_CONNECTED;
-
-      return {
-        modelName: config.name?.trim() || config.modelname,
-        status,
-        tests: associatedTests,
-        configId: config.id
-      };
     });
-  }, [fixedConfigs, bundles, selectedTestNames, endpointStatuses]);
 
-  // Determine overall status indicator
+    const rows: AajEndpointRow[] = [];
+    for (const [systemName, testSet] of bySystem) {
+      const provider = apiProviders.find((p) => p.system_name === systemName);
+      const statusKey = aajEndpointStatusKey(systemName);
+      const storedStatus = endpointStatuses[statusKey];
+      const status = storedStatus
+        ? (storedStatus as ConnectionStatus)
+        : ConnectionStatus.NOT_CONNECTED;
+      const tests = Array.from(testSet).sort();
+      const providerMissing = !provider;
+      rows.push({
+        rowKey: statusKey,
+        modelName: provider
+          ? `${provider.name} (LLM judge)`
+          : `${systemName} (provider not in API)`,
+        status,
+        tests,
+        systemName,
+        providerId: provider?.id ?? null,
+        connectDisabled: providerMissing,
+      });
+    }
+    rows.sort((a, b) => a.systemName.localeCompare(b.systemName));
+    return rows;
+  }, [bundles, selectedTestNames, apiProviders, endpointStatuses]);
+
   const overallStatus = useMemo(() => {
     if (endpoints.length === 0) {
-      return true; // No endpoints required, so status is good (green check)
+      return true;
     }
-    const allConnected = endpoints.every(endpoint => endpoint.status === ConnectionStatus.CONNECTED);
-    return allConnected;
+    return endpoints.every((e) => e.status === ConnectionStatus.CONNECTED);
   }, [endpoints]);
+
+  const handleConnect = (row: AajEndpointRow) => {
+    if (row.connectDisabled || !row.providerId) return;
+    setSheet({
+      kind: 'open',
+      providerId: row.providerId,
+      systemName: row.systemName,
+      statusKey: row.rowKey,
+    });
+    setIsAajSheetOpen(true);
+  };
+
+  const handleSheetOpenChange = (open: boolean) => {
+    setIsAajSheetOpen(open);
+    if (!open) {
+      setSheet({ kind: 'closed' });
+    }
+  };
+
+  const sheetOpen = sheet.kind === 'open';
+  const endpointStatusKeyForSheet = sheetOpen ? sheet.statusKey : null;
 
   return (
     <>
@@ -160,10 +268,9 @@ export default function RequiredEndpointsCard() {
               <div className="flex-1">
                 <CardTitle data-testid="additional-card-title">Connect Required Endpoints</CardTitle>
                 <CardDescription data-testid="additional-card-description">
-                  Make sure you configure access to the required models to run selected recipes.
+                  Configure access to LLM-as-judge providers required by your selected recipes (from the database).
                 </CardDescription>
               </div>
-              {/* Status indicators */}
               <div className="flex items-center">
                   {overallStatus ? (
                     <CircleCheckBig className="h-5 w-5 text-green-500" data-testid="required-endpoints-status-indicator" />
@@ -174,7 +281,12 @@ export default function RequiredEndpointsCard() {
             </AccordionTrigger>
             <AccordionContent>
               <CardContent>
-                {endpoints.length > 0 ? (
+                {providersError ? (
+                  <p className="text-sm text-red-600" role="alert">{providersError}</p>
+                ) : null}
+                {providersLoading ? (
+                  <div className="text-center text-gray-500 py-8">Loading providers…</div>
+                ) : endpoints.length > 0 ? (
                   renderEndpointStatusCardsGrid(endpoints, handleConnect)
                 ) : (
                   <div className="text-center text-gray-500 py-8">
@@ -187,14 +299,11 @@ export default function RequiredEndpointsCard() {
         </Accordion>
       </Card>
       
-      <EditModelSheet
-        open={isEditModelSheetOpen}
-        onOpenChange={setIsEditModelSheetOpen}
-        editingModel={editingConfigId}
-        providers={[]}
-        models={[]}
-        isMetricEndpoint={true}
-        fixedConfigs={fixedConfigs}
+      <EditLlmAajProviderSheet
+        open={isAajSheetOpen}
+        onOpenChange={handleSheetOpenChange}
+        provider={sheetOpen ? sheetProvider : null}
+        endpointStatusKey={endpointStatusKeyForSheet}
       />
     </>
   );

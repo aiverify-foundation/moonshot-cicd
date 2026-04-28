@@ -222,6 +222,11 @@ interface EditModelSheetProps {
   models: ModelConfig[];
   isMetricEndpoint?: boolean;
   fixedConfigs?: FixedConfig[];
+  /**
+   * When set, `Test` updates Redux endpoint status under this key instead of `editingModel`.
+   * Used for required-endpoint rows that are not fixed YAML config ids (e.g. LLM AAJ provider rows).
+   */
+  endpointStatusKey?: string | null;
   onSaved?: () => void | Promise<void>;
 }
 
@@ -234,6 +239,7 @@ export default function EditModelSheet({
   models,
   isMetricEndpoint = false,
   fixedConfigs,
+  endpointStatusKey = null,
   onSaved,
 }: EditModelSheetProps) {
   const dispatch = useAppDispatch();
@@ -481,10 +487,16 @@ export default function EditModelSheet({
   const handleTest = () => {
     setTestResult(true);
 
-    if (isMetricEndpoint && editingModel) {
+    const explicitKey =
+      endpointStatusKey != null && String(endpointStatusKey).trim() !== ''
+        ? String(endpointStatusKey)
+        : '';
+    const statusConfigId =
+      explicitKey || (isMetricEndpoint && editingModel ? editingModel : '');
+    if (statusConfigId) {
       dispatch(
         setEndpointStatus({
-          configId: editingModel,
+          configId: statusConfigId,
           status: ConnectionStatus.CONNECTED,
         })
       );
@@ -721,7 +733,7 @@ export default function EditModelSheet({
                 <Popover open={popoverOpen} onOpenChange={setPopoverOpen}>
                   <PopoverTrigger asChild>
                     <Button variant="outline" onClick={handleTest}>
-                      Test
+                      Test_Placeholder
                     </Button>
                   </PopoverTrigger>
                   {testResult !== null && (
