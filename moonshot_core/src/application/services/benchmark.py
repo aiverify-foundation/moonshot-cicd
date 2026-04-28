@@ -3,6 +3,7 @@ from domain.entities.dataset_entity import DatasetEntity
 from domain.entities.test_bundle_entity import TestBundleEntity
 from domain.entities.test_config_entity import TestConfigEntity
 from domain.services.dataset_examples_converter import prompts_to_examples
+from domain.services.metric_aaj_requirements import metric_aaj_fields
 from domain.services.logger import configure_logger
 from application.services.file_benchmark_repository import FileBenchmarkRepository
 from application.services.file_dataset_repository import FileDatasetRepository
@@ -94,12 +95,17 @@ class BenchmarkService:
         if benchmark_test_entity.dataset:
             dataset_dto = self._convert_dataset_entity_to_dto(benchmark_test_entity.dataset)
         
+        requires_llm_aaj, metric_provider_system_name = metric_aaj_fields(
+            benchmark_test_entity.metric
+        )
         return BenchmarkTestDTO(
             id=benchmark_test_entity.id,
             name=benchmark_test_entity.name,
             dataset=dataset_dto,
             metric=benchmark_test_entity.metric,
-            description=benchmark_test_entity.description
+            description=benchmark_test_entity.description,
+            requires_llm_aaj=requires_llm_aaj,
+            metric_provider_system_name=metric_provider_system_name,
         )
     
     def _convert_bundle_entity_to_dto(self, bundle_entity: TestBundleEntity) -> BundleDTO:

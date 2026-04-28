@@ -3,6 +3,7 @@
 from typing import Optional, override
 
 from sqlalchemy import func
+from sqlalchemy.orm import joinedload
 
 from application.ports.dataset_repository import DatasetRepository
 from domain.entities.benchmark_test_dataset_prompt_entity import (
@@ -118,13 +119,14 @@ class SqlAlchemyDatasetRepository(DatasetRepository):
         with self.session_manager.get_session() as session:
             model = (
                 session.query(BenchmarkTestDatasetModel)
+                .options(joinedload(BenchmarkTestDatasetModel.prompts))
                 .filter(BenchmarkTestDatasetModel.id == db_id)
                 .first()
             )
-        if model is None:
-            self.logger.error("Dataset not found: %s", dataset_id)
-            raise ValueError(f"Dataset not found: {dataset_id!r}")
-        return self._model_to_entity(model)
+            if model is None:
+                self.logger.error("Dataset not found: %s", dataset_id)
+                raise ValueError(f"Dataset not found: {dataset_id!r}")
+            return self._model_to_entity(model)
 
     @override
     def get_prompts_by_dataset_id(

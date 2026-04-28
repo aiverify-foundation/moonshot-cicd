@@ -300,6 +300,9 @@ class SharedConfigSeedService:
                 metric_id = self.adapter.get_or_create_metric(metric_name)
                 test_system_name = f"{bundle_key}__{_slug(test_name)}"
                 type_ = test.get("type", "benchmark")
+                test_description = test.get("description")
+                if test_description is not None and not isinstance(test_description, str):
+                    test_description = str(test_description)
 
                 test_id = self.adapter.get_test_id(version=version, system_name=test_system_name)
                 if test_id is None:
@@ -310,6 +313,7 @@ class SharedConfigSeedService:
                         type_=type_,
                         dataset_id=dataset_id,
                         metric_id=metric_id,
+                        description=test_description,
                     )
                 if not self.adapter.grouping_exists(test_bundle_id=bundle_id, test_id=test_id):
                     self.adapter.insert_grouping(test_bundle_id=bundle_id, test_id=test_id)

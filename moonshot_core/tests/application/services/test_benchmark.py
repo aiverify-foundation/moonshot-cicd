@@ -158,6 +158,24 @@ class TestBenchmarkService:
         assert result.name == sample_benchmark_test_entity.name
         assert result.metric == sample_benchmark_test_entity.metric
         assert result.description == sample_benchmark_test_entity.description
+        assert result.requires_llm_aaj is False
+        assert result.metric_provider_system_name is None
+
+    def test_get_benchmark_test_by_id_llamaguard_sets_aaj_fields(
+        self, benchmark_service, mock_benchmark_repository, mock_dataset_repository, sample_dataset_entity
+    ):
+        entity = BenchmarkTestEntity(
+            id="lg",
+            name="lg",
+            dataset=sample_dataset_entity,
+            metric={"name": "llamaguardannotator_adapter"},
+            description="",
+        )
+        mock_benchmark_repository.get_benchmark_test_by_id.return_value = entity
+        mock_dataset_repository.get_dataset_by_id.return_value = sample_dataset_entity
+        dto = benchmark_service.get_benchmark_test_by_id("any")
+        assert dto.requires_llm_aaj is True
+        assert dto.metric_provider_system_name == "together_adapter"
 
     def test_get_benchmark_test_by_id_not_found(self, benchmark_service, mock_benchmark_repository):
         """Test test config retrieval when config is not found"""

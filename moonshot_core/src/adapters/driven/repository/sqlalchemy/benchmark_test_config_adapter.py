@@ -274,6 +274,7 @@ class BenchmarkTestConfigAdapter:
         type_: str,
         dataset_id: int,
         metric_id: int,
+        description: Optional[str] = None,
     ) -> int:
         """
         Insert a new benchmark_test row. Returns id.
@@ -285,6 +286,7 @@ class BenchmarkTestConfigAdapter:
             type_: Test type (e.g. benchmark, scan).
             dataset_id: FK to benchmark_test_dataset.id.
             metric_id: FK to benchmark_test_metric.id.
+            description: Optional long-form test description from YAML.
 
         Returns:
             int: Primary key of the new benchmark_test row.
@@ -297,6 +299,7 @@ class BenchmarkTestConfigAdapter:
                 type=type_,
                 dataset_id=dataset_id,
                 metric_id=metric_id,
+                description=description,
             )
             session.add(new)
             session.flush()

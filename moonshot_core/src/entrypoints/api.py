@@ -14,6 +14,10 @@ from urllib.parse import urlparse
 from domain.services.app_config import AppConfig
 from domain.services.logger import configure_logger
 from application.services.benchmark import BenchmarkService
+from adapters.driven.repository.sqlalchemy.dataset_adapter import SqlAlchemyDatasetRepository
+from adapters.driven.repository.sqlalchemy.sqlalchemy_benchmark_repository import (
+    SqlAlchemyBenchmarkRepository,
+)
 from typing import List
 
 # Provider/model-config service & DTOs
@@ -170,8 +174,12 @@ async def root():
         return {"message": "Welcome to Moonshot CI/CD API"}
 
 
-# Initialize the benchmark service
-benchmark_service = BenchmarkService(None, None)
+# Initialize the benchmark service (DB-backed bundles/tests; datasets from benchmark_test_dataset)
+_sqlalchemy_dataset_repository = SqlAlchemyDatasetRepository()
+benchmark_service = BenchmarkService(
+    SqlAlchemyBenchmarkRepository(_sqlalchemy_dataset_repository),
+    _sqlalchemy_dataset_repository,
+)
 provider_service = ProviderService()
 database_model_config_service = DatabaseModelConfigService()
 benchmark_execution_service = BenchmarkExecutionService()

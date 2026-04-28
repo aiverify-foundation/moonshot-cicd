@@ -13,6 +13,10 @@ export interface Bundle {
   tests: Array<{
     name: string;
     description?: string;
+    /** True when the metric uses an LLM-as-judge path (e.g. Llama Guard annotator). */
+    requires_llm_aaj?: boolean;
+    /** Metric-side connector system_name when requires_llm_aaj (e.g. together_adapter). */
+    metric_provider_system_name?: string | null;
     dataset: {
       id: string;
       name: string;

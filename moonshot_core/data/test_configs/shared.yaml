@@ -148,4 +148,3 @@ undesirable-content-progress:
     dataset: mlc-ailuminate-hte
     metric:
       name: llamaguardannotator_adapter
-      config_id: config_005

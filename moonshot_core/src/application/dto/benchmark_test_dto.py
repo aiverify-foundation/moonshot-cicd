@@ -34,4 +34,10 @@ class BenchmarkTestDTO(BaseModel):
     # Prompt or scenario description for the test
     description: str = ""
 
+    # True when this test's metric uses an LLM as judge (e.g. Llama Guard annotator).
+    requires_llm_aaj: bool = False
+
+    # Metric-side connector system_name when requires_llm_aaj (e.g. together_adapter).
+    metric_provider_system_name: Optional[str] = None
+
 

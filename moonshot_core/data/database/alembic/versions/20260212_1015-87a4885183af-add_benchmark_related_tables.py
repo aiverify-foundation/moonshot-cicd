@@ -73,6 +73,7 @@ def upgrade() -> None:
         sa.Column("type", sa.String(), nullable=False),  # 'scan' or 'benchmark'
         sa.Column("dataset_id", sa.Integer(), nullable=False),
         sa.Column("metric_id", sa.Integer(), nullable=False),
+        sa.Column("description", sa.Text(), nullable=True),
         sa.Column("create_dt", sa.DateTime(), nullable=False, server_default=sa.func.now()),
         sa.PrimaryKeyConstraint("id"),
         sa.ForeignKeyConstraint(["dataset_id"], ["benchmark_test_dataset.id"]),
