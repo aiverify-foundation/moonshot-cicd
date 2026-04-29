@@ -1,6 +1,9 @@
 "use client";
 
-import TestResultOverview, { ChartDataItem } from "./TestResultOverview";
+import TestResultOverview, {
+  ChartDataItem,
+  OverviewBundleChart,
+} from "./TestResultOverview";
 import React, { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
@@ -10,10 +13,16 @@ import TestResultBundle from "./TestResultBundle";
 import {
   ApiError,
   BenchmarkRun,
+  BenchmarkRunResultsBundleSummary,
   BenchmarkRunTestPrompt,
-  fetchBenchmarkRunById,
-  fetchBenchmarkRunPrompts,
+  fetchBenchmarkRunResults,
 } from "@/lib/api";
+
+const TAB_OVERVIEW = "overview";
+const tabBundleId = (id: number) => `bundle:${id}`;
+const TAB_ALL = "all";
+const TAB_DEMO_UND = "demo-undesirable";
+const TAB_DEMO_DISC = "demo-disclosure";
 
 function accuracyToPercent(acc: number | null | undefined): number | null {
   if (acc == null || Number.isNaN(acc)) return null;
@@ -21,10 +30,8 @@ function accuracyToPercent(acc: number | null | undefined): number | null {
   return acc;
 }
 
-function buildOverviewCharts(prompts: BenchmarkRunTestPrompt[]): {
-  undesirable: ChartDataItem[];
-  disclosure: ChartDataItem[];
-} {
+/** Per-test mean accuracy % for charting (any subset of prompts). */
+function chartItemsFromPrompts(prompts: BenchmarkRunTestPrompt[]): ChartDataItem[] {
   const byTest = new Map<string, number[]>();
   for (const p of prompts) {
     const pct = accuracyToPercent(p.evaluation_accuracy);
@@ -42,10 +49,20 @@ function buildOverviewCharts(prompts: BenchmarkRunTestPrompt[]): {
       ),
     });
   });
-  const isDisclosure = (name: string) => /privacy|disclosure/i.test(name);
-  const disclosure = items.filter((i) => isDisclosure(i.test_name));
-  const undesirable = items.filter((i) => !isDisclosure(i.test_name));
-  return { undesirable, disclosure };
+  return items;
+}
+
+function bundleMeanPercent(
+  prompts: BenchmarkRunTestPrompt[],
+  testIds: number[]
+): number | null {
+  const set = new Set(testIds);
+  const pts = prompts
+    .filter((p) => p.test_id != null && set.has(p.test_id))
+    .map((p) => accuracyToPercent(p.evaluation_accuracy))
+    .filter((x): x is number => x != null);
+  if (!pts.length) return null;
+  return Math.round((pts.reduce((a, b) => a + b, 0) / pts.length) * 10) / 10;
 }
 
 function mapStatusLabel(status: string): string {
@@ -68,13 +85,31 @@ export default function TestResultApp() {
 
   const [run, setRun] = useState<BenchmarkRun | null>(null);
   const [prompts, setPrompts] = useState<BenchmarkRunTestPrompt[]>([]);
+  const [resultBundles, setResultBundles] = useState<BenchmarkRunResultsBundleSummary[]>(
+    []
+  );
   const [loading, setLoading] = useState(!!benchmarkRunId);
   const [error, setError] = useState<string | null>(null);
+  const [activeTab, setActiveTab] = useState(TAB_OVERVIEW);
+  const [bundleTabScores, setBundleTabScores] = useState<
+    Record<number, number | null>
+  >({});
+  const [allTabScore, setAllTabScore] = useState<number | null>(null);
+  const [demoUndesirableScore, setDemoUndesirableScore] = useState<number | null>(
+    null
+  );
+
+  useEffect(() => {
+    setActiveTab(TAB_OVERVIEW);
+    setBundleTabScores({});
+    setAllTabScore(null);
+  }, [benchmarkRunId]);
 
   useEffect(() => {
     if (!benchmarkRunId) {
       setRun(null);
       setPrompts([]);
+      setResultBundles([]);
       setLoading(false);
       setError(null);
       return;
@@ -82,21 +117,25 @@ export default function TestResultApp() {
     let cancelled = false;
     setLoading(true);
     setError(null);
-    Promise.all([
-      fetchBenchmarkRunById(benchmarkRunId),
-      fetchBenchmarkRunPrompts(benchmarkRunId),
-    ])
-      .then(([r, pr]) => {
+    setPrompts([]);
+    setResultBundles([]);
+    fetchBenchmarkRunResults(benchmarkRunId)
+      .then((res) => {
         if (!cancelled) {
-          setRun(r);
-          setPrompts(pr);
+          setRun(res.run);
+          setPrompts(res.prompts);
+          setResultBundles(res.bundles);
           setLoading(false);
+          if (res.bundles.length > 0) {
+            setActiveTab((cur) => (cur === TAB_ALL ? TAB_OVERVIEW : cur));
+          }
         }
       })
       .catch((e) => {
         if (!cancelled) {
           setRun(null);
           setPrompts([]);
+          setResultBundles([]);
           setLoading(false);
           setError(e instanceof ApiError ? e.message : "Failed to load run");
         }
@@ -106,22 +145,20 @@ export default function TestResultApp() {
     };
   }, [benchmarkRunId]);
 
-  const { undesirable, disclosure } = useMemo(
-    () => buildOverviewCharts(prompts),
-    [prompts]
-  );
-
-  const disclosureTabPct = useMemo(() => {
-    const pts = prompts
-      .map((p) =>
-        /privacy|disclosure/i.test(p.test_name ?? "")
-          ? accuracyToPercent(p.evaluation_accuracy)
-          : null
-      )
-      .filter((x): x is number => x != null);
-    if (!pts.length) return null;
-    return Math.round((pts.reduce((a, b) => a + b, 0) / pts.length) * 10) / 10;
-  }, [prompts]);
+  const bundleCharts: OverviewBundleChart[] = useMemo(() => {
+    if (!benchmarkRunId || loading) return [];
+    if (resultBundles.length === 0) {
+      return [{ bundleName: "All results", data: chartItemsFromPrompts(prompts) }];
+    }
+    return resultBundles.map((b) => ({
+      bundleName: b.name,
+      data: chartItemsFromPrompts(
+        prompts.filter(
+          (p) => p.test_id != null && b.test_ids.includes(p.test_id)
+        )
+      ),
+    }));
+  }, [benchmarkRunId, loading, resultBundles, prompts]);
 
   const runMode = benchmarkRunId != null;
   const displayTitle =
@@ -129,10 +166,48 @@ export default function TestResultApp() {
   const statusRaw = runMode && run ? run.status : "demo";
   const statusLabel = mapStatusLabel(statusRaw);
 
-  const [activeTab, setActiveTab] = useState("Overview");
-  const [undesirableContentScore, setUndesirableContentScore] = useState<
-    number | null
-  >(null);
+  const runTabs = useMemo(() => {
+    if (!runMode) return [] as { id: string; label: string; badge: string | null }[];
+    if (resultBundles.length === 0) {
+      const pts = prompts
+        .map((p) => accuracyToPercent(p.evaluation_accuracy))
+        .filter((x): x is number => x != null);
+      const meanAll =
+        pts.length > 0
+          ? Math.round((pts.reduce((a, b) => a + b, 0) / pts.length) * 10) / 10
+          : null;
+      return [
+        {
+          id: TAB_ALL,
+          label: "All results",
+          badge:
+            allTabScore !== null
+              ? `${Math.round(allTabScore * 10) / 10}%`
+              : meanAll !== null
+                ? `${meanAll}%`
+                : prompts.length
+                  ? "—"
+                  : null,
+        },
+      ];
+    }
+    return resultBundles.map((b) => ({
+      id: tabBundleId(b.test_bundle_id),
+      label: b.name,
+      badge: (() => {
+        const s = bundleTabScores[b.test_bundle_id];
+        if (s !== null && s !== undefined) return `${Math.round(s * 10) / 10}%`;
+        const m = bundleMeanPercent(prompts, b.test_ids);
+        return m !== null ? `${m}%` : prompts.length ? "—" : null;
+      })(),
+    }));
+  }, [
+    runMode,
+    resultBundles,
+    prompts,
+    bundleTabScores,
+    allTabScore,
+  ]);
 
   return (
     <main className="p-8 w-[1300px]">
@@ -204,96 +279,152 @@ export default function TestResultApp() {
         </div>
       </div>
 
-      <div className="bg-slate-100 flex items-center gap-[10px] p-[5px] rounded-[6px] mt-4">
+      <div className="bg-slate-100 flex flex-wrap items-center gap-[10px] p-[5px] rounded-[6px] mt-4">
         <button
           type="button"
-          onClick={() => setActiveTab("Overview")}
+          onClick={() => setActiveTab(TAB_OVERVIEW)}
           className={`flex gap-[10px] items-center px-3 py-1.5 rounded-[3px] transition-colors ${
-            activeTab === "Overview"
-              ? "bg-white"
-              : "bg-transparent hover:bg-white/50"
+            activeTab === TAB_OVERVIEW ? "bg-white" : "bg-transparent hover:bg-white/50"
           }`}
         >
           <p
             className={`font-semibold text-[14px] whitespace-nowrap ${
-              activeTab === "Overview" ? "text-slate-800" : "text-slate-600"
+              activeTab === TAB_OVERVIEW ? "text-slate-800" : "text-slate-600"
             }`}
           >
             Overview
           </p>
         </button>
-        <button
-          type="button"
-          onClick={() => setActiveTab("Undesirable content")}
-          className={`flex gap-[10px] items-center px-3 py-1.5 rounded-[3px] transition-colors ${
-            activeTab === "Undesirable content"
-              ? "bg-white"
-              : "bg-transparent hover:bg-white/50"
-          }`}
-        >
-          <p
-            className={`font-semibold text-[14px] whitespace-nowrap ${
-              activeTab === "Undesirable content"
-                ? "text-slate-800"
-                : "text-slate-600"
-            }`}
-          >
-            Undesirable content
-          </p>
-          <div className="bg-gray-100 border border-gray-200 flex gap-1 items-center justify-center p-1 rounded-[6px]">
-            <p className="font-semibold text-[12px] text-gray-800 whitespace-nowrap">
-              {undesirableContentScore !== null
-                ? `${Math.round(undesirableContentScore * 10) / 10}%`
-                : "—"}
-            </p>
-          </div>
-        </button>
-        <button
-          type="button"
-          onClick={() => setActiveTab("Data disclosure")}
-          className={`flex gap-[10px] items-center px-3 py-1.5 rounded-[3px] transition-colors ${
-            activeTab === "Data disclosure"
-              ? "bg-white"
-              : "bg-transparent hover:bg-white/50"
-          }`}
-        >
-          <p
-            className={`font-semibold text-[14px] whitespace-nowrap ${
-              activeTab === "Data disclosure"
-                ? "text-slate-800"
-                : "text-slate-600"
-            }`}
-          >
-            Data disclosure
-          </p>
-          <div className="bg-gray-100 border border-gray-200 flex gap-1 items-center justify-center p-1 rounded-[6px]">
-            <p className="font-semibold text-[12px] text-gray-800 whitespace-nowrap">
-              {runMode && disclosureTabPct !== null
-                ? `${disclosureTabPct}%`
-                : runMode
-                  ? "—"
-                  : "80%"}
-            </p>
-          </div>
-        </button>
+
+        {runMode &&
+          runTabs.map((t) => (
+            <button
+              key={t.id}
+              type="button"
+              onClick={() => setActiveTab(t.id)}
+              className={`flex gap-[10px] items-center px-3 py-1.5 rounded-[3px] transition-colors max-w-[min(100%,280px)] ${
+                activeTab === t.id ? "bg-white" : "bg-transparent hover:bg-white/50"
+              }`}
+            >
+              <p
+                className={`font-semibold text-[14px] truncate ${
+                  activeTab === t.id ? "text-slate-800" : "text-slate-600"
+                }`}
+                title={t.label}
+              >
+                {t.label}
+              </p>
+              {t.badge != null && (
+                <div className="bg-gray-100 border border-gray-200 flex gap-1 items-center justify-center p-1 rounded-[6px] shrink-0">
+                  <p className="font-semibold text-[12px] text-gray-800 whitespace-nowrap">
+                    {t.badge}
+                  </p>
+                </div>
+              )}
+            </button>
+          ))}
+
+        {!runMode && (
+          <>
+            <button
+              type="button"
+              onClick={() => setActiveTab(TAB_DEMO_UND)}
+              className={`flex gap-[10px] items-center px-3 py-1.5 rounded-[3px] transition-colors ${
+                activeTab === TAB_DEMO_UND
+                  ? "bg-white"
+                  : "bg-transparent hover:bg-white/50"
+              }`}
+            >
+              <p
+                className={`font-semibold text-[14px] whitespace-nowrap ${
+                  activeTab === TAB_DEMO_UND ? "text-slate-800" : "text-slate-600"
+                }`}
+              >
+                Undesirable content
+              </p>
+              <div className="bg-gray-100 border border-gray-200 flex gap-1 items-center justify-center p-1 rounded-[6px]">
+                <p className="font-semibold text-[12px] text-gray-800 whitespace-nowrap">
+                  {demoUndesirableScore !== null
+                    ? `${Math.round(demoUndesirableScore * 10) / 10}%`
+                    : "—"}
+                </p>
+              </div>
+            </button>
+            <button
+              type="button"
+              onClick={() => setActiveTab(TAB_DEMO_DISC)}
+              className={`flex gap-[10px] items-center px-3 py-1.5 rounded-[3px] transition-colors ${
+                activeTab === TAB_DEMO_DISC
+                  ? "bg-white"
+                  : "bg-transparent hover:bg-white/50"
+              }`}
+            >
+              <p
+                className={`font-semibold text-[14px] whitespace-nowrap ${
+                  activeTab === TAB_DEMO_DISC ? "text-slate-800" : "text-slate-600"
+                }`}
+              >
+                Data disclosure
+              </p>
+              <div className="bg-gray-100 border border-gray-200 flex gap-1 items-center justify-center p-1 rounded-[6px]">
+                <p className="font-semibold text-[12px] text-gray-800 whitespace-nowrap">
+                  80%
+                </p>
+              </div>
+            </button>
+          </>
+        )}
       </div>
 
-      <div className={activeTab === "Undesirable content" ? "" : "hidden"}>
+      {runMode && resultBundles.length === 0 && (
+        <div className={activeTab === TAB_ALL ? "" : "hidden"}>
+          <TestResultBundle
+            benchmarkRunId={benchmarkRunId}
+            apiPrompts={prompts}
+            apiLoading={loading}
+            apiError={error}
+            filterTestIds={null}
+            bundleDisplayName={null}
+            onAdjustedScoreChange={setAllTabScore}
+          />
+        </div>
+      )}
+
+      {runMode &&
+        resultBundles.map((b) => (
+          <div
+            key={b.test_bundle_id}
+            className={activeTab === tabBundleId(b.test_bundle_id) ? "" : "hidden"}
+          >
+            <TestResultBundle
+              benchmarkRunId={benchmarkRunId}
+              apiPrompts={prompts}
+              apiLoading={loading}
+              apiError={error}
+              filterTestIds={b.test_ids}
+              bundleDisplayName={b.name}
+              onAdjustedScoreChange={(score) =>
+                setBundleTabScores((prev) => ({
+                  ...prev,
+                  [b.test_bundle_id]: score,
+                }))
+              }
+            />
+          </div>
+        ))}
+
+      {!runMode && activeTab === TAB_DEMO_UND && (
         <TestResultBundle
-          benchmarkRunId={benchmarkRunId}
-          apiPrompts={runMode ? prompts : null}
-          apiLoading={runMode && loading}
-          apiError={runMode ? error : null}
-          onAdjustedScoreChange={setUndesirableContentScore}
+          onAdjustedScoreChange={setDemoUndesirableScore}
         />
-      </div>
-      {activeTab === "Overview" && (
+      )}
+
+      {activeTab === TAB_OVERVIEW && (
         <TestResultOverview
           runMode={runMode}
           overviewLoading={runMode && loading}
           overviewError={runMode && error ? error : null}
-          chartUndesirable={undesirable}
-          chartDisclosure={disclosure}
+          bundleCharts={runMode ? bundleCharts : undefined}
         />
       )}
     </main>

@@ -39,6 +39,7 @@ from application.services.database_model_config_service import (
 )
 from application.dto.run_bundle_dto import (
     BenchmarkRunResponseDTO,
+    BenchmarkRunResultsResponseDTO,
     BenchmarkRunTestBundleResponseDTO,
     BenchmarkRunTestPromptResponseDTO,
     StartBenchmarkRunRequestDTO,
@@ -59,18 +60,13 @@ from application.services.benchmark_execution_service import BenchmarkExecutionS
 from application.services.database_connector_config_service import (
     DatabaseConnectorConfigError,
 )
-from application.services.benchmark_run_prompt_service import (
-    BenchmarkRunPromptService,
-)
 from application.services.benchmark_run_service import BenchmarkRunService
 from application.services.benchmark_run_test_bundle_query_service import (
     BenchmarkRunTestBundleQueryService,
 )
-from adapters.driven.repository.sqlalchemy.benchmark_run_test_status_adapter import (
-    SqlAlchemyBenchmarkRunTestStatusRepository,
+from application.services.benchmark_run_results_query_service import (
+    BenchmarkRunResultsQueryService,
 )
-from adapters.driven.repository.sqlalchemy.llm_provider_models import BenchmarkTestModel
-from adapters.driven.repository.sqlalchemy.session_manager import SessionManager
 # Comment out this import to disable CORS middleware ( This is used for local development only)
 from entrypoints.cors_middleware_setup import configure_cors_middleware
 
@@ -552,22 +548,6 @@ async def get_benchmark_run(run_id: int) -> BenchmarkRunResponseDTO:
         )
 
 
-def _run_test_id_to_test_name(run_id: int) -> dict[int, str]:
-    """Map benchmark_run_test_status.id -> benchmark_test.name (display name) for a run."""
-    status_repo = SqlAlchemyBenchmarkRunTestStatusRepository()
-    statuses = status_repo.get_all_by_run_id(run_id)
-    out: dict[int, str] = {}
-    with SessionManager.get_instance().get_session() as session:
-        for st in statuses:
-            model = (
-                session.query(BenchmarkTestModel)
-                .filter(BenchmarkTestModel.id == st.test_id)
-                .first()
-            )
-            out[st.id] = model.name if model else ""
-    return out
-
-
 @app.get(
     "/api/benchmark-runs/{run_id}/prompts",
     response_model=List[BenchmarkRunTestPromptResponseDTO],
@@ -576,27 +556,44 @@ async def get_benchmark_run_prompts(run_id: int) -> List[BenchmarkRunTestPromptR
     """
     Return all benchmark run test prompts for the given benchmark run id.
 
-    Uses BenchmarkRunPromptService.get_all_prompts_by_run_id. Returns an empty list
+    Uses BenchmarkRunResultsQueryService.list_prompt_dtos. Returns an empty list
     if the run has no run-test statuses or prompts.
     """
     try:
-        service = BenchmarkRunPromptService()
-        entities = service.get_all_prompts_by_run_id(run_id)
-        run_test_display_names = _run_test_id_to_test_name(run_id)
-        return [
-            BenchmarkRunTestPromptResponseDTO.model_validate(
-                {
-                    **e.model_dump(),
-                    "test_name": run_test_display_names.get(e.run_test_id, ""),
-                }
-            )
-            for e in entities
-        ]
+        return BenchmarkRunResultsQueryService().list_prompt_dtos(run_id)
     except Exception as e:
         logger.error(f"Error fetching run prompts for run_id={run_id}: {e}")
         raise HTTPException(
             status_code=500,
             detail=f"Failed to fetch run prompts: {str(e)}",
+        )
+
+
+@app.get(
+    "/api/benchmark-runs/{run_id}/results",
+    response_model=BenchmarkRunResultsResponseDTO,
+)
+async def get_benchmark_run_results(run_id: int) -> BenchmarkRunResultsResponseDTO:
+    """
+    Return run header, bundle summaries (from benchmark_run_test_bundle), and all prompts
+    with test_id and test_name for the results UI.
+    """
+    try:
+        service = BenchmarkRunResultsQueryService()
+        dto = service.get_results(run_id)
+        if dto is None:
+            raise HTTPException(
+                status_code=404,
+                detail=f"Benchmark run not found: run_id={run_id}",
+            )
+        return dto
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error fetching run results for run_id={run_id}: {e}")
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to fetch run results: {str(e)}",
         )
 
 

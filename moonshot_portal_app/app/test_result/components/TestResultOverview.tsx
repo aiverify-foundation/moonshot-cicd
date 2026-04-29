@@ -244,13 +244,18 @@ function ReportChartScrollAdjustableHeight({ chartData, bundleName }: ReportChar
     )
 }
 
+export interface OverviewBundleChart {
+    bundleName: string
+    data: ChartDataItem[]
+}
+
 export interface TestResultOverviewProps {
     /** When false, show Figma demo charts. */
     runMode?: boolean
     overviewLoading?: boolean
     overviewError?: string | null
-    chartUndesirable?: ChartDataItem[]
-    chartDisclosure?: ChartDataItem[]
+    /** Real run: one chart per DB bundle (or a single "All results" entry for legacy runs). */
+    bundleCharts?: OverviewBundleChart[]
 }
 
 const demoUndesirable: ChartDataItem[] = [
@@ -261,12 +266,17 @@ const demoDisclosure: ChartDataItem[] = [
     { test_name: "MLCommons AILuminate - Privacy - English", adjusted_percentage_score: 80 },
 ]
 
+function gridClassForChartCount(n: number): string {
+    if (n >= 3) return "grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4"
+    if (n === 2) return "grid grid-cols-1 sm:grid-cols-2 gap-4"
+    return "grid grid-cols-1 max-w-xl gap-4"
+}
+
 export default function TestResultOverview({
     runMode = false,
     overviewLoading = false,
     overviewError = null,
-    chartUndesirable = [],
-    chartDisclosure = [],
+    bundleCharts = [],
 }: TestResultOverviewProps) {
     if (!runMode) {
         return (
@@ -292,10 +302,9 @@ export default function TestResultOverview({
         )
     }
 
-    const showUnd = chartUndesirable.length > 0
-    const showDisc = chartDisclosure.length > 0
+    const chartsWithData = bundleCharts.filter((c) => c.data.length > 0)
 
-    if (!showUnd && !showDisc) {
+    if (chartsWithData.length === 0) {
         return (
             <div className="flex flex-col gap-4 mt-2">
                 <TestResultNote />
@@ -309,23 +318,14 @@ export default function TestResultOverview({
     return (
         <div className="flex flex-col gap-4 mt-2">
             <TestResultNote />
-            <div
-                className={`grid gap-4 ${
-                    showUnd && showDisc ? "grid-cols-2" : "grid-cols-1 max-w-xl"
-                }`}
-            >
-                {showUnd && (
+            <div className={gridClassForChartCount(chartsWithData.length)}>
+                {chartsWithData.map((c, i) => (
                     <ReportChartScrollAdjustableHeight
-                        chartData={chartUndesirable}
-                        bundleName="Undesirable Content"
+                        key={`${c.bundleName}-${i}`}
+                        chartData={c.data}
+                        bundleName={c.bundleName}
                     />
-                )}
-                {showDisc && (
-                    <ReportChartScrollAdjustableHeight
-                        chartData={chartDisclosure}
-                        bundleName="Data Disclosure"
-                    />
-                )}
+                ))}
             </div>
         </div>
     )

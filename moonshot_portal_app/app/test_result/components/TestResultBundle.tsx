@@ -1,5 +1,5 @@
 "use client"
-import React, { useState, useEffect, useMemo } from "react"
+import React, { useState, useEffect, useMemo, useRef } from "react"
 import { ThumbsUp, ThumbsDown } from "lucide-react"
 import BundleChart, { BundleChartDataItem } from "./BundleChart"
 import TestResultTable, { TestResultTableRow } from "./TestResultTable"
@@ -60,7 +60,10 @@ export function adjustedAccuracyPercent(
     return ((totalScore - disagreeWithScore1 + disagreeWithScore0) / rowCount) * 100
 }
 
-function promptsToTableRows(prompts: BenchmarkRunTestPrompt[]): TestResultTableRow[] {
+function promptsToTableRows(
+    prompts: BenchmarkRunTestPrompt[],
+    bundleDisplayName?: string | null
+): TestResultTableRow[] {
     return prompts.map((p, idx) => {
         const score = scoreFromEvaluationResult(
             p.evaluation_prediction_result ?? null,
@@ -83,7 +86,7 @@ function promptsToTableRows(prompts: BenchmarkRunTestPrompt[]): TestResultTableR
             score,
             yourVerdict,
             note: p.user_notes ?? "",
-            bundle: p.test_name || "—",
+            bundle: bundleDisplayName?.trim() || p.test_name || "—",
             graderLogic: evalPrompt.length > 500 ? `${evalPrompt.slice(0, 500)}…` : evalPrompt,
         }
     })
@@ -405,6 +408,10 @@ interface TestResultBundleProps {
     apiPrompts?: BenchmarkRunTestPrompt[] | null
     apiLoading?: boolean
     apiError?: string | null
+    /** When set (run mode), only prompts whose test_id is in this list. null = no filter (all prompts). */
+    filterTestIds?: number[] | null
+    /** Shown in the table bundle column for API-sourced rows. */
+    bundleDisplayName?: string | null
     onAdjustedScoreChange?: (score: number) => void
 }
 
@@ -413,16 +420,28 @@ export default function TestResultBundle({
     apiPrompts = null,
     apiLoading = false,
     apiError = null,
+    filterTestIds = undefined,
+    bundleDisplayName = null,
     onAdjustedScoreChange,
 }: TestResultBundleProps) {
     const [tableData, setTableData] = useState<TestResultTableRow[]>([])
     const [isLoading, setIsLoading] = useState(true)
     const [error, setError] = useState<string | null>(null)
 
-    const undesirablePrompts = useMemo(() => {
+    const scopedApiPrompts = useMemo(() => {
         if (!apiPrompts?.length) return EMPTY_PROMPTS
-        return apiPrompts.filter((p) => !isDisclosureTestName(p.test_name))
-    }, [apiPrompts])
+        if (benchmarkRunId == null) {
+            return apiPrompts.filter((p) => !isDisclosureTestName(p.test_name))
+        }
+        if (filterTestIds === null) return apiPrompts
+        if (filterTestIds != null && filterTestIds.length > 0) {
+            const allowed = new Set(filterTestIds)
+            return apiPrompts.filter(
+                (p) => p.test_id != null && allowed.has(p.test_id)
+            )
+        }
+        return apiPrompts
+    }, [apiPrompts, benchmarkRunId, filterTestIds])
 
     useEffect(() => {
         if (benchmarkRunId != null) {
@@ -438,7 +457,7 @@ export default function TestResultBundle({
                 return
             }
             setError(null)
-            setTableData(promptsToTableRows(undesirablePrompts))
+            setTableData(promptsToTableRows(scopedApiPrompts, bundleDisplayName))
             return
         }
 
@@ -466,7 +485,8 @@ export default function TestResultBundle({
         benchmarkRunId,
         apiLoading,
         apiError,
-        undesirablePrompts,
+        scopedApiPrompts,
+        bundleDisplayName,
     ])
 
     // Calculate verdict statistics
@@ -530,12 +550,14 @@ export default function TestResultBundle({
     )
     const overallScoreChange = overallAdjustedScore - overallAiScore
 
-    // Notify parent component of adjusted score changes
+    // Parent often passes an inline callback (e.g. from map); keep out of effect deps to avoid update loops.
+    const onAdjustedScoreChangeRef = useRef(onAdjustedScoreChange)
+    onAdjustedScoreChangeRef.current = onAdjustedScoreChange
+
     useEffect(() => {
-        if (onAdjustedScoreChange && !isLoading) {
-            onAdjustedScoreChange(overallAdjustedScore)
-        }
-    }, [overallAdjustedScore, isLoading, onAdjustedScoreChange])
+        if (!onAdjustedScoreChangeRef.current || isLoading) return
+        onAdjustedScoreChangeRef.current(overallAdjustedScore)
+    }, [overallAdjustedScore, isLoading])
 
     // Format scores for ScoreCard
     const formatScore = (score: number): string => {

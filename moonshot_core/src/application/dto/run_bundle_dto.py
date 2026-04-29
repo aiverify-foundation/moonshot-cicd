@@ -74,13 +74,15 @@ class BenchmarkRunTestPromptResponseDTO(BaseModel):
     """
     Response DTO for a single benchmark run test prompt (per-prompt result within a run-test).
 
-    Returned by GET /api/benchmark-runs/{run_id}/prompts.
+    Returned by GET /api/benchmark-runs/{run_id}/prompts and GET .../results.
     """
 
     model_config = ConfigDict(arbitrary_types_allowed=True)
 
     id: Optional[int] = None
     run_test_id: int
+    #: benchmark_test.id for the run-test this prompt belongs to (API-enriched).
+    test_id: Optional[int] = None
     prompt_id: int
     status: str
     target: str = ""
@@ -94,3 +96,30 @@ class BenchmarkRunTestPromptResponseDTO(BaseModel):
     user_notes: Optional[str] = None
     #: benchmark_test.name (display name) for the run-test this prompt belongs to (API-enriched).
     test_name: str = ""
+
+
+class BenchmarkRunResultsBundleSummaryDTO(BaseModel):
+    """
+    One logical bundle in a run: metadata plus test ids linked via benchmark_run_test_bundle.
+    """
+
+    model_config = ConfigDict(arbitrary_types_allowed=True)
+
+    test_bundle_id: int
+    name: str
+    system_name: str
+    test_ids: List[int]
+
+
+class BenchmarkRunResultsResponseDTO(BaseModel):
+    """
+    Full results payload for the results UI: run header, bundle summaries, all prompts with test_id.
+
+    Returned by GET /api/benchmark-runs/{run_id}/results.
+    """
+
+    model_config = ConfigDict(arbitrary_types_allowed=True)
+
+    run: BenchmarkRunResponseDTO
+    bundles: List[BenchmarkRunResultsBundleSummaryDTO]
+    prompts: List[BenchmarkRunTestPromptResponseDTO]

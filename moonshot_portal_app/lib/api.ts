@@ -263,6 +263,8 @@ export function countBundlesAndTests(
 export interface BenchmarkRunTestPrompt {
   id?: number | null;
   run_test_id: number;
+  /** benchmark_test.id when returned from API (prompts / results). */
+  test_id?: number | null;
   prompt_id: number;
   status: string;
   target?: string;
@@ -276,6 +278,20 @@ export interface BenchmarkRunTestPrompt {
   user_notes?: string | null;
   /** Display name of the test this prompt belongs to (benchmark_test.name). */
   test_name?: string;
+}
+
+/** GET /api/benchmark-runs/{run_id}/results */
+export interface BenchmarkRunResultsBundleSummary {
+  test_bundle_id: number;
+  name: string;
+  system_name: string;
+  test_ids: number[];
+}
+
+export interface BenchmarkRunResults {
+  run: BenchmarkRun;
+  bundles: BenchmarkRunResultsBundleSummary[];
+  prompts: BenchmarkRunTestPrompt[];
 }
 
 async function handleJsonGet<T>(url: string, label: string): Promise<T> {
@@ -587,6 +603,30 @@ export async function fetchBenchmarkRunPrompts(
     return await handleJsonGet<BenchmarkRunTestPrompt[]>(
       `${API_BASE_URL}/api/benchmark-runs/${runId}/prompts`,
       'fetch benchmark run prompts'
+    );
+  } catch (error) {
+    if (error instanceof ApiError) throw error;
+    if (error instanceof TypeError && error.message.includes('fetch')) {
+      throw new ApiError(
+        `Cannot connect to API server at ${API_BASE_URL}. Please ensure the backend is running on port 8000.`
+      );
+    }
+    throw new ApiError(
+      `Network error: ${error instanceof Error ? error.message : 'Unknown error'}`
+    );
+  }
+}
+
+/**
+ * Fetches run header, bundle summaries, and prompts (with test_id) for the results UI.
+ */
+export async function fetchBenchmarkRunResults(
+  runId: number
+): Promise<BenchmarkRunResults> {
+  try {
+    return await handleJsonGet<BenchmarkRunResults>(
+      `${API_BASE_URL}/api/benchmark-runs/${runId}/results`,
+      'fetch benchmark run results'
     );
   } catch (error) {
     if (error instanceof ApiError) throw error;
