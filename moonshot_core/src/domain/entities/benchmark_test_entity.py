@@ -37,6 +37,9 @@ class BenchmarkTestEntity(BaseModel):
     # Test description
     description: str = ""
 
+    #: benchmark_test.id when sourced from DB; None for file-based configs.
+    benchmark_test_id: Optional[int] = None
+
     def get_prompt_count(self) -> int:
         if self.dataset:
             return self.dataset.num_of_dataset_prompts

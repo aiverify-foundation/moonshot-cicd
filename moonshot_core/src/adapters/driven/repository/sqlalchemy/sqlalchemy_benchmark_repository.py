@@ -47,6 +47,7 @@ class SqlAlchemyBenchmarkRepository(BenchmarkRepository):
             dataset=dataset_entity,
             metric={"name": metric_name} if metric_name else {},
             description=desc,
+            benchmark_test_id=row.id,
         )
 
     def get_all_bundles(self) -> list[TestBundleEntity]:

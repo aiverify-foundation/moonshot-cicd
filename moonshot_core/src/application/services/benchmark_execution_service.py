@@ -10,7 +10,7 @@ import json
 import asyncio
 import multiprocessing
 from datetime import datetime, timezone
-from typing import List, Optional
+from typing import Dict, List, Optional
 
 from adapters.driven.repository.sqlalchemy.benchmark_run_test_status_adapter import (
     SqlAlchemyBenchmarkRunTestStatusRepository,
@@ -40,6 +40,45 @@ from domain.services.task_manager import TaskManager
 logger = configure_logger(__name__)
 
 
+class BenchmarkRunTestSelectionError(ValueError):
+    """Raised when ``tests_by_bundle`` references invalid or out-of-bundle test ids."""
+
+
+def _bundle_names_to_resolved_test_ids(
+    bundle_names: List[str],
+    tests_by_bundle: Optional[Dict[str, List[int]]],
+    config_adapter: BenchmarkTestConfigAdapter,
+) -> Dict[str, List[int]]:
+    """
+    Resolve each bundle to the list of benchmark_test.id values to execute.
+
+    Raises:
+        KeyError: If a bundle system_name is not found in the database.
+        BenchmarkRunTestSelectionError: If a bundle has no tests or selection is invalid.
+    """
+    resolved: Dict[str, List[int]] = {}
+    for name in bundle_names:
+        try:
+            bundle_db_id = config_adapter.get_bundle_id_by_system_name_latest(name)
+        except ValueError as e:
+            raise KeyError(f"Bundle with ID '{name}' not found") from e
+        all_ids = config_adapter.get_test_ids_by_bundle_id(bundle_db_id)
+        if not all_ids:
+            raise BenchmarkRunTestSelectionError(f"Bundle {name!r} has no tests in the database.")
+        if tests_by_bundle is None or name not in tests_by_bundle:
+            resolved[name] = list(all_ids)
+            continue
+        sel = tests_by_bundle[name]
+        allowed = set(all_ids)
+        bad = sorted(set(sel) - allowed)
+        if bad:
+            raise BenchmarkRunTestSelectionError(
+                f"tests_by_bundle[{name!r}] contains test id(s) not in this bundle: {bad}"
+            )
+        resolved[name] = sorted(set(sel))
+    return resolved
+
+
 def _run_bundle_in_process(
     bundle_id: str,
     run_id: int,
@@ -47,6 +86,7 @@ def _run_bundle_in_process(
     llm_provider_id: int,
     llm_provider_model_id: int,
     llm_provider_model_config_id: int,
+    test_ids: Optional[List[int]] = None,
 ) -> None:
     """
     Wrapper to run a bundle in a separate process.
@@ -63,6 +103,7 @@ def _run_bundle_in_process(
         run_id: benchmark_run.id for this run
         skip_alembic_upgrade: If True, skip Alembic in this process (set before any DB use).
         llm_provider_id / llm_provider_model_id / llm_provider_model_config_id: DB connector FKs.
+        test_ids: Optional list of benchmark_test.id to run for this bundle (subset or full).
     """
     if skip_alembic_upgrade:
         set_skip_alembic_upgrade(True)
@@ -77,6 +118,7 @@ def _run_bundle_in_process(
             llm_provider_id=llm_provider_id,
             llm_provider_model_id=llm_provider_model_id,
             llm_provider_model_config_id=llm_provider_model_config_id,
+            test_ids=test_ids,
         )
     finally:
         if skip_alembic_upgrade:
@@ -103,6 +145,7 @@ class BenchmarkExecutionService:
         llm_provider_id: int,
         llm_provider_model_id: int,
         llm_provider_model_config_id: int,
+        test_ids: Optional[List[int]] = None,
     ) -> str:
         """
         Validate the bundle (DB only), start its execution in a daemon process, and return the bundle id.
@@ -114,6 +157,7 @@ class BenchmarkExecutionService:
             bundle_name: Bundle system name from the request (used to resolve the bundle in DB)
             run_id: benchmark_run.id for the background process.
             llm_provider_id / llm_provider_model_id / llm_provider_model_config_id: DB-backed connector FKs.
+            test_ids: When set, only these benchmark_test.id values are executed for the bundle.
 
         Returns:
             The resolved bundle id (same as bundle_name).
@@ -137,6 +181,7 @@ class BenchmarkExecutionService:
                 llm_provider_id,
                 llm_provider_model_id,
                 llm_provider_model_config_id,
+                test_ids,
             ),
         )
         process.daemon = True
@@ -154,6 +199,7 @@ class BenchmarkExecutionService:
         llm_provider_id: int,
         llm_provider_model_id: int,
         llm_provider_model_config_id: int,
+        tests_by_bundle: Optional[Dict[str, List[int]]] = None,
     ) -> None:
         """
         Start a benchmark run: create a benchmark run entity, then execute multiple bundles
@@ -168,9 +214,11 @@ class BenchmarkExecutionService:
             llm_provider_id: FK llm_provider.id
             llm_provider_model_id: FK llm_provider_model.id
             llm_provider_model_config_id: FK llm_provider_model_config.id
+            tests_by_bundle: Optional map bundle system_name -> benchmark_test.id list (subset per bundle).
 
         Raises:
             KeyError: If any bundle is not found.
+            BenchmarkRunTestSelectionError: If tests_by_bundle references ids not in a bundle.
             DatabaseConnectorConfigError: If DB connector resolution fails.
         """
         # Validate connector resolution before spawning workers
@@ -180,14 +228,21 @@ class BenchmarkExecutionService:
             llm_provider_model_config_id=llm_provider_model_config_id,
         )
 
+        config_adapter = BenchmarkTestConfigAdapter()
+        resolved_test_ids = _bundle_names_to_resolved_test_ids(
+            bundle_names, tests_by_bundle, config_adapter
+        )
+
         logger.info(
             "[BenchmarkExecutionService] Starting benchmark run: run_name=%s, "
-            "llm_provider_id=%s, llm_provider_model_id=%s, llm_provider_model_config_id=%s, bundles=%s",
+            "llm_provider_id=%s, llm_provider_model_id=%s, llm_provider_model_config_id=%s, bundles=%s, "
+            "tests_by_bundle=%s",
             run_name,
             llm_provider_id,
             llm_provider_model_id,
             llm_provider_model_config_id,
             bundle_names,
+            tests_by_bundle,
         )
 
         run_entity = BenchmarkRunEntity(
@@ -207,8 +262,11 @@ class BenchmarkExecutionService:
         pop_service = BenchmarkRunTestBundlePopulationService()
 
         for bundle_name in bundle_names:
+            ids_for_bundle = resolved_test_ids[bundle_name]
             try:
-                pop_service.populate_run_bundle(run_id, bundle_name)
+                pop_service.populate_run_bundle(
+                    run_id, bundle_name, test_ids=ids_for_bundle
+                )
             except ValueError as e:
                 logger.warning(
                     f"[BenchmarkExecutionService] Skipping populate_run_bundle for run_id={run_id}, "
@@ -220,6 +278,7 @@ class BenchmarkExecutionService:
                 llm_provider_id,
                 llm_provider_model_id,
                 llm_provider_model_config_id,
+                test_ids=ids_for_bundle,
             )
 
     def execute_bundle(
@@ -232,6 +291,7 @@ class BenchmarkExecutionService:
         llm_provider_model_id: Optional[int] = None,
         llm_provider_model_config_id: Optional[int] = None,
         write_combined_results_file: bool = True,
+        test_ids: Optional[List[int]] = None,
     ) -> None:
         """
         Execute a bundle (multiple benchmark tests) synchronously and optionally write a combined results file.
@@ -256,6 +316,8 @@ class BenchmarkExecutionService:
             write_to_db: If True (default), run_benchmark writes results to DB when run_test/prompts exist. If False, prompts come from dataset load and no DB write.
             write_combined_results_file: If True (default), write combined bundle JSON under MOONSHOT_BENCHMARK_RESULTS_DIR.
                 Background workers for ``start_benchmark_run`` pass False so API runs persist only to the DB.
+            test_ids: When set on the DB path, only these benchmark_test.id values are run (must be a subset of the bundle).
+                Ignored for file-based bundles (a warning is logged if set).
         """
         try:
             logger.info(f"[BenchmarkExecutionService] Starting bundle execution for bundle: {bundle_id}")
@@ -294,9 +356,21 @@ class BenchmarkExecutionService:
 
             try:
                 bundle_db_id = config_adapter.get_bundle_id_by_system_name_latest(bundle_id)
-                test_ids = config_adapter.get_test_ids_by_bundle_id(bundle_db_id)
-                if not test_ids:
+                all_bundle_test_ids = config_adapter.get_test_ids_by_bundle_id(bundle_db_id)
+                if not all_bundle_test_ids:
                     raise ValueError(f"Bundle has no tests: {bundle_id!r}")
+                if test_ids is not None:
+                    allowed = set(all_bundle_test_ids)
+                    unknown = set(test_ids) - allowed
+                    if unknown:
+                        raise ValueError(
+                            f"test_ids contains id(s) not in bundle {bundle_id!r}: {sorted(unknown)}"
+                        )
+                    test_ids_to_run = sorted(set(test_ids))
+                    if not test_ids_to_run:
+                        raise ValueError(f"test_ids is empty after filtering for bundle {bundle_id!r}")
+                else:
+                    test_ids_to_run = list(all_bundle_test_ids)
                 if write_to_db:
                     if effective_run_id is None:
                         run_name = f"Bundle run: {bundle_id}"
@@ -313,9 +387,9 @@ class BenchmarkExecutionService:
                             )
                             saved_run = run_service.save_run(run_entity)
                             effective_run_id = saved_run.id
-                    for tid in test_ids:
+                    for tid in test_ids_to_run:
                         setup_service.create_run_test_with_prompts(effective_run_id, tid)
-                for tid in test_ids:
+                for tid in test_ids_to_run:
                     test_name, dataset_system_name, metric_name = config_adapter.get_test_info(tid)
                     test_tuples.append((tid, test_name, dataset_system_name, {"name": metric_name}))
                 use_db_path = True
@@ -349,6 +423,12 @@ class BenchmarkExecutionService:
                 eval_results = asyncio.run(_run_all_db())
             else:
                 # Look in file for bundle (benchmark source YAML); if found, run with file-based config.
+                if test_ids is not None:
+                    logger.warning(
+                        "[BenchmarkExecutionService] execute_bundle: test_ids filter ignored "
+                        "for file-based bundle %s",
+                        bundle_id,
+                    )
                 benchmark_service = BenchmarkService(None, None)
                 bundle = benchmark_service.get_bundle_by_id(bundle_id)
                 effective_run_id_str = str(run_id) if run_id is not None else bundle_id

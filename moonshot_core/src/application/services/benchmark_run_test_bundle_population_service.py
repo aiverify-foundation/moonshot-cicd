@@ -5,7 +5,7 @@ The service performs all saves via the repository; the entity is data-only and n
 saves itself.
 """
 
-from typing import Optional
+from typing import List, Optional
 
 from domain.entities.benchmark_run_test_bundle_entity import BenchmarkRunTestBundleEntity
 from domain.services.logger import configure_logger
@@ -72,17 +72,20 @@ class BenchmarkRunTestBundlePopulationService:
         self,
         run_id: int,
         test_bundle_system_name: str,
+        test_ids: Optional[List[int]] = None,
     ) -> dict:
         """
         Populate benchmark_run_test_bundle for the given run and bundle (latest version).
 
-        Resolves test_bundle_id by system_name (latest version), gets all test_ids
-        for that bundle from benchmark_test_bundle_grouping, then inserts one row
-        per test via insert_run_test_bundle.
+        Resolves test_bundle_id by system_name (latest version), gets test_ids from
+        benchmark_test_bundle_grouping (all, or only ``test_ids`` when provided),
+        then inserts one row per test via insert_run_test_bundle.
 
         Args:
             run_id: FK to benchmark_run.id.
             test_bundle_system_name: system_name of the bundle (e.g. undesirable-content).
+            test_ids: When set, only these benchmark_test.id values are inserted (must be
+                a non-empty subset of the bundle's tests). When None, all tests in the bundle.
 
         Returns:
             Dict with run_id, test_bundle_id, inserted_count.
@@ -93,9 +96,12 @@ class BenchmarkRunTestBundlePopulationService:
         test_bundle_id = self._config.get_bundle_id_by_system_name_latest(
             test_bundle_system_name
         )
-        test_ids = self._config.get_test_ids_by_bundle_id(test_bundle_id)
+        if test_ids is None:
+            to_insert = self._config.get_test_ids_by_bundle_id(test_bundle_id)
+        else:
+            to_insert = test_ids
         inserted_count = 0
-        for test_id in test_ids:
+        for test_id in to_insert:
             self.insert_run_test_bundle(run_id, test_bundle_id, test_id)
             inserted_count += 1
         self.logger.info(

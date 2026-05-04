@@ -58,6 +58,7 @@ def test_get_all_bundles_returns_minimal_bundle_from_db(listing_db):
     assert len(minimal.tests) == 1
     t0 = minimal.tests[0]
     assert t0.name == "Sample Test"
+    assert isinstance(t0.benchmark_test_id, int) and t0.benchmark_test_id > 0
     assert t0.metric.get("name") == "refusal_adapter"
     assert t0.requires_llm_aaj is False
     assert t0.metric_provider_system_name is None

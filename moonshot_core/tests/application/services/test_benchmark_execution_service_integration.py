@@ -13,7 +13,10 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from application.services.benchmark_execution_service import BenchmarkExecutionService
+from application.services.benchmark_execution_service import (
+    BenchmarkExecutionService,
+    BenchmarkRunTestSelectionError,
+)
 from application.services.database_connector_config_service import DatabaseConnectorConfigService
 from domain.entities.benchmark_run_entity import BenchmarkRunEntity
 from domain.entities.connector_entity import ConnectorEntity
@@ -103,6 +106,7 @@ class TestStartBenchmarkRunIntegration:
             ) as mock_cfg_cls:
                 mock_cfg = MagicMock()
                 mock_cfg.get_bundle_id_by_system_name_latest.return_value = 1
+                mock_cfg.get_test_ids_by_bundle_id.return_value = [101, 102]
                 mock_cfg_cls.return_value = mock_cfg
 
                 with patch.object(
@@ -119,9 +123,10 @@ class TestStartBenchmarkRunIntegration:
                         llm_provider_model_config_id=llm_provider_model_config_id,
                     )
 
-                assert mock_cfg.get_bundle_id_by_system_name_latest.call_count == 2
+                assert mock_cfg.get_bundle_id_by_system_name_latest.call_count == 4
                 mock_cfg.get_bundle_id_by_system_name_latest.assert_any_call("bundle-a")
                 mock_cfg.get_bundle_id_by_system_name_latest.assert_any_call("bundle-b")
+                assert mock_cfg.get_test_ids_by_bundle_id.call_count == 2
 
         assert mock_save_run.call_count == 1
         (call_entity,) = mock_save_run.call_args[0]
@@ -147,12 +152,14 @@ class TestStartBenchmarkRunIntegration:
                 pid,
                 mid,
                 mcid,
+                passed_test_ids,
             ) = args
             assert passed_run_id == run_id
             assert skip_alembic is True
             assert pid == llm_provider_id
             assert mid == llm_provider_model_id
             assert mcid == llm_provider_model_config_id
+            assert passed_test_ids == [101, 102]
             started_bundles.append(bundle_name)
         assert started_bundles == bundle_names
 
@@ -162,7 +169,7 @@ class TestStartBenchmarkRunIntegration:
         mock_save_run,
         stub_connector_entity,
     ):
-        """When bundle is not in DB, start_bundle_in_background raises KeyError after save_run."""
+        """When bundle is not in DB, resolution raises KeyError before save_run."""
         with patch(
             "application.services.benchmark_execution_service.BenchmarkTestConfigAdapter"
         ) as mock_cfg_cls:
@@ -187,4 +194,85 @@ class TestStartBenchmarkRunIntegration:
                         llm_provider_model_config_id=3,
                     )
 
-        assert mock_save_run.call_count == 1
+        assert mock_save_run.call_count == 0
+
+    def test_start_benchmark_run_tests_by_bundle_subset_passes_test_ids_to_process(
+        self,
+        mock_process,
+        mock_save_run,
+        stub_connector_entity,
+    ):
+        """tests_by_bundle subset is passed to Process and populate_run_bundle."""
+        with patch(
+            "application.services.benchmark_execution_service.BenchmarkRunTestBundlePopulationService"
+        ) as mock_pop_class:
+            mock_pop = MagicMock()
+            mock_pop.populate_run_bundle.return_value = {
+                "run_id": 42,
+                "test_bundle_id": 1,
+                "inserted_count": 1,
+            }
+            mock_pop_class.return_value = mock_pop
+
+            with patch(
+                "application.services.benchmark_execution_service.BenchmarkTestConfigAdapter"
+            ) as mock_cfg_cls:
+                mock_cfg = MagicMock()
+                mock_cfg.get_bundle_id_by_system_name_latest.return_value = 7
+                mock_cfg.get_test_ids_by_bundle_id.return_value = [201, 202, 203]
+                mock_cfg_cls.return_value = mock_cfg
+
+                with patch.object(
+                    DatabaseConnectorConfigService,
+                    "build_connector_entity",
+                    return_value=stub_connector_entity,
+                ):
+                    service = BenchmarkExecutionService()
+                    service.start_benchmark_run(
+                        run_name="subset-run",
+                        bundle_names=["bundle-x"],
+                        llm_provider_id=1,
+                        llm_provider_model_id=2,
+                        llm_provider_model_config_id=3,
+                        tests_by_bundle={"bundle-x": [202, 203]},
+                    )
+
+                mock_pop.populate_run_bundle.assert_called_once_with(
+                    42, "bundle-x", test_ids=[202, 203]
+                )
+
+        (_, kwargs) = mock_process.call_args
+        args = kwargs["args"]
+        assert args[-1] == [202, 203]
+
+    def test_start_benchmark_run_tests_by_bundle_unknown_test_id(
+        self,
+        mock_process,
+        mock_save_run,
+        stub_connector_entity,
+    ):
+        with patch(
+            "application.services.benchmark_execution_service.BenchmarkTestConfigAdapter"
+        ) as mock_cfg_cls:
+            mock_cfg = MagicMock()
+            mock_cfg.get_bundle_id_by_system_name_latest.return_value = 1
+            mock_cfg.get_test_ids_by_bundle_id.return_value = [10, 11]
+            mock_cfg_cls.return_value = mock_cfg
+
+            with patch.object(
+                DatabaseConnectorConfigService,
+                "build_connector_entity",
+                return_value=stub_connector_entity,
+            ):
+                service = BenchmarkExecutionService()
+                with pytest.raises(BenchmarkRunTestSelectionError, match="not in this bundle"):
+                    service.start_benchmark_run(
+                        run_name="bad",
+                        bundle_names=["b1"],
+                        llm_provider_id=1,
+                        llm_provider_model_id=2,
+                        llm_provider_model_config_id=3,
+                        tests_by_bundle={"b1": [99]},
+                    )
+
+        assert mock_save_run.call_count == 0

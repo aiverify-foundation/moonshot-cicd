@@ -1,7 +1,7 @@
 from datetime import datetime
-from typing import List, Optional
+from typing import Dict, List, Optional
 
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, model_validator
 
 
 class StartBenchmarkRunRequestDTO(BaseModel):
@@ -15,6 +15,9 @@ class StartBenchmarkRunRequestDTO(BaseModel):
         llm_provider_id (int): FK llm_provider.id
         llm_provider_model_id (int): FK llm_provider_model.id
         llm_provider_model_config_id (int): FK llm_provider_model_config.id
+        tests_by_bundle (Optional[Dict[str, List[int]]]): Optional map of bundle system_name
+            to benchmark_test.id values to run for that bundle only. Keys must be a subset of
+            bundle_names; omit a bundle to run all its tests. Each list must be non-empty when present.
     """
 
     bundle_names: List[str]
@@ -22,6 +25,24 @@ class StartBenchmarkRunRequestDTO(BaseModel):
     llm_provider_id: int
     llm_provider_model_id: int
     llm_provider_model_config_id: int
+    tests_by_bundle: Optional[Dict[str, List[int]]] = None
+
+    @model_validator(mode="after")
+    def validate_tests_by_bundle_keys(self) -> "StartBenchmarkRunRequestDTO":
+        if self.tests_by_bundle is None:
+            return self
+        bundle_set = set(self.bundle_names)
+        for key, ids in self.tests_by_bundle.items():
+            if key not in bundle_set:
+                raise ValueError(
+                    f"tests_by_bundle key {key!r} is not in bundle_names; "
+                    "keys must only reference bundles included in this run."
+                )
+            if len(ids) == 0:
+                raise ValueError(
+                    f"tests_by_bundle[{key!r}] must not be an empty list when provided."
+                )
+        return self
 
 
 class StartBenchmarkRunResponseDTO(BaseModel):

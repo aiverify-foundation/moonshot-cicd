@@ -20,6 +20,8 @@ export default function BenchmarkFooter({
   const router = useRouter();
   const [isStartingRun, setIsStartingRun] = useState(false);
   const bundleSelection = useAppSelector((state) => state.bundleSelection);
+  const testSelection = useAppSelector((state) => state.testSelection);
+  const bundles = useAppSelector((state) => state.bundles.data);
   const {
     isConfigValid,
     testName,
@@ -34,6 +36,34 @@ export default function BenchmarkFooter({
     () => Object.entries(bundleSelection).filter(([, v]) => v).map(([id]) => id),
     [bundleSelection]
   );
+
+  /** When some tests in a bundle are unchecked, send `tests_by_bundle` using DB test ids from the API. */
+  const testsByBundle = useMemo(() => {
+    const out: Record<string, number[]> = {};
+    for (const bundleId of selectedBundleSystemNames) {
+      const bundle = bundles.find((b) => b.id === bundleId);
+      if (!bundle?.tests?.length) continue;
+      const selectedTests = bundle.tests.filter((t) => testSelection[t.name]);
+      const allSelected = selectedTests.length === bundle.tests.length;
+      if (allSelected) continue;
+      if (selectedTests.length === 0) {
+        return {
+          error: `Select at least one test in bundle "${bundle.name}", or deselect the bundle.`,
+        } as const;
+      }
+      const ids: number[] = [];
+      for (const t of selectedTests) {
+        if (t.benchmark_test_id == null) {
+          return { error: `Missing benchmark id for test "${t.name}" in bundle "${bundle.name}".` } as const;
+        }
+        ids.push(t.benchmark_test_id);
+      }
+      if (ids.length > 0) {
+        out[bundleId] = ids;
+      }
+    }
+    return { map: out } as const;
+  }, [bundles, selectedBundleSystemNames, testSelection]);
 
   const isCustomConnector = custom_connectors.some((c) => c.id === selectedProvider);
 
@@ -71,15 +101,24 @@ export default function BenchmarkFooter({
       window.alert('Select a database-backed model with a saved configuration before running.');
       return;
     }
+    if ('error' in testsByBundle) {
+      window.alert(testsByBundle.error);
+      return;
+    }
+
     setIsStartingRun(true);
     try {
-      await startBenchmarkRun({
+      const payload: Parameters<typeof startBenchmarkRun>[0] = {
         run_name: runName,
         bundle_names: selectedBundleSystemNames,
         llm_provider_id: benchmarkLlmProviderId,
         llm_provider_model_id: benchmarkLlmProviderModelId,
         llm_provider_model_config_id: benchmarkLlmProviderModelConfigId,
-      });
+      };
+      if (Object.keys(testsByBundle.map).length > 0) {
+        payload.tests_by_bundle = testsByBundle.map;
+      }
+      await startBenchmarkRun(payload);
       router.push('/history');
     } catch (e) {
       const msg =

@@ -12,6 +12,8 @@ export interface Bundle {
   category: string;
   tests: Array<{
     name: string;
+    /** benchmark_test.id from the API; required for per-bundle test subset runs. */
+    benchmark_test_id?: number | null;
     description?: string;
     /** True when the metric uses an LLM-as-judge path (e.g. Llama Guard annotator). */
     requires_llm_aaj?: boolean;
@@ -154,11 +156,16 @@ export async function fetchFixedConfigs(): Promise<FixedConfig[]> {
 /** POST /api/start-benchmark-run */
 export interface StartBenchmarkRunRequest {
   run_name: string;
-  /** Each entry is a bundle system_name (same as `Bundle.id` from GET /api/bundles). Not filtered by per-test UI selection. */
+  /** Each entry is a bundle system_name (same as `Bundle.id` from GET /api/bundles). */
   bundle_names: string[];
   llm_provider_id: number;
   llm_provider_model_id: number;
   llm_provider_model_config_id: number;
+  /**
+   * Optional map of bundle system_name → benchmark_test.id list to run only those tests.
+   * Omit a bundle to run all its tests. Keys must be subset of `bundle_names`.
+   */
+  tests_by_bundle?: Record<string, number[]>;
 }
 
 export interface StartBenchmarkRunResponse {

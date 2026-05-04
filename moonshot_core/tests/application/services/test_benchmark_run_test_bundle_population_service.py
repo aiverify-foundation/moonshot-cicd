@@ -102,3 +102,21 @@ class TestPopulateRunBundle:
 
         with pytest.raises(ValueError, match="Bundle not found"):
             service.populate_run_bundle(run_id=1, test_bundle_system_name="missing")
+
+    def test_populate_run_bundle_with_explicit_test_ids(
+        self, service, mock_repo, mock_config
+    ):
+        """When test_ids is passed, only those rows are inserted; full bundle list is not fetched."""
+        mock_config.get_bundle_id_by_system_name_latest.return_value = 5
+        mock_repo.save.return_value = BenchmarkRunTestBundleEntity(
+            id=1, run_id=1, test_bundle_id=5, test_id=101
+        )
+
+        result = service.populate_run_bundle(
+            run_id=1, test_bundle_system_name="my-bundle", test_ids=[101]
+        )
+
+        assert result["inserted_count"] == 1
+        mock_config.get_test_ids_by_bundle_id.assert_not_called()
+        mock_repo.save.assert_called_once()
+        assert mock_repo.save.call_args[0][0].test_id == 101

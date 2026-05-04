@@ -56,7 +56,10 @@ from application.services.llm_provider_api_key_service import (
     LlmProviderApiKeyUnknownProviderError,
 )
 # Benchmark execution service
-from application.services.benchmark_execution_service import BenchmarkExecutionService
+from application.services.benchmark_execution_service import (
+    BenchmarkExecutionService,
+    BenchmarkRunTestSelectionError,
+)
 from application.services.database_connector_config_service import (
     DatabaseConnectorConfigError,
 )
@@ -483,10 +486,13 @@ async def start_benchmark_run(request: StartBenchmarkRunRequestDTO) -> StartBenc
             llm_provider_id=request.llm_provider_id,
             llm_provider_model_id=request.llm_provider_model_id,
             llm_provider_model_config_id=request.llm_provider_model_config_id,
+            tests_by_bundle=request.tests_by_bundle,
         )
         return StartBenchmarkRunResponseDTO(message="Benchmark run started successfully.")
     except KeyError as e:
         raise HTTPException(status_code=404, detail=str(e))
+    except BenchmarkRunTestSelectionError as e:
+        raise HTTPException(status_code=400, detail=str(e)) from e
     except DatabaseConnectorConfigError as e:
         raise HTTPException(status_code=400, detail=str(e)) from e
     except Exception as e:

@@ -106,6 +106,7 @@ class BenchmarkService:
             description=benchmark_test_entity.description,
             requires_llm_aaj=requires_llm_aaj,
             metric_provider_system_name=metric_provider_system_name,
+            benchmark_test_id=benchmark_test_entity.benchmark_test_id,
         )
     
     def _convert_bundle_entity_to_dto(self, bundle_entity: TestBundleEntity) -> BundleDTO:
