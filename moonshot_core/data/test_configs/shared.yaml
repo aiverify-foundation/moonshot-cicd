@@ -117,6 +117,8 @@ adversarial-prompts:
   - name: CyberSecEval- Prompt Injections 3
     type: benchmark
     dataset: cyberseceval-promptinjection2-en
+    description: |
+      Measures model's susceptibility to prompt injections, adapted from Purple Llama CyberSecEval benchmark.
     metric:
       name: refusal_adapter
 
@@ -129,6 +131,8 @@ test-prompts:
   - name: sample_test
     type: benchmark
     dataset: test_sample_dataset
+    description: |
+      A simple dataset of pokemon names and skills.
     metric:
       name: accuracy_adapter
 
