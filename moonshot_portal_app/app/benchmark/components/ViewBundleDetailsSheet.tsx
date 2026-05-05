@@ -1,7 +1,6 @@
 "use client"
-import React from 'react';
-import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetClose, SheetFooter } from "@/components/ui/sheet";
-import { PanelRightClose, Info, FileTerminal, Database, Square, CheckSquare } from 'lucide-react'
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetFooter } from "@/components/ui/sheet";
+import { Info, FileTerminal, Square, CheckSquare } from 'lucide-react'
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
@@ -48,7 +47,6 @@ function CheckboxToggleButton({ checked, onCheckedChange, ...props }: { checked:
  */
 function TestDetailCard({
   test,
-  index,
   isSelected,
   onSelectionChange
 }: {
@@ -62,7 +60,6 @@ function TestDetailCard({
       num_of_dataset_prompts: number;
     };
   };
-  index: number;
   isSelected: boolean;
   onSelectionChange: (selected: boolean) => void;
 }) {
@@ -126,50 +123,26 @@ export default function ViewBundleDetailsSheet({
   onOpenChange,
   bundle 
 }: ViewBundleDetailsSheetProps) {
-  const [selectedTests, setSelectedTests] = React.useState<Set<number>>(new Set());
   const dispatch = useAppDispatch();
   const bundleSelection = useAppSelector((state) => state.bundleSelection);
-  const { setMultipleTests, toggleTest } = useTestSelectionActions();
+  const testSelection = useAppSelector((state) => state.testSelection);
+  const { setTest } = useTestSelectionActions();
 
-  const handleTestSelectionChange = (index: number, selected: boolean) => {
-    setSelectedTests(prev => {
-      const newSet = new Set(prev);
-      if (selected) {
-        newSet.add(index);
-      } else {
-        newSet.delete(index);
-      }
-      return newSet;
-    });
-  };
+  const selectedCount = bundle
+    ? bundle.tests.filter((t) => testSelection[t.name]).length
+    : 0;
 
   const handleAddTests = () => {
-    if (!bundle || selectedTests.size === 0) return;
+    if (!bundle || selectedCount === 0) return;
 
-    // Get test names from selected indices
-    const selectedTestNames = Array.from(selectedTests)
-      .map(index => bundle.tests[index]?.name)
-      .filter((name): name is string => Boolean(name));
-
-    if (selectedTestNames.length === 0) return;
-
-    // First, set the specific tests as selected before toggling the bundle
-    // This ensures the tests are selected before the sidebar's auto-select logic runs
-    setMultipleTests(selectedTestNames, true);
-
-    // Then ensure the bundle is selected (only toggle if not already selected)
-    // The sidebar will detect that tests are already selected and won't auto-select all
     const isBundleSelected = Boolean(bundleSelection[bundle.id]);
     if (!isBundleSelected) {
       dispatch(toggleBundleSelected(bundle.id));
     }
 
-    // Clear the local selection state and close the sheet
-    setSelectedTests(new Set());
     onOpenChange(false);
   };
 
-  const selectedCount = selectedTests.size;
   const buttonText = selectedCount > 1 
     ? `Add ${selectedCount} tests` 
     : selectedCount === 1 
@@ -213,13 +186,12 @@ export default function ViewBundleDetailsSheet({
         <Separator orientation="horizontal" />
         <div className="mt-4 grid grid-cols-3 gap-4">
           {bundle?.tests && bundle.tests.length > 0 ? (
-            bundle.tests.map((test, index) => (
+            bundle.tests.map((test) => (
               <TestDetailCard 
-                key={`test-${index}`} 
+                key={test.name} 
                 test={test} 
-                index={index}
-                isSelected={selectedTests.has(index)}
-                onSelectionChange={(selected) => handleTestSelectionChange(index, selected)}
+                isSelected={Boolean(testSelection[test.name])}
+                onSelectionChange={(selected) => setTest(test.name, selected)}
               />
             ))
           ) : (
