@@ -11,6 +11,7 @@ import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group"
 import { Button } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
 import { TestResultTableRow } from "./TestResultTable"
+import { evaluationDisplayLabel } from "./evaluationDisplayHelpers"
 import PromptTemplateSheet from "@/components/PromptTemplateSheet"
 
 interface TestResultSheetProps {
@@ -240,7 +241,7 @@ export default function TestResultSheet({
                             <p
                                 className={`font-semibold text-[12px] leading-normal whitespace-pre text-nowrap ${currentRow.score === 1 ? "text-green-800" : "text-red-800"}`}
                             >
-                                {currentRow.score === 1 ? "Agree" : currentRow.score === 0 ? "Disagree" : currentRow.evaluation}
+                                {evaluationDisplayLabel(currentRow.evaluation, currentRow.score)}
                             </p>
                         </div>
                     </div>

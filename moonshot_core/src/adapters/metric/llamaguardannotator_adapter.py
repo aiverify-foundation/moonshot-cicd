@@ -187,11 +187,13 @@ class LlamaGuardAnnotatorAdapter(MetricPort):
                 evaluated_response = self._normalise_guard_response(
                     raw_response
                 )
-                score = 1 if evaluated_response == "safe" else 0
+                accuracy = evaluated_response == "safe"
+                score = 1.0 if accuracy else 0.0
                 return {
                     "prompt": entity.prompt,
-                    "predicted_response": entity.predicted_result.response,
+                    "predicted_value": entity.predicted_result.response,
                     "target": entity.target,
+                    "accuracy": accuracy,
                     "evaluated_prompt": temp_prompt_argument.prompt,
                     "evaluated_response": evaluated_response,
                     "evaluated_raw_response": raw_response,
@@ -235,7 +237,8 @@ class LlamaGuardAnnotatorAdapter(MetricPort):
                 cat = evaluated.get("evaluated_response", "unknown")
                 item = {
                     "prompt": evaluated.get("prompt"),
-                    "predicted_value": evaluated.get("predicted_response"),
+                    "predicted_value": evaluated.get("predicted_value")
+                    or evaluated.get("predicted_response"),
                     "target": evaluated.get("target"),
                     "eval_prompt": evaluated.get("evaluated_prompt"),
                     "eval_predicted_value": evaluated.get(

@@ -6,6 +6,8 @@ import TestResultTable, { TestResultTableRow } from "./TestResultTable"
 import { parseCsvData } from "./parseCsvData"
 import type { BenchmarkRunTestPrompt } from "@/lib/api"
 
+export { extractEvaluatedResponse, evaluationDisplayLabel } from "./evaluationDisplayHelpers"
+
 const EMPTY_PROMPTS: BenchmarkRunTestPrompt[] = []
 
 function isDisclosureTestName(name: string | undefined): boolean {

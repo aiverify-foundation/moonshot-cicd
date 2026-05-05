@@ -15,6 +15,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Checkbox } from "@/components/ui/checkbox"
 import { Input } from "@/components/ui/input"
 import TestResultSheet from "./TestResultSheet"
+import { evaluationDisplayLabel } from "./evaluationDisplayHelpers"
 
 export interface TestResultTableRow {
     id: string
@@ -49,10 +50,18 @@ export default function TestResultTable({ data, pageSize = 10, onDataChange }: T
     const [selectedRowIndex, setSelectedRowIndex] = useState(0)
     const [searchTerm, setSearchTerm] = useState("")
 
+    const evaluationDisplayLabelById = useMemo(() => {
+        const m = new Map<string, string>()
+        for (const row of data) {
+            m.set(row.id, evaluationDisplayLabel(row.evaluation, row.score))
+        }
+        return m
+    }, [data])
+
     // Extract unique filter values from data
     const filterOptions = useMemo(() => {
         const bundles = Array.from(new Set(data.map((row) => row.bundle).filter(Boolean))).sort()
-        const evaluations = Array.from(new Set(data.map((row) => row.evaluation).filter(Boolean))).sort()
+        const evaluations = Array.from(new Set(Array.from(evaluationDisplayLabelById.values()))).sort()
         const yourVerdicts: (string | null)[] = ["agree", "disagree", null]
         const adjustedOptions: string[] = ["adjusted", "not adjusted"]
 
@@ -62,7 +71,7 @@ export default function TestResultTable({ data, pageSize = 10, onDataChange }: T
             yourVerdicts,
             adjustedOptions,
         }
-    }, [data])
+    }, [data, evaluationDisplayLabelById])
 
     // Initialize filter state with all options selected
     const [filters, setFilters] = useState<{
@@ -72,7 +81,7 @@ export default function TestResultTable({ data, pageSize = 10, onDataChange }: T
         adjusted: Set<string>
     }>(() => {
         const bundles = Array.from(new Set(data.map((row) => row.bundle).filter(Boolean))).sort()
-        const evaluations = Array.from(new Set(data.map((row) => row.evaluation).filter(Boolean))).sort()
+        const evaluations = Array.from(new Set(Array.from(evaluationDisplayLabelById.values()))).sort()
         
         return {
             bundles: new Set(bundles),
@@ -134,8 +143,9 @@ export default function TestResultTable({ data, pageSize = 10, onDataChange }: T
             // Filter by bundle
             if (!filters.bundles.has(row.bundle)) return false
 
-            // Filter by evaluation
-            if (!filters.evaluations.has(row.evaluation)) return false
+            // Filter by evaluation (display label, not raw blob)
+            const evalLabel = evaluationDisplayLabelById.get(row.id)!
+            if (!filters.evaluations.has(evalLabel)) return false
 
             // Filter by your verdict
             if (!filters.yourVerdicts.has(row.yourVerdict)) return false
@@ -152,12 +162,14 @@ export default function TestResultTable({ data, pageSize = 10, onDataChange }: T
                     row.yourVerdict === "agree" ? "agree" :
                     row.yourVerdict === "disagree" ? "disagree" : "not set"
                 
+                const evalLabelSearch = evaluationDisplayLabelById.get(row.id) ?? ""
                 const searchableText = [
                     row.test,
                     row.prompt,
                     row.target,
                     row.response,
                     row.evaluation,
+                    evalLabelSearch,
                     yourVerdictDisplay,
                     row.note,
                 ]
@@ -170,13 +182,15 @@ export default function TestResultTable({ data, pageSize = 10, onDataChange }: T
 
             return true
         })
-    }, [data, filters, searchTerm])
+    }, [data, filters, searchTerm, evaluationDisplayLabelById])
 
     // Sort the filtered dataset
     const sortedData = sortColumn
         ? [...filteredData].sort((a, b) => {
               if (sortColumn === "evaluation") {
-                  const comparison = a.evaluation.localeCompare(b.evaluation)
+                  const comparison = (evaluationDisplayLabelById.get(a.id) ?? "").localeCompare(
+                      evaluationDisplayLabelById.get(b.id) ?? ""
+                  )
                   return sortDirection === "asc" ? comparison : -comparison
               }
               return 0
@@ -217,8 +231,9 @@ export default function TestResultTable({ data, pageSize = 10, onDataChange }: T
             // Bundle counts
             bundleCounts.set(row.bundle, (bundleCounts.get(row.bundle) || 0) + 1)
 
-            // Evaluation counts
-            evaluationCounts.set(row.evaluation, (evaluationCounts.get(row.evaluation) || 0) + 1)
+            // Evaluation counts (display label)
+            const evLabel = evaluationDisplayLabelById.get(row.id) ?? ""
+            evaluationCounts.set(evLabel, (evaluationCounts.get(evLabel) || 0) + 1)
 
             // Your verdict counts
             yourVerdictCounts.set(row.yourVerdict, (yourVerdictCounts.get(row.yourVerdict) || 0) + 1)
@@ -469,7 +484,7 @@ export default function TestResultTable({ data, pageSize = 10, onDataChange }: T
                                             <p
                                                 className={`font-semibold text-[12px] leading-normal whitespace-pre text-nowrap ${row.score === 1 ? "text-green-800" : "text-red-800"}`}
                                             >
-                                                {row.score === 1 ? "Agree" : row.score === 0 ? "Disagree" : row.evaluation}
+                                                {evaluationDisplayLabelById.get(row.id)!}
                                             </p>
                                         </div>
                                     </div>

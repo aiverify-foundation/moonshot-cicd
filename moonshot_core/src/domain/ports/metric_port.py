@@ -84,8 +84,32 @@ class MetricPort(ABC):
             entity (MetricIndividualEntity): The metric entity to be evaluated.
 
         Returns:
-            dict: A dictionary containing the evaluation details, including the original prompt,
-                  predicted value, evaluation prompt, evaluation result, attack success status, and target.
+            dict: Per-result payload persisted as ``str(dict)`` on
+                  ``benchmark_run_test_prompt.evaluation_prediction_result``.
+                  Prefer a consistent subset so UIs can parse blobs without
+                  relying on connector-specific quirks.
+
+            Typical keys (implementations SHOULD include):
+
+            Required for binary-style metrics:
+
+            - ``prompt`` (str): Task prompt text.
+            - ``predicted_value`` (str): Model output being graded.
+            - ``target`` (str): Expected / reference label or policy target.
+            - ``score`` (float): In ``[0.0, 1.0]`` (or continuous sub-range if documented).
+
+            Optional (use when relevant):
+
+            - ``accuracy`` (bool): Shortcut for strict match / pass-fail semantics;
+              same convention as ``AccuracyAdapter.get_individual_result`` when present.
+            - ``evaluated_prompt`` (str): Prompt sent to an evaluator LLM or rubric step.
+            - ``evaluated_response`` (str): Short categorical evaluator label,
+              e.g. ``safe`` | ``unsafe`` | ``refuse`` | ``non-refusal``.
+            - Connector- or metric-specific extras: ``evaluated_raw_response``,
+              ``attack_success``, ``context``, etc.
+
+            Downstream callers may derive UI colour from ``score`` or ``accuracy``
+            (when persisted in the blob) and short labels from ``evaluated_response``.
         """
         pass
 
