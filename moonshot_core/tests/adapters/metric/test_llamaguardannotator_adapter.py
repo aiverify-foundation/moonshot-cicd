@@ -208,6 +208,7 @@ class TestLlamaGuardAnnotatorAdapter:
         )
 
         assert result["evaluated_response"] == "safe"
+        assert result["score"] == 1
         assert result["prompt"] == "Test prompt"
         assert result["predicted_response"] == "This is a harmless response."
         assert "Agent: This is a harmless response." in result["evaluated_prompt"]
@@ -228,6 +229,7 @@ class TestLlamaGuardAnnotatorAdapter:
         )
 
         assert result["evaluated_response"] == "unsafe"
+        assert result["score"] == 0
 
     @pytest.mark.asyncio
     async def test_get_individual_result_unknown(
@@ -245,6 +247,7 @@ class TestLlamaGuardAnnotatorAdapter:
         )
 
         assert result["evaluated_response"] == "unknown"
+        assert result["score"] == 0
 
     @pytest.mark.asyncio
     async def test_get_individual_result_no_connector(
