@@ -22,6 +22,26 @@ class ConnectorPort(ABC):
     DEFAULT_CONFIG_PAIRS: dict[str, str]
 
     @classmethod
+    def require_system_name_and_version(cls) -> tuple[str, int]:
+        """
+        Return ``(SYSTEM_NAME, VERSION)`` for resolving ``llm_provider`` rows in the database.
+
+        Raises:
+            TypeError: If ``SYSTEM_NAME`` is missing or blank, or ``VERSION`` is not an int.
+        """
+        name = getattr(cls, "SYSTEM_NAME", None)
+        version = getattr(cls, "VERSION", None)
+        if not isinstance(name, str) or not name.strip():
+            raise TypeError(
+                f"{cls.__name__} must define a non-empty SYSTEM_NAME class attribute (ConnectorPort)."
+            )
+        if not isinstance(version, int):
+            raise TypeError(
+                f"{cls.__name__} must define an int VERSION class attribute (ConnectorPort)."
+            )
+        return name.strip(), version
+
+    @classmethod
     def provider_seed_definition(cls) -> dict:
         """Build provider seed dict (camelCase keys) from class metadata."""
         return {

@@ -115,10 +115,12 @@ class DatabaseConnectorConfigService:
             model_endpoint = str(merged.pop("base_url", "") or "").strip()
             model_name = str(model.name)
 
-        ProviderConnectorEnvKeyService(self._session_manager).ensure_provider_api_key_in_environment(
-            llm_provider_id=llm_provider_id,
-            adapter_module=adapter_module,
-        )
+        # OpenAIAdapter / TogetherAdapter load API keys from llm_provider via ConnectorPort SYSTEM_NAME / VERSION.
+        if adapter_module not in ("openai_adapter", "together_adapter"):
+            ProviderConnectorEnvKeyService(self._session_manager).ensure_provider_api_key_in_environment(
+                llm_provider_id=llm_provider_id,
+                adapter_module=adapter_module,
+            )
 
         return ConnectorEntity(
             connector_adapter=adapter_module,

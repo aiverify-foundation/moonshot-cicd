@@ -7,6 +7,18 @@ from adapters.connector.together_adapter import TogetherAdapter
 from domain.entities.connector_entity import ConnectorEntity
 
 
+@pytest.fixture(autouse=True)
+def _default_no_db_api_key_for_together_configure(request):
+    if request.node.get_closest_marker("use_real_together_db_key_lookup"):
+        yield
+        return
+    with patch("adapters.connector.together_adapter.ProviderConnectorEnvKeyService") as mock_class:
+        mock_inst = MagicMock()
+        mock_inst.get_plain_api_key_for_provider_system_name.return_value = None
+        mock_class.return_value = mock_inst
+        yield
+
+
 @pytest.fixture
 def connector_entity():
     return ConnectorEntity(
@@ -87,3 +99,35 @@ async def test_get_response_coerces_string_temperature(connector_entity):
     assert isinstance(kwargs["temperature"], float)
     assert kwargs.get("max_tokens") == 64
     assert isinstance(kwargs["max_tokens"], int)
+
+
+def test_configure_prefers_db_api_key_from_provider_system_name(connector_entity):
+    with (
+        patch("adapters.connector.together_adapter.ProviderConnectorEnvKeyService") as mock_class,
+        patch("adapters.connector.together_adapter.os.getenv") as mock_getenv,
+        patch("adapters.connector.together_adapter.AsyncTogether") as mock_together_cls,
+    ):
+        mock_getenv.return_value = "env-key"
+        mock_inst = MagicMock()
+        mock_inst.get_plain_api_key_for_provider_system_name.return_value = "db-key"
+        mock_class.return_value = mock_inst
+        mock_together_cls.return_value = MagicMock()
+
+        TogetherAdapter().configure(connector_entity)
+
+        mock_inst.get_plain_api_key_for_provider_system_name.assert_called_once_with(
+            provider_system_name=TogetherAdapter.SYSTEM_NAME,
+            version=TogetherAdapter.VERSION,
+        )
+        mock_together_cls.assert_called_once_with(
+            api_key="db-key",
+            base_url=connector_entity.model_endpoint or None,
+        )
+
+
+def test_configure_raises_type_error_when_system_name_empty(connector_entity):
+    class BrokenTogether(TogetherAdapter):
+        SYSTEM_NAME = ""
+
+    with pytest.raises(TypeError, match="SYSTEM_NAME"):
+        BrokenTogether().configure(connector_entity)

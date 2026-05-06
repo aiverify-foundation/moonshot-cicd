@@ -14,6 +14,22 @@ from adapters.connector.openai_adapter import OpenAIAdapter
 from domain.entities.connector_entity import ConnectorEntity
 
 
+@pytest.fixture(autouse=True)
+def _default_no_db_api_key_for_openai_configure(request):
+    """
+    OpenAIAdapter.configure always queries DB by provider system_name; tests that only mock
+    getenv expect no stored key — default the lookup to None unless the test patches this service.
+    """
+    if request.node.get_closest_marker("use_real_openai_db_key_lookup"):
+        yield
+        return
+    with patch("adapters.connector.openai_adapter.ProviderConnectorEnvKeyService") as mock_class:
+        mock_inst = MagicMock()
+        mock_inst.get_plain_api_key_for_provider_system_name.return_value = None
+        mock_class.return_value = mock_inst
+        yield
+
+
 @pytest.fixture
 def connector_entity():
     """
@@ -73,6 +89,60 @@ def test_configure_with_api_key_and_endpoint(openai_adapter, connector_entity):
             api_key="test-api-key",
             base_url="https://api.openai.com/v1"
         )
+
+
+def test_configure_prefers_db_api_key_from_provider_system_name(openai_adapter, connector_entity):
+    """Stored provider key wins over OPENAI_API_KEY (resolved via llm_provider.system_name)."""
+    with (
+        patch("adapters.connector.openai_adapter.ProviderConnectorEnvKeyService") as mock_svc_class,
+        patch("adapters.connector.openai_adapter.os.getenv") as mock_getenv,
+        patch("adapters.connector.openai_adapter.AsyncOpenAI") as mock_openai_class,
+    ):
+        mock_getenv.return_value = "env-key"
+        mock_svc = MagicMock()
+        mock_svc.get_plain_api_key_for_provider_system_name.return_value = "db-key"
+        mock_svc_class.return_value = mock_svc
+        mock_openai_class.return_value = MagicMock()
+
+        openai_adapter.configure(connector_entity)
+
+        mock_svc.get_plain_api_key_for_provider_system_name.assert_called_once_with(
+            provider_system_name=OpenAIAdapter.SYSTEM_NAME,
+            version=OpenAIAdapter.VERSION,
+        )
+        mock_openai_class.assert_called_once_with(
+            api_key="db-key",
+            base_url="https://api.openai.com/v1",
+        )
+
+
+def test_configure_falls_back_to_env_when_db_key_missing(openai_adapter, connector_entity):
+    with (
+        patch("adapters.connector.openai_adapter.ProviderConnectorEnvKeyService") as mock_svc_class,
+        patch("adapters.connector.openai_adapter.os.getenv") as mock_getenv,
+        patch("adapters.connector.openai_adapter.AsyncOpenAI") as mock_openai_class,
+    ):
+        mock_getenv.return_value = "env-key"
+        mock_svc = MagicMock()
+        mock_svc.get_plain_api_key_for_provider_system_name.return_value = None
+        mock_svc_class.return_value = mock_svc
+        mock_openai_class.return_value = MagicMock()
+
+        openai_adapter.configure(connector_entity)
+
+        mock_openai_class.assert_called_once_with(
+            api_key="env-key",
+            base_url="https://api.openai.com/v1",
+        )
+
+
+def test_configure_raises_type_error_when_system_name_empty(openai_adapter, connector_entity):
+    class BrokenOpenAI(OpenAIAdapter):
+        SYSTEM_NAME = ""
+
+    with pytest.raises(TypeError, match="SYSTEM_NAME"):
+        BrokenOpenAI().configure(connector_entity)
+
 
 def test_configure_with_empty_api_key(openai_adapter, connector_entity):
     """

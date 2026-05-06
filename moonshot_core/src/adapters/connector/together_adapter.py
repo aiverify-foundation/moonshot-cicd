@@ -3,6 +3,7 @@ from typing import Any
 
 from together import AsyncTogether
 
+from application.services.provider_connector_env_key_service import ProviderConnectorEnvKeyService
 from adapters.connector.strip_connector_chat_kwargs import (
     coerce_numeric_string_chat_params,
     strip_connector_keys_for_chat_completion,
@@ -55,13 +56,30 @@ class TogetherAdapter(ConnectorPort):
             connector_entity (ConnectorEntity): The configuration entity for the connector.
         """
         self.connector_entity = connector_entity
-        api_key = os.getenv("TOGETHER_API_KEY") or ""
-        
-        # Log API key status (without exposing the actual key)
-        if not api_key:
-            logger.warning(self.WARNING_NO_API_KEY)
+        system_name, version = type(self).require_system_name_and_version()
+        db_key = ProviderConnectorEnvKeyService().get_plain_api_key_for_provider_system_name(
+            provider_system_name=system_name,
+            version=version,
+        )
+        resolved_from_database = bool(db_key and db_key.strip())
+        if resolved_from_database:
+            api_key = db_key.strip()
         else:
+            api_key = os.getenv("TOGETHER_API_KEY") or ""
+
+        if api_key:
+            if resolved_from_database:
+                logger.info(
+                    "[TogetherAdapter] API key resolved from database "
+                    "(llm_provider system_name=%s, version=%s)",
+                    system_name,
+                    version,
+                )
+            else:
+                logger.info("[TogetherAdapter] API key resolved from environment (TOGETHER_API_KEY)")
             logger.info(self.INFO_API_KEY_PRESENT.format(length=len(api_key)))
+        else:
+            logger.warning(self.WARNING_NO_API_KEY)
         
         endpoint = self.connector_entity.model_endpoint or "default (api.together.xyz/v1)"
         logger.info(
