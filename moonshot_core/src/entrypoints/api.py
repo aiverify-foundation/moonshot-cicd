@@ -22,7 +22,6 @@ from typing import List
 
 # Provider/model-config service & DTOs
 from application.services.provider_service import ProviderService
-from application.services.file_model_config_repository import FileModelConfigRepository
 from application.dto.provider_dto import ProviderDTO
 from application.dto.model_config_dto import (
     CreateDatabaseModelConfigBody,
@@ -184,21 +183,8 @@ database_model_config_service = DatabaseModelConfigService()
 benchmark_execution_service = BenchmarkExecutionService()
 llm_provider_api_key_service = LlmProviderApiKeyService()
 
-# Initialize file-based model config repository for fixed endpoint configs (lazy initialization)
-_file_model_config_repository = None
-
 # Lazy-initialized SharedConfigSeedService for seed-if-testfile-changed
 _shared_config_seed_service = None
-
-
-def get_file_model_config_repository():
-    """Get or create the file-based model config repository instance."""
-    global _file_model_config_repository
-    if _file_model_config_repository is None:
-        # Use AppConfig to get the test configs path
-        config_file_path = os.path.join(AppConfig.DEFAULT_TEST_CONFIGS_PATH, "fixedEndpointConfigs.yaml")
-        _file_model_config_repository = FileModelConfigRepository(config_file_path)
-    return _file_model_config_repository
 
 
 def get_shared_config_seed_service():
@@ -432,41 +418,6 @@ async def delete_model_config(config_id: str):
     except Exception as e:
         logger.error(f"Error deleting model config {config_id}: {e}")
         raise HTTPException(status_code=500, detail="Failed to delete model config")
-
-
-@app.get("/api/fixed-configs")
-async def list_all_fixed_configs():
-    """Get all fixed endpoint model configurations from the YAML file."""
-    try:
-        logger.info("Fetching all fixed endpoint model configurations")
-        repo = get_file_model_config_repository()
-        configs = repo.list_model_configs()
-        
-        # Convert ModelConfigEntity objects to dictionaries for JSON response
-        config_dicts = []
-        for config in configs:
-            config_dict = {
-                "id": config.id,
-                "name": config.name,
-                "modelname": config.modelname,
-                "providerID": config.providerID,
-                "savedConfigPairs": config.savedConfigPairs,
-                "lastUpdated": config.lastUpdated.isoformat() if config.lastUpdated else None
-            }
-            config_dicts.append(config_dict)
-        
-        logger.info(f"Successfully retrieved {len(config_dicts)} fixed endpoint configurations")
-        return {"configs": config_dicts}
-    except FileNotFoundError as e:
-        logger.error(f"Fixed endpoint config file not found: {e}")
-        raise HTTPException(status_code=404, detail="Fixed endpoint configuration file not found")
-    except ValueError as e:
-        logger.error(f"Invalid fixed endpoint config file: {e}")
-        raise HTTPException(status_code=400, detail=f"Invalid configuration file: {str(e)}")
-    except Exception as e:
-        logger.error(f"Error fetching fixed endpoint configurations: {e}")
-        raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
-
 
 
 @app.post("/api/start-benchmark-run", response_model=StartBenchmarkRunResponseDTO)

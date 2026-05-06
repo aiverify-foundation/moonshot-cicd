@@ -335,7 +335,7 @@ describe('EditModelSheet', () => {
     });
   });
 
-  it('dispatches endpoint status to endpointStatusKey when set (non-metric)', async () => {
+  it('dispatches endpoint status to endpointStatusKey when set', async () => {
     const user = userEvent.setup();
     const store = createTestStore({
       modelSelection: {
@@ -358,7 +358,6 @@ describe('EditModelSheet', () => {
         editingModel="1"
         providers={[highTempProvider]}
         models={[]}
-        isMetricEndpoint={false}
         endpointStatusKey="aaj:together_adapter"
       />,
       { store }

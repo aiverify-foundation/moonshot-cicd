@@ -152,3 +152,11 @@ undesirable-content-progress:
     dataset: mlc-ailuminate-hte
     metric:
       name: llamaguardannotator_adapter
+  - name: sample_test
+    type: benchmark
+    dataset: test_sample_dataset
+    description: |
+      A simple dataset of pokemon names and skills.
+    metric:
+      name: accuracy_adapter
+

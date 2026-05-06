@@ -8,7 +8,6 @@ import { Label } from "@/components/ui/label";
 import { Trash2, Plus } from "lucide-react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import {
-  FixedConfig,
   ApiError,
   createDatabaseModelConfig,
   fetchProviderLatestDetails,
@@ -52,35 +51,6 @@ interface AdvancedParam {
 }
 
 // Helper functions
-const getProviderModelInfoFromFixedConfig = (editingModel: string, fixedConfigs: FixedConfig[]) => {
-  const fixedConfig = fixedConfigs.find(c => c.id === editingModel);
-  if (!fixedConfig) {
-    return null;
-  }
-  
-  //TODO: Get a real reference to a provider from providers
-  // Create a new provider with only the name filled as fixedConfig.providerID
-  const currentProvider: Provider = {
-    id: fixedConfig.providerID,
-    name: fixedConfig.providerID,
-    type: 'provider',
-    system_name: fixedConfig.providerID,
-    defaultModel: '',
-    modelTextboxExplanation: '',
-    configPairs: [],
-    modelToken: '',
-  };
-  
-  const currentModelConfig: ModelConfig = {
-    id: fixedConfig.id,
-    name: fixedConfig.name,
-    modelname: fixedConfig.modelname,
-    provider: fixedConfig.providerID,
-  };
-  
-  return { isNewModel: false, currentModelConfig, currentProvider, fixedConfig };
-};
-
 const getProviderModelInfoFromProviders = (
   editingModel: string,
   providers: ProviderListEntry[],
@@ -102,7 +72,7 @@ const getProviderModelInfoFromProviders = (
     ? providers.find((p) => p.id === editingModel)
     : providers.find((p) => p.id === currentModelConfig?.provider);
 
-  return { isNewModel, currentModelConfig, currentProvider, fixedConfig: undefined };
+  return { isNewModel, currentModelConfig, currentProvider };
 };
 
 const resolveSystemName = (
@@ -117,17 +87,8 @@ const resolveSystemName = (
 const getAdvancedParamsFromProvider = (
   isNewModel: boolean,
   currentProvider: ProviderListEntry | undefined,
-  fixedConfig?: FixedConfig,
   savedConfigPairs?: Record<string, string>
 ): AdvancedParam[] => {
-  // If fixed config is provided, use its savedConfigPairs
-  if (fixedConfig?.savedConfigPairs) {
-    return Object.entries(fixedConfig.savedConfigPairs).map(([key, value]) => ({
-      parameter: key,
-      value: value
-    }));
-  }
-
   if (!isNewModel && savedConfigPairs !== undefined) {
     return Object.entries(savedConfigPairs).map(([key, value]) => ({
       parameter: key,
@@ -220,11 +181,9 @@ interface EditModelSheetProps {
   editingDatabaseConfigId?: string | null;
   providers: ProviderListEntry[];
   models: ModelConfig[];
-  isMetricEndpoint?: boolean;
-  fixedConfigs?: FixedConfig[];
   /**
    * When set, `Test` updates Redux endpoint status under this key instead of `editingModel`.
-   * Used for required-endpoint rows that are not fixed YAML config ids (e.g. LLM AAJ provider rows).
+   * Used for required-endpoint rows (e.g. LLM AAJ provider rows).
    */
   endpointStatusKey?: string | null;
   onSaved?: () => void | Promise<void>;
@@ -237,8 +196,6 @@ export default function EditModelSheet({
   editingDatabaseConfigId = null,
   providers, 
   models,
-  isMetricEndpoint = false,
-  fixedConfigs,
   endpointStatusKey = null,
   onSaved,
 }: EditModelSheetProps) {
@@ -252,14 +209,14 @@ export default function EditModelSheet({
   const [saving, setSaving] = React.useState(false);
   
   // Get provider/model info using helper function with memoization
-  const { isNewModel, currentModelConfig, currentProvider, fixedConfig } = React.useMemo(() => {
-    if (isMetricEndpoint && fixedConfigs) {
-      // If fixed config is found, use it, otherwise use providers which has default behaviour
-      return getProviderModelInfoFromFixedConfig(editingModel, fixedConfigs) || 
-             getProviderModelInfoFromProviders(editingModel, providers, models, editingDatabaseConfigId);
-    }
-    return getProviderModelInfoFromProviders(editingModel, providers, models, editingDatabaseConfigId);
-  }, [editingModel, editingDatabaseConfigId, providers, models, isMetricEndpoint, fixedConfigs]);
+  const { isNewModel, currentModelConfig, currentProvider } = React.useMemo(() => {
+    return getProviderModelInfoFromProviders(
+      editingModel,
+      providers,
+      models,
+      editingDatabaseConfigId
+    );
+  }, [editingModel, editingDatabaseConfigId, providers, models]);
 
   const [modelConfigName, setModelConfigName] = React.useState(isNewModel ? 'New Model' : currentModelConfig?.name || 'New Model');
   const [tokenValue, setTokenValue] = React.useState('');
@@ -270,7 +227,6 @@ export default function EditModelSheet({
     getAdvancedParamsFromProvider(
       isNewModel,
       currentProvider,
-      fixedConfig,
       currentModelConfig?.savedConfigPairs
     )
   );
@@ -288,11 +244,10 @@ export default function EditModelSheet({
       getAdvancedParamsFromProvider(
         isNewModel,
         currentProvider,
-        fixedConfig,
         currentModelConfig?.savedConfigPairs
       )
     );
-  }, [isNewModel, currentModelConfig, currentProvider, fixedConfig, editingDatabaseConfigId]);
+  }, [isNewModel, currentModelConfig, currentProvider, editingDatabaseConfigId]);
 
   React.useEffect(() => {
     if (open) {
@@ -315,7 +270,7 @@ export default function EditModelSheet({
         if (cancelled) return;
         setApiKeyConfigured(Boolean(details.api_key_configured));
 
-        if (isMetricEndpoint || isNewModel || !currentModelConfig) {
+        if (isNewModel || !currentModelConfig) {
           return;
         }
         const mid = parseInt(editingModel, 10);
@@ -351,7 +306,6 @@ export default function EditModelSheet({
     open,
     currentProvider,
     editingModel,
-    isMetricEndpoint,
     isNewModel,
     currentModelConfig,
     benchmarkLlmProviderModelId,
@@ -378,7 +332,6 @@ export default function EditModelSheet({
       getAdvancedParamsFromProvider(
         isNewModel,
         currentProvider,
-        fixedConfig,
         currentModelConfig?.savedConfigPairs
       )
     );
@@ -438,11 +391,7 @@ export default function EditModelSheet({
         currentModelConfig
       );
 
-      if (
-        !isNewModel &&
-        !isMetricEndpoint &&
-        existingConfigId != null
-      ) {
+      if (!isNewModel && existingConfigId != null) {
         const baseModelId = resolveLlmProviderModelIdForSave(editingModel);
         let resolvedModelId = baseModelId;
         const modelMatch = details.models.find(
@@ -491,8 +440,7 @@ export default function EditModelSheet({
       endpointStatusKey != null && String(endpointStatusKey).trim() !== ''
         ? String(endpointStatusKey)
         : '';
-    const statusConfigId =
-      explicitKey || (isMetricEndpoint && editingModel ? editingModel : '');
+    const statusConfigId = explicitKey;
     if (statusConfigId) {
       dispatch(
         setEndpointStatus({
@@ -545,19 +493,13 @@ export default function EditModelSheet({
           <Label htmlFor="modelConfig" className="text-sm font-medium">
             Model Configuration Name*
           </Label>
-          {isMetricEndpoint ? (
-            <div className="text-sm text-gray-700 bg-gray-50 px-3 py-2 rounded-md border">
-              {modelConfigName}
-            </div>
-          ) : (
-            <Input
-              id="modelConfig"
-              placeholder="Enter model configuration name"
-              value={modelConfigName}
-              onChange={(e) => setModelConfigName(e.target.value)}
-              tabIndex={-1}
-            />
-          )}
+          <Input
+            id="modelConfig"
+            placeholder="Enter model configuration name"
+            value={modelConfigName}
+            onChange={(e) => setModelConfigName(e.target.value)}
+            tabIndex={-1}
+          />
         </div>
 
         <div className="flex flex-col h-full">
@@ -570,7 +512,7 @@ export default function EditModelSheet({
                   <Label className="text-sm font-medium">
                     Model Provider*
                   </Label>
-                  <div className={`text-sm px-3 py-2 rounded-md border ${isMetricEndpoint ? 'text-gray-700 bg-gray-50' : 'text-gray-700 bg-gray-50'}`}>
+                  <div className="text-sm px-3 py-2 rounded-md border text-gray-700 bg-gray-50">
                     {currentProvider?.name || 'No provider selected'}
                   </div>
                 </div>
@@ -608,34 +550,24 @@ export default function EditModelSheet({
               <Label htmlFor="model" className="text-sm font-medium">
                 Model*
               </Label>
-              {isMetricEndpoint ? (
-                <div className="text-sm text-gray-700 bg-gray-50 px-3 py-2 rounded-md border">
-                  {modelName ||
-                    (currentProvider && 'defaultModel' in currentProvider
-                      ? currentProvider.defaultModel
-                      : '') ||
-                    'No model selected'}
-                </div>
-              ) : (
-                <Input
-                  id="model"
-                  placeholder={
-                    currentProvider && 'defaultModel' in currentProvider
-                      ? currentProvider.defaultModel || 'Enter model name'
-                      : 'Enter model name'
-                  }
-                  value={modelName}
-                  onChange={(e) => setModelName(e.target.value)}
-                  tabIndex={-1}
-                />
-              )}
+              <Input
+                id="model"
+                placeholder={
+                  currentProvider && 'defaultModel' in currentProvider
+                    ? String(currentProvider.defaultModel || 'Enter model name')
+                    : 'Enter model name'
+                }
+                value={modelName}
+                onChange={(e) => setModelName(e.target.value)}
+                tabIndex={-1}
+              />
             </div>
 
             {/* Configuration Notes */}
             <div className="space-y-2">
               <p className="text-sm text-gray-600">
                 {currentProvider && 'modelTextboxExplanation' in currentProvider
-                  ? currentProvider.modelTextboxExplanation
+                  ? String(currentProvider.modelTextboxExplanation ?? '')
                   : ''}
               </p>
             </div>
@@ -655,65 +587,51 @@ export default function EditModelSheet({
                   <div className="flex-1">
                     <Label className="text-sm font-medium text-gray-600">Value</Label>
                   </div>
-                  {!isMetricEndpoint && <div className="w-16"></div>} {/* Spacer for button column */}
+                  <div className="w-16"></div>{/* Spacer for button column */}
                 </div>
                 
                 {/* Parameter rows */}
                 {advancedParams.map((param: AdvancedParam, index: number) => (
                   <div key={index} className="flex items-center gap-3">
                     <div className="flex-1">
-                      {isMetricEndpoint ? (
-                        <div className="text-sm text-gray-700 bg-gray-50 px-3 py-2 rounded-md border">
-                          {param.parameter}
-                        </div>
-                      ) : (
-                        <Input
-                          value={param.parameter}
-                          onChange={(e) => updateParameter(index, 'parameter', e.target.value)}
-                          tabIndex={-1}
-                        />
-                      )}
+                      <Input
+                        value={param.parameter}
+                        onChange={(e) => updateParameter(index, 'parameter', e.target.value)}
+                        tabIndex={-1}
+                      />
                     </div>
                     <div className="flex-1">
-                      {isMetricEndpoint ? (
-                        <div className="text-sm text-gray-700 bg-gray-50 px-3 py-2 rounded-md border">
-                          {param.value}
-                        </div>
-                      ) : (
-                        <Input
-                          value={param.value}
-                          onChange={(e) => updateParameter(index, 'value', e.target.value)}
-                          tabIndex={-1}
-                        />
+                      <Input
+                        value={param.value}
+                        onChange={(e) => updateParameter(index, 'value', e.target.value)}
+                        tabIndex={-1}
+                      />
+                    </div>
+                    <div className="flex items-center gap-1 w-16">
+                      {/* Only show delete button for rows beyond the default rows */}
+                      {index >=
+                        (isNewModel ? providerDefaultConfigPairCount(currentProvider) : 0) && (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => removeParameter(index)}
+                          className="h-8 w-8 p-0"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      )}
+                      {/* Add button only on the last row */}
+                      {index === advancedParams.length - 1 && (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={addParameter}
+                          className="h-8 w-8 p-0"
+                        >
+                          <Plus className="h-4 w-4" />
+                        </Button>
                       )}
                     </div>
-                    {!isMetricEndpoint && (
-                      <div className="flex items-center gap-1 w-16">
-                        {/* Only show delete button for rows beyond the default rows */}
-                        {index >=
-                          (isNewModel ? providerDefaultConfigPairCount(currentProvider) : 0) && (
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => removeParameter(index)}
-                            className="h-8 w-8 p-0"
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
-                        )}
-                        {/* Add button only on the last row */}
-                        {index === advancedParams.length - 1 && (
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={addParameter}
-                            className="h-8 w-8 p-0"
-                          >
-                            <Plus className="h-4 w-4" />
-                          </Button>
-                        )}
-                      </div>
-                    )}
                   </div>
                 ))}
               </div>

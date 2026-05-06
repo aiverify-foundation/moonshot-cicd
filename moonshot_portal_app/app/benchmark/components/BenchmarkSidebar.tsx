@@ -11,10 +11,6 @@ import { useBundlesRedux } from '../../../hooks/useBundlesRedux';
 import { useSelectedBundles } from '../../../hooks/useSelectedBundles';
 import { useIsTestSelected, useTestSelectionActions } from '../../../hooks/useTestSelection';
 import { useAppSelector } from '../../../hooks/reduxHooks';
-import { useFixedConfigsRedux } from '../../../hooks/useFixedConfigsRedux';
-import { FixedConfig } from '../../../lib/api';
-
-
 
 interface BenchmarkSidebarProps {
   currentPage: 'bundle-selection' | 'model-selection';
@@ -43,7 +39,6 @@ export default function BenchmarkSidebar({ currentPage }: BenchmarkSidebarProps)
   const { setTest, toggleTest, setMultipleTests } = useTestSelectionActions();
   const testSelection = useAppSelector((state) => state.testSelection);
   const processedBundles = useRef<Set<string>>(new Set());
-  const { configs: fixedConfigs } = useFixedConfigsRedux();
 
   // Auto-select all tests from selected bundles by default (only for new bundles)
   useEffect(() => {
@@ -104,12 +99,7 @@ export default function BenchmarkSidebar({ currentPage }: BenchmarkSidebarProps)
 
   const createTestAccordionItem = (data: AccordionTestData) => {
     const isChecked = testSelection[data.id] || false;
-    
-    // Find the matching fixed config if configId exists
-    const matchingConfig = data.configId 
-      ? fixedConfigs.find(config => config.id === data.configId)
-      : undefined;
-    
+
     return (
       <Card key={data.id} className="w-full mt-2 py-1 rounded-sm">
         <Accordion type="single" collapsible>
@@ -142,14 +132,6 @@ export default function BenchmarkSidebar({ currentPage }: BenchmarkSidebarProps)
               <div className="space-y-3">
                 {/* Content for this accordion item can go here */}
                 <div className="text-sm text-gray-600">
-                  {matchingConfig && (
-                    <Badge variant="outline" className="w-60 py-2 px-3 flex flex-col items-start">
-                      <div>
-                        <div className="font-bold mb-1">Endpoint Required:</div>
-                        <div>{matchingConfig.name}</div>
-                      </div>
-                    </Badge>
-                  )}
                   <div className="flex items-center gap-2 mt-2 mb-2">
                     <span>Prompts : </span>
                     <span className="font-bold">{data.promptCount}</span>

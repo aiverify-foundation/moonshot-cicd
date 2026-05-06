@@ -1,5 +1,5 @@
 import { configureStore, createSlice, createAsyncThunk, combineReducers } from '@reduxjs/toolkit';
-import { fetchBundles, Bundle, fetchFixedConfigs, FixedConfig } from './lib/api';
+import { fetchBundles, Bundle } from './lib/api';
 
 // Async thunk for fetching bundles
 export const fetchBundlesAsync = createAsyncThunk(
@@ -45,51 +45,6 @@ const bundlesSlice = createSlice({
 });
 
 export const { clearBundlesError } = bundlesSlice.actions;
-
-// Async thunk for fetching fixed configs
-export const fetchFixedConfigsAsync = createAsyncThunk(
-  'fixedConfigs/fetchFixedConfigs',
-  async (_, { rejectWithValue }) => {
-    try {
-      const configs = await fetchFixedConfigs();
-      return configs;
-    } catch (error) {
-      return rejectWithValue(error instanceof Error ? error.message : 'Failed to fetch fixed configs');
-    }
-  }
-);
-
-const fixedConfigsSlice = createSlice({
-  name: 'fixedConfigs',
-  initialState: {
-    data: [] as FixedConfig[],
-    loading: false,
-    error: null as string | null,
-  },
-  reducers: {
-    clearFixedConfigsError: (state) => {
-      state.error = null;
-    },
-  },
-  extraReducers: (builder) => {
-    builder
-      .addCase(fetchFixedConfigsAsync.pending, (state) => {
-        state.loading = true;
-        state.error = null;
-      })
-      .addCase(fetchFixedConfigsAsync.fulfilled, (state, action) => {
-        state.loading = false;
-        state.data = action.payload;
-        state.error = null;
-      })
-      .addCase(fetchFixedConfigsAsync.rejected, (state, action) => {
-        state.loading = false;
-        state.error = action.payload as string;
-      });
-  },
-});
-
-export const { clearFixedConfigsError } = fixedConfigsSlice.actions;
 
 const bundleSelectionSlice = createSlice({
   name: 'bundleSelection',
@@ -274,7 +229,6 @@ export const {
 
 const rootReducer = combineReducers({
   bundles: bundlesSlice.reducer,
-  fixedConfigs: fixedConfigsSlice.reducer,
   bundleSelection: bundleSelectionSlice.reducer,
   modelSelection: modelSelectionSlice.reducer,
   testSelection: testSelectionSlice.reducer,
@@ -296,7 +250,6 @@ export function createTestStore(preloadedState?: Partial<RootState>) {
   const mergedState = preloadedState 
     ? {
         bundles: { ...defaultState.bundles, ...(preloadedState.bundles || {}) },
-        fixedConfigs: { ...defaultState.fixedConfigs, ...(preloadedState.fixedConfigs || {}) },
         bundleSelection: { ...defaultState.bundleSelection, ...(preloadedState.bundleSelection || {}) },
         modelSelection: { ...defaultState.modelSelection, ...(preloadedState.modelSelection || {}) },
         testSelection: { ...defaultState.testSelection, ...(preloadedState.testSelection || {}) },
