@@ -4,7 +4,6 @@
 
 import sqlite3
 import os
-# import yaml
 from pathlib import Path
 from typing import Optional, Dict, Any, List
 from contextlib import contextmanager
@@ -36,7 +35,6 @@ class SQLiteAdapter:
         
         self.db_path = db_path
         self._initialize_database()
-        # self._initialize_provider_names()
     
     def _initialize_database(self) -> None:
         """Initialize the database schema using Alembic migrations."""
@@ -81,57 +79,6 @@ class SQLiteAdapter:
     #         # The application can still work if tables exist
     #         print(f"Warning: Alembic migration failed: {e}")
     #         print("Database may already be initialized. Continuing...")
-    
-    # def _initialize_provider_names(self) -> None:
-    #     """
-    #     Initialize provider names from the providers.yaml file.
-    #     Reads the YAML file and adds any missing provider names to the database.
-    #     """
-    #     try:
-    #         # Get the path to the providers.yaml file
-    #         data_dir = Path(__file__).parent.parent.parent.parent / "data"
-    #         providers_yaml_path = data_dir / "providers" / "providers.yaml"
-            
-    #         # Check if the YAML file exists
-    #         if not providers_yaml_path.exists():
-    #             print(f"Warning: Providers YAML file not found at {providers_yaml_path}")
-    #             return
-            
-    #         # Read and parse the YAML file
-    #         with open(providers_yaml_path, 'r', encoding='utf-8') as file:
-    #             yaml_data = yaml.safe_load(file)
-            
-    #         # Extract provider names from the YAML data
-    #         if not yaml_data or 'providers' not in yaml_data:
-    #             print("Warning: No providers found in YAML file")
-    #             return
-            
-    #         provider_names = []
-    #         for provider in yaml_data['providers']:
-    #             if 'name' in provider:
-    #                 provider_names.append(provider['name'])
-            
-    #         # Add missing provider names to the database
-    #         with self.get_connection() as conn:
-    #             for provider_name in provider_names:
-    #                 # Check if provider already exists
-    #                 existing_provider = self.get_llm_provider_by_name(provider_name)
-    #                 if not existing_provider:
-    #                     try:
-    #                         self.add_llm_provider(provider_name)
-    #                         print(f"Added provider '{provider_name}' to database")
-    #                     except sqlite3.IntegrityError:
-    #                         # Provider might have been added by another process
-    #                         print(f"Provider '{provider_name}' already exists in database")
-    #                     except Exception as e:
-    #                         print(f"Error adding provider '{provider_name}': {e}")
-    #                 else:
-    #                     print(f"Provider '{provider_name}' already exists in database")
-                        
-    #     except yaml.YAMLError as e:
-    #         print(f"Error parsing YAML file: {e}")
-    #     except Exception as e:
-    #         print(f"Error initializing provider names: {e}")
     
     def _get_config_parameters(self, config_id: str) -> Dict[str, str]:
         """Get all parameters for a model config."""
