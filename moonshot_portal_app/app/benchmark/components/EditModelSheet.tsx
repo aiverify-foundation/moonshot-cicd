@@ -21,11 +21,8 @@ import { setEndpointStatus } from '../../../store';
 import { ConnectionStatus } from './RequiredEndpointsCard';
 import type { Provider, ModelConfig, ProviderListEntry } from '../types/modelSelection';
 
-// Constants
-const DEFAULT_ADVANCED_PARAMS = [
-  { parameter: 'temperature', value: '30' },
-  { parameter: 'timeout', value: '0' }
-];
+// Constants — backend `/api/providers` defaultConfigPairs are the source of truth for new models
+const DEFAULT_ADVANCED_PARAMS: AdvancedParam[] = [];
 
 const TEST_POPOVER_TIMEOUT = 3000;
 

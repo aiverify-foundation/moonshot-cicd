@@ -26,8 +26,7 @@ class TogetherAdapter(ConnectorPort):
         "Enter a TogetherAI model ID, e.g. meta-llama/Meta-Llama-3-70B-Instruct"
     )
     DEFAULT_CONFIG_PAIRS = {
-        "base_url": "https://api.together.xyz/v1",
-        "api_type": "together",
+        "temperature": "0.7",
     }
 
     ERROR_PROCESSING_PROMPT = "[TogetherAdapter] Failed to process prompt."

@@ -1,9 +1,11 @@
 ##TODO: Remove this service and use the SQLAlchemy implementation instead
 ## THIS IS MARKED FOR DELETION
 
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, Type
 from datetime import datetime
 
+from adapters.connector.openai_adapter import OpenAIAdapter
+from adapters.connector.together_adapter import TogetherAdapter
 from adapters.driven.repository.sqlalchemy.llm_provider_adapter import LLMProviderAdapter
 from adapters.driven.repository.sqlalchemy.llm_provider_models import (
     LLMProviderModel,
@@ -25,7 +27,13 @@ from application.dto.model_config_dto import (
     ProviderDatabaseConfigsDTO,
 )
 from application.services.sqlite_adapter import SQLiteAdapter
+from domain.ports.connector_port import ConnectorPort
 from domain.services.logger import configure_logger
+
+_ADAPTER_BY_SYSTEM_NAME: Dict[str, Type[ConnectorPort]] = {
+    OpenAIAdapter.SYSTEM_NAME: OpenAIAdapter,
+    TogetherAdapter.SYSTEM_NAME: TogetherAdapter,
+}
 
 
 class ProviderService:
@@ -59,7 +67,29 @@ class ProviderService:
             defaultConfigPairs=entity.defaultConfigPairs,
             modelToken=entity.modelToken,
         )
-    
+
+    def _enrich_dto_with_adapter_defaults(self, dto: ProviderDTO) -> ProviderDTO:
+        """
+        Fill defaultModel, modelTextboxExplanation, defaultConfigPairs, and modelToken from the
+        matching ConnectorPort class metadata when DB-derived values are empty.
+        """
+        adapter_cls = _ADAPTER_BY_SYSTEM_NAME.get(dto.system_name)
+        if adapter_cls is None:
+            return dto
+        seed = adapter_cls.provider_seed_definition()
+        if not dto.defaultModel:
+            dto.defaultModel = str(seed.get("defaultModel", "") or "")
+        if not dto.modelTextboxExplanation:
+            dto.modelTextboxExplanation = str(
+                seed.get("modelTextboxExplanation", "") or ""
+            )
+        if not dto.defaultConfigPairs:
+            pairs = seed.get("defaultConfigPairs") or {}
+            dto.defaultConfigPairs = dict(pairs) if pairs else {}
+        if not dto.modelToken:
+            dto.modelToken = str(seed.get("modelToken", "") or "")
+        return dto
+
     def _model_config_entity_to_dto(self, entity: ModelConfigEntity) -> ModelConfigDTO:
         """Convert ModelConfigEntity to ModelConfigDTO."""
         return ModelConfigDTO(
@@ -163,7 +193,10 @@ class ProviderService:
         """
         self.logger.info("Listing all providers")
         entities = self.provider_repository.list_providers()
-        return [self._provider_entity_to_dto(entity) for entity in entities]
+        return [
+            self._enrich_dto_with_adapter_defaults(self._provider_entity_to_dto(entity))
+            for entity in entities
+        ]
     
     def add_provider(self, provider: ProviderDTO) -> ProviderDTO:
         """
@@ -281,7 +314,9 @@ class ProviderService:
                 provider_entity = self.provider_repository._model_to_entity(  # type: ignore[attr-defined]
                     provider_model
                 )
-                provider_dto = self._provider_entity_to_dto(provider_entity)
+                provider_dto = self._enrich_dto_with_adapter_defaults(
+                    self._provider_entity_to_dto(provider_entity)
+                )
 
                 models: list[LLMProviderModelModel] = (
                     session.query(LLMProviderModelModel)

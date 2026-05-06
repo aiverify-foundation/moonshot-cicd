@@ -3,6 +3,8 @@ import pytest
 from datetime import datetime, timezone
 from pathlib import Path
 
+from adapters.connector.openai_adapter import OpenAIAdapter
+from adapters.connector.together_adapter import TogetherAdapter
 from adapters.driven.repository.sqlalchemy.llm_provider_models import (
     LLMProviderApiKeyModel,
     LLMProviderModel,
@@ -259,4 +261,81 @@ class TestProviderServiceDatabaseModelConfigs:
         match = [r for r in rows if r.providerName == "Has Model Only"]
         assert len(match) == 1
         assert match[0].configs == []
+
+
+class TestProviderServiceAdapterDefaults:
+    def test_list_providers_enriches_known_adapter_defaults(
+        self, provider_service: ProviderService
+    ):
+        session_manager = SessionManager.get_instance()
+        with session_manager.get_session() as session:
+            session.add(
+                LLMProviderModel(
+                    name="OpenAI",
+                    system_name=OpenAIAdapter.SYSTEM_NAME,
+                    version=1,
+                )
+            )
+            session.add(
+                LLMProviderModel(
+                    name="Together",
+                    system_name=TogetherAdapter.SYSTEM_NAME,
+                    version=1,
+                )
+            )
+            session.commit()
+
+        rows = provider_service.list_providers()
+        by_sys = {p.system_name: p for p in rows}
+
+        oa = by_sys[OpenAIAdapter.SYSTEM_NAME]
+        assert oa.defaultConfigPairs == OpenAIAdapter.DEFAULT_CONFIG_PAIRS
+        assert oa.defaultModel == OpenAIAdapter.DEFAULT_MODEL
+        assert oa.modelTextboxExplanation == OpenAIAdapter.MODEL_TEXTBOX_EXPLANATION
+
+        ta = by_sys[TogetherAdapter.SYSTEM_NAME]
+        assert ta.defaultConfigPairs == TogetherAdapter.DEFAULT_CONFIG_PAIRS
+        assert ta.defaultModel == TogetherAdapter.DEFAULT_MODEL
+
+    def test_list_providers_unknown_adapter_leaves_empty(
+        self, provider_service: ProviderService
+    ):
+        session_manager = SessionManager.get_instance()
+        with session_manager.get_session() as session:
+            session.add(
+                LLMProviderModel(
+                    name="No Connector",
+                    system_name="unknown_custom_provider",
+                    version=0,
+                )
+            )
+            session.commit()
+
+        rows = provider_service.list_providers()
+        assert len(rows) == 1
+        p = rows[0]
+        assert p.defaultConfigPairs == {}
+        assert p.defaultModel == ""
+
+    def test_latest_details_enriches_openai_adapter_defaults(
+        self,
+        provider_service: ProviderService,
+    ):
+        session_manager = SessionManager.get_instance()
+        with session_manager.get_session() as session:
+            session.add(
+                LLMProviderModel(
+                    name="OpenAI",
+                    system_name=OpenAIAdapter.SYSTEM_NAME,
+                    version=1,
+                )
+            )
+            session.commit()
+
+        details = provider_service.get_latest_provider_details_by_system_name(
+            OpenAIAdapter.SYSTEM_NAME
+        )
+        assert details is not None
+        assert details.provider.defaultConfigPairs == OpenAIAdapter.DEFAULT_CONFIG_PAIRS
+        assert details.provider.defaultModel == OpenAIAdapter.DEFAULT_MODEL
 

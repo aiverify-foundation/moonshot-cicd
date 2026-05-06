@@ -24,8 +24,7 @@ class OpenAIAdapter(ConnectorPort):
     DEFAULT_MODEL = "gpt-4o-mini"
     MODEL_TEXTBOX_EXPLANATION = "Enter an OpenAI model name, e.g. gpt-4o-mini"
     DEFAULT_CONFIG_PAIRS = {
-        "base_url": "https://api.openai.com/v1",
-        "api_type": "openai",
+        "temperature": "1.0",
     }
 
     ERROR_PROCESSING_PROMPT = "[OpenAIAdapter] Failed to process prompt."
