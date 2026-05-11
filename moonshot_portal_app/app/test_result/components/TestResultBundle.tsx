@@ -1,18 +1,16 @@
 "use client"
-import React, { useState, useEffect, useMemo, useRef } from "react"
+import React, { useState, useEffect, useMemo, useRef, useCallback } from "react"
 import { ThumbsUp, ThumbsDown } from "lucide-react"
 import BundleChart, { BundleChartDataItem } from "./BundleChart"
 import TestResultTable, { TestResultTableRow } from "./TestResultTable"
-import { parseCsvData } from "./parseCsvData"
-import type { BenchmarkRunTestPrompt } from "@/lib/api"
+import {
+    patchBenchmarkRunPromptUserFeedback,
+    type BenchmarkRunTestPrompt,
+} from "@/lib/api"
 
 export { extractEvaluatedResponse, evaluationDisplayLabel } from "./evaluationDisplayHelpers"
 
 const EMPTY_PROMPTS: BenchmarkRunTestPrompt[] = []
-
-function isDisclosureTestName(name: string | undefined): boolean {
-    return /privacy|disclosure/i.test(name || "")
-}
 
 /**
  * Derive row score (0 or 1) from evaluation_prediction_result when it is structured,
@@ -80,6 +78,7 @@ function promptsToTableRows(
 
         return {
             id: p.id != null ? `p-${p.id}` : `p-${p.run_test_id}-${p.prompt_id}-${idx}`,
+            benchmarkPromptId: p.id ?? null,
             test: p.test_name || "—",
             prompt: promptText.length > 2000 ? `${promptText.slice(0, 2000)}…` : promptText,
             target: p.target || "—",
@@ -92,6 +91,14 @@ function promptsToTableRows(
             graderLogic: evalPrompt.length > 500 ? `${evalPrompt.slice(0, 500)}…` : evalPrompt,
         }
     })
+}
+
+function verdictToApi(
+    yourVerdict: TestResultTableRow["yourVerdict"]
+): number | null {
+    if (yourVerdict === "agree") return 1
+    if (yourVerdict === "disagree") return 0
+    return null
 }
 
 interface ScoreCardProps {
@@ -405,12 +412,10 @@ function calculateChartDataFromTableData(data: TestResultTableRow[]): BundleChar
 }
 
 interface TestResultBundleProps {
-    /** When set, load table/chart from API prompts instead of demo CSV. */
-    benchmarkRunId?: number | null
     apiPrompts?: BenchmarkRunTestPrompt[] | null
     apiLoading?: boolean
     apiError?: string | null
-    /** When set (run mode), only prompts whose test_id is in this list. null = no filter (all prompts). */
+    /** Only prompts whose test_id is in this list. null = no filter (all prompts). */
     filterTestIds?: number[] | null
     /** Shown in the table bundle column for API-sourced rows. */
     bundleDisplayName?: string | null
@@ -418,7 +423,6 @@ interface TestResultBundleProps {
 }
 
 export default function TestResultBundle({
-    benchmarkRunId = null,
     apiPrompts = null,
     apiLoading = false,
     apiError = null,
@@ -430,11 +434,42 @@ export default function TestResultBundle({
     const [isLoading, setIsLoading] = useState(true)
     const [error, setError] = useState<string | null>(null)
 
+    const tableDataRef = useRef<TestResultTableRow[]>([])
+    const noteDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+    useEffect(() => {
+        tableDataRef.current = tableData
+    }, [tableData])
+
+    useEffect(() => {
+        return () => {
+            if (noteDebounceRef.current) {
+                clearTimeout(noteDebounceRef.current)
+            }
+        }
+    }, [])
+
+    const persistPromptFeedback = useCallback(
+        async (row: TestResultTableRow) => {
+            if (row.benchmarkPromptId == null) return
+            try {
+                await patchBenchmarkRunPromptUserFeedback(
+                    row.benchmarkPromptId,
+                    {
+                        user_evaluation: verdictToApi(row.yourVerdict),
+                        user_notes:
+                            row.note.trim() === "" ? null : row.note,
+                    }
+                )
+            } catch (e) {
+                console.error("Failed to save prompt feedback:", e)
+            }
+        },
+        []
+    )
+
     const scopedApiPrompts = useMemo(() => {
         if (!apiPrompts?.length) return EMPTY_PROMPTS
-        if (benchmarkRunId == null) {
-            return apiPrompts.filter((p) => !isDisclosureTestName(p.test_name))
-        }
         if (filterTestIds === null) return apiPrompts
         if (filterTestIds != null && filterTestIds.length > 0) {
             const allowed = new Set(filterTestIds)
@@ -443,48 +478,23 @@ export default function TestResultBundle({
             )
         }
         return apiPrompts
-    }, [apiPrompts, benchmarkRunId, filterTestIds])
+    }, [apiPrompts, filterTestIds])
 
     useEffect(() => {
-        if (benchmarkRunId != null) {
-            if (apiLoading) {
-                setIsLoading(true)
-                setError(null)
-                return
-            }
-            setIsLoading(false)
-            if (apiError) {
-                setError(apiError)
-                setTableData([])
-                return
-            }
+        if (apiLoading) {
+            setIsLoading(true)
             setError(null)
-            setTableData(promptsToTableRows(scopedApiPrompts, bundleDisplayName))
             return
         }
-
-        let cancelled = false
-        const loadCsvData = async () => {
-            try {
-                setIsLoading(true)
-                setError(null)
-                const data = await parseCsvData()
-                if (!cancelled) setTableData(data)
-            } catch (err) {
-                if (!cancelled) {
-                    setError(err instanceof Error ? err.message : "Failed to load CSV data")
-                    console.error("Error loading CSV data:", err)
-                }
-            } finally {
-                if (!cancelled) setIsLoading(false)
-            }
+        setIsLoading(false)
+        if (apiError) {
+            setError(apiError)
+            setTableData([])
+            return
         }
-        loadCsvData()
-        return () => {
-            cancelled = true
-        }
+        setError(null)
+        setTableData(promptsToTableRows(scopedApiPrompts, bundleDisplayName))
     }, [
-        benchmarkRunId,
         apiLoading,
         apiError,
         scopedApiPrompts,
@@ -610,11 +620,47 @@ export default function TestResultBundle({
                 <TestResultTable
                     data={tableData}
                     onDataChange={(id, updates) => {
-                        setTableData((prevData) =>
-                            prevData.map((row) =>
+                        setTableData((prevData) => {
+                            const next = prevData.map((row) =>
                                 row.id === id ? { ...row, ...updates } : row
                             )
-                        )
+                            tableDataRef.current = next
+                            const row = next.find((r) => r.id === id)
+                            if (row && row.benchmarkPromptId != null) {
+                                if (
+                                    Object.prototype.hasOwnProperty.call(
+                                        updates,
+                                        "yourVerdict"
+                                    )
+                                ) {
+                                    if (noteDebounceRef.current) {
+                                        clearTimeout(noteDebounceRef.current)
+                                        noteDebounceRef.current = null
+                                    }
+                                    void persistPromptFeedback(row)
+                                }
+                                if (
+                                    Object.prototype.hasOwnProperty.call(
+                                        updates,
+                                        "note"
+                                    )
+                                ) {
+                                    if (noteDebounceRef.current) {
+                                        clearTimeout(noteDebounceRef.current)
+                                    }
+                                    noteDebounceRef.current = setTimeout(() => {
+                                        noteDebounceRef.current = null
+                                        const latest = tableDataRef.current.find(
+                                            (r) => r.id === id
+                                        )
+                                        if (latest) {
+                                            void persistPromptFeedback(latest)
+                                        }
+                                    }, 500)
+                                }
+                            }
+                            return next
+                        })
                     }}
                 />
             )}

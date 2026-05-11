@@ -41,6 +41,7 @@ from application.dto.run_bundle_dto import (
     BenchmarkRunResultsResponseDTO,
     BenchmarkRunTestBundleResponseDTO,
     BenchmarkRunTestPromptResponseDTO,
+    PatchBenchmarkRunTestPromptUserDTO,
     StartBenchmarkRunRequestDTO,
     StartBenchmarkRunResponseDTO,
 )
@@ -66,8 +67,12 @@ from application.services.benchmark_run_service import BenchmarkRunService
 from application.services.benchmark_run_test_bundle_query_service import (
     BenchmarkRunTestBundleQueryService,
 )
+from application.services.benchmark_run_prompt_service import BenchmarkRunPromptService
 from application.services.benchmark_run_results_query_service import (
     BenchmarkRunResultsQueryService,
+)
+from adapters.driven.repository.sqlalchemy.benchmark_run_test_status_adapter import (
+    SqlAlchemyBenchmarkRunTestStatusRepository,
 )
 # Comment out this import to disable CORS middleware ( This is used for local development only)
 from entrypoints.cors_middleware_setup import configure_cors_middleware
@@ -552,6 +557,42 @@ async def get_benchmark_run_results(run_id: int) -> BenchmarkRunResultsResponseD
             status_code=500,
             detail=f"Failed to fetch run results: {str(e)}",
         )
+
+
+@app.patch(
+    "/api/benchmark-run-test-prompts/{prompt_id}",
+    response_model=BenchmarkRunTestPromptResponseDTO,
+)
+async def patch_benchmark_run_test_prompt_user_feedback(
+    prompt_id: int, body: PatchBenchmarkRunTestPromptUserDTO
+) -> BenchmarkRunTestPromptResponseDTO:
+    """
+    Update user verdict (user_evaluation) and notes (user_notes) for one prompt row.
+    Identified by benchmark_run_test_prompt.id (globally unique).
+    """
+    try:
+        prompt_service = BenchmarkRunPromptService()
+        updated = prompt_service.patch_user_feedback(
+            prompt_id,
+            body.user_evaluation,
+            body.user_notes,
+        )
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    if updated is None:
+        raise HTTPException(
+            status_code=404,
+            detail=f"Benchmark run test prompt not found: prompt_id={prompt_id}",
+        )
+    status_repo = SqlAlchemyBenchmarkRunTestStatusRepository()
+    status_entity = status_repo.get_by_id(updated.run_test_id)
+    if status_entity is None:
+        raise HTTPException(
+            status_code=500,
+            detail="Run test status missing for updated prompt row",
+        )
+    run_id = status_entity.run_id
+    return BenchmarkRunResultsQueryService().prompt_dto_for_entity(run_id, updated)
 
 
 @app.get(

@@ -5,6 +5,8 @@ Uses existing repository adapters per call so it is safe to use from
 async code or different threads.
 """
 
+from typing import Optional
+
 from adapters.driven.repository.sqlalchemy.benchmark_run_test_prompt_adapter import (
     SqlAlchemyBenchmarkRunTestPromptRepository,
 )
@@ -23,6 +25,43 @@ class BenchmarkRunPromptService:
     Instantiates repository adapters per call so usage is safe from
     async or multiple threads.
     """
+
+    def patch_user_feedback(
+        self,
+        prompt_row_id: int,
+        user_evaluation: Optional[int],
+        user_notes: Optional[str],
+    ) -> Optional[BenchmarkRunTestPromptEntity]:
+        """
+        Update user_evaluation and user_notes for a prompt row by primary key.
+
+        Args:
+            prompt_row_id: benchmark_run_test_prompt.id
+            user_evaluation: 1 (agree), 0 (disagree), or None (clear)
+            user_notes: Annotation text; None or whitespace-only stored as NULL.
+
+        Returns:
+            Updated entity if the prompt exists; None if not found.
+
+        Raises:
+            ValueError: If user_evaluation is not None and not 0 or 1.
+        """
+        if user_evaluation is not None and user_evaluation not in (0, 1):
+            raise ValueError("user_evaluation must be 0, 1, or null")
+
+        prompt_repo = SqlAlchemyBenchmarkRunTestPromptRepository()
+        entity = prompt_repo.get_by_id(prompt_row_id)
+        if entity is None:
+            return None
+
+        if user_notes is None:
+            notes_val = None
+        else:
+            notes_val = user_notes.strip() or None
+
+        entity.user_evaluation = user_evaluation
+        entity.user_notes = notes_val
+        return prompt_repo.update(entity)
 
     def get_all_prompts_by_run_id(
         self, run_id: int

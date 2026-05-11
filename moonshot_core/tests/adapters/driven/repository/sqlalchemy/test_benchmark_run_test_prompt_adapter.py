@@ -90,6 +90,42 @@ class TestSqlAlchemyBenchmarkRunTestPromptRepository:
         assert result[0].target == "t"
         assert result[0].prediction_result == "out"
 
+    def test_get_by_id_returns_entity(self, mock_sm_class):
+        mock_model = _make_mock_model(
+            id=7,
+            run_test_id=3,
+            prompt_id=10,
+            status="completed",
+            target="t",
+        )
+        mock_session = MagicMock()
+        mock_session.query.return_value.filter.return_value.first.return_value = (
+            mock_model
+        )
+        mock_cm = MagicMock()
+        mock_cm.__enter__ = MagicMock(return_value=mock_session)
+        mock_cm.__exit__ = MagicMock(return_value=False)
+        mock_sm_class.get_instance.return_value.get_session.return_value = mock_cm
+
+        repo = SqlAlchemyBenchmarkRunTestPromptRepository()
+        result = repo.get_by_id(7)
+
+        assert result is not None
+        assert result.id == 7
+        mock_session.query.assert_called_once_with(BenchmarkRunTestPromptModel)
+        mock_session.query.return_value.filter.assert_called_once()
+
+    def test_get_by_id_not_found(self, mock_sm_class):
+        mock_session = MagicMock()
+        mock_session.query.return_value.filter.return_value.first.return_value = None
+        mock_cm = MagicMock()
+        mock_cm.__enter__ = MagicMock(return_value=mock_session)
+        mock_cm.__exit__ = MagicMock(return_value=False)
+        mock_sm_class.get_instance.return_value.get_session.return_value = mock_cm
+
+        repo = SqlAlchemyBenchmarkRunTestPromptRepository()
+        assert repo.get_by_id(1) is None
+
     def test_save_insert_returns_entity_with_id(self, mock_sm_class):
         mock_session = MagicMock()
 

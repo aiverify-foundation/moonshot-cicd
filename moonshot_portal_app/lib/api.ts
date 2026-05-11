@@ -243,6 +243,12 @@ export interface BenchmarkRunResults {
   prompts: BenchmarkRunTestPrompt[];
 }
 
+/** PATCH /api/benchmark-run-test-prompts/{prompt_id} */
+export interface PatchBenchmarkRunTestPromptUserBody {
+  user_evaluation: number | null;
+  user_notes: string | null;
+}
+
 async function handleJsonGet<T>(url: string, label: string): Promise<T> {
   const response = await fetch(url, {
     method: 'GET',
@@ -577,6 +583,46 @@ export async function fetchBenchmarkRunResults(
       `${API_BASE_URL}/api/benchmark-runs/${runId}/results`,
       'fetch benchmark run results'
     );
+  } catch (error) {
+    if (error instanceof ApiError) throw error;
+    if (error instanceof TypeError && error.message.includes('fetch')) {
+      throw new ApiError(
+        `Cannot connect to API server at ${API_BASE_URL}. Please ensure the backend is running on port 8000.`
+      );
+    }
+    throw new ApiError(
+      `Network error: ${error instanceof Error ? error.message : 'Unknown error'}`
+    );
+  }
+}
+
+/**
+ * Updates user verdict (user_evaluation) and notes (user_notes) for one benchmark_run_test_prompt row.
+ */
+export async function patchBenchmarkRunPromptUserFeedback(
+  promptId: number,
+  body: PatchBenchmarkRunTestPromptUserBody
+): Promise<BenchmarkRunTestPrompt> {
+  try {
+    const response = await fetch(
+      `${API_BASE_URL}/api/benchmark-run-test-prompts/${promptId}`,
+      {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      }
+    );
+    if (!response.ok) {
+      const errorText = await response.text().catch(() => 'Unknown error');
+      console.error(`API Error: ${response.status} - ${errorText}`);
+      const detail = parseErrorDetail(errorText);
+      throw new ApiError(
+        `Failed to save prompt feedback: ${detail}`,
+        response.status,
+        response.statusText
+      );
+    }
+    return response.json() as Promise<BenchmarkRunTestPrompt>;
   } catch (error) {
     if (error instanceof ApiError) throw error;
     if (error instanceof TypeError && error.message.includes('fetch')) {

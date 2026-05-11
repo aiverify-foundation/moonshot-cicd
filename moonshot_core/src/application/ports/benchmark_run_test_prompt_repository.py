@@ -1,4 +1,5 @@
 from abc import ABC, abstractmethod
+from typing import Optional
 
 from domain.entities.benchmark_run_test_prompt_entity import \
     BenchmarkRunTestPromptEntity
@@ -24,6 +25,21 @@ class BenchmarkRunTestPromptRepository(ABC):
 
         Returns:
             List of run prompt entities; empty if none exist.
+        """
+        pass
+
+    @abstractmethod
+    def get_by_id(
+        self, prompt_row_id: int
+    ) -> Optional[BenchmarkRunTestPromptEntity]:
+        """
+        Return the run prompt row by benchmark_run_test_prompt.id.
+
+        Args:
+            prompt_row_id: Primary key benchmark_run_test_prompt.id.
+
+        Returns:
+            Entity if found; otherwise None.
         """
         pass
 

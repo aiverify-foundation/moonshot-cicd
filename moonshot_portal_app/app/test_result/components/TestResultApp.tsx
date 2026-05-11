@@ -21,8 +21,6 @@ import {
 const TAB_OVERVIEW = "overview";
 const tabBundleId = (id: number) => `bundle:${id}`;
 const TAB_ALL = "all";
-const TAB_DEMO_UND = "demo-undesirable";
-const TAB_DEMO_DISC = "demo-disclosure";
 
 function accuracyToPercent(acc: number | null | undefined): number | null {
   if (acc == null || Number.isNaN(acc)) return null;
@@ -95,9 +93,6 @@ export default function TestResultApp() {
     Record<number, number | null>
   >({});
   const [allTabScore, setAllTabScore] = useState<number | null>(null);
-  const [demoUndesirableScore, setDemoUndesirableScore] = useState<number | null>(
-    null
-  );
 
   useEffect(() => {
     setActiveTab(TAB_OVERVIEW);
@@ -324,62 +319,11 @@ export default function TestResultApp() {
             </button>
           ))}
 
-        {!runMode && (
-          <>
-            <button
-              type="button"
-              onClick={() => setActiveTab(TAB_DEMO_UND)}
-              className={`flex gap-[10px] items-center px-3 py-1.5 rounded-[3px] transition-colors ${
-                activeTab === TAB_DEMO_UND
-                  ? "bg-white"
-                  : "bg-transparent hover:bg-white/50"
-              }`}
-            >
-              <p
-                className={`font-semibold text-[14px] whitespace-nowrap ${
-                  activeTab === TAB_DEMO_UND ? "text-slate-800" : "text-slate-600"
-                }`}
-              >
-                Undesirable content
-              </p>
-              <div className="bg-gray-100 border border-gray-200 flex gap-1 items-center justify-center p-1 rounded-[6px]">
-                <p className="font-semibold text-[12px] text-gray-800 whitespace-nowrap">
-                  {demoUndesirableScore !== null
-                    ? `${Math.round(demoUndesirableScore * 10) / 10}%`
-                    : "—"}
-                </p>
-              </div>
-            </button>
-            <button
-              type="button"
-              onClick={() => setActiveTab(TAB_DEMO_DISC)}
-              className={`flex gap-[10px] items-center px-3 py-1.5 rounded-[3px] transition-colors ${
-                activeTab === TAB_DEMO_DISC
-                  ? "bg-white"
-                  : "bg-transparent hover:bg-white/50"
-              }`}
-            >
-              <p
-                className={`font-semibold text-[14px] whitespace-nowrap ${
-                  activeTab === TAB_DEMO_DISC ? "text-slate-800" : "text-slate-600"
-                }`}
-              >
-                Data disclosure
-              </p>
-              <div className="bg-gray-100 border border-gray-200 flex gap-1 items-center justify-center p-1 rounded-[6px]">
-                <p className="font-semibold text-[12px] text-gray-800 whitespace-nowrap">
-                  80%
-                </p>
-              </div>
-            </button>
-          </>
-        )}
       </div>
 
       {runMode && resultBundles.length === 0 && (
         <div className={activeTab === TAB_ALL ? "" : "hidden"}>
           <TestResultBundle
-            benchmarkRunId={benchmarkRunId}
             apiPrompts={prompts}
             apiLoading={loading}
             apiError={error}
@@ -397,7 +341,6 @@ export default function TestResultApp() {
             className={activeTab === tabBundleId(b.test_bundle_id) ? "" : "hidden"}
           >
             <TestResultBundle
-              benchmarkRunId={benchmarkRunId}
               apiPrompts={prompts}
               apiLoading={loading}
               apiError={error}
@@ -412,12 +355,6 @@ export default function TestResultApp() {
             />
           </div>
         ))}
-
-      {!runMode && activeTab === TAB_DEMO_UND && (
-        <TestResultBundle
-          onAdjustedScoreChange={setDemoUndesirableScore}
-        />
-      )}
 
       {activeTab === TAB_OVERVIEW && (
         <TestResultOverview

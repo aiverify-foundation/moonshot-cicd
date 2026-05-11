@@ -138,3 +138,78 @@ class TestGetAllPromptsByRunId:
 
         assert result == []
         mock_prompt_repo.get_all_by_run_test_id.assert_called_once_with(100)
+
+
+class TestPatchUserFeedback:
+    """Tests for patch_user_feedback."""
+
+    @patch(
+        "application.services.benchmark_run_prompt_service."
+        "SqlAlchemyBenchmarkRunTestPromptRepository"
+    )
+    def test_invalid_user_evaluation_raises(self, mock_prompt_repo_class, service):
+        mock_prompt_repo_class.return_value = MagicMock()
+        with pytest.raises(ValueError, match="user_evaluation"):
+            service.patch_user_feedback(2, 99, "x")
+
+    @patch(
+        "application.services.benchmark_run_prompt_service."
+        "SqlAlchemyBenchmarkRunTestPromptRepository"
+    )
+    def test_not_found_returns_none(self, mock_prompt_repo_class, service):
+        mock_prompt_repo = MagicMock()
+        mock_prompt_repo.get_by_id.return_value = None
+        mock_prompt_repo_class.return_value = mock_prompt_repo
+
+        assert service.patch_user_feedback(2, 1, "note") is None
+        mock_prompt_repo.update.assert_not_called()
+
+    @patch(
+        "application.services.benchmark_run_prompt_service."
+        "SqlAlchemyBenchmarkRunTestPromptRepository"
+    )
+    def test_updates_repository(self, mock_prompt_repo_class, service):
+        entity = BenchmarkRunTestPromptEntity(
+            id=5,
+            run_test_id=10,
+            prompt_id=1,
+            status="completed",
+            target="t",
+        )
+        mock_prompt_repo = MagicMock()
+        mock_prompt_repo.get_by_id.return_value = entity
+
+        def capture_update(e):
+            return e
+
+        mock_prompt_repo.update.side_effect = capture_update
+        mock_prompt_repo_class.return_value = mock_prompt_repo
+
+        out = service.patch_user_feedback(5, 0, "  note  ")
+
+        assert out is not None
+        assert out.user_evaluation == 0
+        assert out.user_notes == "note"
+        mock_prompt_repo.get_by_id.assert_called_once_with(5)
+        mock_prompt_repo.update.assert_called_once()
+
+    @patch(
+        "application.services.benchmark_run_prompt_service."
+        "SqlAlchemyBenchmarkRunTestPromptRepository"
+    )
+    def test_clears_notes_when_empty_string(self, mock_prompt_repo_class, service):
+        entity = BenchmarkRunTestPromptEntity(
+            id=5,
+            run_test_id=10,
+            prompt_id=1,
+            status="completed",
+            target="t",
+            user_notes="old",
+        )
+        mock_prompt_repo = MagicMock()
+        mock_prompt_repo.get_by_id.return_value = entity
+        mock_prompt_repo.update.side_effect = lambda e: e
+        mock_prompt_repo_class.return_value = mock_prompt_repo
+
+        out = service.patch_user_feedback(5, 1, "   ")
+        assert out.user_notes is None

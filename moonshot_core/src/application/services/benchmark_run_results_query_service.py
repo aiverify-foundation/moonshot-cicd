@@ -23,6 +23,9 @@ from application.dto.run_bundle_dto import (
 )
 from application.services.benchmark_run_prompt_service import BenchmarkRunPromptService
 from application.services.benchmark_run_service import BenchmarkRunService
+from domain.entities.benchmark_run_test_prompt_entity import (
+    BenchmarkRunTestPromptEntity,
+)
 
 
 class BenchmarkRunResultsQueryService:
@@ -91,6 +94,19 @@ class BenchmarkRunResultsQueryService:
             run_test_to_test_id[st.id] = st.test_id
             run_test_to_name[st.id] = id_to_name.get(st.test_id, "")
         return run_test_to_name, run_test_to_test_id
+
+    def prompt_dto_for_entity(
+        self, run_id: int, entity: BenchmarkRunTestPromptEntity
+    ) -> BenchmarkRunTestPromptResponseDTO:
+        """Build a response DTO for one prompt row with test_name and test_id enrichment."""
+        run_test_to_name, run_test_to_test_id = self._run_test_enrichment_maps(run_id)
+        return BenchmarkRunTestPromptResponseDTO.model_validate(
+            {
+                **entity.model_dump(),
+                "test_name": run_test_to_name.get(entity.run_test_id, ""),
+                "test_id": run_test_to_test_id.get(entity.run_test_id),
+            }
+        )
 
     def _load_bundle_summaries(self, run_id: int) -> list[BenchmarkRunResultsBundleSummaryDTO]:
         with SessionManager.get_instance().get_session() as session:

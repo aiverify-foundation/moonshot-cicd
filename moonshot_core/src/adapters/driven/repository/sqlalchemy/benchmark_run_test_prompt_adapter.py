@@ -1,9 +1,10 @@
 """SQLAlchemy-based implementation of BenchmarkRunTestPromptRepository."""
 
-from typing import override
+from typing import Optional, override
 
-from adapters.driven.repository.sqlalchemy.llm_provider_models import \
-    BenchmarkRunTestPromptModel
+from adapters.driven.repository.sqlalchemy.llm_provider_models import (
+    BenchmarkRunTestPromptModel,
+)
 from adapters.driven.repository.sqlalchemy.session_manager import \
     SessionManager
 from application.ports.benchmark_run_test_prompt_repository import \
@@ -65,6 +66,20 @@ class SqlAlchemyBenchmarkRunTestPromptRepository(BenchmarkRunTestPromptRepositor
                 .all()
             )
             return [self._model_to_entity(m) for m in models]
+
+    @override
+    def get_by_id(
+        self, prompt_row_id: int
+    ) -> Optional[BenchmarkRunTestPromptEntity]:
+        with self.session_manager.get_session() as session:
+            model = (
+                session.query(BenchmarkRunTestPromptModel)
+                .filter(BenchmarkRunTestPromptModel.id == prompt_row_id)
+                .first()
+            )
+            if model is None:
+                return None
+            return self._model_to_entity(model)
 
     @override
     def save(

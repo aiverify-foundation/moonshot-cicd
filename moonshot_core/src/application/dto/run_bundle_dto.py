@@ -119,6 +119,17 @@ class BenchmarkRunTestPromptResponseDTO(BaseModel):
     test_name: str = ""
 
 
+class PatchBenchmarkRunTestPromptUserDTO(BaseModel):
+    """
+    Request body for PATCH user feedback (verdict and notes) on a benchmark run test prompt.
+
+    The client may send both fields on each update; null user_evaluation clears the stored verdict.
+    """
+
+    user_evaluation: Optional[int] = None
+    user_notes: Optional[str] = None
+
+
 class BenchmarkRunResultsBundleSummaryDTO(BaseModel):
     """
     One logical bundle in a run: metadata plus test ids linked via benchmark_run_test_bundle.
