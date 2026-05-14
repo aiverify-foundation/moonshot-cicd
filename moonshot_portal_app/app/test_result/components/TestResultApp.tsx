@@ -10,10 +10,12 @@ import { useSearchParams } from "next/navigation";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import TestResultBundle from "./TestResultBundle";
+import { metricToPercentPoints } from "./metricToPercentPoints";
 import {
   ApiError,
   BenchmarkRun,
   BenchmarkRunResultsBundleSummary,
+  BenchmarkRunTestMarginOfError,
   BenchmarkRunTestPrompt,
   fetchBenchmarkRunResults,
 } from "@/lib/api";
@@ -28,25 +30,35 @@ function accuracyToPercent(acc: number | null | undefined): number | null {
   return acc;
 }
 
-/** Per-test mean accuracy % for charting (any subset of prompts). */
-function chartItemsFromPrompts(prompts: BenchmarkRunTestPrompt[]): ChartDataItem[] {
-  const byTest = new Map<string, number[]>();
+/** Per-test mean score % for charting (any subset of prompts). */
+function chartItemsFromPrompts(
+  prompts: BenchmarkRunTestPrompt[],
+  marginPercentByTestId: Map<number, number> | null
+): ChartDataItem[] {
+  const byTestId = new Map<number, { test_name: string; pcts: number[] }>();
   for (const p of prompts) {
-    const pct = accuracyToPercent(p.evaluation_accuracy);
+    if (p.test_id == null) continue;
+    const tid = p.test_id;
+    const pct = accuracyToPercent(p.score);
     if (pct == null) continue;
     const name = (p.test_name ?? "Unknown").trim() || "Unknown";
-    if (!byTest.has(name)) byTest.set(name, []);
-    byTest.get(name)!.push(pct);
+    if (!byTestId.has(tid)) byTestId.set(tid, { test_name: name, pcts: [] });
+    byTestId.get(tid)!.pcts.push(pct);
   }
   const items: ChartDataItem[] = [];
-  byTest.forEach((vals, test_name) => {
+  for (const tid of byTestId.keys()) {
+    const v = byTestId.get(tid)!;
+    const marginHalfWidthPercent = marginPercentByTestId?.get(tid) ?? null;
     items.push({
-      test_name,
+      test_name: v.test_name,
+      test_id: tid,
       adjusted_percentage_score: Math.round(
-        vals.reduce((a, b) => a + b, 0) / vals.length
+        v.pcts.reduce((a, b) => a + b, 0) / v.pcts.length
       ),
+      marginHalfWidthPercent,
     });
-  });
+  }
+  items.sort((a, b) => a.test_name.localeCompare(b.test_name));
   return items;
 }
 
@@ -57,7 +69,7 @@ function bundleMeanPercent(
   const set = new Set(testIds);
   const pts = prompts
     .filter((p) => p.test_id != null && set.has(p.test_id))
-    .map((p) => accuracyToPercent(p.evaluation_accuracy))
+    .map((p) => accuracyToPercent(p.score))
     .filter((x): x is number => x != null);
   if (!pts.length) return null;
   return Math.round((pts.reduce((a, b) => a + b, 0) / pts.length) * 10) / 10;
@@ -81,11 +93,14 @@ export default function TestResultApp() {
     return Number.isFinite(n) && n > 0 ? n : null;
   }, [searchParams]);
 
+  const showMarginDebug = searchParams.get("debugMargin") === "1";
+
   const [run, setRun] = useState<BenchmarkRun | null>(null);
   const [prompts, setPrompts] = useState<BenchmarkRunTestPrompt[]>([]);
   const [resultBundles, setResultBundles] = useState<BenchmarkRunResultsBundleSummary[]>(
     []
   );
+  const [testMargins, setTestMargins] = useState<BenchmarkRunTestMarginOfError[]>([]);
   const [loading, setLoading] = useState(!!benchmarkRunId);
   const [error, setError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState(TAB_OVERVIEW);
@@ -105,6 +120,7 @@ export default function TestResultApp() {
       setRun(null);
       setPrompts([]);
       setResultBundles([]);
+      setTestMargins([]);
       setLoading(false);
       setError(null);
       return;
@@ -114,12 +130,14 @@ export default function TestResultApp() {
     setError(null);
     setPrompts([]);
     setResultBundles([]);
+    setTestMargins([]);
     fetchBenchmarkRunResults(benchmarkRunId)
       .then((res) => {
         if (!cancelled) {
           setRun(res.run);
           setPrompts(res.prompts);
           setResultBundles(res.bundles);
+          setTestMargins(res.test_margin_of_error ?? []);
           setLoading(false);
           if (res.bundles.length > 0) {
             setActiveTab((cur) => (cur === TAB_ALL ? TAB_OVERVIEW : cur));
@@ -131,6 +149,7 @@ export default function TestResultApp() {
           setRun(null);
           setPrompts([]);
           setResultBundles([]);
+          setTestMargins([]);
           setLoading(false);
           setError(e instanceof ApiError ? e.message : "Failed to load run");
         }
@@ -140,20 +159,43 @@ export default function TestResultApp() {
     };
   }, [benchmarkRunId]);
 
+  const marginPercentByTestId = useMemo(() => {
+    const m = new Map<number, number>();
+    for (const row of testMargins) {
+      const c = metricToPercentPoints(row.margin_of_error);
+      if (c != null && c > 0) m.set(row.test_id, c);
+    }
+    return m;
+  }, [testMargins]);
+
+  const marginPctRecord = useMemo(() => {
+    const o: Record<number, number> = {};
+    marginPercentByTestId.forEach((v, k) => {
+      o[k] = v;
+    });
+    return o;
+  }, [marginPercentByTestId]);
+
   const bundleCharts: OverviewBundleChart[] = useMemo(() => {
     if (!benchmarkRunId || loading) return [];
     if (resultBundles.length === 0) {
-      return [{ bundleName: "All results", data: chartItemsFromPrompts(prompts) }];
+      return [
+        {
+          bundleName: "All results",
+          data: chartItemsFromPrompts(prompts, marginPercentByTestId),
+        },
+      ];
     }
     return resultBundles.map((b) => ({
       bundleName: b.name,
       data: chartItemsFromPrompts(
         prompts.filter(
           (p) => p.test_id != null && b.test_ids.includes(p.test_id)
-        )
+        ),
+        marginPercentByTestId
       ),
     }));
-  }, [benchmarkRunId, loading, resultBundles, prompts]);
+  }, [benchmarkRunId, loading, resultBundles, prompts, marginPercentByTestId]);
 
   const runMode = benchmarkRunId != null;
   const displayTitle =
@@ -165,7 +207,7 @@ export default function TestResultApp() {
     if (!runMode) return [] as { id: string; label: string; badge: string | null }[];
     if (resultBundles.length === 0) {
       const pts = prompts
-        .map((p) => accuracyToPercent(p.evaluation_accuracy))
+        .map((p) => accuracyToPercent(p.score))
         .filter((x): x is number => x != null);
       const meanAll =
         pts.length > 0
@@ -321,6 +363,73 @@ export default function TestResultApp() {
 
       </div>
 
+      {runMode && showMarginDebug && (
+        <div
+          className="mt-4 rounded-md border border-amber-300 bg-amber-50 px-3 py-2 text-left text-xs text-amber-950"
+          data-testid="margin-debug-panel"
+        >
+          <p className="font-semibold text-amber-900">
+            Margin / confidence bar debug{" "}
+            <span className="font-normal text-amber-800">
+              (append <code className="rounded bg-amber-100 px-1">{"&debugMargin=1"}</code> to the URL;
+              keep your <code className="rounded bg-amber-100 px-1">runId</code>)
+            </span>
+          </p>
+          <ul className="mt-2 list-inside list-disc space-y-1 font-mono">
+            <li>loading: {String(loading)}</li>
+            <li>prompts.length: {prompts.length}</li>
+            <li>resultBundles.length: {resultBundles.length}</li>
+            <li>test_margin_of_error.length: {testMargins.length}</li>
+            <li>activeTab: {activeTab}</li>
+          </ul>
+          <table className="mt-2 w-full border-collapse border border-amber-200 text-left font-mono text-[11px]">
+            <thead>
+              <tr className="bg-amber-100/80">
+                <th className="border border-amber-200 px-1 py-0.5">test_id</th>
+                <th className="border border-amber-200 px-1 py-0.5">API margin_of_error</th>
+                <th className="border border-amber-200 px-1 py-0.5">metricToPercentPoints</th>
+              </tr>
+            </thead>
+            <tbody>
+              {testMargins.map((row) => {
+                const conv = metricToPercentPoints(row.margin_of_error);
+                return (
+                  <tr key={row.test_id}>
+                    <td className="border border-amber-200 px-1 py-0.5">{row.test_id}</td>
+                    <td className="border border-amber-200 px-1 py-0.5">
+                      {JSON.stringify(row.margin_of_error)}
+                    </td>
+                    <td className="border border-amber-200 px-1 py-0.5">
+                      {conv === null ? "null" : String(conv)}
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+          {resultBundles.length > 0 ? (
+            <p className="mt-2 font-mono text-[11px]">
+              Bundles (no per-bundle margin):{" "}
+              {resultBundles.map((b) => `${b.name}(${b.test_bundle_id})`).join(", ")}
+            </p>
+          ) : (
+            <p className="mt-2 font-mono text-[11px]">
+              No result bundles (All results path): margins come from test_margin_of_error only.
+            </p>
+          )}
+          <p className="mt-2 text-[11px] text-amber-900">
+            bundleCharts (overview):{" "}
+            {JSON.stringify(
+              bundleCharts.map((c) => ({
+                bundleName: c.bundleName,
+                bars: c.data.length,
+                perBarMarginPct: c.data.map((d) => d.marginHalfWidthPercent ?? null),
+              }))
+            )}
+          </p>
+        </div>
+      )}
+
       {runMode && resultBundles.length === 0 && (
         <div className={activeTab === TAB_ALL ? "" : "hidden"}>
           <TestResultBundle
@@ -329,6 +438,8 @@ export default function TestResultApp() {
             apiError={error}
             filterTestIds={null}
             bundleDisplayName={null}
+            marginHalfWidthPercentByTestId={marginPctRecord}
+            showMarginDebug={showMarginDebug}
             onAdjustedScoreChange={setAllTabScore}
           />
         </div>
@@ -346,6 +457,8 @@ export default function TestResultApp() {
               apiError={error}
               filterTestIds={b.test_ids}
               bundleDisplayName={b.name}
+              marginHalfWidthPercentByTestId={marginPctRecord}
+              showMarginDebug={showMarginDebug}
               onAdjustedScoreChange={(score) =>
                 setBundleTabScores((prev) => ({
                   ...prev,
@@ -362,6 +475,7 @@ export default function TestResultApp() {
           overviewLoading={runMode && loading}
           overviewError={runMode && error ? error : null}
           bundleCharts={runMode ? bundleCharts : undefined}
+          showMarginDebug={runMode && showMarginDebug}
         />
       )}
     </main>

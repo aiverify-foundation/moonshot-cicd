@@ -223,10 +223,21 @@ export interface BenchmarkRunTestPrompt {
   evaluation_prompt?: string | null;
   evaluation_prediction_result?: string | null;
   evaluation_accuracy?: number | null;
+  /**
+   * Parsed only from `evaluation_prediction_result` (JSON object `score`, JSON number, or dict repr).
+   * Does not use `evaluation_accuracy`.
+   */
+  score?: number | null;
   user_evaluation?: number | null;
   user_notes?: string | null;
   /** Display name of the test this prompt belongs to (benchmark_test.name). */
   test_name?: string;
+}
+
+/** Per-test confidence half-width on GET .../results (same scale as `score`). */
+export interface BenchmarkRunTestMarginOfError {
+  test_id: number;
+  margin_of_error: number;
 }
 
 /** GET /api/benchmark-runs/{run_id}/results */
@@ -235,17 +246,13 @@ export interface BenchmarkRunResultsBundleSummary {
   name: string;
   system_name: string;
   test_ids: number[];
-  /**
-   * Half-width of t-interval on mean of per-test scores; same scale as evaluation_accuracy.
-   * Always 0 when the bundle has two or fewer tests.
-   */
-  margin_of_error?: number | null;
 }
 
 export interface BenchmarkRunResults {
   run: BenchmarkRun;
   bundles: BenchmarkRunResultsBundleSummary[];
   prompts: BenchmarkRunTestPrompt[];
+  test_margin_of_error: BenchmarkRunTestMarginOfError[];
 }
 
 /** PATCH /api/benchmark-run-test-prompts/{prompt_id} */

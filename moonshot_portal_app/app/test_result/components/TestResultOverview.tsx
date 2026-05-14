@@ -42,15 +42,24 @@ function TestResultNote() {
 export interface ChartDataItem {
     test_name: string
     adjusted_percentage_score: number
+    test_id?: number | null
+    /** Half-width in chart % (0–100 domain) for this test; from API test_margin_of_error. */
+    marginHalfWidthPercent?: number | null
 }
 
 interface ReportChartProps {
     chartData: ChartDataItem[]
     bundleName: string
+    showMarginDebug?: boolean
 }
 
+const BUNDLE_CONFIDENCE_LEVEL_PCT = 95
 
-function ReportChartScrollAdjustableHeight({ chartData, bundleName }: ReportChartProps) {
+function ReportChartScrollAdjustableHeight({
+    chartData,
+    bundleName,
+    showMarginDebug = false,
+}: ReportChartProps) {
     // Calculate average of all chart data values
     const averageValue = chartData.length > 0
         ? Math.round(chartData.reduce((sum, item) => sum + item.adjusted_percentage_score, 0) / chartData.length)
@@ -62,17 +71,18 @@ function ReportChartScrollAdjustableHeight({ chartData, bundleName }: ReportChar
     // Custom formatter for Y-axis labels
     const formatYAxisLabel = (value: number) => `${value}%`
 
-    // Calculate confidence intervals and add to data
-    const chartDataWithConfidence = chartData.map(entry => {
-        // Fixed confidence interval of 7.8
-        const confidenceInterval = 7.8;
-        // For ErrorBar, we use the confidence interval amount as the error value
-        // It will be displayed symmetrically (±)
+    const chartDataWithConfidence = chartData.map((entry) => {
+        const half =
+            entry.marginHalfWidthPercent != null && entry.marginHalfWidthPercent > 0
+                ? entry.marginHalfWidthPercent
+                : 0
         return {
             ...entry,
-            error: confidenceInterval,
-        };
-    });
+            error: half,
+        }
+    })
+
+    const showErrorBar = chartDataWithConfidence.some((e) => e.error > 0)
 
     // Custom Y-axis tick component that uses HTML foreignObject for CSS-based truncation
     // Recharts will automatically truncate based on the container width (170px)
@@ -122,6 +132,15 @@ function ReportChartScrollAdjustableHeight({ chartData, bundleName }: ReportChar
                     </div>
                 </div>
             </div>
+
+            {showMarginDebug ? (
+                <div className="mb-1 max-w-full rounded border border-amber-300 bg-amber-50 px-2 py-1 font-mono text-[10px] leading-snug text-amber-950">
+                    <span className="font-semibold text-amber-900">[debug]</span> per-row
+                    marginHalfWidthPercent=
+                    {JSON.stringify(chartData.map((e) => e.marginHalfWidthPercent ?? null))}{" "}
+                    | chartRows={chartData.length} | showErrorBar={String(showErrorBar)}
+                </div>
+            ) : null}
 
             {/* Chart Content */}
             <div className="flex flex-col gap-4 items-start w-full flex-1 overflow-hidden">
@@ -173,7 +192,6 @@ function ReportChartScrollAdjustableHeight({ chartData, bundleName }: ReportChar
                                 content={({ active, payload }) => {
                                     if (active && payload && payload.length) {
                                         const data = payload[0].payload;
-                                        // Calculate lower and upper bounds
                                         const lowerBound = Math.max(0, Math.round((data.adjusted_percentage_score - data.error) * 10) / 10);
                                         const upperBound = Math.min(100, Math.round((data.adjusted_percentage_score + data.error) * 10) / 10);
                                         return (
@@ -184,10 +202,16 @@ function ReportChartScrollAdjustableHeight({ chartData, bundleName }: ReportChar
                                                 <p className="font-medium text-sm text-slate-600">
                                                     Score: {data.adjusted_percentage_score}%
                                                 </p>
-                                                <p className="font-medium text-sm text-slate-600">
-                                                    Confidence Interval: [{lowerBound}%, {upperBound}%]
-                                                </p>
-                                                
+                                                {data.error > 0 ? (
+                                                    <>
+                                                        <p className="font-medium text-sm text-slate-600 mt-1">
+                                                            {BUNDLE_CONFIDENCE_LEVEL_PCT}% band (test margin of error): [{lowerBound}%, {upperBound}%]
+                                                        </p>
+                                                        <p className="text-xs text-slate-500 mt-1">
+                                                            Interval is on the mean score for this test&apos;s prompts only (same scale as the bar).
+                                                        </p>
+                                                    </>
+                                                ) : null}
                                             </div>
                                         );
                                     }
@@ -202,13 +226,15 @@ function ReportChartScrollAdjustableHeight({ chartData, bundleName }: ReportChar
                                 {chartDataWithConfidence.map((entry, index) => (
                                     <Cell key={`cell-${index}`} fill="#60A5FA" />
                                 ))}
-                                <ErrorBar 
-                                    dataKey="error"
-                                    width={2}
-                                    strokeWidth={2}
-                                    stroke="#0F172A"
-                                    direction="x"
-                                />
+                                {showErrorBar ? (
+                                    <ErrorBar
+                                        dataKey="error"
+                                        width={2}
+                                        strokeWidth={2}
+                                        stroke="#0F172A"
+                                        direction="x"
+                                    />
+                                ) : null}
                                 <LabelList 
                                     dataKey="adjusted_percentage_score" 
                                     position="right"
@@ -256,6 +282,8 @@ export interface TestResultOverviewProps {
     overviewError?: string | null
     /** Real run: one chart per DB bundle (or a single "All results" entry for legacy runs). */
     bundleCharts?: OverviewBundleChart[]
+    /** URL `debugMargin=1`: show margin / ErrorBar diagnostics on charts. */
+    showMarginDebug?: boolean
 }
 
 const demoUndesirable: ChartDataItem[] = [
@@ -277,14 +305,23 @@ export default function TestResultOverview({
     overviewLoading = false,
     overviewError = null,
     bundleCharts = [],
+    showMarginDebug = false,
 }: TestResultOverviewProps) {
     if (!runMode) {
         return (
             <div className="flex flex-col gap-4 mt-2">
                 <TestResultNote />
                 <div className="grid grid-cols-2 gap-4">
-                    <ReportChartScrollAdjustableHeight chartData={demoUndesirable} bundleName="Undesirable Content" />
-                    <ReportChartScrollAdjustableHeight chartData={demoDisclosure} bundleName="Data Disclosure" />
+                    <ReportChartScrollAdjustableHeight
+                        chartData={demoUndesirable}
+                        bundleName="Undesirable Content"
+                        showMarginDebug={false}
+                    />
+                    <ReportChartScrollAdjustableHeight
+                        chartData={demoDisclosure}
+                        bundleName="Data Disclosure"
+                        showMarginDebug={false}
+                    />
                 </div>
             </div>
         )
@@ -324,6 +361,7 @@ export default function TestResultOverview({
                         key={`${c.bundleName}-${i}`}
                         chartData={c.data}
                         bundleName={c.bundleName}
+                        showMarginDebug={showMarginDebug}
                     />
                 ))}
             </div>

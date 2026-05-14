@@ -79,6 +79,7 @@ function promptsToTableRows(
         return {
             id: p.id != null ? `p-${p.id}` : `p-${p.run_test_id}-${p.prompt_id}-${idx}`,
             benchmarkPromptId: p.id ?? null,
+            test_id: p.test_id ?? null,
             test: p.test_name || "—",
             prompt: promptText.length > 2000 ? `${promptText.slice(0, 2000)}…` : promptText,
             target: p.target || "—",
@@ -334,7 +335,10 @@ function calculateVerdictStatistics(data: TestResultTableRow[]): VerdictStatisti
     }
 }
 
-function calculateChartDataFromTableData(data: TestResultTableRow[]): BundleChartDataItem[] {
+function calculateChartDataFromTableData(
+    data: TestResultTableRow[],
+    marginHalfWidthPercentByTestId: Record<number, number> | null
+): BundleChartDataItem[] {
     // Group data by test name (normalize by trimming whitespace)
     const testGroups = new Map<string, TestResultTableRow[]>()
     
@@ -381,15 +385,26 @@ function calculateChartDataFromTableData(data: TestResultTableRow[]): BundleChar
         // Round scores to avoid floating point precision issues
         const roundedAiScore = Math.round(aiScore * 100) / 100
         const roundedAdjustedScore = Math.round(adjustedScore * 100) / 100
-  
+
+        const tid =
+            rows.map((r) => r.test_id).find((x) => x != null && x !== undefined) ?? null
+        const rawHalf =
+            tid != null && marginHalfWidthPercentByTestId != null
+                ? marginHalfWidthPercentByTestId[tid]
+                : undefined
+        const half =
+            rawHalf != null && rawHalf > 0
+                ? rawHalf
+                : 0
+
         chartData.push({
             test_name: testName,
             aiScore: roundedAiScore,
             adjustedScore: roundedAdjustedScore,
-            aiScoreLowerDifference: 7.8,
-            aiScoreUpperDifference: 7.8,
-            adjustedScoreLowerDifference: 7.8,
-            adjustedScoreUpperDifference: 7.8,
+            aiScoreLowerDifference: half,
+            aiScoreUpperDifference: half,
+            adjustedScoreLowerDifference: half,
+            adjustedScoreUpperDifference: half,
         })
     })
 
@@ -419,6 +434,10 @@ interface TestResultBundleProps {
     filterTestIds?: number[] | null
     /** Shown in the table bundle column for API-sourced rows. */
     bundleDisplayName?: string | null
+    /** Half-width in chart % (0–100) per benchmark_test.id; from API test_margin_of_error. */
+    marginHalfWidthPercentByTestId?: Record<number, number> | null
+    /** URL `debugMargin=1`: show margin / chart error diagnostics. */
+    showMarginDebug?: boolean
     onAdjustedScoreChange?: (score: number) => void
 }
 
@@ -428,6 +447,8 @@ export default function TestResultBundle({
     apiError = null,
     filterTestIds = undefined,
     bundleDisplayName = null,
+    marginHalfWidthPercentByTestId = null,
+    showMarginDebug = false,
     onAdjustedScoreChange,
 }: TestResultBundleProps) {
     const [tableData, setTableData] = useState<TestResultTableRow[]>([])
@@ -540,8 +561,17 @@ export default function TestResultBundle({
 
     // Calculate chart data from table data (memoized to prevent unnecessary recalculations)
     const chartData = useMemo(() => {
-        return calculateChartDataFromTableData(tableData)
-    }, [tableData])
+        return calculateChartDataFromTableData(
+            tableData,
+            marginHalfWidthPercentByTestId
+        )
+    }, [tableData, marginHalfWidthPercentByTestId])
+
+    const marginDebugSummary =
+        marginHalfWidthPercentByTestId == null
+            ? String(marginHalfWidthPercentByTestId)
+            : JSON.stringify(marginHalfWidthPercentByTestId)
+    const firstRowDiffs = chartData[0]
 
     // Calculate overall AI score and adjusted score
     const totalPromptsForScore = tableData.length
@@ -602,6 +632,23 @@ export default function TestResultBundle({
                     falseToTruePercentage={falseToTruePercentage}
                 />
             </div>
+            {showMarginDebug ? (
+                <div
+                    className="w-full rounded-md border border-amber-300 bg-amber-50 px-2 py-1 font-mono text-[10px] leading-snug text-amber-950"
+                    data-testid="bundle-margin-debug"
+                >
+                    <span className="font-semibold text-amber-900">[debug BundleChart]</span>{" "}
+                    marginHalfWidthPercentByTestId={marginDebugSummary}{" "}
+                    | tableRows={tableData.length} | chartRows={chartData.length}
+                    {firstRowDiffs ? (
+                        <>
+                            {" "}
+                            | first bar aiΔ/ adjΔ=
+                            {firstRowDiffs.aiScoreLowerDifference}/{firstRowDiffs.adjustedScoreLowerDifference}
+                        </>
+                    ) : null}
+                </div>
+            ) : null}
             {/* Chart */}
             <BundleChart
                 title={`Tests (${chartData.length})`}

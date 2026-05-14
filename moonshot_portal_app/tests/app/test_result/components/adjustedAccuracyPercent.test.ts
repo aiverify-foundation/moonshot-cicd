@@ -1,4 +1,5 @@
 import { adjustedAccuracyPercent } from '@/app/test_result/components/TestResultBundle'
+import { metricToPercentPoints } from '@/app/test_result/components/metricToPercentPoints'
 
 describe('adjustedAccuracyPercent', () => {
   it('returns 0 when rowCount is 0', () => {
@@ -16,5 +17,24 @@ describe('adjustedAccuracyPercent', () => {
 
   it('flips one AI-0 row to 1 when user disagrees once on a 0', () => {
     expect(adjustedAccuracyPercent(0, 10, 0, 1)).toBe(10)
+  })
+})
+
+describe('metricToPercentPoints', () => {
+  it('returns null for null, undefined, or NaN', () => {
+    expect(metricToPercentPoints(null)).toBeNull()
+    expect(metricToPercentPoints(undefined)).toBeNull()
+    expect(metricToPercentPoints(Number.NaN)).toBeNull()
+  })
+
+  it('multiplies values in [0, 1] by 100', () => {
+    expect(metricToPercentPoints(0)).toBe(0)
+    expect(metricToPercentPoints(0.078)).toBeCloseTo(7.8)
+    expect(metricToPercentPoints(1)).toBe(100)
+  })
+
+  it('passes through values greater than 1 as percentage points', () => {
+    expect(metricToPercentPoints(7.8)).toBe(7.8)
+    expect(metricToPercentPoints(50)).toBe(50)
   })
 })

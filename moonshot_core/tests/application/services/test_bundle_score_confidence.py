@@ -1,19 +1,21 @@
-"""Unit tests for per-bundle test-level mean scores and t confidence intervals."""
+"""Unit tests for per-bundle score aggregation and t confidence intervals."""
 
 import math
 
 import pytest
 
 from application.services.bundle_score_confidence import (
+    margin_of_error_by_test,
+    per_prompt_scores_for_bundle,
     per_test_mean_scores_for_bundle,
     t_confidence_interval_stats,
 )
 
 
 class _P:
-    def __init__(self, test_id, evaluation_accuracy):
+    def __init__(self, test_id, score):
         self.test_id = test_id
-        self.evaluation_accuracy = evaluation_accuracy
+        self.score = score
 
 
 def test_per_test_mean_scores_filters_bundle_and_nulls():
@@ -34,6 +36,37 @@ def test_per_test_mean_scores_two_tests_sorted():
         _P(2, 0.6),
     ]
     assert per_test_mean_scores_for_bundle(prompts, {1, 2}) == [0.5, 0.5]
+
+
+def test_per_prompt_scores_filters_bundle_and_nulls():
+    prompts = [
+        _P(1, 1.0),
+        _P(1, 0.0),
+        _P(2, None),
+        _P(99, 1.0),
+    ]
+    assert per_prompt_scores_for_bundle(prompts, {1, 2}) == [1.0, 0.0]
+
+
+def test_per_prompt_scores_order_follows_prompts():
+    prompts = [_P(2, 0.4), _P(1, 0.2), _P(1, 0.8), _P(2, 0.6)]
+    assert per_prompt_scores_for_bundle(prompts, {1, 2}) == [0.4, 0.2, 0.8, 0.6]
+
+
+def test_margin_of_error_by_test_two_tests():
+    prompts = [_P(1, 1.0), _P(1, 0.0), _P(2, 0.4), _P(2, 0.6)]
+    rows = margin_of_error_by_test(prompts, 0.05)
+    assert [r[0] for r in rows] == [1, 2]
+    assert rows[0][1] == pytest.approx(0.0)
+    assert rows[1][1] == pytest.approx(0.0)
+
+
+def test_margin_of_error_by_test_three_prompts_nonzero_spread():
+    prompts = [_P(10, 1.0), _P(10, 0.0), _P(10, 0.5)]
+    rows = margin_of_error_by_test(prompts, 0.05)
+    assert len(rows) == 1
+    assert rows[0][0] == 10
+    assert rows[0][1] > 0
 
 
 def test_t_interval_n_zero():

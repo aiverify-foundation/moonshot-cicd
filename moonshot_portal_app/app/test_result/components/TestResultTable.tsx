@@ -19,6 +19,8 @@ import { evaluationDisplayLabel } from "./evaluationDisplayHelpers"
 
 export interface TestResultTableRow {
     id: string
+    /** benchmark_test.id when loaded from API; null for demo CSV rows. */
+    test_id?: number | null
     /** benchmark_run_test_prompt.id when loaded from API; null for demo CSV rows. */
     benchmarkPromptId?: number | null
     test: string

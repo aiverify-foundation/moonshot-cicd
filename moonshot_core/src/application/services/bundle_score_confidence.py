@@ -1,9 +1,10 @@
 """
-Per-bundle mean score and t-based confidence interval over test-level aggregates.
+Prompt-level scores and t-based confidence intervals for benchmark run results.
 
-Each bundle contributes one score per test (mean ``evaluation_accuracy`` across prompts
-for that test). The standard error and interval use that sample only — not pooled across
-bundles or across individual prompts.
+``t_confidence_interval_stats`` operates on a list of numeric scores (typically
+per-prompt ``score`` values). ``margin_of_error_by_test`` groups prompts by
+``test_id`` and applies the same interval rule per test (two or fewer scored prompts
+in that test → margin ``0.0``).
 """
 
 from __future__ import annotations
@@ -33,7 +34,7 @@ def per_test_mean_scores_for_bundle(
 ) -> list[float]:
     """
     One value per test in the bundle that has at least one prompt with non-null
-    ``evaluation_accuracy`` (mean accuracy across prompts for that test).
+    ``score`` (mean across prompts for that test).
     """
     allowed = set(bundle_test_ids)
     sums: dict[int, float] = defaultdict(float)
@@ -42,12 +43,73 @@ def per_test_mean_scores_for_bundle(
         tid = getattr(p, "test_id", None)
         if tid is None or tid not in allowed:
             continue
-        acc = getattr(p, "evaluation_accuracy", None)
-        if acc is None:
+        s = getattr(p, "score", None)
+        if s is None:
             continue
-        sums[tid] += float(acc)
+        sums[tid] += float(s)
         counts[tid] += 1
     return [sums[tid] / counts[tid] for tid in sorted(sums.keys()) if counts[tid] > 0]
+
+
+def per_prompt_scores_for_bundle(
+    prompts: Iterable[Any],
+    bundle_test_ids: Collection[int],
+) -> list[float]:
+    """
+    One value per prompt row in the bundle's tests with non-null ``score``.
+
+    Order matches ``prompts`` iteration order.
+    """
+    allowed = set(bundle_test_ids)
+    out: list[float] = []
+    for p in prompts:
+        tid = getattr(p, "test_id", None)
+        if tid is None or tid not in allowed:
+            continue
+        s = getattr(p, "score", None)
+        if s is None:
+            continue
+        out.append(float(s))
+    return out
+
+
+def margin_of_error_by_test(
+    prompts: Iterable[Any],
+    alpha: float,
+) -> list[tuple[int, float]]:
+    """
+    For each ``test_id`` that appears on any prompt row in the run, return the half-width
+    of a 95% (when ``alpha`` is 0.05) t-interval on the mean of that test's prompt
+    ``score`` values. Tests with two or fewer scored prompts get margin ``0.0``.
+    """
+    rows = list(prompts)
+    test_ids_seen = sorted(
+        {int(tid) for p in rows if (tid := getattr(p, "test_id", None)) is not None}
+    )
+    by_test: dict[int, list[float]] = defaultdict(list)
+    for p in rows:
+        tid = getattr(p, "test_id", None)
+        if tid is None:
+            continue
+        s = getattr(p, "score", None)
+        if s is None:
+            continue
+        by_test[int(tid)].append(float(s))
+    out: list[tuple[int, float]] = []
+    for tid in test_ids_seen:
+        values = by_test.get(tid, [])
+        stats = t_confidence_interval_stats(
+            values,
+            alpha,
+            tests_in_bundle=1,
+        )
+        margin = stats["margin_of_error"]
+        if len(values) <= 2:
+            margin = 0.0
+        elif margin is None:
+            margin = 0.0
+        out.append((tid, float(margin)))
+    return out
 
 
 def t_confidence_interval_stats(

@@ -19,11 +19,11 @@ from application.dto.run_bundle_dto import (
     BenchmarkRunResponseDTO,
     BenchmarkRunResultsBundleSummaryDTO,
     BenchmarkRunResultsResponseDTO,
+    BenchmarkRunTestMarginOfErrorDTO,
     BenchmarkRunTestPromptResponseDTO,
 )
 from application.services.bundle_score_confidence import (
-    per_test_mean_scores_for_bundle,
-    t_confidence_interval_stats,
+    margin_of_error_by_test,
 )
 from application.services.benchmark_run_prompt_service import BenchmarkRunPromptService
 from application.services.benchmark_run_service import BenchmarkRunService
@@ -31,8 +31,8 @@ from domain.entities.benchmark_run_test_prompt_entity import (
     BenchmarkRunTestPromptEntity,
 )
 
-# Two-sided tail mass for per-bundle margin_of_error (95% interval).
-BUNDLE_SCORE_CONFIDENCE_ALPHA = 0.05
+# Two-sided tail mass for per-test margin_of_error on GET .../results (95% interval).
+RUN_RESULTS_SCORE_CONFIDENCE_ALPHA = 0.05
 
 
 class BenchmarkRunResultsQueryService:
@@ -62,10 +62,10 @@ class BenchmarkRunResultsQueryService:
         """
         Return full results DTO, or None if the benchmark run does not exist.
 
-        Each bundle includes ``margin_of_error`` for a t-interval on the mean of per-test
-        scores (mean ``evaluation_accuracy`` per test in that bundle only), using a fixed
-        two-sided tail mass ``BUNDLE_SCORE_CONFIDENCE_ALPHA`` (0.05, i.e. 95% CI). Bundles
-        with two or fewer tests always get ``margin_of_error`` ``0.0``.
+        ``test_margin_of_error`` lists ``(test_id, margin_of_error)`` for each ``benchmark_test``
+        that appears on at least one prompt in the run: t-interval on the mean of per-prompt
+        ``score`` for prompts of that test only, with fixed alpha ``RUN_RESULTS_SCORE_CONFIDENCE_ALPHA``.
+        Tests with two or fewer scored prompts always get margin ``0.0``.
         """
         run_service = BenchmarkRunService()
         run_entity = run_service.get_run_by_id(run_id)
@@ -74,31 +74,19 @@ class BenchmarkRunResultsQueryService:
 
         bundle_rows = self._load_bundle_summaries(run_id)
         prompts = self.list_prompt_dtos(run_id)
-        bundles = [
-            self._bundle_with_score_confidence(b, prompts) for b in bundle_rows
+        test_margins = [
+            BenchmarkRunTestMarginOfErrorDTO(test_id=tid, margin_of_error=moe)
+            for tid, moe in margin_of_error_by_test(
+                prompts, RUN_RESULTS_SCORE_CONFIDENCE_ALPHA
+            )
         ]
 
         return BenchmarkRunResultsResponseDTO(
             run=BenchmarkRunResponseDTO.model_validate(run_entity.model_dump()),
-            bundles=bundles,
+            bundles=bundle_rows,
             prompts=prompts,
+            test_margin_of_error=test_margins,
         )
-
-    def _bundle_with_score_confidence(
-        self,
-        bundle: BenchmarkRunResultsBundleSummaryDTO,
-        prompts: list[BenchmarkRunTestPromptResponseDTO],
-    ) -> BenchmarkRunResultsBundleSummaryDTO:
-        values = per_test_mean_scores_for_bundle(prompts, bundle.test_ids)
-        stats = t_confidence_interval_stats(
-            values,
-            BUNDLE_SCORE_CONFIDENCE_ALPHA,
-            tests_in_bundle=len(bundle.test_ids),
-        )
-        margin = stats["margin_of_error"]
-        if len(bundle.test_ids) <= 2:
-            margin = 0.0
-        return bundle.model_copy(update={"margin_of_error": margin})
 
     def _run_test_enrichment_maps(
         self, run_id: int

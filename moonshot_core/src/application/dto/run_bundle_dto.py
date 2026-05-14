@@ -1,7 +1,9 @@
 from datetime import datetime
-from typing import Dict, List, Optional
+import ast
+import json
+from typing import Any, Dict, List, Optional
 
-from pydantic import BaseModel, ConfigDict, model_validator
+from pydantic import BaseModel, ConfigDict, Field, computed_field, model_validator
 
 
 class StartBenchmarkRunRequestDTO(BaseModel):
@@ -91,6 +93,41 @@ class BenchmarkRunTestBundleResponseDTO(BaseModel):
     test_id: int
 
 
+def score_from_evaluation_prediction_result(raw: Optional[str]) -> Optional[float]:
+    """
+    Read numeric score from ``evaluation_prediction_result`` only (never from
+    ``evaluation_accuracy``).
+
+    Accepts: JSON object with a ``score`` key; JSON number; or a Python ``repr`` of a dict
+    or number, as written by ``str(evaluated_result)`` for metric outputs.
+    """
+    if raw is None:
+        return None
+    s = str(raw).strip()
+    if not s:
+        return None
+    parsed: Any
+    try:
+        parsed = json.loads(s)
+    except json.JSONDecodeError:
+        try:
+            parsed = ast.literal_eval(s)
+        except (ValueError, SyntaxError):
+            return None
+    if isinstance(parsed, bool):
+        return None
+    if isinstance(parsed, (int, float)):
+        return float(parsed)
+    if not isinstance(parsed, dict):
+        return None
+    val = parsed.get("score")
+    if val is None or isinstance(val, bool):
+        return None
+    if isinstance(val, (int, float)):
+        return float(val)
+    return None
+
+
 class BenchmarkRunTestPromptResponseDTO(BaseModel):
     """
     Response DTO for a single benchmark run test prompt (per-prompt result within a run-test).
@@ -118,6 +155,12 @@ class BenchmarkRunTestPromptResponseDTO(BaseModel):
     #: benchmark_test.name (display name) for the run-test this prompt belongs to (API-enriched).
     test_name: str = ""
 
+    @computed_field
+    @property
+    def score(self) -> Optional[float]:
+        """Numeric score parsed only from ``evaluation_prediction_result`` (see ``score_from_evaluation_prediction_result``)."""
+        return score_from_evaluation_prediction_result(self.evaluation_prediction_result)
+
 
 class PatchBenchmarkRunTestPromptUserDTO(BaseModel):
     """
@@ -130,14 +173,23 @@ class PatchBenchmarkRunTestPromptUserDTO(BaseModel):
     user_notes: Optional[str] = None
 
 
+class BenchmarkRunTestMarginOfErrorDTO(BaseModel):
+    """
+    Half-width of the t-based interval on the mean prompt ``score`` for one ``benchmark_test``.
+
+    Returned on GET .../results; one row per ``test_id`` that appears on at least one prompt
+    in the run.
+    """
+
+    model_config = ConfigDict(arbitrary_types_allowed=True)
+
+    test_id: int
+    margin_of_error: float
+
+
 class BenchmarkRunResultsBundleSummaryDTO(BaseModel):
     """
     One logical bundle in a run: metadata plus test ids linked via benchmark_run_test_bundle.
-
-    ``margin_of_error`` is the half-width of the 95% t-based interval on the mean of
-    per-test scores (mean ``evaluation_accuracy`` per test in this bundle). For bundles
-    with two or fewer tests it is always ``0.0``.
-    ``None`` when there are more than two tests but no scored tests contribute (same scale as scores).
     """
 
     model_config = ConfigDict(arbitrary_types_allowed=True)
@@ -146,12 +198,15 @@ class BenchmarkRunResultsBundleSummaryDTO(BaseModel):
     name: str
     system_name: str
     test_ids: List[int]
-    margin_of_error: Optional[float] = None
 
 
 class BenchmarkRunResultsResponseDTO(BaseModel):
     """
     Full results payload for the results UI: run header, bundle summaries, all prompts with test_id.
+
+    ``test_margin_of_error`` lists one row per ``benchmark_test.id`` that appears on any prompt
+    in the run: ``margin_of_error`` is the half-width of the 95% t-interval on the mean of
+    per-prompt ``score`` for that test (``0.0`` when the test has two or fewer scored prompts).
 
     Returned by GET /api/benchmark-runs/{run_id}/results.
     """
@@ -161,3 +216,6 @@ class BenchmarkRunResultsResponseDTO(BaseModel):
     run: BenchmarkRunResponseDTO
     bundles: List[BenchmarkRunResultsBundleSummaryDTO]
     prompts: List[BenchmarkRunTestPromptResponseDTO]
+    test_margin_of_error: List[BenchmarkRunTestMarginOfErrorDTO] = Field(
+        default_factory=list
+    )

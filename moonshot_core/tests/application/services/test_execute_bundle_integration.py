@@ -876,16 +876,29 @@ def test_get_benchmark_run_results_api(
     assert len(data["bundles"]) >= 1
     b0 = data["bundles"][0]
     assert "test_bundle_id" in b0
+    assert "margin_of_error" not in b0
     assert "name" in b0
     assert "system_name" in b0
     assert isinstance(b0["test_ids"], list)
     assert set(b0["test_ids"]) == set(test_ids)
-    assert b0["margin_of_error"] is not None
-    assert isinstance(b0["margin_of_error"], (int, float))
-    if len(test_ids) <= 2:
-        assert b0["margin_of_error"] == pytest.approx(0.0)
-
     prompts = data["prompts"]
+    bundle_tid = set(b0["test_ids"])
+    scored_by_test = {}
+    for p in prompts:
+        tid = p.get("test_id")
+        if tid not in bundle_tid or p.get("score") is None:
+            continue
+        scored_by_test[tid] = scored_by_test.get(tid, 0) + 1
+    margins = data.get("test_margin_of_error") or []
+    assert isinstance(margins, list)
+    margin_by_tid = {m["test_id"]: m["margin_of_error"] for m in margins if "test_id" in m}
+    for tid in bundle_tid:
+        assert tid in margin_by_tid
+        moe = margin_by_tid[tid]
+        assert isinstance(moe, (int, float))
+        if scored_by_test.get(tid, 0) <= 2:
+            assert moe == pytest.approx(0.0)
+
     assert isinstance(prompts, list)
     assert len(prompts) >= 2
     for item in prompts:
