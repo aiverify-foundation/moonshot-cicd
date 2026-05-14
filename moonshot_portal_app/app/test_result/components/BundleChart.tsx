@@ -155,19 +155,21 @@ export default function BundleChart({ title, chartData }: BundleChartProps) {
         // Calculate bounds for AI score, capping at 0 and 100
         const aiScoreLowerBound = Math.max(0, entry.aiScore - entry.aiScoreLowerDifference)
         const aiScoreUpperBound = Math.min(100, entry.aiScore + entry.aiScoreUpperDifference)
-        const aiScoreError: [number, number] = [
-            entry.aiScore - aiScoreLowerBound, // lower error
-            aiScoreUpperBound - entry.aiScore  // upper error
-        ]
-        
+        const aiLowerErr = entry.aiScore - aiScoreLowerBound
+        const aiUpperErr = aiScoreUpperBound - entry.aiScore
+        // Recharts ErrorBar keys each <line> by coordinates only; when both errors are 0 the
+        // top and bottom caps are identical segments and React warns about duplicate keys.
+        const aiScoreError: [number, number] | null =
+            aiLowerErr === 0 && aiUpperErr === 0 ? null : [aiLowerErr, aiUpperErr]
+
         // Calculate bounds for Adjusted score, capping at 0 and 100
         const adjustedScoreLowerBound = Math.max(0, entry.adjustedScore - entry.adjustedScoreLowerDifference)
         const adjustedScoreUpperBound = Math.min(100, entry.adjustedScore + entry.adjustedScoreUpperDifference)
-        const adjustedScoreError: [number, number] = [
-            entry.adjustedScore - adjustedScoreLowerBound, // lower error
-            adjustedScoreUpperBound - entry.adjustedScore  // upper error
-        ]
-        
+        const adjLowerErr = entry.adjustedScore - adjustedScoreLowerBound
+        const adjUpperErr = adjustedScoreUpperBound - entry.adjustedScore
+        const adjustedScoreError: [number, number] | null =
+            adjLowerErr === 0 && adjUpperErr === 0 ? null : [adjLowerErr, adjUpperErr]
+
         return {
             ...entry,
             aiScoreError,
@@ -233,8 +235,10 @@ export default function BundleChart({ title, chartData }: BundleChartProps) {
                                 <Cell key={`ai-cell-${index}-${entry.test_name}`} fill="#FB923C" />
                             ))}
                             {/* Only render ErrorBar if there are actual error values */}
-                            {chartDataWithError.some(entry => 
-                                entry.aiScoreError[0] > 0 || entry.aiScoreError[1] > 0
+                            {chartDataWithError.some(
+                                (entry) =>
+                                    entry.aiScoreError != null &&
+                                    (entry.aiScoreError[0] > 0 || entry.aiScoreError[1] > 0)
                             ) && (
                                 <ErrorBar
                                     key="ai-error-bar"
@@ -256,8 +260,10 @@ export default function BundleChart({ title, chartData }: BundleChartProps) {
                                 <Cell key={`adjusted-cell-${index}-${entry.test_name}`} fill="#60A5FA" />
                             ))}
                             {/* Only render ErrorBar if there are actual error values */}
-                            {chartDataWithError.some(entry => 
-                                entry.adjustedScoreError[0] > 0 || entry.adjustedScoreError[1] > 0
+                            {chartDataWithError.some(
+                                (entry) =>
+                                    entry.adjustedScoreError != null &&
+                                    (entry.adjustedScoreError[0] > 0 || entry.adjustedScoreError[1] > 0)
                             ) && (
                                 <ErrorBar
                                     key="adjusted-error-bar"
