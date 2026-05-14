@@ -538,7 +538,9 @@ async def get_benchmark_run_prompts(run_id: int) -> List[BenchmarkRunTestPromptR
 async def get_benchmark_run_results(run_id: int) -> BenchmarkRunResultsResponseDTO:
     """
     Return run header, bundle summaries (from benchmark_run_test_bundle), and all prompts
-    with test_id and test_name for the results UI.
+    with test_id and test_name for the results UI. Each bundle includes ``margin_of_error``
+    for a 95% t-interval on the mean of per-test scores in that bundle only (``0`` when the
+    bundle has two or fewer tests); alpha is fixed in the service layer.
     """
     try:
         service = BenchmarkRunResultsQueryService()

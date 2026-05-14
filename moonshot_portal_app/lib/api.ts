@@ -235,6 +235,11 @@ export interface BenchmarkRunResultsBundleSummary {
   name: string;
   system_name: string;
   test_ids: number[];
+  /**
+   * Half-width of t-interval on mean of per-test scores; same scale as evaluation_accuracy.
+   * Always 0 when the bundle has two or fewer tests.
+   */
+  margin_of_error?: number | null;
 }
 
 export interface BenchmarkRunResults {

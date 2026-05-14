@@ -880,6 +880,10 @@ def test_get_benchmark_run_results_api(
     assert "system_name" in b0
     assert isinstance(b0["test_ids"], list)
     assert set(b0["test_ids"]) == set(test_ids)
+    assert b0["margin_of_error"] is not None
+    assert isinstance(b0["margin_of_error"], (int, float))
+    if len(test_ids) <= 2:
+        assert b0["margin_of_error"] == pytest.approx(0.0)
 
     prompts = data["prompts"]
     assert isinstance(prompts, list)

@@ -133,6 +133,11 @@ class PatchBenchmarkRunTestPromptUserDTO(BaseModel):
 class BenchmarkRunResultsBundleSummaryDTO(BaseModel):
     """
     One logical bundle in a run: metadata plus test ids linked via benchmark_run_test_bundle.
+
+    ``margin_of_error`` is the half-width of the 95% t-based interval on the mean of
+    per-test scores (mean ``evaluation_accuracy`` per test in this bundle). For bundles
+    with two or fewer tests it is always ``0.0``.
+    ``None`` when there are more than two tests but no scored tests contribute (same scale as scores).
     """
 
     model_config = ConfigDict(arbitrary_types_allowed=True)
@@ -141,6 +146,7 @@ class BenchmarkRunResultsBundleSummaryDTO(BaseModel):
     name: str
     system_name: str
     test_ids: List[int]
+    margin_of_error: Optional[float] = None
 
 
 class BenchmarkRunResultsResponseDTO(BaseModel):
