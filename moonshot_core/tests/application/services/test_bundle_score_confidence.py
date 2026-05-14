@@ -87,6 +87,37 @@ def test_t_interval_n_one_zero_width():
     assert s["upper_bound"] == pytest.approx(0.7)
 
 
+def test_margin_of_error_binary_five_tests_two_passes_three_fails():
+    """
+    Pass/fail encoded as 1.0 / 0.0: n=5, two passes, three fails.
+
+    mean=0.4, sample SD and t_{0.975,4} give margin_of_error ≈ 0.680087380658257.
+    """
+    values = [1.0, 1.0, 0.0, 0.0, 0.0]
+    s = t_confidence_interval_stats(values, 0.05, tests_in_bundle=1)
+    assert s["mean_score"] == pytest.approx(0.4)
+    assert s["margin_of_error"] == pytest.approx(0.680087380658257, abs=1e-12)
+    prompts = [_P(1, x) for x in values]
+    assert margin_of_error_by_test(prompts, 0.05) == [(1, pytest.approx(0.680087380658257, abs=1e-12))]
+
+
+def test_margin_of_error_binary_hundred_tests_sixty_five_passes_thirty_five_fails():
+    """
+    n=100, 65 passes and 35 fails as binary scores; 95% t-interval half-width on the mean.
+
+    Reference expected margin 0.09511790116990844; SciPy ``t.ppf`` can differ in the last
+    digits across versions, so a small absolute tolerance is used.
+    """
+    values = [1.0] * 65 + [0.0] * 35
+    s = t_confidence_interval_stats(values, 0.05, tests_in_bundle=1)
+    assert s["mean_score"] == pytest.approx(0.65)
+    assert s["margin_of_error"] == pytest.approx(0.09511790116990844, abs=1e-11)
+    prompts = [_P(1, x) for x in values]
+    assert margin_of_error_by_test(prompts, 0.05) == [
+        (1, pytest.approx(0.09511790116990844, abs=1e-11))
+    ]
+
+
 def test_t_interval_n_two_matches_scipy():
     values = [1.0, 0.0]
     s = t_confidence_interval_stats(values, 0.05, tests_in_bundle=2)
