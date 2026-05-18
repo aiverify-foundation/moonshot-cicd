@@ -17,12 +17,12 @@ import { FileTerminal, RefreshCw, AlertCircle, CheckSquare, Square } from 'lucid
 import { Breadcrumb, BreadcrumbList, BreadcrumbItem, BreadcrumbPage, BreadcrumbSeparator } from '@/components/ui/breadcrumb';
 import { useAppSelector, useAppDispatch } from '../../../hooks/reduxHooks';
 import { useBundlesRedux } from '../../../hooks/useBundlesRedux';
-import { setBundleSelected } from '../../../store';
+import { setBundleSelected, setMultipleTestsSelected } from '../../../store';
 import type { Bundle } from '@/lib/api';
 import ViewBundleDetailsSheet from './ViewBundleDetailsSheet';
 
 export default function BundleSelectionPage() {
-  const bundleSelection = useAppSelector((state) => state.bundleSelection);
+  const testSelection = useAppSelector((state) => state.testSelection);
   const dispatch = useAppDispatch();
   const { bundles, loading, error, refetch } = useBundlesRedux();
   const [sheetOpen, setSheetOpen] = React.useState(false);
@@ -83,7 +83,9 @@ export default function BundleSelectionPage() {
 
   function renderCard(bundle: Bundle) {
     const { id, name, description, category, tests, prompt_count } = bundle;
-    const selected = bundleSelection[id] || false;
+    const testNames = tests.map((t) => t.name);
+    const allTestsSelected =
+      testNames.length > 0 && testNames.every((name) => testSelection[name]);
     return (
       <Card style={{ width: '400px', height: '470px', display: 'flex', flexDirection: 'column' }} data-testid={`bundle-card-${id}`}>
         <CardHeader>
@@ -130,8 +132,11 @@ export default function BundleSelectionPage() {
         </CardContent>
         <CardFooter className="flex items-center justify-between gap-2">
           <CheckboxToggleButton
-            checked={selected}
-            onCheckedChange={(checked: boolean) => dispatch(setBundleSelected({ bundleId: id, selected: checked }))}
+            checked={allTestsSelected}
+            onCheckedChange={(checked: boolean) => {
+              dispatch(setBundleSelected({ bundleId: id, selected: checked }));
+              dispatch(setMultipleTestsSelected({ testNames, selected: checked }));
+            }}
             data-testid={`toggle-${id}`}
           >
             selected
