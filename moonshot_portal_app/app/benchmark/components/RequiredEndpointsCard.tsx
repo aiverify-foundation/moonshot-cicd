@@ -268,7 +268,7 @@ export default function RequiredEndpointsCard() {
               <div className="flex-1">
                 <CardTitle data-testid="additional-card-title">Connect Required Endpoints</CardTitle>
                 <CardDescription data-testid="additional-card-description">
-                  Configure access to LLM-as-judge providers required by your selected recipes (from the database).
+                  Configure access to LLM-as-judge providers required by your selected tests.
                 </CardDescription>
               </div>
               <div className="flex items-center">
