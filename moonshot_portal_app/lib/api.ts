@@ -4,33 +4,48 @@
 
 const API_BASE_URL = 'http://localhost:8000';
 
+/** Prompt-level row from test_details.csv (GET /api/bundles → tests[].details). */
+export interface TestDetailRow {
+  category_name: string;
+  dataset: string;
+  hazard: string;
+  input: string;
+  target: string;
+  response: string;
+  evaluator_verdict: string;
+}
+
+export interface BundleTest {
+  name: string;
+  /** benchmark_test.id from the API; required for per-bundle test subset runs. */
+  benchmark_test_id?: number | null;
+  description?: string;
+  /** True when the metric uses an LLM-as-judge path (e.g. Llama Guard annotator). */
+  requires_llm_aaj?: boolean;
+  /** Metric-side connector system_name when requires_llm_aaj (e.g. together_adapter). */
+  metric_provider_system_name?: string | null;
+  dataset: {
+    id: string;
+    name: string;
+    description: string;
+    num_of_dataset_prompts: number;
+  };
+  metric?: {
+    name?: string;
+    config_id?: string;
+    [key: string]: string | undefined;
+  };
+  /** Sample prompt rows for this test's dataset; null when CSV has no rows. */
+  details?: TestDetailRow[] | null;
+}
+
 export interface Bundle {
   /** Bundle system_name (YAML key); use for Redux keys and POST `bundle_names`. */
   id: string;
   name: string;
   description: string;
   category: string;
-  tests: Array<{
-    name: string;
-    /** benchmark_test.id from the API; required for per-bundle test subset runs. */
-    benchmark_test_id?: number | null;
-    description?: string;
-    /** True when the metric uses an LLM-as-judge path (e.g. Llama Guard annotator). */
-    requires_llm_aaj?: boolean;
-    /** Metric-side connector system_name when requires_llm_aaj (e.g. together_adapter). */
-    metric_provider_system_name?: string | null;
-    dataset: {
-      id: string;
-      name: string;
-      description: string;
-      num_of_dataset_prompts: number;
-    };
-    metric?: {
-      name?: string;
-      config_id?: string;
-      [key: string]: string | undefined; //Undefined in order to accomodate the optional fields name and config_id
-    };
-  }>;
+  tests: BundleTest[];
   /** Total prompts across tests; from GET /api/bundles. */
   prompt_count?: number;
 }
