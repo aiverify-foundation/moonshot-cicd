@@ -1,7 +1,9 @@
 import userEvent from '@testing-library/user-event';
-import { createTestStore, render, screen, waitFor } from '@/tests/utils/test-utils';
+import { render, screen, waitFor } from '@/tests/utils/test-utils';
 import RequiredEndpointsCard, {
   aajEndpointStatusKey,
+  ConnectionStatus,
+  isAajEndpointAccepted,
 } from '@/app/benchmark/components/RequiredEndpointsCard';
 import type { Bundle } from '@/lib/api';
 
@@ -26,6 +28,32 @@ describe('aajEndpointStatusKey', () => {
   });
 });
 
+describe('isAajEndpointAccepted', () => {
+  it('accepts when Redux is connected', () => {
+    expect(
+      isAajEndpointAccepted(ConnectionStatus.CONNECTED, false)
+    ).toBe(true);
+  });
+
+  it('accepts when API key is configured in DB', () => {
+    expect(
+      isAajEndpointAccepted(ConnectionStatus.NOT_CONNECTED, true)
+    ).toBe(true);
+  });
+
+  it('rejects when neither connected nor key configured', () => {
+    expect(
+      isAajEndpointAccepted(ConnectionStatus.NOT_CONNECTED, false)
+    ).toBe(false);
+  });
+
+  it('rejects invalid token even when API key is configured', () => {
+    expect(
+      isAajEndpointAccepted(ConnectionStatus.INVALID_TOKEN, true)
+    ).toBe(false);
+  });
+});
+
 describe('RequiredEndpointsCard', () => {
   const bundleWithAaj: Bundle = {
     id: 'bundle_one',
@@ -47,8 +75,23 @@ describe('RequiredEndpointsCard', () => {
     ],
   };
 
+  const defaultPreloadedState = {
+    bundles: {
+      data: [bundleWithAaj],
+      loading: false,
+      error: null,
+    },
+    testSelection: { 'Recipe A': true },
+  };
+
+  const renderCard = (preloadedState?: Record<string, unknown>) =>
+    render(<RequiredEndpointsCard />, {
+      preloadedState: { ...defaultPreloadedState, ...preloadedState },
+    });
+
   beforeEach(() => {
     mockSetLlmProviderApiKey.mockClear();
+    mockFetchProviderLatestDetails.mockClear();
     mockFetchProviders.mockResolvedValue([
       {
         id: '42',
@@ -66,35 +109,99 @@ describe('RequiredEndpointsCard', () => {
   });
 
   it('shows an LLM judge card for selected AAJ tests after providers load', async () => {
-    render(<RequiredEndpointsCard />, {
-      preloadedState: {
-        bundles: {
-          data: [bundleWithAaj],
-          loading: false,
-          error: null,
-        },
-        testSelection: { 'Recipe A': true },
-      },
-    });
+    renderCard();
 
     await waitFor(() => {
       expect(screen.getByText('Together AI (LLM judge)')).toBeInTheDocument();
     });
     expect(screen.getByText('Recipe A')).toBeInTheDocument();
+    expect(mockFetchProviderLatestDetails).toHaveBeenCalledWith('together_adapter');
+  });
+
+  it('shows green indicator and connected badge when DB key exists only', async () => {
+    mockFetchProviderLatestDetails.mockResolvedValue({
+      api_key_configured: true,
+      database_model_configs: [],
+      models: [],
+      provider: { id: '42', name: 'Together AI', system_name: 'together_adapter' },
+    });
+
+    renderCard({ endpointStatus: {} });
+
+    await waitFor(() => {
+      expect(screen.getByTestId('required-endpoints-status-indicator')).toHaveClass(
+        'text-green-500'
+      );
+    });
+    expect(screen.getByText('connected')).toBeInTheDocument();
+  });
+
+  it('shows green indicator when Redux connected and DB key absent', async () => {
+    mockFetchProviderLatestDetails.mockResolvedValue({
+      api_key_configured: false,
+      database_model_configs: [],
+      models: [],
+      provider: { id: '42', name: 'Together AI', system_name: 'together_adapter' },
+    });
+
+    renderCard({
+      endpointStatus: { [aajEndpointStatusKey('together_adapter')]: 'connected' },
+    });
+
+    await waitFor(() => {
+      expect(screen.getByText('Together AI (LLM judge)')).toBeInTheDocument();
+    });
+    await waitFor(() => {
+      expect(screen.getByTestId('required-endpoints-status-indicator')).toHaveClass(
+        'text-green-500'
+      );
+    });
+    expect(screen.getByText('connected')).toBeInTheDocument();
+  });
+
+  it('shows red indicator and not connected when neither Redux nor DB key', async () => {
+    mockFetchProviderLatestDetails.mockResolvedValue({
+      api_key_configured: false,
+      database_model_configs: [],
+      models: [],
+      provider: { id: '42', name: 'Together AI', system_name: 'together_adapter' },
+    });
+
+    renderCard({ endpointStatus: {} });
+
+    await waitFor(() => {
+      expect(screen.getByTestId('required-endpoints-status-indicator')).toHaveClass(
+        'text-red-500'
+      );
+    });
+    expect(screen.getByText('not connected')).toBeInTheDocument();
+  });
+
+  it('shows red indicator when Redux has invalid token even if DB key exists', async () => {
+    mockFetchProviderLatestDetails.mockResolvedValue({
+      api_key_configured: true,
+      database_model_configs: [],
+      models: [],
+      provider: { id: '42', name: 'Together AI', system_name: 'together_adapter' },
+    });
+
+    renderCard({
+      endpointStatus: {
+        [aajEndpointStatusKey('together_adapter')]: ConnectionStatus.INVALID_TOKEN,
+      },
+    });
+
+    await waitFor(() => {
+      expect(screen.getByTestId('required-endpoints-status-indicator')).toHaveClass(
+        'text-red-500'
+      );
+    });
+    expect(screen.getByText(ConnectionStatus.INVALID_TOKEN)).toBeInTheDocument();
   });
 
   it('opens Add Provider Token sheet and marks endpoint connected on Save when key exists', async () => {
     const user = userEvent.setup();
-    const { store } = render(<RequiredEndpointsCard />, {
-      preloadedState: {
-        bundles: {
-          data: [bundleWithAaj],
-          loading: false,
-          error: null,
-        },
-        testSelection: { 'Recipe A': true },
-      },
-    });
+    const { store } = renderCard({ endpointStatus: {} });
 
     await waitFor(() => {
       expect(screen.getByRole('button', { name: 'Connect' })).toBeInTheDocument();

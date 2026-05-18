@@ -13,7 +13,13 @@ import {
 import EditLlmAajProviderSheet from './EditLlmAajProviderSheet';
 import { useCheckedTestNames } from '../../../hooks/useTestSelection';
 import { useAppSelector } from '../../../hooks/reduxHooks';
-import { ApiError, Bundle, fetchProviders, type LlmProviderDTO } from '../../../lib/api';
+import {
+  ApiError,
+  Bundle,
+  fetchProviderLatestDetails,
+  fetchProviders,
+  type LlmProviderDTO,
+} from '../../../lib/api';
 import type { Provider } from '../types/modelSelection';
 
 enum ConnectionStatus {
@@ -25,6 +31,15 @@ enum ConnectionStatus {
 /** Redux `endpointStatus` key for LLM-as-judge provider rows (DB `metric_provider_system_name`). */
 export function aajEndpointStatusKey(metricProviderSystemName: string): string {
   return `aaj:${metricProviderSystemName}`;
+}
+
+/** Whether an LLM-as-judge endpoint is satisfied for display / overall status. */
+export function isAajEndpointAccepted(
+  status: ConnectionStatus,
+  apiKeyConfigured: boolean | undefined
+): boolean {
+  if (status === ConnectionStatus.INVALID_TOKEN) return false;
+  return status === ConnectionStatus.CONNECTED || Boolean(apiKeyConfigured);
 }
 
 function mapLlmProviderDtoToProvider(dto: LlmProviderDTO): Provider {
@@ -155,6 +170,10 @@ export default function RequiredEndpointsCard() {
   const [apiProviders, setApiProviders] = useState<Provider[]>([]);
   const [providersLoading, setProvidersLoading] = useState(true);
   const [providersError, setProvidersError] = useState<string | null>(null);
+  const [apiKeyConfiguredBySystem, setApiKeyConfiguredBySystem] = useState<
+    Record<string, boolean>
+  >({});
+  const [keysLoading, setKeysLoading] = useState(false);
 
   const selectedTestNames = useCheckedTestNames();
   const bundles = useAppSelector((state) => state.bundles.data) as Bundle[];
@@ -191,6 +210,58 @@ export default function RequiredEndpointsCard() {
     return apiProviders.find((p) => p.id === sheet.providerId) ?? null;
   }, [sheet, apiProviders]);
 
+  const systemNamesToFetch = useMemo((): string[] => {
+    const bySystem = new Map<string, Set<string>>();
+    bundles.forEach((bundle) => {
+      bundle.tests.forEach((test) => {
+        if (!selectedTestNames.includes(test.name)) return;
+        if (!test.requires_llm_aaj || !test.metric_provider_system_name?.trim()) return;
+        const sn = test.metric_provider_system_name.trim();
+        if (!bySystem.has(sn)) {
+          bySystem.set(sn, new Set());
+        }
+        bySystem.get(sn)!.add(test.name);
+      });
+    });
+    const names: string[] = [];
+    for (const systemName of bySystem.keys()) {
+      const provider = apiProviders.find((p) => p.system_name === systemName);
+      if (provider) {
+        names.push(systemName);
+      }
+    }
+    return names.sort();
+  }, [bundles, selectedTestNames, apiProviders]);
+
+  useEffect(() => {
+    if (systemNamesToFetch.length === 0) {
+      setApiKeyConfiguredBySystem({});
+      setKeysLoading(false);
+      return;
+    }
+    let cancelled = false;
+    setKeysLoading(true);
+    void (async () => {
+      const entries = await Promise.all(
+        systemNamesToFetch.map(async (systemName) => {
+          try {
+            const details = await fetchProviderLatestDetails(systemName);
+            return [systemName, Boolean(details.api_key_configured)] as const;
+          } catch {
+            return [systemName, false] as const;
+          }
+        })
+      );
+      if (!cancelled) {
+        setApiKeyConfiguredBySystem(Object.fromEntries(entries));
+        setKeysLoading(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [systemNamesToFetch]);
+
   const endpoints = useMemo((): AajEndpointRow[] => {
     const bySystem = new Map<string, Set<string>>();
     bundles.forEach((bundle) => {
@@ -210,9 +281,13 @@ export default function RequiredEndpointsCard() {
       const provider = apiProviders.find((p) => p.system_name === systemName);
       const statusKey = aajEndpointStatusKey(systemName);
       const storedStatus = endpointStatuses[statusKey];
-      const status = storedStatus
+      const rawStatus = storedStatus
         ? (storedStatus as ConnectionStatus)
         : ConnectionStatus.NOT_CONNECTED;
+      const apiKeyConfigured = apiKeyConfiguredBySystem[systemName];
+      const status = isAajEndpointAccepted(rawStatus, apiKeyConfigured)
+        ? ConnectionStatus.CONNECTED
+        : rawStatus;
       const tests = Array.from(testSet).sort();
       const providerMissing = !provider;
       rows.push({
@@ -229,14 +304,17 @@ export default function RequiredEndpointsCard() {
     }
     rows.sort((a, b) => a.systemName.localeCompare(b.systemName));
     return rows;
-  }, [bundles, selectedTestNames, apiProviders, endpointStatuses]);
+  }, [bundles, selectedTestNames, apiProviders, endpointStatuses, apiKeyConfiguredBySystem]);
 
   const overallStatus = useMemo(() => {
     if (endpoints.length === 0) {
       return true;
     }
+    if (keysLoading) {
+      return false;
+    }
     return endpoints.every((e) => e.status === ConnectionStatus.CONNECTED);
-  }, [endpoints]);
+  }, [endpoints, keysLoading]);
 
   const handleConnect = (row: AajEndpointRow) => {
     if (row.connectDisabled || !row.providerId) return;
