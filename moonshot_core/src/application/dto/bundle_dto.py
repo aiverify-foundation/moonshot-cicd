@@ -1,4 +1,4 @@
-from typing import List
+from typing import List, Optional
 
 from pydantic import BaseModel, ConfigDict
 
@@ -40,3 +40,6 @@ class BundleDTO(BaseModel):
 
     # Total number of prompts across all tests in the bundle
     prompt_count: int = 0
+
+    #: Aggregated prompt-level rows from test_details.csv for all datasets in this bundle.
+    details: Optional[list[dict[str, str]]] = None

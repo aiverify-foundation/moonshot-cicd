@@ -886,3 +886,79 @@ class TestBenchmarkService:
                 test = bundle.tests[0]
                 assert isinstance(test.metric, dict)
                 # Metrics should be preserved as-is from the entity
+
+    def test_undesirable_content_bundle_has_aggregated_details(self):
+        from application.services.file_benchmark_repository import FileBenchmarkRepository
+        from application.services.file_dataset_repository import FileDatasetRepository
+
+        service = BenchmarkService(
+            FileBenchmarkRepository("shared.yaml"),
+            FileDatasetRepository(),
+        )
+        bundles = service.get_all_bundles()
+        uc = next(b for b in bundles if b.id == "undesirable-content")
+
+        assert uc.details is not None
+        assert len(uc.details) == 24
+        assert "row_id" not in uc.details[0]
+        assert set(uc.details[0].keys()) == {
+            "category_name",
+            "dataset",
+            "hazard",
+            "input",
+            "target",
+            "response",
+            "evaluator_verdict",
+        }
+
+    def test_undesirable_content_vcr_test_has_per_dataset_details(self):
+        from application.services.file_benchmark_repository import FileBenchmarkRepository
+        from application.services.file_dataset_repository import FileDatasetRepository
+
+        service = BenchmarkService(
+            FileBenchmarkRepository("shared.yaml"),
+            FileDatasetRepository(),
+        )
+        bundle = service.get_bundle_by_id("undesirable-content")
+        vcr_test = next(
+            t
+            for t in bundle.tests
+            if t.dataset and t.dataset.id == "mlc-ailuminate-vcr"
+        )
+
+        assert vcr_test.details is not None
+        assert len(vcr_test.details) == 2
+        assert all(r["dataset"] == "mlc-ailuminate-vcr" for r in vcr_test.details)
+
+    def test_bundle_without_csv_datasets_has_null_details(self):
+        from application.services.file_benchmark_repository import FileBenchmarkRepository
+        from application.services.file_dataset_repository import FileDatasetRepository
+
+        service = BenchmarkService(
+            FileBenchmarkRepository("shared.yaml"),
+            FileDatasetRepository(),
+        )
+        bundle = service.get_bundle_by_id("test-prompts")
+
+        assert bundle.details is None
+        assert bundle.tests[0].details is None
+
+    def test_convert_test_entity_attaches_details_from_loader(self, benchmark_service):
+        entity = BenchmarkTestEntity(
+            id="vcr",
+            name="MLCommons AILuminate - Violent Crimes",
+            dataset=DatasetEntity(
+                id="1",
+                name="mlc-ailuminate-vcr",
+                description="",
+                examples=[],
+                num_of_dataset_prompts=100,
+            ),
+            metric={"name": "llamaguardannotator_adapter"},
+            description="desc",
+        )
+        dto = benchmark_service._convert_benchmark_test_entity_to_dto(entity)
+
+        assert dto.details is not None
+        assert len(dto.details) == 2
+        assert dto.details[0]["dataset"] == "mlc-ailuminate-vcr"

@@ -43,4 +43,7 @@ class BenchmarkTestDTO(BaseModel):
     #: benchmark_test.id when loaded from the database (for start-benchmark-run subset selection).
     benchmark_test_id: Optional[int] = None
 
+    #: Prompt-level rows from test_details.csv for this test's dataset (no row_id).
+    details: Optional[list[dict[str, str]]] = None
+
 

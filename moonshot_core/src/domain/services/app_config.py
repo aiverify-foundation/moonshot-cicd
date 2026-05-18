@@ -33,6 +33,7 @@ class AppConfig:
     DEFAULT_ATTACK_MODULES_PATH = f"{DEFAULT_DATA_PATH}/attack_modules"
     DEFAULT_RESULTS_PATH = f"{DEFAULT_DATA_PATH}/results"
     DEFAULT_TEST_CONFIGS_PATH = f"{DEFAULT_DATA_PATH}/test_configs"
+    DEFAULT_TEST_DETAILS_PATH = f"{DEFAULT_DATA_PATH}/test_details"
     DEFAULT_ADAPTERS_PATH = "src/adapters"
     DEFAULT_TEMP_PATH = "src/temp"
 

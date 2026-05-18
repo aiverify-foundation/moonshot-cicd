@@ -12,6 +12,10 @@ from application.ports.dataset_repository import DatasetRepository
 from application.dto.bundle_dto import BundleDTO
 from application.dto.benchmark_test_dto import BenchmarkTestDTO
 from application.dto.dataset_dto import DatasetDTO
+from application.services.test_details_loader import (
+    TestDetailsLoader,
+    dataset_system_name_for_details,
+)
 
 # Initialize a logger for this module
 logger = configure_logger(__name__)
@@ -28,10 +32,16 @@ class BenchmarkService:
     as well as calculating aggregate metrics like total prompt counts across test configurations.
     """
     
-    def __init__(self, benchmark_repository: BenchmarkRepository, dataset_repository: DatasetRepository):
+    def __init__(
+        self,
+        benchmark_repository: BenchmarkRepository,
+        dataset_repository: DatasetRepository,
+        test_details_loader: TestDetailsLoader | None = None,
+    ):
         logger.info("[BenchmarkService] Initializing BenchmarkService")
         self.benchmark_repository = benchmark_repository
         self.dataset_repository = dataset_repository
+        self._test_details_loader = test_details_loader or TestDetailsLoader()
         if self.benchmark_repository is None:
             self.benchmark_repository = FileBenchmarkRepository()
         if self.dataset_repository is None:
@@ -98,6 +108,12 @@ class BenchmarkService:
         requires_llm_aaj, metric_provider_system_name = metric_aaj_fields(
             benchmark_test_entity.metric
         )
+        details = None
+        if benchmark_test_entity.dataset:
+            ds = benchmark_test_entity.dataset
+            details = self._test_details_loader.get_rows_for_dataset(
+                dataset_system_name_for_details(ds.id, ds.name)
+            )
         return BenchmarkTestDTO(
             id=benchmark_test_entity.id,
             name=benchmark_test_entity.name,
@@ -107,6 +123,7 @@ class BenchmarkService:
             requires_llm_aaj=requires_llm_aaj,
             metric_provider_system_name=metric_provider_system_name,
             benchmark_test_id=benchmark_test_entity.benchmark_test_id,
+            details=details,
         )
     
     def _convert_bundle_entity_to_dto(self, bundle_entity: TestBundleEntity) -> BundleDTO:
@@ -118,13 +135,22 @@ class BenchmarkService:
         
         # Calculate total prompt count across all tests in the bundle
         prompt_count = self.get_total_test_list_prompts(test_dtos)
-        
+
+        dataset_names = [
+            dataset_system_name_for_details(t.dataset.id, t.dataset.name)
+            for t in test_dtos
+            if t.dataset
+        ]
+        dataset_names = [n for n in dataset_names if n]
+        bundle_details = self._test_details_loader.get_rows_for_datasets(dataset_names)
+
         return BundleDTO(
             id=bundle_entity.id,
             name=bundle_entity.name,
             description=bundle_entity.description,
             category=bundle_entity.category,
             tests=test_dtos,
-            prompt_count=prompt_count
+            prompt_count=prompt_count,
+            details=bundle_details,
         )
     
