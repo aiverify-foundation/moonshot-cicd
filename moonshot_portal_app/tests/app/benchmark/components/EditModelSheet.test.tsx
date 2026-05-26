@@ -304,6 +304,139 @@ describe('EditModelSheet', () => {
     expect(createMock).not.toHaveBeenCalled();
   });
 
+  it('repoints an existing config to an existing provider model id when model name changes', async () => {
+    const user = userEvent.setup();
+    const updateMock = getUpdateDatabaseModelConfigMock();
+    const createMock = getCreateDatabaseModelConfigMock();
+
+    getFetchProviderLatestDetailsMock().mockResolvedValue({
+      api_key_configured: true,
+      database_model_configs: [],
+      models: [
+        { id: 10, name: 'gpt-4', create_dt: '2026-01-01T00:00:00Z' },
+        { id: 11, name: 'gpt-4.1', create_dt: '2026-01-02T00:00:00Z' },
+      ],
+      provider: { id: '1', name: 'Test Provider', system_name: 'test_provider' },
+    });
+
+    const models: ModelConfig[] = [
+      {
+        id: '10:20',
+        name: 'My Config',
+        modelname: 'gpt-4',
+        provider: '1',
+        modelConfigId: '20',
+        savedConfigPairs: { temperature: '0' },
+      },
+    ];
+
+    const store = createTestStore({
+      modelSelection: {
+        selectedProvider: '1',
+        selectedModel: '10:20',
+        selectedConfig: '',
+        isConfigValid: true,
+        isTestNameValid: true,
+        testName: 't',
+        benchmarkLlmProviderId: 1,
+        benchmarkLlmProviderModelId: 10,
+        benchmarkLlmProviderModelConfigId: 20,
+      },
+    });
+
+    render(
+      <EditModelSheet
+        open
+        onOpenChange={() => {}}
+        editingModel="10:20"
+        editingDatabaseConfigId="20"
+        providers={[highTempProvider]}
+        models={models}
+      />,
+      { store }
+    );
+
+    await user.click(screen.getByRole('button', { name: /Test/i }));
+    const modelInput = screen.getByDisplayValue('gpt-4');
+    await user.clear(modelInput);
+    await user.type(modelInput, 'gpt-4.1');
+    await user.click(screen.getByRole('button', { name: /^Save$/ }));
+
+    await waitFor(() => {
+      expect(updateMock).toHaveBeenCalledWith(
+        20,
+        expect.objectContaining({
+          model_id: 11,
+          name: 'My Config',
+          savedConfigPairs: { temperature: '0' },
+        })
+      );
+    });
+    expect(createMock).not.toHaveBeenCalled();
+  });
+
+  it('repoints an existing config by provider and model name when the typed model is new', async () => {
+    const user = userEvent.setup();
+    const updateMock = getUpdateDatabaseModelConfigMock();
+    const createMock = getCreateDatabaseModelConfigMock();
+
+    const models: ModelConfig[] = [
+      {
+        id: '10:20',
+        name: 'My Config',
+        modelname: 'gpt-4',
+        provider: '1',
+        modelConfigId: '20',
+        savedConfigPairs: { temperature: '0' },
+      },
+    ];
+
+    const store = createTestStore({
+      modelSelection: {
+        selectedProvider: '1',
+        selectedModel: '10:20',
+        selectedConfig: '',
+        isConfigValid: true,
+        isTestNameValid: true,
+        testName: 't',
+        benchmarkLlmProviderId: 1,
+        benchmarkLlmProviderModelId: 10,
+        benchmarkLlmProviderModelConfigId: 20,
+      },
+    });
+
+    render(
+      <EditModelSheet
+        open
+        onOpenChange={() => {}}
+        editingModel="10:20"
+        editingDatabaseConfigId="20"
+        providers={[highTempProvider]}
+        models={models}
+      />,
+      { store }
+    );
+
+    await user.click(screen.getByRole('button', { name: /Test/i }));
+    const modelInput = screen.getByDisplayValue('gpt-4');
+    await user.clear(modelInput);
+    await user.type(modelInput, 'gpt-4.1-new');
+    await user.click(screen.getByRole('button', { name: /^Save$/ }));
+
+    await waitFor(() => {
+      expect(updateMock).toHaveBeenCalledWith(
+        20,
+        expect.objectContaining({
+          llm_provider_id: 1,
+          model_name: 'gpt-4.1-new',
+          name: 'My Config',
+          savedConfigPairs: { temperature: '0' },
+        })
+      );
+    });
+    expect(createMock).not.toHaveBeenCalled();
+  });
+
   it('uses provider default pairs when creating a new config', async () => {
     const store = createTestStore({
       modelSelection: {

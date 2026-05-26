@@ -234,6 +234,88 @@ class TestDatabaseModelConfigServiceUpdate:
         assert dto.savedConfigPairs == {"new_k": "new_v"}
         assert "old_key" not in dto.savedConfigPairs
 
+    def test_update_by_provider_reuses_existing_model(
+        self, db_model_config_service: DatabaseModelConfigService
+    ):
+        config_id, original_model_id = self._seed_config()
+        sm = SessionManager.get_instance()
+        with sm.get_session() as session:
+            original_model = (
+                session.query(LLMProviderModelModel)
+                .filter(LLMProviderModelModel.id == original_model_id)
+                .first()
+            )
+            assert original_model is not None
+            provider_id = int(original_model.llm_provider_id)
+            reused_model = LLMProviderModelModel(
+                llm_provider_id=provider_id,
+                name="gpt-reused",
+            )
+            session.add(reused_model)
+            session.flush()
+            reused_model_id = int(reused_model.id)
+
+        dto = db_model_config_service.update(
+            config_id,
+            UpdateDatabaseModelConfigBody(
+                llm_provider_id=provider_id,
+                model_name="gpt-reused",
+                name="renamed",
+            ),
+        )
+
+        assert dto.id == str(config_id)
+        assert dto.modelId == reused_model_id
+        assert dto.modelname == "gpt-reused"
+        assert dto.name == "renamed"
+
+    def test_update_by_provider_creates_model_row_and_repoints_same_config(
+        self, db_model_config_service: DatabaseModelConfigService
+    ):
+        config_id, original_model_id = self._seed_config()
+        sm = SessionManager.get_instance()
+        with sm.get_session() as session:
+            original_model = (
+                session.query(LLMProviderModelModel)
+                .filter(LLMProviderModelModel.id == original_model_id)
+                .first()
+            )
+            assert original_model is not None
+            provider_id = int(original_model.llm_provider_id)
+
+        dto = db_model_config_service.update(
+            config_id,
+            UpdateDatabaseModelConfigBody(
+                llm_provider_id=provider_id,
+                model_name="gpt-created-on-update",
+                name="renamed",
+            ),
+        )
+
+        assert dto.id == str(config_id)
+        assert dto.modelId != original_model_id
+        assert dto.modelname == "gpt-created-on-update"
+        assert dto.name == "renamed"
+
+        with sm.get_session() as session:
+            created_model = (
+                session.query(LLMProviderModelModel)
+                .filter(
+                    LLMProviderModelModel.llm_provider_id == provider_id,
+                    LLMProviderModelModel.name == "gpt-created-on-update",
+                )
+                .first()
+            )
+            cfg = (
+                session.query(LLMProviderModelConfigModel)
+                .filter(LLMProviderModelConfigModel.id == config_id)
+                .first()
+            )
+            assert created_model is not None
+            assert cfg is not None
+            assert int(created_model.id) == dto.modelId
+            assert int(cfg.model_id) == dto.modelId
+
     def test_update_not_found(self, db_model_config_service: DatabaseModelConfigService):
         _seed_provider_with_model(system_name="other")
         with pytest.raises(DatabaseModelConfigNotFoundError):

@@ -56,19 +56,12 @@ class DatabaseModelConfigService:
         """
         try:
             with self._session_manager.get_session() as session:
-                if body.model_id is not None:
-                    resolved_model_id = int(body.model_id)
-                else:
-                    if body.llm_provider_id is None or body.model_name is None:
-                        raise DatabaseModelConfigBadRequestError(
-                            "llm_provider_id and model_name are required when model_id is omitted"
-                        )
-                    resolved_model_id = self._get_or_create_llm_provider_model(
-                        session,
-                        int(body.llm_provider_id),
-                        body.model_name.strip(),
-                    )
-                self._ensure_model_exists(session, resolved_model_id)
+                resolved_model_id = self._resolve_model_id(
+                    session,
+                    model_id=body.model_id,
+                    llm_provider_id=body.llm_provider_id,
+                    model_name=body.model_name,
+                )
                 existing = (
                     session.query(LLMProviderModelConfigModel)
                     .filter(
@@ -145,12 +138,6 @@ class DatabaseModelConfigService:
         return int(row.id)
 
     def update(self, config_id: int, body: UpdateDatabaseModelConfigBody) -> ModelConfigDTO:
-        self._logger.info(
-            "Updating database model config id=%s model_id=%s name=%r",
-            config_id,
-            body.model_id,
-            body.name,
-        )
         try:
             with self._session_manager.get_session() as session:
                 cfg = (
@@ -162,11 +149,22 @@ class DatabaseModelConfigService:
                     raise DatabaseModelConfigNotFoundError(
                         f"No model config with id={config_id}"
                     )
-                self._ensure_model_exists(session, body.model_id)
+                resolved_model_id = self._resolve_model_id(
+                    session,
+                    model_id=body.model_id,
+                    llm_provider_id=body.llm_provider_id,
+                    model_name=body.model_name,
+                )
+                self._logger.info(
+                    "Updating database model config id=%s model_id=%s name=%r",
+                    config_id,
+                    resolved_model_id,
+                    body.name,
+                )
                 other = (
                     session.query(LLMProviderModelConfigModel)
                     .filter(
-                        LLMProviderModelConfigModel.model_id == body.model_id,
+                        LLMProviderModelConfigModel.model_id == resolved_model_id,
                         LLMProviderModelConfigModel.name == body.name,
                         LLMProviderModelConfigModel.id != config_id,
                     )
@@ -174,10 +172,10 @@ class DatabaseModelConfigService:
                 )
                 if other is not None:
                     raise DatabaseModelConfigConflictError(
-                        f"Another config already uses model_id={body.model_id} name={body.name!r}"
+                        f"Another config already uses model_id={resolved_model_id} name={body.name!r}"
                     )
                 cfg.name = body.name
-                cfg.model_id = body.model_id
+                cfg.model_id = resolved_model_id
                 cfg.updated_dt = _utc_naive_now()
                 if body.last_used_dt is not None:
                     cfg.last_used_dt = body.last_used_dt
@@ -187,6 +185,29 @@ class DatabaseModelConfigService:
             raise DatabaseModelConfigConflictError(
                 "Database constraint violation while updating model config"
             ) from exc
+
+    def _resolve_model_id(
+        self,
+        session: Session,
+        *,
+        model_id: int | None,
+        llm_provider_id: int | None,
+        model_name: str | None,
+    ) -> int:
+        if model_id is not None:
+            resolved_model_id = int(model_id)
+        else:
+            if llm_provider_id is None or model_name is None:
+                raise DatabaseModelConfigBadRequestError(
+                    "llm_provider_id and model_name are required when model_id is omitted"
+                )
+            resolved_model_id = self._get_or_create_llm_provider_model(
+                session,
+                int(llm_provider_id),
+                model_name.strip(),
+            )
+        self._ensure_model_exists(session, resolved_model_id)
+        return resolved_model_id
 
     def _ensure_model_exists(self, session: Session, model_id: int) -> None:
         exists = (

@@ -15,6 +15,7 @@ import {
   updateDatabaseModelConfig,
   type DatabaseModelConfigDTO,
   type LlmProviderDetailsDTO,
+  type UpdateDatabaseModelConfigPayload,
 } from '../../../lib/api';
 import { useAppDispatch, useAppSelector } from '../../../hooks/reduxHooks';
 import { setEndpointStatus } from '../../../store';
@@ -25,12 +26,6 @@ import type { Provider, ModelConfig, ProviderListEntry } from '../types/modelSel
 const DEFAULT_ADVANCED_PARAMS: AdvancedParam[] = [];
 
 const TEST_POPOVER_TIMEOUT = 3000;
-
-const resolveLlmProviderModelIdForSave = (editingModel: string): number => {
-  const i = editingModel.indexOf(':');
-  if (i !== -1) return parseInt(editingModel.slice(0, i), 10);
-  return parseInt(editingModel, 10);
-};
 
 const resolveExistingDatabaseConfigId = (
   editingDatabaseConfigId: string | null | undefined,
@@ -183,7 +178,7 @@ interface EditModelSheetProps {
    * Used for required-endpoint rows (e.g. LLM AAJ provider rows).
    */
   endpointStatusKey?: string | null;
-  onSaved?: () => void | Promise<void>;
+  onSaved?: (savedConfig: DatabaseModelConfigDTO) => void | Promise<void>;
 }
 
 export default function EditModelSheet({ 
@@ -387,34 +382,36 @@ export default function EditModelSheet({
         editingDatabaseConfigId,
         currentModelConfig
       );
+      const savedConfigPairs = buildSavedConfigPairs();
 
+      let savedConfig: DatabaseModelConfigDTO;
       if (!isNewModel && existingConfigId != null) {
-        const baseModelId = resolveLlmProviderModelIdForSave(editingModel);
-        let resolvedModelId = baseModelId;
         const modelMatch = details.models.find(
           (m) => (m.name ?? '').trim() === trimmedModel
         );
-        if (modelMatch != null && Number.isFinite(modelMatch.id)) {
-          resolvedModelId = modelMatch.id;
-        }
-        if (!Number.isFinite(resolvedModelId) || resolvedModelId <= 0) {
-          window.alert('Invalid model reference for this configuration.');
-          return;
-        }
-        await updateDatabaseModelConfig(existingConfigId, {
-          model_id: resolvedModelId,
-          name: modelConfigName.trim(),
-          savedConfigPairs: buildSavedConfigPairs(),
-        });
+        const updatePayload: UpdateDatabaseModelConfigPayload =
+          modelMatch != null && Number.isFinite(modelMatch.id)
+            ? {
+                model_id: modelMatch.id,
+                name: modelConfigName.trim(),
+                savedConfigPairs,
+              }
+            : {
+                llm_provider_id: providerId,
+                model_name: trimmedModel,
+                name: modelConfigName.trim(),
+                savedConfigPairs,
+              };
+        savedConfig = await updateDatabaseModelConfig(existingConfigId, updatePayload);
       } else {
-        await createDatabaseModelConfig({
+        savedConfig = await createDatabaseModelConfig({
           llm_provider_id: providerId,
           model_name: trimmedModel,
           name: modelConfigName.trim(),
-          savedConfigPairs: buildSavedConfigPairs(),
+          savedConfigPairs,
         });
       }
-      await onSaved?.();
+      await onSaved?.(savedConfig);
       resetForm();
       onOpenChange(false);
     } catch (e) {

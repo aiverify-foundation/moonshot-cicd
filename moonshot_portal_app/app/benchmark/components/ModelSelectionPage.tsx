@@ -7,13 +7,16 @@ import TestNameAndDescriptionCard from "./TestNameAndDescriptionCard";
 import SelectAppOrModelCard from "./SelectAppOrModelCard";
 import { custom_connectors, configs } from "./MockData";
 import type { Provider, ModelConfig } from "../types/modelSelection";
-import { useAppSelector } from "@/hooks/reduxHooks";
+import { useAppDispatch, useAppSelector } from "@/hooks/reduxHooks";
 import {
   fetchProviders,
   fetchProviderLatestDetails,
   ApiError,
+  type DatabaseModelConfigDTO,
+  type LlmProviderDetailsDTO,
   type LlmProviderDTO,
 } from "@/lib/api";
+import { setBenchmarkRunFks, setSelectedModel } from "@/store";
 
 function sortModelConfigRows(a: ModelConfig, b: ModelConfig): number {
   const primary = (id: string) => {
@@ -43,7 +46,50 @@ function mapLlmProviderDtoToProvider(dto: LlmProviderDTO): Provider {
   };
 }
 
+function mapProviderDetailsToModelRows(
+  providerId: string,
+  details: LlmProviderDetailsDTO
+): ModelConfig[] {
+  const dbConfigs = details.database_model_configs ?? [];
+  const modelById = new Map(details.models.map((m) => [m.id, m]));
+  const rows: ModelConfig[] = [];
+
+  for (const c of dbConfigs) {
+    const mid = Number(c.modelId);
+    if (!Number.isFinite(mid) || mid <= 0) continue;
+    const base = modelById.get(mid);
+    rows.push({
+      id: `${mid}:${c.id}`,
+      name: (c.name ?? "").trim() ? c.name : base?.name ?? `Model ${mid}`,
+      modelname: (c.modelname ?? "").trim() ? c.modelname : base?.name ?? "",
+      provider: providerId,
+      modelConfigId: String(c.id),
+      savedConfigPairs: c.savedConfigPairs ?? {},
+    });
+  }
+
+  // Once a provider has saved configs, keep the picker focused on those config rows.
+  if (dbConfigs.length === 0) {
+    for (const m of details.models) {
+      rows.push({
+        id: String(m.id),
+        name: m.name,
+        modelname: m.name,
+        provider: providerId,
+      });
+    }
+  }
+
+  rows.sort(sortModelConfigRows);
+  return rows;
+}
+
+function getSelectionValueForSavedConfig(savedConfig: DatabaseModelConfigDTO): string {
+  return `${savedConfig.modelId}:${savedConfig.id}`;
+}
+
 export default function ModelSelectionPage() {
+  const dispatch = useAppDispatch();
   const { selectedProvider, selectedModel, selectedConfig, isTestNameValid } =
     useAppSelector((state) => state.modelSelection);
 
@@ -84,61 +130,28 @@ export default function ModelSelectionPage() {
     (connector) => connector.id === selectedProvider
   );
 
-  const loadModelsForProvider = useCallback(async (providerId: string) => {
+  const loadModelsForProvider = useCallback(async (providerId: string): Promise<ModelConfig[]> => {
     if (!providerId) {
       setApiModels([]);
-      return;
+      return [];
     }
     const providerRow = apiProviders.find((p) => p.id === providerId);
     const systemName = providerRow?.system_name;
     if (!systemName) {
       setApiModels([]);
-      return;
+      return [];
     }
     setModelsLoading(true);
     setModelsError(null);
     try {
       const details = await fetchProviderLatestDetails(systemName);
-      const dbConfigs = details.database_model_configs ?? [];
-      const modelById = new Map(details.models.map((m) => [m.id, m]));
-      const modelIdsWithConfig = new Set(
-        dbConfigs
-          .map((c) => Number(c.modelId))
-          .filter((n) => Number.isFinite(n) && n > 0)
-      );
-
-      const rows: ModelConfig[] = [];
-
-      for (const c of dbConfigs) {
-        const mid = Number(c.modelId);
-        if (!Number.isFinite(mid) || mid <= 0) continue;
-        const base = modelById.get(mid);
-        rows.push({
-          id: `${mid}:${c.id}`,
-          name: (c.name ?? "").trim() ? c.name : base?.name ?? `Model ${mid}`,
-          modelname: (c.modelname ?? "").trim() ? c.modelname : base?.name ?? "",
-          provider: providerId,
-          modelConfigId: String(c.id),
-          savedConfigPairs: c.savedConfigPairs ?? {},
-        });
-      }
-
-      for (const m of details.models) {
-        if (!modelIdsWithConfig.has(m.id)) {
-          rows.push({
-            id: String(m.id),
-            name: m.name,
-            modelname: m.name,
-            provider: providerId,
-          });
-        }
-      }
-
-      rows.sort(sortModelConfigRows);
+      const rows = mapProviderDetailsToModelRows(providerId, details);
       setApiModels(rows);
+      return rows;
     } catch (e) {
       setModelsError(e instanceof ApiError ? e.message : "Failed to load models");
       setApiModels([]);
+      return [];
     } finally {
       setModelsLoading(false);
     }
@@ -153,10 +166,23 @@ export default function ModelSelectionPage() {
     void loadModelsForProvider(selectedProvider);
   }, [selectedProvider, isCustomConnector, loadModelsForProvider]);
 
-  const refreshModelsForSelectedProvider = useCallback(async () => {
+  const refreshModelsForSelectedProvider = useCallback(async (savedConfig: DatabaseModelConfigDTO) => {
     if (!selectedProvider || isCustomConnector) return;
-    await loadModelsForProvider(selectedProvider);
-  }, [selectedProvider, isCustomConnector, loadModelsForProvider]);
+    const rows = await loadModelsForProvider(selectedProvider);
+    const nextSelectedModel = getSelectionValueForSavedConfig(savedConfig);
+    if (rows.some((row) => row.id === nextSelectedModel)) {
+      const providerId = parseInt(selectedProvider, 10);
+      const configId = parseInt(savedConfig.id, 10);
+      dispatch(setSelectedModel(nextSelectedModel));
+      dispatch(
+        setBenchmarkRunFks({
+          llm_provider_id: Number.isFinite(providerId) ? providerId : null,
+          llm_provider_model_id: savedConfig.modelId,
+          llm_provider_model_config_id: Number.isFinite(configId) ? configId : null,
+        })
+      );
+    }
+  }, [dispatch, selectedProvider, isCustomConnector, loadModelsForProvider]);
 
   const isModelSelected =
     (!isCustomConnector && selectedProvider && selectedModel) ||

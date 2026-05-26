@@ -5,6 +5,28 @@ from pydantic import BaseModel, ConfigDict, Field, model_validator
 from application.dto.provider_dto import ProviderDTO
 
 
+def _validate_model_reference_fields(
+    model_id: Optional[int],
+    llm_provider_id: Optional[int],
+    model_name: Optional[str],
+) -> None:
+    by_id = model_id is not None
+    if by_id:
+        if llm_provider_id is not None or (
+            model_name is not None and model_name.strip() != ""
+        ):
+            raise ValueError(
+                "When model_id is set, omit llm_provider_id and model_name"
+            )
+        return
+    if llm_provider_id is None:
+        raise ValueError(
+            "Provide model_id or both llm_provider_id and a non-empty model_name"
+        )
+    if not model_name or not model_name.strip():
+        raise ValueError("model_name must be non-empty when using llm_provider_id")
+
+
 class CreateDatabaseModelConfigBody(BaseModel):
     """Payload for POST /api/database-model-configs (relational store only)."""
 
@@ -19,21 +41,9 @@ class CreateDatabaseModelConfigBody(BaseModel):
 
     @model_validator(mode="after")
     def validate_model_reference(self) -> Self:
-        by_id = self.model_id is not None
-        if by_id:
-            if self.llm_provider_id is not None or (
-                self.model_name is not None and self.model_name.strip() != ""
-            ):
-                raise ValueError(
-                    "When model_id is set, omit llm_provider_id and model_name"
-                )
-            return self
-        if self.llm_provider_id is None:
-            raise ValueError(
-                "Provide model_id or both llm_provider_id and a non-empty model_name"
-            )
-        if not self.model_name or not self.model_name.strip():
-            raise ValueError("model_name must be non-empty when creating by provider")
+        _validate_model_reference_fields(
+            self.model_id, self.llm_provider_id, self.model_name
+        )
         return self
 
 
@@ -42,10 +52,19 @@ class UpdateDatabaseModelConfigBody(BaseModel):
 
     model_config = ConfigDict(extra="forbid")
 
-    model_id: int
+    model_id: Optional[int] = None
+    llm_provider_id: Optional[int] = None
+    model_name: Optional[str] = None
     name: str
     savedConfigPairs: Dict[str, str] = Field(default_factory=dict)
     last_used_dt: Optional[datetime] = None
+
+    @model_validator(mode="after")
+    def validate_model_reference(self) -> Self:
+        _validate_model_reference_fields(
+            self.model_id, self.llm_provider_id, self.model_name
+        )
+        return self
 
 
 class ModelConfigDTO(BaseModel):

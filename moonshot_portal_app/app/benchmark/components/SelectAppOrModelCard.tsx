@@ -7,6 +7,7 @@ import { Card, CardContent, CardDescription, CardTitle } from "@/components/ui/c
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { Check, ChevronsUpDown, Edit, Plus, CircleAlert, CircleCheckBig } from "lucide-react";
 import type { Provider, ModelConfig, Config, ModelApp } from "../types/modelSelection";
+import type { DatabaseModelConfigDTO } from "@/lib/api";
 import { useAppDispatch, useAppSelector } from "@/hooks/reduxHooks";
 import {
   setSelectedProvider,
@@ -25,7 +26,7 @@ interface SelectAppOrModelCardProps {
   custom_connectors: ModelApp[];
   configs: Config[];
   /** Called after a new DB model config is saved from EditModelSheet */
-  onModelsSaved?: () => void | Promise<void>;
+  onModelsSaved?: (savedConfig: DatabaseModelConfigDTO) => void | Promise<void>;
 }
 
 export default function SelectAppOrModelCard({

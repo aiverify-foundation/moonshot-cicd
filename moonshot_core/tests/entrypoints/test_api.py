@@ -461,6 +461,38 @@ def test_create_database_model_config_409(mock_db_cfg_svc):
 
 
 @patch("entrypoints.api.database_model_config_service")
+def test_update_database_model_config_200_with_provider_model_name(mock_db_cfg_svc):
+    t = datetime(2026, 2, 1, 10, 0, 0, tzinfo=timezone.utc)
+    dto = ModelConfigDTO(
+        id="7",
+        name="prod",
+        modelname="gpt-new",
+        modelId=12,
+        providerID="sys",
+        savedConfigPairs={"k": "v"},
+        lastUpdated=t,
+    )
+    mock_db_cfg_svc.update.return_value = dto
+    response = client.put(
+        "/api/database-model-configs/7",
+        json={
+            "llm_provider_id": 3,
+            "model_name": "gpt-new",
+            "name": "prod",
+            "savedConfigPairs": {"k": "v"},
+        },
+    )
+    assert response.status_code == 200
+    assert response.json()["modelname"] == "gpt-new"
+    mock_db_cfg_svc.update.assert_called_once()
+    args = mock_db_cfg_svc.update.call_args.args
+    assert args[0] == 7
+    assert args[1].llm_provider_id == 3
+    assert args[1].model_name == "gpt-new"
+    assert args[1].model_id is None
+
+
+@patch("entrypoints.api.database_model_config_service")
 def test_update_database_model_config_404(mock_db_cfg_svc):
     mock_db_cfg_svc.update.side_effect = DatabaseModelConfigNotFoundError("gone")
     response = client.put(

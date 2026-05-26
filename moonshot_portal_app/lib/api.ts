@@ -471,27 +471,40 @@ export async function createDatabaseModelConfig(
 }
 
 /** PUT /api/database-model-configs/{config_id} */
-export interface UpdateDatabaseModelConfigPayload {
-  model_id: number;
-  name: string;
-  savedConfigPairs?: Record<string, string>;
-}
+export type UpdateDatabaseModelConfigPayload =
+  | {
+      model_id: number;
+      name: string;
+      savedConfigPairs?: Record<string, string>;
+    }
+  | {
+      llm_provider_id: number;
+      model_name: string;
+      name: string;
+      savedConfigPairs?: Record<string, string>;
+    };
 
 export async function updateDatabaseModelConfig(
   configId: number,
   payload: UpdateDatabaseModelConfigPayload
 ): Promise<DatabaseModelConfigDTO> {
   try {
+    const body: Record<string, unknown> = {
+      name: payload.name,
+      savedConfigPairs: payload.savedConfigPairs ?? {},
+    };
+    if ('model_id' in payload) {
+      body.model_id = payload.model_id;
+    } else {
+      body.llm_provider_id = payload.llm_provider_id;
+      body.model_name = payload.model_name;
+    }
     const response = await fetch(
       `${API_BASE_URL}/api/database-model-configs/${configId}`,
       {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          model_id: payload.model_id,
-          name: payload.name,
-          savedConfigPairs: payload.savedConfigPairs ?? {},
-        }),
+        body: JSON.stringify(body),
       }
     );
     if (!response.ok) {
