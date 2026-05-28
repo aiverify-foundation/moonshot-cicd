@@ -24,12 +24,14 @@ const items = [
     icon: History,
     testId: "sidebar-history-button",
   },
+  /*
   {
     title: "Connectors",
     url: "/",
     icon: Network,
     testId: "sidebar-connectors-button",
   },
+  */
 ]
 
 export function AppSidebar() {

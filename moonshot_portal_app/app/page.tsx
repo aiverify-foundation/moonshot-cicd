@@ -1,6 +1,5 @@
-import Image from "next/image";
 import Link from "next/link";
-import { HelpCircle, Bug, Github, MoreVertical, ArrowRight } from "lucide-react";
+import { HelpCircle, Bug, Github } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 function QuickStartButton() {
@@ -34,11 +33,18 @@ function HowToGuideButton() {
 function IMDAStarterKitButton() {
   return (
     <Button
+      asChild
       variant="outline"
       className="h-[70px] w-full flex-col items-start p-4 text-left hover:bg-accent whitespace-normal"
     >
-      <h3 className="text-base font-semibold text-gray-900 leading-none break-words mb-0">{"IMDA's Starter Kit"}</h3>
-      <p className="text-sm text-slate-700 leading-normal break-words mt-0">{"Follow IMDA's guidance for safety testing"}</p>
+      <a
+        href="https://www.imda.gov.sg/-/media/imda/files/about/emerging-tech-and-research/artificial-intelligence/large-language-model-starter-kit.pdf"
+        target="_blank"
+        rel="noopener noreferrer"
+      >
+        <h3 className="text-base font-semibold text-gray-900 leading-none break-words mb-0">{"IMDA's Starter Kit"}</h3>
+        <p className="text-sm text-slate-700 leading-normal break-words mt-0">{"Follow IMDA's guidance for safety testing"}</p>
+      </a>
     </Button>
   );
 }
@@ -70,17 +76,35 @@ export default function Home() {
           </div>
         </div>
 
-        {/* Action Buttons these don't do anything right now as per agreed on */}
+        {/* Action Buttons */}
         <div className="flex items-center gap-4">
-          <button className="p-2 rounded hover:bg-gray-100 transition-colors">
+          <a
+            href="https://github.com/aiverify-foundation/moonshot-cicd/wiki"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="p-2 rounded hover:bg-gray-100 transition-colors"
+            aria-label="Open Moonshot wiki"
+          >
             <HelpCircle className="w-4 h-4 text-slate-500" />
-          </button>
-          <button className="p-2 rounded hover:bg-gray-100 transition-colors">
+          </a>
+          <a
+            href="https://github.com/aiverify-foundation/moonshot-cicd/issues"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="p-2 rounded hover:bg-gray-100 transition-colors"
+            aria-label="Open Moonshot issues"
+          >
             <Bug className="w-4 h-4 text-slate-500" />
-          </button>
-          <button className="p-2 rounded hover:bg-gray-100 transition-colors">
+          </a>
+          <a
+            href="https://github.com/aiverify-foundation/moonshot-cicd"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="p-2 rounded hover:bg-gray-100 transition-colors"
+            aria-label="Open Moonshot GitHub repository"
+          >
             <Github className="w-4 h-4 text-slate-500" />
-          </button>
+          </a>
         </div>
       </div>
 
