@@ -3,7 +3,7 @@ import React from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { CircleCheckBig, CircleAlert } from 'lucide-react';
+import { CircleCheckBig } from 'lucide-react';
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 import { Button } from "@/components/ui/button";
@@ -108,7 +108,7 @@ export default function SampleSizeCard() {
   const [selectedPopulationMean, setSelectedPopulationMean] = React.useState(CONSTANTS.DEFAULT_EXPECTED_PROPORTION.toString());
   const [selectedConfidenceLevel, setSelectedConfidenceLevel] = React.useState(CONSTANTS.DEFAULT_CONFIDENCE_LEVEL.toString());
   const [selectedMarginOfError, setSelectedMarginOfError] = React.useState(CONSTANTS.DEFAULT_MARGIN_OF_ERROR.toString());
-  const [selectedToggleValue, setSelectedToggleValue] = React.useState("recommended");
+  const [selectedToggleValue, setSelectedToggleValue] = React.useState("all");
 
   // Get bundles and test selection to calculate total prompts
   const bundles = useAppSelector((state) => state.bundles.data);
@@ -154,6 +154,25 @@ export default function SampleSizeCard() {
 
   const recommendedSampleSize = calculateRecommendedSampleSize();
 
+  const sampleSizeToggleOptions = React.useMemo(
+    () =>
+      [
+        {
+          value: "calculated",
+          label: "Calculated — under development",
+          count: `(${recommendedSampleSize})`,
+          selectable: false,
+        },
+        {
+          value: "all",
+          label: "All prompts",
+          count: `(${totalPromptsFromSelectedTests})`,
+          selectable: true,
+        },
+      ],
+    [recommendedSampleSize, totalPromptsFromSelectedTests]
+  );
+
   // Handle toggle selection
   const handleToggleChange = (value: string) => {
     setSelectedToggleValue(value);
@@ -194,13 +213,8 @@ export default function SampleSizeCard() {
                   Review and adjust the sample size for each test to ensure reliable results.
                 </CardDescription>
               </div>
-              {/* Status indicators */}
               <div className="flex items-center">
-                {selectedToggleValue === "test" ? (
-                  <CircleAlert className="h-5 w-5 text-orange-200" data-testid="sample-size-status-indicator" />
-                ) : (
-                  <CircleCheckBig className="h-5 w-5 text-green-500" data-testid="sample-size-status-indicator" />
-                )}
+                <CircleCheckBig className="h-5 w-5 text-green-500" data-testid="sample-size-status-indicator" />
               </div>
             </AccordionTrigger>
             <AccordionContent>
@@ -370,16 +384,13 @@ export default function SampleSizeCard() {
                 <div className="flex items-center gap-3 mt-4">
                   <Label className="text-sm font-medium">Select:</Label>
                   <div className="flex gap-2">
-                    {[
-                      { value: "calculated", label: "Calculated", count: `(${recommendedSampleSize})` },
-                      { value: "test", label: "Test Run", count: `(${numberOfSelectedTests})` },
-                      { value: "all", label: "All prompts", count: `(${totalPromptsFromSelectedTests})` }
-                    ].map((toggle) => (
+                    {sampleSizeToggleOptions.map((toggle) => (
                       <Toggle
                         key={toggle.value}
                         pressed={selectedToggleValue === toggle.value}
+                        disabled={!toggle.selectable}
                         onPressedChange={(pressed) => {
-                          if (pressed) {
+                          if (pressed && toggle.selectable) {
                             handleToggleChange(toggle.value);
                           }
                         }}
