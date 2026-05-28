@@ -236,7 +236,7 @@ export default function BenchmarkSidebar({ currentPage }: BenchmarkSidebarProps)
           </Accordion>
         ) : (
           <div className="text-center text-gray-500 py-8">
-            No bundles selected. Please select bundles to view their tests.
+            No bundles selected. Please select Test Bundles to view their tests.
           </div>
         )}
       </div>

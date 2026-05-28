@@ -81,6 +81,22 @@ describe('ModelSelectionPage', () => {
     ]);
   });
 
+  it('shows updated model selection breadcrumb copy', async () => {
+    render(<ModelSelectionPage />);
+
+    await waitFor(() => {
+      expect(screen.getByTestId('Breadcrumb')).toHaveTextContent(
+        'Select Tests Or Test Bundles',
+      );
+      expect(screen.getByTestId('Breadcrumb')).toHaveTextContent(
+        'Select Model Or Application',
+      );
+      expect(screen.getByTestId('select-model-header')).toHaveTextContent(
+        'Configure And Run Tests',
+      );
+    });
+  });
+
   it('keeps the repointed config selected and hides the old raw model row after save', async () => {
     const user = userEvent.setup();
     mockFetchProviderLatestDetails

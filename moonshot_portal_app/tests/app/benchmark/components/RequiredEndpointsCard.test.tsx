@@ -109,6 +109,17 @@ describe('RequiredEndpointsCard', () => {
     });
   });
 
+  it('shows updated required endpoints card copy', async () => {
+    renderCard();
+
+    expect(screen.getByTestId('additional-card-title')).toHaveTextContent(
+      'Connect Required Endpoints',
+    );
+    expect(screen.getByTestId('additional-card-description')).toHaveTextContent(
+      'Configure access to LLM-as-judge providers required by your selected tests.',
+    );
+  });
+
   it('shows an LLM judge card for selected AAJ tests after providers load', async () => {
     renderCard();
 

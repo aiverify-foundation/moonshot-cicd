@@ -407,7 +407,7 @@ test.describe('Model Selection Page Integration Tests', () => {
       const breadcrumb = page.locator('[data-testid="Breadcrumb"]');
       await expect(breadcrumb).toBeVisible();
       await expect(breadcrumb).toContainText('New Benchmark Test');
-      await expect(breadcrumb).toContainText('Select Model');
+      await expect(breadcrumb).toContainText('Select Model Or Application');
       
       // Verify page header and description
       await expect(page.locator('[data-testid="select-model-header"]')).toContainText('Configure And Run Tests');
@@ -445,7 +445,7 @@ test.describe('Model Selection Page Integration Tests', () => {
       await page.waitForLoadState('networkidle');
       
       // Verify we're back on the bundle selection page by checking for the page content
-      await expect(page.locator('[data-testid="select-bundles-header"]')).toContainText('Select bundles');
+      await expect(page.locator('[data-testid="select-bundles-header"]')).toContainText('Select Test Bundles');
     });
   });
 

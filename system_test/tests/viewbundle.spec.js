@@ -14,7 +14,7 @@ async function navigateToBenchmark(page) {
   await page.waitForLoadState('networkidle');
   
   // Verify we're on the bundles page by checking for the page content
-  await expect(page.locator('[data-testid="select-bundles-header"]')).toContainText('Select bundles');
+  await expect(page.locator('[data-testid="select-bundles-header"]')).toContainText('Select Test Bundles');
 }
 
 // Helper function to toggle all toggle buttons
@@ -45,7 +45,7 @@ test.describe('Moonshot Integration Tests', () => {
     await expect(configureButton).toBeDisabled();
     
     // Verify the page content is still there
-    await expect(page.locator('[data-testid="select-bundles-header"]')).toContainText('Select bundles');
+    await expect(page.locator('[data-testid="select-bundles-header"]')).toContainText('Select Test Bundles');
   });
 
   test('configure button becomes enabled after selecting a bundle', async ({ page }) => {
@@ -200,7 +200,7 @@ test.describe('Moonshot Integration Tests', () => {
     
     // 3. Verify page header and description text
     const pageHeader = page.locator('h1');
-    await expect(pageHeader).toContainText('Select bundles');
+    await expect(pageHeader).toContainText('Select Test Bundles');
     
     const descriptionText = page.locator('[data-testid="select-bundles-description"]');
     await expect(descriptionText).toContainText('Select suitable bundles for your benchmark test');
