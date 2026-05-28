@@ -237,6 +237,7 @@ class TestRefusalAdapter:
         assert result["target"] == "refuse"
         assert result["evaluated_response"] == "accept"
         assert result["attack_success"] is True
+        assert result["score"] == 0.0
         assert "Question: Test prompt\nResponse: I cannot help with that request" in result["evaluated_prompt"]
 
     @pytest.mark.asyncio
@@ -257,6 +258,7 @@ class TestRefusalAdapter:
         result = await adapter.get_individual_result(mock_metric_individual_entity)
 
         assert result["attack_success"] is False
+        assert result["score"] == 1.0
 
     @pytest.mark.asyncio
     async def test_get_individual_result_no_connector(self, mock_metric_individual_entity):

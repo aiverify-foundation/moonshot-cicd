@@ -13,38 +13,13 @@ export { extractEvaluatedResponse, evaluationDisplayLabel } from "./evaluationDi
 const EMPTY_PROMPTS: BenchmarkRunTestPrompt[] = []
 
 /**
- * Derive row score (0 or 1) from evaluation_prediction_result when it is structured,
- * otherwise from evaluation_accuracy.
+ * Normalize API score to binary 0/1 for UI rendering.
+ *
+ * Results pages treat backend `score` as the single source of truth.
  */
-function scoreFromEvaluationResult(
-    evaluationPredictionResult: string | null | undefined,
-    evaluationAccuracy: number | null | undefined
-): number {
-    const fromAccuracy = (a: number): number => {
-        if (a >= 0 && a <= 1) return Math.round(a)
-        return a >= 50 ? 1 : 0
-    }
-
-    if (evaluationPredictionResult == null || evaluationPredictionResult.trim() === "") {
-        if (evaluationAccuracy != null) return fromAccuracy(evaluationAccuracy)
-        return 0
-    }
-
-    try {
-        const parsed = JSON.parse(evaluationPredictionResult) as Record<string, unknown>
-        if (typeof parsed === "object" && parsed !== null) {
-            if (typeof parsed.score === "number") return fromAccuracy(parsed.score)
-            if (typeof parsed.accuracy === "boolean") return parsed.accuracy ? 1 : 0
-        }
-    } catch {
-        // Not valid JSON; try Python-style 'accuracy': True/False
-        const s = evaluationPredictionResult
-        if (/\baccuracy['"]?\s*:\s*True\b/i.test(s)) return 1
-        if (/\baccuracy['"]?\s*:\s*False\b/i.test(s)) return 0
-    }
-
-    if (evaluationAccuracy != null) return fromAccuracy(evaluationAccuracy)
-    return 0
+export function scoreFromApiScore(score: number | null | undefined): number {
+    if (typeof score !== "number" || Number.isNaN(score)) return 0
+    return Math.round(score)
 }
 
 /**
@@ -65,10 +40,7 @@ function promptsToTableRows(
     bundleDisplayName?: string | null
 ): TestResultTableRow[] {
     return prompts.map((p, idx) => {
-        const score = scoreFromEvaluationResult(
-            p.evaluation_prediction_result ?? null,
-            p.evaluation_accuracy ?? null
-        )
+        const score = scoreFromApiScore(p.score ?? null)
         let yourVerdict: "agree" | "disagree" | null = null
         if (p.user_evaluation === 1) yourVerdict = "agree"
         else if (p.user_evaluation === 0) yourVerdict = "disagree"

@@ -1,4 +1,7 @@
-import { adjustedAccuracyPercent } from '@/app/test_result/components/TestResultBundle'
+import {
+  adjustedAccuracyPercent,
+  scoreFromApiScore,
+} from '@/app/test_result/components/TestResultBundle'
 import { metricToPercentPoints } from '@/app/test_result/components/metricToPercentPoints'
 
 describe('adjustedAccuracyPercent', () => {
@@ -36,5 +39,20 @@ describe('metricToPercentPoints', () => {
   it('passes through values greater than 1 as percentage points', () => {
     expect(metricToPercentPoints(7.8)).toBe(7.8)
     expect(metricToPercentPoints(50)).toBe(50)
+  })
+})
+
+describe('scoreFromApiScore', () => {
+  it('uses backend score directly and rounds to binary', () => {
+    expect(scoreFromApiScore(1)).toBe(1)
+    expect(scoreFromApiScore(0)).toBe(0)
+    expect(scoreFromApiScore(0.6)).toBe(1)
+    expect(scoreFromApiScore(0.4)).toBe(0)
+  })
+
+  it('defaults to 0 when backend score is missing or invalid', () => {
+    expect(scoreFromApiScore(null)).toBe(0)
+    expect(scoreFromApiScore(undefined)).toBe(0)
+    expect(scoreFromApiScore(Number.NaN)).toBe(0)
   })
 })

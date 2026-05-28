@@ -239,8 +239,9 @@ export interface BenchmarkRunTestPrompt {
   evaluation_prediction_result?: string | null;
   evaluation_accuracy?: number | null;
   /**
-   * Parsed only from `evaluation_prediction_result` (JSON object `score`, JSON number, or dict repr).
-   * Does not use `evaluation_accuracy`.
+   * Canonical prompt score for results UI.
+   * Parsed server-side from `evaluation_prediction_result` (JSON object `score`, JSON number, or dict repr)
+   * and intentionally does not use `evaluation_accuracy`.
    */
   score?: number | null;
   user_evaluation?: number | null;
