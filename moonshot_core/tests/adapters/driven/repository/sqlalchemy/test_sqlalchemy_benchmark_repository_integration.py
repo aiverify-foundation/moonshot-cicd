@@ -5,10 +5,12 @@ from pathlib import Path
 import pytest
 
 from adapters.driven.repository.sqlalchemy.dataset_adapter import SqlAlchemyDatasetRepository
+from adapters.driven.repository.sqlalchemy.moonshot_config_adapter import MoonshotConfigAdapter
 from adapters.driven.repository.sqlalchemy.session_manager import SessionManager
 from adapters.driven.repository.sqlalchemy.sqlalchemy_benchmark_repository import (
     SqlAlchemyBenchmarkRepository,
 )
+from application.services.shared_config_seed_service import SHARED_CONFIG_SEED_VERSION_KEY
 from application.services.benchmark import BenchmarkService
 from application.services.benchmark_dataset_seed_service import BenchmarkDatasetSeedService
 from application.services.file_dataset_repository import FileDatasetRepository
@@ -101,3 +103,60 @@ def test_llamaguard_test_has_aaj_fields_in_dto(listing_db):
     assert dto.requires_llm_aaj is True
     assert dto.metric_provider_system_name == "together_adapter"
     assert "Eval line one" in (dto.description or "")
+
+
+@pytest.mark.integration
+def test_get_all_bundles_filters_by_seed_version_and_visible(listing_db):
+    """Portal listing includes only bundles at current seed version with visible=true."""
+    dataset_seed = BenchmarkDatasetSeedService(
+        source_dataset_repository=FileDatasetRepository(),
+        target_dataset_repository=SqlAlchemyDatasetRepository(),
+    )
+    dataset_seed.seed_benchmark_dataset("test_sample_dataset")
+
+    base_test = {
+        "type": "benchmark",
+        "dataset": "test_sample_dataset",
+        "metric": {"name": "refusal_adapter"},
+    }
+    SharedConfigSeedService().seed_from_data(
+        {
+            "bundle-a": {
+                "name": "A",
+                "category": "c",
+                "tests": [{**base_test, "name": "Test A"}],
+            },
+            "bundle-b": {
+                "name": "B",
+                "category": "c",
+                "tests": [{**base_test, "name": "Test B"}],
+            },
+        },
+        version=1,
+    )
+    MoonshotConfigAdapter().set(SHARED_CONFIG_SEED_VERSION_KEY, "1")
+
+    SharedConfigSeedService().seed_from_data(
+        {
+            "bundle-a": {
+                "name": "A",
+                "category": "c",
+                "visible": False,
+                "tests": [{**base_test, "name": "Test A"}],
+            },
+            "bundle-c": {
+                "name": "C",
+                "category": "c",
+                "tests": [{**base_test, "name": "Test C"}],
+            },
+        },
+        version=2,
+    )
+    MoonshotConfigAdapter().set(SHARED_CONFIG_SEED_VERSION_KEY, "2")
+
+    ds_repo = SqlAlchemyDatasetRepository()
+    bundles = BenchmarkService(
+        SqlAlchemyBenchmarkRepository(ds_repo), ds_repo
+    ).get_all_bundles()
+
+    assert {b.id for b in bundles} == {"bundle-c"}

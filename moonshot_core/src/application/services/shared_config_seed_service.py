@@ -44,6 +44,13 @@ def _slug(text: str) -> str:
     return s.strip("_")
 
 
+def _bundle_visible(bundle_data: dict[str, Any]) -> bool:
+    """Return portal visibility for a bundle; defaults to True when omitted."""
+    if "visible" not in bundle_data:
+        return True
+    return bool(bundle_data["visible"])
+
+
 class SharedConfigSeedService:
     """
     Seeds benchmark_test_bundle, benchmark_test, and benchmark_test_bundle_grouping
@@ -260,6 +267,7 @@ class SharedConfigSeedService:
             if description is not None and not isinstance(description, str):
                 description = str(description)
             category = bundle_data.get("category", "")
+            visible = _bundle_visible(bundle_data)
 
             bundle_id = self.adapter.get_bundle_id(version, bundle_key)
             if bundle_id is None:
@@ -269,6 +277,15 @@ class SharedConfigSeedService:
                     name=name,
                     description=description,
                     category=category,
+                    visible=visible,
+                )
+            else:
+                self.adapter.update_bundle(
+                    bundle_id,
+                    name=name,
+                    description=description,
+                    category=category,
+                    visible=visible,
                 )
 
             for test in tests:

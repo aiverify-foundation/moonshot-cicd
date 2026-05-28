@@ -73,6 +73,7 @@ def _insert_bundle(
     name: str = "Test Bundle",
     description: Optional[str] = None,
     category: str = "category",
+    visible: bool = True,
 ) -> int:
     """Insert a BenchmarkTestBundleModel row and return its id."""
     with session_manager.get_session() as session:
@@ -82,6 +83,7 @@ def _insert_bundle(
             name=name,
             description=description,
             category=category,
+            visible=visible,
         )
         session.add(model)
         session.flush()

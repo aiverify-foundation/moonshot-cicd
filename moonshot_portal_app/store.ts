@@ -1,5 +1,6 @@
 import { configureStore, createSlice, createAsyncThunk, combineReducers } from '@reduxjs/toolkit';
 import { fetchBundles, Bundle } from './lib/api';
+import { sortBundlesForDisplay } from './lib/bundles';
 import type { TestSelectionState } from './lib/benchmarkTestSelection';
 
 // Async thunk for fetching bundles
@@ -35,7 +36,7 @@ const bundlesSlice = createSlice({
       })
       .addCase(fetchBundlesAsync.fulfilled, (state, action) => {
         state.loading = false;
-        state.data = action.payload;
+        state.data = sortBundlesForDisplay(action.payload);
         state.error = null;
       })
       .addCase(fetchBundlesAsync.rejected, (state, action) => {

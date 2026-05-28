@@ -1,6 +1,6 @@
 """SQLAlchemy ORM models for database tables."""
 
-from sqlalchemy import Column, DateTime, Float, ForeignKey, Integer, String, Text, UniqueConstraint, func, text
+from sqlalchemy import Boolean, Column, DateTime, Float, ForeignKey, Integer, String, Text, UniqueConstraint, func, text
 from sqlalchemy.orm import DeclarativeBase, relationship
 
 
@@ -281,6 +281,7 @@ class BenchmarkTestBundleModel(Base):
     name = Column(String, nullable=False)
     description = Column(String, nullable=True)
     category = Column(String, nullable=False)
+    visible = Column(Boolean, nullable=False, server_default=text("1"), default=True)
     create_dt = Column(DateTime, nullable=False, server_default=func.now())
 
     __table_args__ = (

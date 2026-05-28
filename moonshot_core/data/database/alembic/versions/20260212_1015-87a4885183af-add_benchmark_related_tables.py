@@ -90,6 +90,7 @@ def upgrade() -> None:
         sa.Column("name", sa.String(), nullable=False),
         sa.Column("description", sa.String(), nullable=True),
         sa.Column("category", sa.String(), nullable=False),
+        sa.Column("visible", sa.Boolean(), nullable=False, server_default=sa.text("1")),
         sa.Column("create_dt", sa.DateTime(), nullable=False, server_default=sa.func.now()),
         sa.PrimaryKeyConstraint("id"),
         sa.UniqueConstraint("version", "system_name", name="uq_benchmark_test_bundle_version_system_name"),

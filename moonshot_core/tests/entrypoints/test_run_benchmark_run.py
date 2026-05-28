@@ -49,7 +49,7 @@ from domain.services.enums.module_types import ModuleTypes
 from domain.services.task_manager import TaskManager
 
 
-BUNDLE_NAME = "test-prompts"
+BUNDLE_NAME = "test-bundle"
 
 
 def _ensure_relational_openai_benchmark_ids() -> tuple[int, int, int]:

@@ -134,7 +134,7 @@ async def _wait_for_result_file_and_validate(absolute_result_path, max_wait=15):
 
 
 async def _run_single_bundle_and_wait(
-    absolute_result_path, connector="my-gpt-4o-mini", bundle_name="test-prompts"
+    absolute_result_path, connector="my-gpt-4o-mini", bundle_name="test-bundle"
 ):
     """Helper function to run a single bundle and wait for its result file."""
     _start_bundle_in_background(bundle_name, connector)
@@ -166,7 +166,7 @@ def _cleanup_bundle_result_file_for(bundle_id):
 @pytest.fixture
 def cleanup_bundle_result_file():
     """Fixture to clean up the bundle result file."""
-    absolute_result_path = _cleanup_bundle_result_file_for("test-prompts")
+    absolute_result_path = _cleanup_bundle_result_file_for("test-bundle")
     yield absolute_result_path
     _cleanup_file(absolute_result_path)
 
@@ -207,7 +207,7 @@ def _verify_result_structure(data, bundle_id):
 
 
 async def _run_validation_workflow_test(
-    connector, absolute_result_path, bundle_id="test-prompts", max_wait=15
+    connector, absolute_result_path, bundle_id="test-bundle", max_wait=15
 ):
     """Helper to run a validation workflow test with common setup.
 
@@ -249,7 +249,7 @@ async def test_validation_workflow_together_connector(
     Then: Validation passes
     """
     absolute_result_path = cleanup_bundle_result_file
-    _cleanup_bundle_run_db("test-prompts")
+    _cleanup_bundle_run_db("test-bundle")
     await _run_validation_workflow_test("my-together-llama-8b", absolute_result_path)
 
 
@@ -266,7 +266,7 @@ async def test_validation_workflow_openai_connector(
     Then: Validation passes
     """
     absolute_result_path = cleanup_bundle_result_file
-    _cleanup_bundle_run_db("test-prompts")
+    _cleanup_bundle_run_db("test-bundle")
     await _run_validation_workflow_test("my-gpt-4o-mini", absolute_result_path)
 
 
@@ -285,16 +285,16 @@ async def test_validation_workflow_failure_recovery(
     Then: JSON is created and validation passes
     """
     absolute_result_path = cleanup_bundle_result_file
-    _cleanup_bundle_run_db("test-prompts")
+    _cleanup_bundle_run_db("test-bundle")
 
     # Step 1: Try with invalid connector (start succeeds; failure happens in worker process)
-    _start_bundle_in_background("test-prompts", "invalid_connector")
+    _start_bundle_in_background("test-bundle", "invalid_connector")
 
     # Wait for Step 1 to complete (it runs in a separate process)
     # Give it time to finish and ensure no file was created (or clean up if one was)
     await asyncio.sleep(2)
     _cleanup_file(absolute_result_path)
-    _cleanup_bundle_run_db("test-prompts")
+    _cleanup_bundle_run_db("test-bundle")
 
     # Step 2: Run test with valid connector (happy path)
     await _run_validation_workflow_test(
@@ -321,7 +321,7 @@ async def test_validation_workflow_sequential_runs(
     connectors = ["my-gpt-4o-mini"] * 5
 
     for connector in connectors:
-        _cleanup_bundle_run_db("test-prompts")
+        _cleanup_bundle_run_db("test-bundle")
         await _run_single_bundle_and_wait(
             absolute_result_path, connector=connector
         )
@@ -329,7 +329,7 @@ async def test_validation_workflow_sequential_runs(
     # Verify the final result file exists and is valid
     assert absolute_result_path.exists(), f"Result file not created: {absolute_result_path}"
     data = await _wait_for_result_file_and_validate(absolute_result_path)
-    _verify_result_structure(data, "test-prompts")
+    _verify_result_structure(data, "test-bundle")
 
 
 # @pytest.mark.asyncio

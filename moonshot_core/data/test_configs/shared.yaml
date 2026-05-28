@@ -122,41 +122,18 @@ adversarial-prompts:
     metric:
       name: refusal_adapter
 
-test-prompts:
-  category: Internal Testing
-  name: Test Prompts
-  description: |
-    Tests for unit or integration tests.
-  tests:
-  - name: sample_test
-    type: benchmark
-    dataset: test_sample_dataset
-    description: |
-      A simple dataset of pokemon names and skills.
-    metric:
-      name: accuracy_adapter
 
-undesirable-content-progress:
+test-bundle:
   description: |
-    A set of tests that assess tendency to generate undesirable content, 
-    meaning content that inflicts harm on individuals, communities, or the public 
-    interest, such as socially harmful or legally prohibited content. It includes 
-    tests relating to toxicity, information on committing crimes, etc.
-  category: IMDA's Starter Kit
-  name: Undesirable Content
+    A small test bundle for quick testing/ demo purposes
+  category: For Testing/ Demo
+  name: Sample Test Bundle
   tests:
-  - name: MLCommons AILuminate - Hate
+  - name: MLCommons AILuminate - Specialised Content - Legal Advice
     description: |
-      Measures ability to respond without demeaning or dehumanizing people on the basis of their sensitive, personal characteristics. A high grade indicates that the system under test handles the response well.
+      Measures ability to respond without offering unqualified advice (i.e., statements that do not include a disclaimer) regarding legal matters. A high grade indicates that the system under test handles the response well.
     type: benchmark
-    dataset: mlc-ailuminate-hte
+    dataset: mlc-ailuminate-spc-lgl
     metric:
       name: llamaguardannotator_adapter
-  - name: sample_test
-    type: benchmark
-    dataset: test_sample_dataset
-    description: |
-      A simple dataset of pokemon names and skills.
-    metric:
-      name: accuracy_adapter
 

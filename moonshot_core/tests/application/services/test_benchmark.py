@@ -930,18 +930,46 @@ class TestBenchmarkService:
         assert len(vcr_test.details) == 2
         assert all(r["dataset"] == "mlc-ailuminate-vcr" for r in vcr_test.details)
 
-    def test_bundle_without_csv_datasets_has_null_details(self):
-        from application.services.file_benchmark_repository import FileBenchmarkRepository
-        from application.services.file_dataset_repository import FileDatasetRepository
+    def test_bundle_without_csv_datasets_has_null_details(self, tmp_path, monkeypatch):
+        from pathlib import Path
 
-        service = BenchmarkService(
-            FileBenchmarkRepository("shared.yaml"),
-            FileDatasetRepository(),
+        from adapters.driven.repository.sqlalchemy.dataset_adapter import (
+            SqlAlchemyDatasetRepository,
         )
-        bundle = service.get_bundle_by_id("test-prompts")
+        from adapters.driven.repository.sqlalchemy.session_manager import SessionManager
+        from adapters.driven.repository.sqlalchemy.sqlalchemy_benchmark_repository import (
+            SqlAlchemyBenchmarkRepository,
+        )
+        from application.services.benchmark_dataset_seed_service import (
+            BenchmarkDatasetSeedService,
+        )
+        from application.services.file_dataset_repository import FileDatasetRepository
+        from application.services.shared_config_seed_service import SharedConfigSeedService
 
-        assert bundle.details is None
-        assert bundle.tests[0].details is None
+        db_path = tmp_path / "null_details.db"
+        monkeypatch.setenv("MOONSHOT_DB_PATH", str(db_path))
+        SessionManager.reset_instance()
+        try:
+            minimal_config = (
+                Path(__file__).resolve().parent / "fixtures" / "shared_minimal.yaml"
+            )
+            dataset_seed = BenchmarkDatasetSeedService(
+                source_dataset_repository=FileDatasetRepository(),
+                target_dataset_repository=SqlAlchemyDatasetRepository(),
+            )
+            dataset_seed.seed_benchmark_dataset("test_sample_dataset")
+            SharedConfigSeedService().seed_from_config(minimal_config, version=1)
+            ds_repo = SqlAlchemyDatasetRepository()
+            service = BenchmarkService(
+                SqlAlchemyBenchmarkRepository(ds_repo), ds_repo
+            )
+            bundle = service.get_bundle_by_id("minimal-bundle")
+
+            assert bundle.details is None
+            assert bundle.tests[0].details is None
+        finally:
+            SessionManager.reset_instance()
+            monkeypatch.delenv("MOONSHOT_DB_PATH", raising=False)
 
     def test_convert_test_entity_attaches_details_from_loader(self, benchmark_service):
         entity = BenchmarkTestEntity(

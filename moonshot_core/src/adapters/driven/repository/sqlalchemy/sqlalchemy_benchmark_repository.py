@@ -9,7 +9,9 @@ from adapters.driven.repository.sqlalchemy.llm_provider_models import (
     BenchmarkTestBundleGroupingModel,
     BenchmarkTestBundleModel,
     BenchmarkTestModel,
+    MoonshotConfigModel,
 )
+from application.services.shared_config_seed_service import SHARED_CONFIG_SEED_VERSION_KEY
 from adapters.driven.repository.sqlalchemy.session_manager import SessionManager
 from application.ports.benchmark_repository import BenchmarkRepository
 from application.ports.dataset_repository import DatasetRepository
@@ -50,26 +52,61 @@ class SqlAlchemyBenchmarkRepository(BenchmarkRepository):
             benchmark_test_id=row.id,
         )
 
+    def _current_shared_config_seed_version(self, session) -> int | None:
+        """Return shared_config_seed_version from moonshot_config, or None if unset."""
+        row = (
+            session.query(MoonshotConfigModel)
+            .filter(MoonshotConfigModel.key == SHARED_CONFIG_SEED_VERSION_KEY)
+            .first()
+        )
+        if row is None or row.value is None or not str(row.value).strip():
+            return None
+        try:
+            return int(row.value)
+        except ValueError:
+            self._logger.warning(
+                "Invalid %s value %r; listing all visible bundles at latest version",
+                SHARED_CONFIG_SEED_VERSION_KEY,
+                row.value,
+            )
+            return None
+
     def get_all_bundles(self) -> list[TestBundleEntity]:
         with self._session_manager.get_session() as session:
-            bundle_versions = (
-                session.query(
-                    BenchmarkTestBundleModel.system_name,
-                    func.max(BenchmarkTestBundleModel.version).label("max_v"),
-                )
-                .group_by(BenchmarkTestBundleModel.system_name)
-                .subquery()
+            seed_version = self._current_shared_config_seed_version(session)
+            query = session.query(BenchmarkTestBundleModel).filter(
+                BenchmarkTestBundleModel.visible.is_(True),
             )
-            bundles = (
-                session.query(BenchmarkTestBundleModel)
-                .join(
-                    bundle_versions,
-                    (BenchmarkTestBundleModel.system_name == bundle_versions.c.system_name)
-                    & (BenchmarkTestBundleModel.version == bundle_versions.c.max_v),
+            if seed_version is not None:
+                bundles = (
+                    query.filter(BenchmarkTestBundleModel.version == seed_version)
+                    .order_by(BenchmarkTestBundleModel.system_name)
+                    .all()
                 )
-                .order_by(BenchmarkTestBundleModel.system_name)
-                .all()
-            )
+            else:
+                bundle_versions = (
+                    session.query(
+                        BenchmarkTestBundleModel.system_name,
+                        func.max(BenchmarkTestBundleModel.version).label("max_v"),
+                    )
+                    .group_by(BenchmarkTestBundleModel.system_name)
+                    .subquery()
+                )
+                bundles = (
+                    query.join(
+                        bundle_versions,
+                        (
+                            BenchmarkTestBundleModel.system_name
+                            == bundle_versions.c.system_name
+                        )
+                        & (
+                            BenchmarkTestBundleModel.version
+                            == bundle_versions.c.max_v
+                        ),
+                    )
+                    .order_by(BenchmarkTestBundleModel.system_name)
+                    .all()
+                )
 
             result: list[TestBundleEntity] = []
             for bundle in bundles:

@@ -21,6 +21,7 @@ from adapters.driven.repository.sqlalchemy.llm_provider_models import (
 from adapters.driven.repository.sqlalchemy.session_manager import SessionManager
 from application.services.shared_config_seed_service import (
     SharedConfigSeedService,
+    SHARED_CONFIG_SEED_VERSION_KEY,
     TEST_FILE_LAST_MODIFIED_KEY,
 )
 from application.services.file_shared_config_repository import (
@@ -240,3 +241,78 @@ class TestSharedConfigSeedServiceConditionalIntegration:
             )
             is not None
         ), "Expected moonshot_config to have test_file_last_modified set"
+
+    def test_reseed_drops_removed_bundle_and_honors_visible_false(
+        self,
+        shared_config_seed_service,
+        test_db_env,
+        tmp_path,
+    ):
+        """Bundles removed from YAML are not at the new seed version; visible:false is stored."""
+        v1 = {
+            "listed-bundle": {
+                "name": "Listed",
+                "category": "c",
+                "tests": [
+                    {
+                        "name": "T1",
+                        "type": "benchmark",
+                        "dataset": "test_sample_dataset",
+                        "metric": {"name": "refusal_adapter"},
+                    },
+                ],
+            },
+            "removed-bundle": {
+                "name": "Removed",
+                "category": "c",
+                "tests": [
+                    {
+                        "name": "T2",
+                        "type": "benchmark",
+                        "dataset": "test_sample_dataset",
+                        "metric": {"name": "refusal_adapter"},
+                    },
+                ],
+            },
+        }
+        path = tmp_path / "visibility.yaml"
+        path.write_text(yaml.dump(v1))
+        assert shared_config_seed_service.seed_if_test_file_changed(config_path=path)
+
+        v2 = {
+            "listed-bundle": {
+                "name": "Listed",
+                "category": "c",
+                "visible": False,
+                "tests": v1["listed-bundle"]["tests"],
+            },
+            "new-bundle": {
+                "name": "New",
+                "category": "c",
+                "tests": [
+                    {
+                        "name": "T3",
+                        "type": "benchmark",
+                        "dataset": "test_sample_dataset",
+                        "metric": {"name": "refusal_adapter"},
+                    },
+                ],
+            },
+        }
+        path.write_text(yaml.dump(v2) + "\n")
+        assert shared_config_seed_service.seed_if_test_file_changed(config_path=path)
+
+        session_manager = SessionManager.get_instance()
+        seed_version = int(
+            _get_moonshot_config_value(session_manager, SHARED_CONFIG_SEED_VERSION_KEY)
+        )
+        with session_manager.get_session() as session:
+            rows = (
+                session.query(BenchmarkTestBundleModel)
+                .filter(BenchmarkTestBundleModel.version == seed_version)
+                .all()
+            )
+            visible_by_name = {r.system_name: r.visible for r in rows}
+        assert set(visible_by_name) == {"listed-bundle", "new-bundle"}
+        assert visible_by_name["listed-bundle"] is False
+        assert visible_by_name["new-bundle"] is True

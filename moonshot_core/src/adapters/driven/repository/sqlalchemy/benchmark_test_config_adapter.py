@@ -156,6 +156,7 @@ class BenchmarkTestConfigAdapter:
         name: str,
         description: Optional[str],
         category: str,
+        visible: bool = True,
     ) -> int:
         """
         Insert a new benchmark_test_bundle row. Returns id.
@@ -166,6 +167,7 @@ class BenchmarkTestConfigAdapter:
             name: Display name.
             description: Optional description.
             category: Category (required).
+            visible: Whether the bundle appears in portal listing APIs.
 
         Returns:
             int: Primary key of the new benchmark_test_bundle row.
@@ -181,6 +183,7 @@ class BenchmarkTestConfigAdapter:
                     name=name,
                     description=description,
                     category=category,
+                    visible=visible,
                 )
                 session.add(new)
                 session.flush()
@@ -197,6 +200,36 @@ class BenchmarkTestConfigAdapter:
                     f"Bundle already exists for version={version}, system_name={system_name!r}. "
                     "Use get_bundle_id to retrieve the existing id."
                 ) from e
+
+    def update_bundle(
+        self,
+        bundle_id: int,
+        *,
+        name: str,
+        description: Optional[str],
+        category: str,
+        visible: bool,
+    ) -> None:
+        """Update display fields and visibility for an existing bundle row."""
+        with self.session_manager.get_session() as session:
+            row = (
+                session.query(BenchmarkTestBundleModel)
+                .filter(BenchmarkTestBundleModel.id == bundle_id)
+                .first()
+            )
+            if row is None:
+                raise ValueError(f"Bundle not found: id={bundle_id}")
+            row.name = name
+            row.description = description
+            row.category = category
+            row.visible = visible
+            session.flush()
+            self.logger.debug(
+                "Updated bundle id=%s system_name=%r visible=%s",
+                bundle_id,
+                row.system_name,
+                visible,
+            )
 
     def get_test_id(self, version: int, system_name: str) -> Optional[int]:
         """

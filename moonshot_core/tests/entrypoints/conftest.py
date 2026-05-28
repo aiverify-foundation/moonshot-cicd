@@ -74,6 +74,6 @@ def shared_config_seed_service(test_db_env):
 
 @pytest.fixture(scope="session")
 def seed_shared_config(shared_config_seed_service):
-    """Load bundles/tests from shared.yaml (e.g. test-prompts) into the isolated DB."""
+    """Load bundles/tests from shared.yaml (e.g. test-bundle) into the isolated DB."""
     assert SHARED_CONFIG_PATH.exists(), f"Shared config missing: {SHARED_CONFIG_PATH}"
     shared_config_seed_service.seed_if_test_file_changed(config_path=SHARED_CONFIG_PATH)

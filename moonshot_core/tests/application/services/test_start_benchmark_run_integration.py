@@ -531,27 +531,27 @@ def test_start_benchmark_run_duplicate_name_raises(
 
 
 @pytest.mark.integration
-def test_start_benchmark_run_test_prompts_bundle(
+def test_start_benchmark_run_test_bundle(
     shared_config_seed_service,
     test_db_env,
     tmp_path,
 ):
     """
     Seed DB from data/test_configs/shared.yaml, then run start_benchmark_run with
-    the test-prompts bundle. Process is patched to run in-process; connector and
-    accuracy_adapter are mocked. Asserts benchmark_run row, no combined bundle JSON file,
+    the test-bundle bundle. Process is patched to run in-process; connector and
+    llamaguardannotator_adapter are mocked. Asserts benchmark_run row, no combined bundle JSON file,
     and completed run_test/prompts.
     """
     assert SHARED_CONFIG_PATH.exists(), f"Shared config missing: {SHARED_CONFIG_PATH}"
     shared_config_seed_service.seed_if_test_file_changed(config_path=SHARED_CONFIG_PATH)
 
     config_adapter = BenchmarkTestConfigAdapter()
-    bundle_id = config_adapter.get_bundle_id_by_system_name_latest("test-prompts")
+    bundle_id = config_adapter.get_bundle_id_by_system_name_latest("test-bundle")
     test_ids = config_adapter.get_test_ids_by_bundle_id(bundle_id)
     assert len(test_ids) >= 1
 
-    run_name = "start-benchmark-run-test-prompts-integration"
-    expected_prediction = "test_prompts integration response"
+    run_name = "start-benchmark-run-test-bundle-integration"
+    expected_prediction = "test_bundle integration response"
 
     mock_connector = MagicMock()
     mock_connector.get_response = AsyncMock(
@@ -578,10 +578,12 @@ def test_start_benchmark_run_test_prompts_bundle(
     def mock_load_module_impl(module_name, module_type):
         if module_type == ModuleTypes.CONNECTOR and module_name == "mock_execute_bundle_connector":
             return (mock_connector, None)
-        if module_type == ModuleTypes.METRIC and module_name == "accuracy_adapter":
-            return (mock_metric, "accuracy_adapter")
-        if module_type == ModuleTypes.METRIC and module_name == "refusal_adapter":
-            return (mock_metric, "refusal_adapter")
+        if module_type == ModuleTypes.METRIC and module_name in (
+            "llamaguardannotator_adapter",
+            "accuracy_adapter",
+            "refusal_adapter",
+        ):
+            return (mock_metric, module_name)
         return real_load(module_name, module_type)
 
     def fake_process(*, target=None, args=(), **kwargs):
@@ -622,7 +624,7 @@ def test_start_benchmark_run_test_prompts_bundle(
         service = BenchmarkExecutionService()
         service.start_benchmark_run(
             run_name=run_name,
-            bundle_names=["test-prompts"],
+            bundle_names=["test-bundle"],
             llm_provider_id=STUB_LLM_PROVIDER_ID,
             llm_provider_model_id=STUB_LLM_PROVIDER_MODEL_ID,
             llm_provider_model_config_id=STUB_LLM_PROVIDER_MODEL_CONFIG_ID,
@@ -634,7 +636,7 @@ def test_start_benchmark_run_test_prompts_bundle(
     assert run_entity.status == "completed"
     assert run_entity.end_time is not None
 
-    result_file = tmp_path / "test-prompts.json"
+    result_file = tmp_path / "test-bundle.json"
     assert not result_file.exists(), (
         f"API-started runs should not write combined bundle JSON; unexpected file: {result_file}"
     )

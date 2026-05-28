@@ -761,13 +761,13 @@ class TestFileBenchmarkRepository:
         repository = FileBenchmarkRepository("shared.yaml")
         
         # Act - Try to get a bundle that should exist
-        result = repository.get_bundle_by_id("test-prompts")
+        result = repository.get_bundle_by_id("test-bundle")
         
         # Assert
         assert isinstance(result, TestBundleEntity)
-        assert result.name == "Test Prompts"  # Actual bundle name in config
+        assert result.name == "Sample Test Bundle"
         assert result.description is not None
-        assert result.category == "Internal Testing"
+        assert result.category == "For Testing/ Demo"
         assert len(result.tests) > 0  # Should have actual tests
         
         # Verify tests are properly structured
