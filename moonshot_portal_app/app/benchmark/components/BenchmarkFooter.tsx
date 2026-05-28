@@ -5,6 +5,7 @@ import { Loader2 } from 'lucide-react';
 import { Button } from "@/components/ui/button";
 import { useAppSelector } from '../../../hooks/reduxHooks';
 import { startBenchmarkRun, ApiError } from '@/lib/api';
+import { selectedTestsInBundle } from '@/lib/benchmarkTestSelection';
 import { custom_connectors } from './MockData';
 
 interface BenchmarkFooterProps {
@@ -43,7 +44,7 @@ export default function BenchmarkFooter({
     for (const bundleId of selectedBundleSystemNames) {
       const bundle = bundles.find((b) => b.id === bundleId);
       if (!bundle?.tests?.length) continue;
-      const selectedTests = bundle.tests.filter((t) => testSelection[t.name]);
+      const selectedTests = selectedTestsInBundle(testSelection, bundleId, bundle.tests);
       const allSelected = selectedTests.length === bundle.tests.length;
       if (allSelected) continue;
       if (selectedTests.length === 0) {

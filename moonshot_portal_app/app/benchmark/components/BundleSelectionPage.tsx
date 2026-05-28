@@ -19,6 +19,7 @@ import { useAppSelector, useAppDispatch } from '../../../hooks/reduxHooks';
 import { useBundlesRedux } from '../../../hooks/useBundlesRedux';
 import { setBundleSelected, setMultipleTestsSelected } from '../../../store';
 import type { Bundle } from '@/lib/api';
+import { areAllTestsSelected, getTestSelectionKey } from '@/lib/benchmarkTestSelection';
 import ViewBundleDetailsSheet from './ViewBundleDetailsSheet';
 
 export default function BundleSelectionPage() {
@@ -83,9 +84,7 @@ export default function BundleSelectionPage() {
 
   function renderCard(bundle: Bundle) {
     const { id, name, description, category, tests, prompt_count } = bundle;
-    const testNames = tests.map((t) => t.name);
-    const allTestsSelected =
-      testNames.length > 0 && testNames.every((name) => testSelection[name]);
+    const allTestsSelected = areAllTestsSelected(testSelection, id, tests);
     return (
       <Card style={{ width: '400px', height: '470px', display: 'flex', flexDirection: 'column' }} data-testid={`bundle-card-${id}`}>
         <CardHeader>
@@ -135,7 +134,13 @@ export default function BundleSelectionPage() {
             checked={allTestsSelected}
             onCheckedChange={(checked: boolean) => {
               dispatch(setBundleSelected({ bundleId: id, selected: checked }));
-              dispatch(setMultipleTestsSelected({ testNames, selected: checked }));
+              dispatch(
+                setMultipleTestsSelected({
+                  bundleId: id,
+                  testKeys: tests.map(getTestSelectionKey),
+                  selected: checked,
+                })
+              );
             }}
             data-testid={`toggle-${id}`}
           >
@@ -194,7 +199,7 @@ export default function BundleSelectionPage() {
           </BreadcrumbItem>
           <BreadcrumbSeparator />
           <BreadcrumbItem>
-            <BreadcrumbPage>Select Recipes Or Bundles</BreadcrumbPage>
+            <BreadcrumbPage>Select Tests Or Test Bundles</BreadcrumbPage>
           </BreadcrumbItem>
         </BreadcrumbList>
       </Breadcrumb>

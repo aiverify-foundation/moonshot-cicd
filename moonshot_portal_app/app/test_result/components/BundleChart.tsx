@@ -24,7 +24,7 @@ export default function BundleChart({ title, chartData }: BundleChartProps) {
     // Custom formatter for Y-axis labels
     const formatYAxisLabel = (value: number) => `${value}%`
 
-    // Custom X-axis tick component for recipe names
+    // Custom X-axis tick component for Test names
     const CustomXAxisTick = ({ x, y, payload }: { x?: number; y?: number; payload?: { value: string } }) => {
         if (x === undefined || y === undefined || !payload) return null
         

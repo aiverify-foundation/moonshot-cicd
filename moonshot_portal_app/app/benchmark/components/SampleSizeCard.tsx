@@ -17,6 +17,10 @@ import {
 import { Toggle } from '@/components/ui/toggle';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { useAppSelector } from '@/hooks/reduxHooks';
+import {
+  countSelectedTestsAcrossBundles,
+  isTestSelected,
+} from '@/lib/benchmarkTestSelection';
 
 const CONSTANTS = {
   MINIMUM_SAMPLE_SIZE: 5,
@@ -109,24 +113,31 @@ export default function SampleSizeCard() {
   // Get bundles and test selection to calculate total prompts
   const bundles = useAppSelector((state) => state.bundles.data);
   const testSelection = useAppSelector((state) => state.testSelection);
+  const bundleSelection = useAppSelector((state) => state.bundleSelection);
 
-  // Calculate total number of prompts from selected tests
+  const selectedBundleIds = React.useMemo(
+    () => Object.entries(bundleSelection).filter(([, v]) => v).map(([id]) => id),
+    [bundleSelection]
+  );
+
+  // Calculate total number of prompts from selected tests in selected bundles
   const totalPromptsFromSelectedTests = React.useMemo(() => {
     let total = 0;
-    bundles.forEach(bundle => {
-      bundle.tests.forEach(test => {
-        if (testSelection[test.name]) {
+    bundles.forEach((bundle) => {
+      if (!bundleSelection[bundle.id]) return;
+      bundle.tests.forEach((test) => {
+        if (isTestSelected(testSelection, bundle.id, test)) {
           total += test.dataset?.num_of_dataset_prompts ?? 0;
         }
       });
     });
     return total;
-  }, [bundles, testSelection]);
+  }, [bundles, testSelection, bundleSelection]);
 
-  // Calculate number of selected tests
+  // Calculate number of selected tests in selected bundles
   const numberOfSelectedTests = React.useMemo(() => {
-    return Object.values(testSelection).filter(isSelected => isSelected).length;
-  }, [testSelection]);
+    return countSelectedTestsAcrossBundles(testSelection, selectedBundleIds);
+  }, [testSelection, selectedBundleIds]);
 
   // Calculate recommended sample size based on selected values
   const calculateRecommendedSampleSize = () => {

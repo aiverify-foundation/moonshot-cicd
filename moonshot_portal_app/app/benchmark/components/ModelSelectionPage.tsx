@@ -194,7 +194,7 @@ export default function ModelSelectionPage() {
         <BreadcrumbList>
           <BreadcrumbItem>New Benchmark Test</BreadcrumbItem>
           <BreadcrumbSeparator />
-          <BreadcrumbItem>Select Recipes Or Bundles</BreadcrumbItem>
+          <BreadcrumbItem>Select Tests Or Test Bundles</BreadcrumbItem>
           <BreadcrumbSeparator />
           <BreadcrumbItem>
             <BreadcrumbPage>Select Model Or Application</BreadcrumbPage>

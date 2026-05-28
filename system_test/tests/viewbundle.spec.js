@@ -209,7 +209,7 @@ test.describe('Moonshot Integration Tests', () => {
     const breadcrumb = page.locator('[data-testid="Breadcrumb"]');
     await expect(breadcrumb).toBeVisible();
     await expect(breadcrumb).toContainText('New Benchmark Test');
-    await expect(breadcrumb).toContainText('Select Recipes Or Bundles');
+    await expect(breadcrumb).toContainText('Select Tests Or Test Bundles');
     
     // 5. Wait for bundle cards to load
     await page.waitForSelector('[data-testid^="bundle-card-"]', { timeout: 10000 });

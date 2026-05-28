@@ -17,6 +17,7 @@ import { useAppSelector, useAppDispatch } from '../../../hooks/reduxHooks';
 import { toggleBundleSelected } from '../../../store';
 import { useTestSelectionActions } from '../../../hooks/useTestSelection';
 import type { Bundle } from '@/lib/api';
+import { countSelectedTests, isTestSelected } from '@/lib/benchmarkTestSelection';
 
 interface ViewBundleDetailsSheetProps {
   open: boolean;
@@ -129,7 +130,7 @@ export default function ViewBundleDetailsSheet({
   const { setTest } = useTestSelectionActions();
 
   const selectedCount = bundle
-    ? bundle.tests.filter((t) => testSelection[t.name]).length
+    ? countSelectedTests(testSelection, bundle.id, bundle.tests)
     : 0;
 
   const handleAddTests = () => {
@@ -190,8 +191,8 @@ export default function ViewBundleDetailsSheet({
               <TestDetailCard 
                 key={test.name} 
                 test={test} 
-                isSelected={Boolean(testSelection[test.name])}
-                onSelectionChange={(selected) => setTest(test.name, selected)}
+                isSelected={isTestSelected(testSelection, bundle.id, test)}
+                onSelectionChange={(selected) => setTest(bundle.id, test, selected)}
               />
             ))
           ) : (

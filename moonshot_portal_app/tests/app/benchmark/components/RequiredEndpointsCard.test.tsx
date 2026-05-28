@@ -81,7 +81,8 @@ describe('RequiredEndpointsCard', () => {
       loading: false,
       error: null,
     },
-    testSelection: { 'Recipe A': true },
+    bundleSelection: { bundle_one: true },
+    testSelection: { bundle_one: { 'Recipe A': true } },
   };
 
   const renderCard = (preloadedState?: Record<string, unknown>) =>

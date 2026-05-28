@@ -1,5 +1,6 @@
 import { configureStore, createSlice, createAsyncThunk, combineReducers } from '@reduxjs/toolkit';
 import { fetchBundles, Bundle } from './lib/api';
+import type { TestSelectionState } from './lib/benchmarkTestSelection';
 
 // Async thunk for fetching bundles
 export const fetchBundlesAsync = createAsyncThunk(
@@ -166,29 +167,37 @@ export const {
 
 const testSelectionSlice = createSlice({
   name: 'testSelection',
-  initialState: {} as Record<string, boolean>,
+  initialState: {} as TestSelectionState,
   reducers: {
     setTestSelected: (state, action) => {
-      const { testName, selected } = action.payload;
-      state[testName] = selected;
+      const { bundleId, testKey, selected } = action.payload;
+      if (!state[bundleId]) {
+        state[bundleId] = {};
+      }
+      state[bundleId][testKey] = selected;
     },
     toggleTestSelected: (state, action) => {
-      const testName = action.payload;
-      state[testName] = !state[testName];
+      const { bundleId, testKey } = action.payload;
+      if (!state[bundleId]) {
+        state[bundleId] = {};
+      }
+      state[bundleId][testKey] = !state[bundleId][testKey];
     },
     setMultipleTestsSelected: (state, action) => {
-      const { testNames, selected } = action.payload;
-      testNames.forEach((testName: string) => {
-        state[testName] = selected;
+      const { bundleId, testKeys, selected } = action.payload;
+      if (!state[bundleId]) {
+        state[bundleId] = {};
+      }
+      testKeys.forEach((testKey: string) => {
+        state[bundleId][testKey] = selected;
       });
     },
-    clearTestSelection: (state) => {
+    clearTestSelection: () => {
       return {};
     },
     clearTestsForBundle: (state, action) => {
-      const bundleName = action.payload;
-      // This will be handled by the component logic
-      return state;
+      const bundleId = action.payload;
+      delete state[bundleId];
     },
   },
 });

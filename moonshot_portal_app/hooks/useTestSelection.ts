@@ -1,49 +1,67 @@
 import { useMemo } from 'react';
 import { useAppSelector, useAppDispatch } from './reduxHooks';
-import { 
-  setTestSelected, 
-  toggleTestSelected, 
-  setMultipleTestsSelected, 
-  clearTestSelection 
+import {
+  setTestSelected,
+  toggleTestSelected,
+  setMultipleTestsSelected,
+  clearTestSelection,
+  clearTestsForBundle,
 } from '../store';
+import type { BundleTest } from '../lib/api';
+import {
+  areAllTestsSelected,
+  getTestSelectionKey,
+  isTestSelected,
+  selectedTestsInBundle,
+} from '../lib/benchmarkTestSelection';
 
 /**
- * Get all checked test names as strings
+ * Get checked test names across selected bundles (union by name for endpoint grouping).
  */
 export function useCheckedTestNames(): string[] {
   const testSelection = useAppSelector((state) => state.testSelection);
+  const bundles = useAppSelector((state) => state.bundles.data);
+  const bundleSelection = useAppSelector((state) => state.bundleSelection);
 
   return useMemo(() => {
-    return Object.entries(testSelection)
-      .filter(([_, isSelected]) => isSelected)
-      .map(([testName, _]) => testName);
-  }, [testSelection]);
+    const names = new Set<string>();
+    bundles.forEach((bundle) => {
+      if (!bundleSelection[bundle.id]) return;
+      selectedTestsInBundle(testSelection, bundle.id, bundle.tests).forEach((test) => {
+        names.add(test.name);
+      });
+    });
+    return Array.from(names);
+  }, [testSelection, bundles, bundleSelection]);
 }
 
 /**
- * Check if a specific test is selected
+ * Check if a specific test is selected within a bundle.
  */
-export function useIsTestSelected(testName: string): boolean {
+export function useIsTestSelected(
+  bundleId: string,
+  test: Pick<BundleTest, 'name' | 'benchmark_test_id'>
+): boolean {
   const testSelection = useAppSelector((state) => state.testSelection);
-  return Boolean(testSelection[testName]);
+  return isTestSelected(testSelection, bundleId, test);
 }
 
 /**
- * Check if any tests are selected
+ * Check if any tests are selected in any bundle.
  */
 export function useHasSelectedTests(): boolean {
   const testSelection = useAppSelector((state) => state.testSelection);
-  
+
   return useMemo(() => {
-    return Object.values(testSelection).some(isSelected => isSelected);
+    return Object.values(testSelection).some((bundleTests) =>
+      Object.values(bundleTests).some(Boolean)
+    );
   }, [testSelection]);
 }
 
 /**
  * Get all checked tests with their bundle information.
  * `bundleName` is the bundle display title (`Bundle.name`), not `Bundle.id` / system_name.
- * Per-test toggles are sent to POST `/api/start-benchmark-run` as `tests_by_bundle` when
- * `BenchmarkFooter` builds that payload from `benchmark_test_id` on each test.
  */
 export function useCheckedTestsWithBundles(): Array<{
   testName: string;
@@ -56,6 +74,7 @@ export function useCheckedTestsWithBundles(): Array<{
 }> {
   const testSelection = useAppSelector((state) => state.testSelection);
   const bundles = useAppSelector((state) => state.bundles.data);
+  const bundleSelection = useAppSelector((state) => state.bundleSelection);
 
   return useMemo(() => {
     const checkedTests: Array<{
@@ -68,49 +87,80 @@ export function useCheckedTestsWithBundles(): Array<{
       };
     }> = [];
 
-    bundles.forEach(bundle => {
-      bundle.tests.forEach(test => {
-        if (testSelection[test.name]) {
-          checkedTests.push({
-            testName: test.name,
-            bundleName: bundle.name,
-            dataset: test.dataset
-          });
-        }
+    bundles.forEach((bundle) => {
+      if (!bundleSelection[bundle.id]) return;
+      selectedTestsInBundle(testSelection, bundle.id, bundle.tests).forEach((test) => {
+        checkedTests.push({
+          testName: test.name,
+          bundleName: bundle.name,
+          dataset: test.dataset,
+        });
       });
     });
 
     return checkedTests;
-  }, [testSelection, bundles]);
+  }, [testSelection, bundles, bundleSelection]);
 }
 
 /**
- * Check if all tests in a bundle are selected
+ * Check if all tests in a bundle are selected.
  */
-export function useAreAllTestsInBundleChecked(bundleName: string, testNames: string[]): boolean {
+export function useAreAllTestsInBundleChecked(
+  bundleId: string,
+  tests: Pick<BundleTest, 'name' | 'benchmark_test_id'>[]
+): boolean {
   const testSelection = useAppSelector((state) => state.testSelection);
 
   return useMemo(() => {
-    return testNames.every(testName => testSelection[testName]);
-  }, [testSelection, testNames]);
+    return areAllTestsSelected(testSelection, bundleId, tests);
+  }, [testSelection, bundleId, tests]);
 }
 
 /**
- * Custom hook for managing test selection actions
+ * Custom hook for managing test selection actions.
  */
 export function useTestSelectionActions() {
   const dispatch = useAppDispatch();
 
-  const setTest = (testName: string, selected: boolean) => {
-    dispatch(setTestSelected({ testName, selected }));
+  const setTest = (
+    bundleId: string,
+    test: Pick<BundleTest, 'name' | 'benchmark_test_id'>,
+    selected: boolean
+  ) => {
+    dispatch(
+      setTestSelected({
+        bundleId,
+        testKey: getTestSelectionKey(test),
+        selected,
+      })
+    );
   };
 
-  const toggleTest = (testName: string) => {
-    dispatch(toggleTestSelected(testName));
+  const toggleTest = (bundleId: string, test: Pick<BundleTest, 'name' | 'benchmark_test_id'>) => {
+    dispatch(
+      toggleTestSelected({
+        bundleId,
+        testKey: getTestSelectionKey(test),
+      })
+    );
   };
 
-  const setMultipleTests = (testNames: string[], selected: boolean) => {
-    dispatch(setMultipleTestsSelected({ testNames, selected }));
+  const setMultipleTests = (
+    bundleId: string,
+    tests: Pick<BundleTest, 'name' | 'benchmark_test_id'>[],
+    selected: boolean
+  ) => {
+    dispatch(
+      setMultipleTestsSelected({
+        bundleId,
+        testKeys: tests.map(getTestSelectionKey),
+        selected,
+      })
+    );
+  };
+
+  const clearBundleTests = (bundleId: string) => {
+    dispatch(clearTestsForBundle(bundleId));
   };
 
   const clearAllTests = () => {
@@ -121,6 +171,7 @@ export function useTestSelectionActions() {
     setTest,
     toggleTest,
     setMultipleTests,
+    clearBundleTests,
     clearAllTests,
   };
 }
