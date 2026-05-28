@@ -130,6 +130,67 @@ describe('RequiredEndpointsCard', () => {
     expect(mockFetchProviderLatestDetails).toHaveBeenCalledWith('together_adapter');
   });
 
+  it('shows OpenAI judge card for refusal_adapter tests', async () => {
+    mockFetchProviders.mockResolvedValue([
+      {
+        id: '1',
+        name: 'OpenAI',
+        system_name: 'openai_adapter',
+        version: 1,
+      },
+      {
+        id: '42',
+        name: 'Together AI',
+        system_name: 'together_adapter',
+        version: 1,
+      },
+    ]);
+    mockFetchProviderLatestDetails.mockImplementation(async (systemName: string) => ({
+      api_key_configured: true,
+      database_model_configs: [],
+      models: [],
+      provider: {
+        id: systemName === 'openai_adapter' ? '1' : '42',
+        name: systemName === 'openai_adapter' ? 'OpenAI' : 'Together AI',
+        system_name: systemName,
+      },
+    }));
+
+    const bundleWithRefusal: Bundle = {
+      id: 'bundle_refusal',
+      name: 'Refusal Bundle',
+      description: '',
+      category: 'cat',
+      tests: [
+        {
+          name: 'CyberSecEval Prompt Injections',
+          requires_llm_aaj: true,
+          metric_provider_system_name: 'openai_adapter',
+          dataset: {
+            id: 'ds2',
+            name: 'DS2',
+            description: '',
+            num_of_dataset_prompts: 1,
+          },
+        },
+      ],
+    };
+
+    render(<RequiredEndpointsCard />, {
+      preloadedState: {
+        bundles: { data: [bundleWithRefusal], loading: false, error: null },
+        bundleSelection: { bundle_refusal: true },
+        testSelection: { bundle_refusal: { 'CyberSecEval Prompt Injections': true } },
+      },
+    });
+
+    await waitFor(() => {
+      expect(screen.getByText('OpenAI (LLM judge)')).toBeInTheDocument();
+    });
+    expect(screen.getByText('CyberSecEval Prompt Injections')).toBeInTheDocument();
+    expect(mockFetchProviderLatestDetails).toHaveBeenCalledWith('openai_adapter');
+  });
+
   it('shows green indicator and connected badge when DB key exists only', async () => {
     mockFetchProviderLatestDetails.mockResolvedValue({
       api_key_configured: true,

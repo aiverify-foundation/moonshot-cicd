@@ -177,6 +177,22 @@ class TestBenchmarkService:
         assert dto.requires_llm_aaj is True
         assert dto.metric_provider_system_name == "together_adapter"
 
+    def test_get_benchmark_test_by_id_refusal_sets_aaj_fields(
+        self, benchmark_service, mock_benchmark_repository, mock_dataset_repository, sample_dataset_entity
+    ):
+        entity = BenchmarkTestEntity(
+            id="refusal",
+            name="refusal",
+            dataset=sample_dataset_entity,
+            metric={"name": "refusal_adapter"},
+            description="",
+        )
+        mock_benchmark_repository.get_benchmark_test_by_id.return_value = entity
+        mock_dataset_repository.get_dataset_by_id.return_value = sample_dataset_entity
+        dto = benchmark_service.get_benchmark_test_by_id("any")
+        assert dto.requires_llm_aaj is True
+        assert dto.metric_provider_system_name == "openai_adapter"
+
     def test_get_benchmark_test_by_id_not_found(self, benchmark_service, mock_benchmark_repository):
         """Test test config retrieval when config is not found"""
         # Arrange
