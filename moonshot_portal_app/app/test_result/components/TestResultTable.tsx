@@ -64,13 +64,13 @@ export default function TestResultTable({ data, pageSize = 10, onDataChange }: T
 
     // Extract unique filter values from data
     const filterOptions = useMemo(() => {
-        const bundles = Array.from(new Set(data.map((row) => row.bundle).filter(Boolean))).sort()
+        const tests = Array.from(new Set(data.map((row) => row.test).filter(Boolean))).sort()
         const evaluations = Array.from(new Set(Array.from(evaluationDisplayLabelById.values()))).sort()
         const yourVerdicts: (string | null)[] = ["agree", "disagree", null]
         const adjustedOptions: string[] = ["adjusted", "not adjusted"]
 
         return {
-            bundles,
+            tests,
             evaluations,
             yourVerdicts,
             adjustedOptions,
@@ -79,29 +79,42 @@ export default function TestResultTable({ data, pageSize = 10, onDataChange }: T
 
     // Initialize filter state with all options selected
     const [filters, setFilters] = useState<{
-        bundles: Set<string>
+        tests: Set<string>
         evaluations: Set<string>
         yourVerdicts: Set<string | null>
         adjusted: Set<string>
     }>(() => {
-        const bundles = Array.from(new Set(data.map((row) => row.bundle).filter(Boolean))).sort()
+        const tests = Array.from(new Set(data.map((row) => row.test).filter(Boolean))).sort()
         const evaluations = Array.from(new Set(Array.from(evaluationDisplayLabelById.values()))).sort()
         
         return {
-            bundles: new Set(bundles),
+            tests: new Set(tests),
             evaluations: new Set(evaluations),
             yourVerdicts: new Set(["agree", "disagree", null]),
             adjusted: new Set(["adjusted", "not adjusted"]),
         }
     })
 
-    // Reset filters when data changes
+    // Keep user-selected filters stable when data changes.
+    // Only reconcile test/evaluation options to valid values.
     useEffect(() => {
-        setFilters({
-            bundles: new Set(filterOptions.bundles),
-            evaluations: new Set(filterOptions.evaluations),
-            yourVerdicts: new Set(["agree", "disagree", null]),
-            adjusted: new Set(["adjusted", "not adjusted"]),
+        setFilters((prev) => {
+            const validTests = new Set(filterOptions.tests)
+            const validEvaluations = new Set(filterOptions.evaluations)
+
+            const nextTests = new Set(
+                Array.from(prev.tests).filter((test) => validTests.has(test))
+            )
+            const nextEvaluations = new Set(
+                Array.from(prev.evaluations).filter((evaluation) => validEvaluations.has(evaluation))
+            )
+
+            return {
+                tests: nextTests,
+                evaluations: nextEvaluations,
+                yourVerdicts: new Set(prev.yourVerdicts),
+                adjusted: new Set(prev.adjusted),
+            }
         })
     }, [filterOptions])
 
@@ -118,7 +131,7 @@ export default function TestResultTable({ data, pageSize = 10, onDataChange }: T
     // Reset to page 1 when filters change (using stringified version for stable comparison)
     const filterKey = useMemo(() => {
         return [
-            Array.from(filters.bundles).sort().join(","),
+            Array.from(filters.tests).sort().join(","),
             Array.from(filters.evaluations).sort().join(","),
             Array.from(filters.yourVerdicts)
                 .map((v) => v ?? "null")
@@ -144,8 +157,8 @@ export default function TestResultTable({ data, pageSize = 10, onDataChange }: T
     // Apply filters and search to data
     const filteredData = useMemo(() => {
         return data.filter((row) => {
-            // Filter by bundle
-            if (!filters.bundles.has(row.bundle)) return false
+            // Filter by test
+            if (!filters.tests.has(row.test)) return false
 
             // Filter by evaluation (display label, not raw blob)
             const evalLabel = evaluationDisplayLabelById.get(row.id)!
@@ -226,14 +239,14 @@ export default function TestResultTable({ data, pageSize = 10, onDataChange }: T
 
     // Calculate counts for each filter option
     const getFilterCounts = () => {
-        const bundleCounts = new Map<string, number>()
+        const testCounts = new Map<string, number>()
         const evaluationCounts = new Map<string, number>()
         const yourVerdictCounts = new Map<string | null, number>()
         const adjustedCounts = new Map<string, number>()
 
         data.forEach((row) => {
-            // Bundle counts
-            bundleCounts.set(row.bundle, (bundleCounts.get(row.bundle) || 0) + 1)
+            // Test counts
+            testCounts.set(row.test, (testCounts.get(row.test) || 0) + 1)
 
             // Evaluation counts (display label)
             const evLabel = evaluationDisplayLabelById.get(row.id) ?? ""
@@ -248,7 +261,7 @@ export default function TestResultTable({ data, pageSize = 10, onDataChange }: T
             adjustedCounts.set(adjustedKey, (adjustedCounts.get(adjustedKey) || 0) + 1)
         })
 
-        return { bundleCounts, evaluationCounts, yourVerdictCounts, adjustedCounts }
+        return { testCounts, evaluationCounts, yourVerdictCounts, adjustedCounts }
     }
 
     const filterCounts = getFilterCounts()
@@ -317,21 +330,21 @@ export default function TestResultTable({ data, pageSize = 10, onDataChange }: T
             {/* Filters and Search */}
             <div className="flex flex-wrap items-center gap-2">
                 <FilterDropdown<string>
-                    label="Bundle"
-                    options={filterOptions.bundles}
-                    selected={filters.bundles}
+                    label="Test"
+                    options={filterOptions.tests}
+                    selected={filters.tests}
                     onToggle={(value) => {
                         setFilters((prev) => {
-                            const newSet = new Set(prev.bundles)
+                            const newSet = new Set(prev.tests)
                             if (newSet.has(value)) {
                                 newSet.delete(value)
                             } else {
                                 newSet.add(value)
                             }
-                            return { ...prev, bundles: newSet }
+                            return { ...prev, tests: newSet }
                         })
                     }}
-                    counts={filterCounts.bundleCounts}
+                    counts={filterCounts.testCounts}
                     getDisplayLabel={(value) => value || ""}
                 />
                 <FilterDropdown<string>
