@@ -15,7 +15,6 @@ import {
   updateDatabaseModelConfig,
   type DatabaseModelConfigDTO,
   type LlmProviderDetailsDTO,
-  type UpdateDatabaseModelConfigPayload,
 } from '../../../lib/api';
 import { useAppDispatch, useAppSelector } from '../../../hooks/reduxHooks';
 import { setEndpointStatus } from '../../../store';
@@ -386,23 +385,12 @@ export default function EditModelSheet({
 
       let savedConfig: DatabaseModelConfigDTO;
       if (!isNewModel && existingConfigId != null) {
-        const modelMatch = details.models.find(
-          (m) => (m.name ?? '').trim() === trimmedModel
-        );
-        const updatePayload: UpdateDatabaseModelConfigPayload =
-          modelMatch != null && Number.isFinite(modelMatch.id)
-            ? {
-                model_id: modelMatch.id,
-                name: modelConfigName.trim(),
-                savedConfigPairs,
-              }
-            : {
-                llm_provider_id: providerId,
-                model_name: trimmedModel,
-                name: modelConfigName.trim(),
-                savedConfigPairs,
-              };
-        savedConfig = await updateDatabaseModelConfig(existingConfigId, updatePayload);
+        savedConfig = await updateDatabaseModelConfig(existingConfigId, {
+          llm_provider_id: providerId,
+          model_name: trimmedModel,
+          name: modelConfigName.trim(),
+          savedConfigPairs,
+        });
       } else {
         savedConfig = await createDatabaseModelConfig({
           llm_provider_id: providerId,

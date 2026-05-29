@@ -429,8 +429,8 @@ def test_create_database_model_config_201(mock_db_cfg_svc):
 
 
 @patch("entrypoints.api.database_model_config_service")
-def test_create_database_model_config_200_when_updated(mock_db_cfg_svc):
-    """POST returns 200 when service updates an existing (model_id, name) config."""
+def test_create_database_model_config_always_201(mock_db_cfg_svc):
+    """POST /api/database-model-configs always returns 201."""
     t = datetime(2026, 2, 1, 10, 0, 0, tzinfo=timezone.utc)
     dto = ModelConfigDTO(
         id="7",
@@ -440,12 +440,12 @@ def test_create_database_model_config_200_when_updated(mock_db_cfg_svc):
         savedConfigPairs={"k": "v2"},
         lastUpdated=t,
     )
-    mock_db_cfg_svc.create.return_value = (dto, False)
+    mock_db_cfg_svc.create.return_value = (dto, True)
     response = client.post(
         "/api/database-model-configs",
         json={"model_id": 3, "name": "prod", "savedConfigPairs": {"k": "v2"}},
     )
-    assert response.status_code == 200
+    assert response.status_code == 201
     assert response.json()["id"] == "7"
 
 

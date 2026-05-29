@@ -295,7 +295,8 @@ describe('EditModelSheet', () => {
       expect(updateMock).toHaveBeenCalledWith(
         20,
         expect.objectContaining({
-          model_id: 10,
+          llm_provider_id: 1,
+          model_name: 'gpt-4',
           name: 'Renamed Config',
           savedConfigPairs: { temperature: '0' },
         })
@@ -304,7 +305,7 @@ describe('EditModelSheet', () => {
     expect(createMock).not.toHaveBeenCalled();
   });
 
-  it('repoints an existing config to an existing provider model id when model name changes', async () => {
+  it('updates linked model name in place when model name changes to an existing provider model', async () => {
     const user = userEvent.setup();
     const updateMock = getUpdateDatabaseModelConfigMock();
     const createMock = getCreateDatabaseModelConfigMock();
@@ -366,7 +367,8 @@ describe('EditModelSheet', () => {
       expect(updateMock).toHaveBeenCalledWith(
         20,
         expect.objectContaining({
-          model_id: 11,
+          llm_provider_id: 1,
+          model_name: 'gpt-4.1',
           name: 'My Config',
           savedConfigPairs: { temperature: '0' },
         })
@@ -375,7 +377,7 @@ describe('EditModelSheet', () => {
     expect(createMock).not.toHaveBeenCalled();
   });
 
-  it('repoints an existing config by provider and model name when the typed model is new', async () => {
+  it('updates linked model name in place when the typed model name is new', async () => {
     const user = userEvent.setup();
     const updateMock = getUpdateDatabaseModelConfigMock();
     const createMock = getCreateDatabaseModelConfigMock();

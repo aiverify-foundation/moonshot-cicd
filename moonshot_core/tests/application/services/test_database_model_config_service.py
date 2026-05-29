@@ -111,7 +111,7 @@ class TestDatabaseModelConfigServiceCreate:
                 CreateDatabaseModelConfigBody(model_id=999_999, name="x")
             )
 
-    def test_create_updates_when_same_model_id_and_name(
+    def test_create_conflict_when_same_model_id_and_name(
         self, db_model_config_service: DatabaseModelConfigService
     ):
         model_id = _seed_provider_with_model()
@@ -120,17 +120,28 @@ class TestDatabaseModelConfigServiceCreate:
             name="dup",
             savedConfigPairs={"temperature": "0.1"},
         )
-        dto1, created1 = db_model_config_service.create(first)
+        _, created1 = db_model_config_service.create(first)
         assert created1 is True
         second = CreateDatabaseModelConfigBody(
             model_id=model_id,
             name="dup",
             savedConfigPairs={"temperature": "0.9"},
         )
-        dto2, created2 = db_model_config_service.create(second)
-        assert created2 is False
-        assert dto2.id == dto1.id
-        assert dto2.savedConfigPairs == {"temperature": "0.9"}
+        with pytest.raises(DatabaseModelConfigConflictError):
+            db_model_config_service.create(second)
+
+    def test_create_allows_same_model_id_with_different_config_names(
+        self, db_model_config_service: DatabaseModelConfigService
+    ):
+        model_id = _seed_provider_with_model()
+        dto1, _ = db_model_config_service.create(
+            CreateDatabaseModelConfigBody(model_id=model_id, name="cfg-a")
+        )
+        dto2, _ = db_model_config_service.create(
+            CreateDatabaseModelConfigBody(model_id=model_id, name="cfg-b")
+        )
+        assert dto1.modelId == dto2.modelId == model_id
+        assert dto1.id != dto2.id
 
     def test_create_by_provider_creates_model_row(
         self, db_model_config_service: DatabaseModelConfigService
@@ -148,7 +159,7 @@ class TestDatabaseModelConfigServiceCreate:
         assert dto.providerID == "db_cfg_by_name"
         assert dto.savedConfigPairs == {"temperature": "0.2"}
 
-    def test_create_by_provider_reuses_existing_model(
+    def test_create_by_provider_always_creates_new_model_row(
         self, db_model_config_service: DatabaseModelConfigService
     ):
         provider_id = _seed_provider_only(system_name="db_reuse")
@@ -164,7 +175,7 @@ class TestDatabaseModelConfigServiceCreate:
             name="cfg-two",
         )
         dto2, _ = db_model_config_service.create(second)
-        assert dto1.modelId == dto2.modelId
+        assert dto1.modelId != dto2.modelId
         assert dto1.modelname == dto2.modelname == "shared-model"
 
     def test_create_by_provider_rejects_unknown_provider(
@@ -234,7 +245,7 @@ class TestDatabaseModelConfigServiceUpdate:
         assert dto.savedConfigPairs == {"new_k": "new_v"}
         assert "old_key" not in dto.savedConfigPairs
 
-    def test_update_by_provider_reuses_existing_model(
+    def test_update_by_provider_updates_linked_model_name_in_place(
         self, db_model_config_service: DatabaseModelConfigService
     ):
         config_id, original_model_id = self._seed_config()
@@ -247,13 +258,12 @@ class TestDatabaseModelConfigServiceUpdate:
             )
             assert original_model is not None
             provider_id = int(original_model.llm_provider_id)
-            reused_model = LLMProviderModelModel(
+            other_model = LLMProviderModelModel(
                 llm_provider_id=provider_id,
                 name="gpt-reused",
             )
-            session.add(reused_model)
+            session.add(other_model)
             session.flush()
-            reused_model_id = int(reused_model.id)
 
         dto = db_model_config_service.update(
             config_id,
@@ -265,11 +275,11 @@ class TestDatabaseModelConfigServiceUpdate:
         )
 
         assert dto.id == str(config_id)
-        assert dto.modelId == reused_model_id
+        assert dto.modelId == original_model_id
         assert dto.modelname == "gpt-reused"
         assert dto.name == "renamed"
 
-    def test_update_by_provider_creates_model_row_and_repoints_same_config(
+    def test_update_by_provider_changes_linked_model_name_without_repointing(
         self, db_model_config_service: DatabaseModelConfigService
     ):
         config_id, original_model_id = self._seed_config()
@@ -293,17 +303,14 @@ class TestDatabaseModelConfigServiceUpdate:
         )
 
         assert dto.id == str(config_id)
-        assert dto.modelId != original_model_id
+        assert dto.modelId == original_model_id
         assert dto.modelname == "gpt-created-on-update"
         assert dto.name == "renamed"
 
         with sm.get_session() as session:
-            created_model = (
+            updated_model = (
                 session.query(LLMProviderModelModel)
-                .filter(
-                    LLMProviderModelModel.llm_provider_id == provider_id,
-                    LLMProviderModelModel.name == "gpt-created-on-update",
-                )
+                .filter(LLMProviderModelModel.id == original_model_id)
                 .first()
             )
             cfg = (
@@ -311,10 +318,10 @@ class TestDatabaseModelConfigServiceUpdate:
                 .filter(LLMProviderModelConfigModel.id == config_id)
                 .first()
             )
-            assert created_model is not None
+            assert updated_model is not None
             assert cfg is not None
-            assert int(created_model.id) == dto.modelId
-            assert int(cfg.model_id) == dto.modelId
+            assert updated_model.name == "gpt-created-on-update"
+            assert int(cfg.model_id) == original_model_id
 
     def test_update_not_found(self, db_model_config_service: DatabaseModelConfigService):
         _seed_provider_with_model(system_name="other")
@@ -361,11 +368,11 @@ class TestDatabaseModelConfigServiceUpdate:
                 UpdateDatabaseModelConfigBody(model_id=mid, name="first"),
             )
 
-    def test_update_bad_model_id(
+    def test_update_rejects_foreign_model_id(
         self, db_model_config_service: DatabaseModelConfigService
     ):
         config_id, model_id = self._seed_config()
-        with pytest.raises(DatabaseModelConfigBadRequestError, match="No llm_provider_model"):
+        with pytest.raises(DatabaseModelConfigBadRequestError, match="does not match"):
             db_model_config_service.update(
                 config_id,
                 UpdateDatabaseModelConfigBody(model_id=999_999_999, name="x"),

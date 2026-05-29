@@ -274,10 +274,10 @@ async def list_providers_with_database_model_configs():
 async def create_database_model_config(
     payload: CreateDatabaseModelConfigBody, response: Response
 ):
-    """Create a database-backed model config, or update it if the same model and name exist."""
+    """Create a new database-backed model config and its own llm_provider_model row."""
     try:
-        dto, created = database_model_config_service.create(payload)
-        response.status_code = 201 if created else 200
+        dto, _created = database_model_config_service.create(payload)
+        response.status_code = 201
         return dto
     except DatabaseModelConfigBadRequestError as e:
         raise HTTPException(status_code=400, detail=str(e))

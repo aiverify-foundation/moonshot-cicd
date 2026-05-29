@@ -45,10 +45,6 @@ class LLMProviderModelModel(Base):
     name = Column(String, nullable=False)
     create_dt = Column(DateTime, nullable=False, server_default=func.now())
 
-    __table_args__ = (
-        UniqueConstraint("llm_provider_id", "name", name="uq_llm_provider_model_provider_name"),
-    )
-
     def __repr__(self) -> str:
         return f"<LLMProviderModelModel(id={self.id}, name='{self.name}')>"
 

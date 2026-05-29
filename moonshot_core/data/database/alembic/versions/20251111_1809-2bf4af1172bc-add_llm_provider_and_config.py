@@ -43,7 +43,6 @@ def upgrade() -> None:
         sa.Column('create_dt', sa.DateTime(), nullable=False, server_default=sa.func.now()),
         sa.PrimaryKeyConstraint('id'),
         sa.ForeignKeyConstraint(['llm_provider_id'], ['llm_provider.id']),
-        sa.UniqueConstraint('llm_provider_id', 'name')
     )
     
     # Create table to store LLM configuration
@@ -56,6 +55,7 @@ def upgrade() -> None:
         sa.Column('last_used_dt', sa.Date(), nullable=True),
         sa.PrimaryKeyConstraint('id'),
         sa.ForeignKeyConstraint(['model_id'], ['llm_provider_model.id']),
+        sa.UniqueConstraint('model_id', 'name', name='uq_llm_provider_model_config_model_name'),
     )
     
     # Create table to store under LLM configuration's key-value pairs
