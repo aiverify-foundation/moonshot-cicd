@@ -40,6 +40,9 @@ class BenchmarkTestDTO(BaseModel):
     # Metric-side connector system_name when requires_llm_aaj (e.g. together_adapter).
     metric_provider_system_name: Optional[str] = None
 
+    # Evaluator model from moonshot_config metrics (connector_configurations.model).
+    metric_grader_model_name: Optional[str] = None
+
     #: benchmark_test.id when loaded from the database (for start-benchmark-run subset selection).
     benchmark_test_id: Optional[int] = None
 

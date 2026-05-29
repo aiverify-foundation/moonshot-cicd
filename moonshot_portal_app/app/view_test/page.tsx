@@ -15,6 +15,7 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { fetchBundles, type BundleTest, type TestDetailRow } from '@/lib/api';
+import { resolveModelNameLabel } from '@/lib/aajProviderResolution';
 import { findTestInBundles } from './resolveTestFromBundles';
 
 function cellValue(value: string | undefined): string {
@@ -78,7 +79,7 @@ export default function ViewTest() {
 
   const details = test?.details ?? null;
   const hasDetails = Array.isArray(details) && details.length > 0;
-  const graderName = test?.metric?.name ?? '—';
+  const modelName = resolveModelNameLabel(test);
 
   if (!testParam || !datasetParam) {
     return (
@@ -166,8 +167,8 @@ export default function ViewTest() {
             Evaluator Information
           </div>
           <div className="text-left flex items-center gap-2 flex-wrap">
-            <span className="text-left text-sm text-slate-500">Grader Logic </span>
-            <span className="text-left text-sm text-slate-700">{graderName}</span>
+            <span className="text-left text-sm text-slate-500">Model Name </span>
+            <span className="text-left text-sm text-slate-700">{modelName}</span>
           </div>
         </Badge>
       </div>

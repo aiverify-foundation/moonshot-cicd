@@ -24,6 +24,8 @@ export interface BundleTest {
   requires_llm_aaj?: boolean;
   /** Metric-side connector system_name when requires_llm_aaj (e.g. together_adapter). */
   metric_provider_system_name?: string | null;
+  /** Evaluator model from moonshot_config metrics (connector_configurations.model). */
+  metric_grader_model_name?: string | null;
   dataset: {
     id: string;
     name: string;

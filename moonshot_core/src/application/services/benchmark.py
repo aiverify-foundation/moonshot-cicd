@@ -3,8 +3,12 @@ from domain.entities.dataset_entity import DatasetEntity
 from domain.entities.test_bundle_entity import TestBundleEntity
 from domain.entities.test_config_entity import TestConfigEntity
 from domain.services.dataset_examples_converter import prompts_to_examples
-from domain.services.metric_aaj_requirements import metric_aaj_fields
+from domain.services.metric_aaj_requirements import (
+    metric_aaj_fields,
+    metric_grader_model_name,
+)
 from domain.services.logger import configure_logger
+from domain.services.app_config import AppConfig
 from application.services.file_benchmark_repository import FileBenchmarkRepository
 from application.services.file_dataset_repository import FileDatasetRepository
 from application.ports.benchmark_repository import BenchmarkRepository
@@ -37,11 +41,13 @@ class BenchmarkService:
         benchmark_repository: BenchmarkRepository,
         dataset_repository: DatasetRepository,
         test_details_loader: TestDetailsLoader | None = None,
+        app_config: AppConfig | None = None,
     ):
         logger.info("[BenchmarkService] Initializing BenchmarkService")
         self.benchmark_repository = benchmark_repository
         self.dataset_repository = dataset_repository
         self._test_details_loader = test_details_loader or TestDetailsLoader()
+        self._app_config = app_config or AppConfig()
         if self.benchmark_repository is None:
             self.benchmark_repository = FileBenchmarkRepository()
         if self.dataset_repository is None:
@@ -108,6 +114,9 @@ class BenchmarkService:
         requires_llm_aaj, metric_provider_system_name = metric_aaj_fields(
             benchmark_test_entity.metric
         )
+        grader_model = metric_grader_model_name(
+            benchmark_test_entity.metric, app_config=self._app_config
+        )
         details = None
         if benchmark_test_entity.dataset:
             ds = benchmark_test_entity.dataset
@@ -122,6 +131,7 @@ class BenchmarkService:
             description=benchmark_test_entity.description,
             requires_llm_aaj=requires_llm_aaj,
             metric_provider_system_name=metric_provider_system_name,
+            metric_grader_model_name=grader_model,
             benchmark_test_id=benchmark_test_entity.benchmark_test_id,
             details=details,
         )

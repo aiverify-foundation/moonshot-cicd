@@ -160,6 +160,7 @@ class TestBenchmarkService:
         assert result.description == sample_benchmark_test_entity.description
         assert result.requires_llm_aaj is False
         assert result.metric_provider_system_name is None
+        assert result.metric_grader_model_name is None
 
     def test_get_benchmark_test_by_id_llamaguard_sets_aaj_fields(
         self, benchmark_service, mock_benchmark_repository, mock_dataset_repository, sample_dataset_entity
@@ -176,6 +177,7 @@ class TestBenchmarkService:
         dto = benchmark_service.get_benchmark_test_by_id("any")
         assert dto.requires_llm_aaj is True
         assert dto.metric_provider_system_name == "together_adapter"
+        assert dto.metric_grader_model_name == "meta-llama/Llama-Guard-4-12B"
 
     def test_get_benchmark_test_by_id_refusal_sets_aaj_fields(
         self, benchmark_service, mock_benchmark_repository, mock_dataset_repository, sample_dataset_entity
@@ -192,6 +194,7 @@ class TestBenchmarkService:
         dto = benchmark_service.get_benchmark_test_by_id("any")
         assert dto.requires_llm_aaj is True
         assert dto.metric_provider_system_name == "openai_adapter"
+        assert dto.metric_grader_model_name == "gpt-4o"
 
     def test_get_benchmark_test_by_id_not_found(self, benchmark_service, mock_benchmark_repository):
         """Test test config retrieval when config is not found"""

@@ -2,7 +2,10 @@
 
 from __future__ import annotations
 
-from typing import Any
+from typing import Any, TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from domain.services.app_config import AppConfig
 
 # Metric adapter module name (YAML metric.name / DB benchmark_test_metric.name).
 LLAMAGUARD_ANNOTATOR_METRIC = "llamaguardannotator_adapter"
@@ -31,3 +34,30 @@ def metric_aaj_fields(metric: dict[str, Any] | None) -> tuple[bool, str | None]:
     if provider is None:
         return False, None
     return True, provider
+
+
+def metric_grader_model_name(
+    metric: dict[str, Any] | None,
+    *,
+    app_config: AppConfig | None = None,
+) -> str | None:
+    """
+    Return the evaluator model configured in moonshot_config for this metric.
+
+    Reads ``metrics[].connector_configurations.model`` for the metric adapter name.
+    Returns ``None`` when the metric is missing, unknown, or has no model configured.
+    """
+    if not metric:
+        return None
+    name = metric.get("name")
+    if not isinstance(name, str) or not name.strip():
+        return None
+    if app_config is None:
+        from domain.services.app_config import AppConfig
+
+        app_config = AppConfig()
+    config = app_config.get_metric_config(name.strip())
+    if config is None:
+        return None
+    model = (config.connector_configurations.model or "").strip()
+    return model if model else None

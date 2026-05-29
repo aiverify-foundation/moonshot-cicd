@@ -18,8 +18,11 @@ import {
   Bundle,
   fetchProviderLatestDetails,
   fetchProviders,
-  type LlmProviderDTO,
 } from '../../../lib/api';
+import {
+  mapLlmProviderDtoToProvider,
+  resolveAajEndpointCardLabel,
+} from '../../../lib/aajProviderResolution';
 import type { Provider } from '../types/modelSelection';
 
 enum ConnectionStatus {
@@ -40,23 +43,6 @@ export function isAajEndpointAccepted(
 ): boolean {
   if (status === ConnectionStatus.INVALID_TOKEN) return false;
   return status === ConnectionStatus.CONNECTED || Boolean(apiKeyConfigured);
-}
-
-function mapLlmProviderDtoToProvider(dto: LlmProviderDTO): Provider {
-  const pairs = dto.defaultConfigPairs ?? {};
-  return {
-    id: dto.id,
-    name: dto.name,
-    type: "provider",
-    defaultModel: dto.defaultModel ?? "",
-    modelTextboxExplanation: dto.modelTextboxExplanation ?? "",
-    configPairs: Object.keys(pairs).map((key) => ({
-      key,
-      value: String(pairs[key]),
-    })),
-    modelToken: dto.modelToken ?? "",
-    system_name: dto.system_name,
-  };
 }
 
 export type AajEndpointRow = {
@@ -292,9 +278,7 @@ export default function RequiredEndpointsCard() {
       const providerMissing = !provider;
       rows.push({
         rowKey: statusKey,
-        modelName: provider
-          ? `${provider.name} (LLM judge)`
-          : `${systemName} (provider not in API)`,
+        modelName: resolveAajEndpointCardLabel(systemName, apiProviders),
         status,
         tests,
         systemName,

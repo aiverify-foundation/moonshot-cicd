@@ -1,4 +1,5 @@
 "use client"
+import React, { useEffect, useMemo, useState } from 'react';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetFooter } from "@/components/ui/sheet";
 import { Info, FileTerminal, Square, CheckSquare } from 'lucide-react'
 import { Button } from "@/components/ui/button";
@@ -16,7 +17,13 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/comp
 import { useAppSelector, useAppDispatch } from '../../../hooks/reduxHooks';
 import { toggleBundleSelected } from '../../../store';
 import { useTestSelectionActions } from '../../../hooks/useTestSelection';
-import type { Bundle } from '@/lib/api';
+import { fetchProviders, type Bundle } from '@/lib/api';
+import {
+  collectAajProviderSystemNames,
+  mapLlmProviderDtoToProvider,
+  resolveAajProviderDisplayName,
+} from '@/lib/aajProviderResolution';
+import type { Provider } from '../types/modelSelection';
 import { countSelectedTests, isTestSelected } from '@/lib/benchmarkTestSelection';
 
 interface ViewBundleDetailsSheetProps {
@@ -128,6 +135,32 @@ export default function ViewBundleDetailsSheet({
   const bundleSelection = useAppSelector((state) => state.bundleSelection);
   const testSelection = useAppSelector((state) => state.testSelection);
   const { setTest } = useTestSelectionActions();
+  const [apiProviders, setApiProviders] = useState<Provider[]>([]);
+
+  useEffect(() => {
+    if (!open) return;
+    let cancelled = false;
+    void (async () => {
+      try {
+        const dtos = await fetchProviders();
+        if (!cancelled) {
+          setApiProviders(dtos.map(mapLlmProviderDtoToProvider));
+        }
+      } catch {
+        if (!cancelled) {
+          setApiProviders([]);
+        }
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [open]);
+
+  const requiredProviderSystemNames = useMemo(
+    () => collectAajProviderSystemNames(bundle?.tests),
+    [bundle?.tests]
+  );
 
   const selectedCount = bundle
     ? countSelectedTests(testSelection, bundle.id, bundle.tests)
@@ -174,13 +207,24 @@ export default function ViewBundleDetailsSheet({
             <span className="text-sm font-semibold">{bundle?.tests?.length || 0}</span>
           </div>
         </div>
-        <div className="w-full mt-0 p-4 bg-slate-50 border border-slate-200 rounded-md flex flex-col gap-2">
-          <div className="flex items-center gap-2">
-            <Info className="h-4 w-4 text-slate-600 flex-shrink-0" />
-            <span className="text-sm font-medium text-slate-700">Required Endpoint Connectors</span>
+        {requiredProviderSystemNames.length > 0 ? (
+          <div
+            className="w-full mt-0 p-4 bg-slate-50 border border-slate-200 rounded-md flex flex-col gap-2"
+            data-testid="required-endpoint-connectors"
+          >
+            <div className="flex items-center gap-2">
+              <Info className="h-4 w-4 text-slate-600 flex-shrink-0" />
+              <span className="text-sm font-medium text-slate-700">Required Endpoint Connectors</span>
+            </div>
+            <ul className="text-sm text-slate-700 pl-6 list-disc space-y-1">
+              {requiredProviderSystemNames.map((systemName) => (
+                <li key={systemName}>
+                  {resolveAajProviderDisplayName(systemName, apiProviders)}
+                </li>
+              ))}
+            </ul>
           </div>
-          <p className="text-sm text-slate-700 pl-6">Llama-Guard-2-8B</p>
-        </div>
+        ) : null}
         <div>
           <h3 className="text-base text-gray-900 font-semibold pt-0 pb-0">Tests ({bundle?.tests?.length || 0})</h3>
         </div>

@@ -64,6 +64,7 @@ def test_get_all_bundles_returns_minimal_bundle_from_db(listing_db):
     assert t0.metric.get("name") == "refusal_adapter"
     assert t0.requires_llm_aaj is True
     assert t0.metric_provider_system_name == "openai_adapter"
+    assert t0.metric_grader_model_name == "gpt-4o"
     assert t0.dataset is not None
     assert minimal.prompt_count == t0.dataset.num_of_dataset_prompts
 
@@ -102,6 +103,7 @@ def test_llamaguard_test_has_aaj_fields_in_dto(listing_db):
     assert dto.metric.get("name") == "llamaguardannotator_adapter"
     assert dto.requires_llm_aaj is True
     assert dto.metric_provider_system_name == "together_adapter"
+    assert dto.metric_grader_model_name == "meta-llama/Llama-Guard-4-12B"
     assert "Eval line one" in (dto.description or "")
 
 
