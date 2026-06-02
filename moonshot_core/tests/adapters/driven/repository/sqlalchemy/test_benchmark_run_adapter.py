@@ -132,6 +132,26 @@ class TestSqlAlchemyBenchmarkRunRepository:
         mock_session.add.assert_called_once()
         mock_session.flush.assert_called_once()
 
+    def test_save_custom_app_endpoint(self, mock_sm_class):
+        mock_session = MagicMock()
+        mock_session.add.side_effect = lambda m: setattr(m, "id", 8)
+        mock_sm_class.get_instance.return_value.get_session.return_value = _session_ctx(
+            mock_session
+        )
+        repo = SqlAlchemyBenchmarkRunRepository()
+        entity = BenchmarkRunEntity(
+            name="custom-run",
+            status="running",
+            endpoint_type="Custom_App",
+            custom_app_id=1,
+            custom_app_config_id=2,
+        )
+        saved = repo.save(entity)
+        assert saved.id == 8
+        assert saved.endpoint_type == "Custom_App"
+        assert saved.custom_app_id == 1
+        assert saved.custom_app_config_id == 2
+
     def test_save_with_id_raises(self, mock_sm_class):
         mock_session = MagicMock()
         mock_sm_class.get_instance.return_value.get_session.return_value = _session_ctx(

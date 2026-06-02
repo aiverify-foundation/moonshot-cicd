@@ -339,6 +339,110 @@ class BenchmarkTestBundleGroupingModel(Base):
 
 
 # ---------------------------------------------------------------------------
+# Custom app models
+# ---------------------------------------------------------------------------
+
+
+class CustomAppModel(Base):
+    """SQLAlchemy model for the custom_app table."""
+
+    __tablename__ = "custom_app"
+    __table_args__ = (UniqueConstraint("name", name="uq_custom_app_name"),)
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    name = Column(String, nullable=False)
+
+    configs = relationship("CustomAppConfigModel", back_populates="custom_app")
+
+    def __repr__(self) -> str:
+        return f"<CustomAppModel(id={self.id}, name='{self.name}')>"
+
+
+class CustomAppConfigModel(Base):
+    """SQLAlchemy model for the custom_app_config table."""
+
+    __tablename__ = "custom_app_config"
+    __table_args__ = (
+        UniqueConstraint(
+            "custom_app_id",
+            "name",
+            name="uq_custom_app_config_custom_app_id_name",
+        ),
+    )
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    custom_app_id = Column(Integer, ForeignKey("custom_app.id"), nullable=False)
+    name = Column(String, nullable=False)
+    update_dt = Column(DateTime, nullable=False, server_default=func.now())
+
+    custom_app = relationship("CustomAppModel", back_populates="configs")
+    parameters = relationship("CustomAppConfigParametersModel", back_populates="config")
+    secrets = relationship("CustomAppConfigSecretsModel", back_populates="config")
+    benchmark_runs = relationship("BenchmarkRunModel", back_populates="custom_app_config")
+
+    def __repr__(self) -> str:
+        return (
+            f"<CustomAppConfigModel(id={self.id}, name='{self.name}', "
+            f"custom_app_id={self.custom_app_id})>"
+        )
+
+
+class CustomAppConfigParametersModel(Base):
+    """SQLAlchemy model for the custom_app_config_parameters table."""
+
+    __tablename__ = "custom_app_config_parameters"
+    __table_args__ = (
+        UniqueConstraint(
+            "config_id",
+            "key",
+            name="uq_custom_app_config_parameters_config_key",
+        ),
+    )
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    config_id = Column(Integer, ForeignKey("custom_app_config.id"), nullable=False)
+    key = Column(String, nullable=False)
+    value = Column(String, nullable=False)
+
+    config = relationship("CustomAppConfigModel", back_populates="parameters")
+
+    def __repr__(self) -> str:
+        return (
+            f"<CustomAppConfigParametersModel(id={self.id}, "
+            f"config_id={self.config_id}, key='{self.key}')>"
+        )
+
+
+class CustomAppConfigSecretsModel(Base):
+    """SQLAlchemy model for the custom_app_config_secrets table."""
+
+    __tablename__ = "custom_app_config_secrets"
+    __table_args__ = (
+        UniqueConstraint(
+            "config_id",
+            "key",
+            name="uq_custom_app_config_secrets_config_key",
+        ),
+    )
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    config_id = Column(Integer, ForeignKey("custom_app_config.id"), nullable=False)
+    key = Column(String, nullable=False)
+    encrypted_secret = Column(String, nullable=False)
+    salt = Column(String, nullable=False)
+    nonce = Column(String, nullable=False)
+    authentication_tag = Column(String, nullable=False)
+
+    config = relationship("CustomAppConfigModel", back_populates="secrets")
+
+    def __repr__(self) -> str:
+        return (
+            f"<CustomAppConfigSecretsModel(id={self.id}, "
+            f"config_id={self.config_id}, key='{self.key}')>"
+        )
+
+
+# ---------------------------------------------------------------------------
 # AIVF product: benchmark run, endpoint config
 # ---------------------------------------------------------------------------
 
@@ -375,7 +479,7 @@ class BenchmarkRunModel(Base):
     start_time = Column(DateTime, nullable=False, server_default=func.now())
     end_time = Column(DateTime, nullable=True)
     status = Column(String, nullable=False)
-    endpoint_type = Column(String, nullable=False)  # LLM_Provider
+    endpoint_type = Column(String, nullable=False)  # LLM_Provider, Custom_App
     llm_provider_id = Column(Integer, ForeignKey("llm_provider.id"), nullable=True)
     llm_provider_model_id = Column(Integer, ForeignKey("llm_provider_model.id"), nullable=True)
     llm_provider_model_config_id = Column(
@@ -383,11 +487,18 @@ class BenchmarkRunModel(Base):
         ForeignKey("llm_provider_model_config.id"),
         nullable=True,
     )
+    custom_app_id = Column(Integer, ForeignKey("custom_app.id"), nullable=True)
+    custom_app_config_id = Column(Integer, ForeignKey("custom_app_config.id"), nullable=True)
 
     # Relationships
     llm_provider = relationship("LLMProviderModel", backref="benchmark_runs")
     llm_provider_model_config = relationship(
         "LLMProviderModelConfigModel",
+        back_populates="benchmark_runs",
+    )
+    custom_app = relationship("CustomAppModel", backref="benchmark_runs")
+    custom_app_config = relationship(
+        "CustomAppConfigModel",
         back_populates="benchmark_runs",
     )
     run_test_statuses = relationship(

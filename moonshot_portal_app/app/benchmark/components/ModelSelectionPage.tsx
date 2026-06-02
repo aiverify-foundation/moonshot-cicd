@@ -5,18 +5,25 @@ import RequiredEndpointsCard from "./RequiredEndpointsCard";
 import SampleSizeCard from "./SampleSizeCard";
 import TestNameAndDescriptionCard from "./TestNameAndDescriptionCard";
 import SelectAppOrModelCard from "./SelectAppOrModelCard";
-import { custom_connectors, configs } from "./MockData";
-import type { Provider, ModelConfig } from "../types/modelSelection";
+import type { Provider, ModelConfig, Config, ModelApp } from "../types/modelSelection";
 import { useAppDispatch, useAppSelector } from "@/hooks/reduxHooks";
 import {
   fetchProviders,
   fetchProviderLatestDetails,
+  fetchCustomApps,
+  fetchCustomAppConfigs,
   ApiError,
   type DatabaseModelConfigDTO,
   type LlmProviderDetailsDTO,
   type LlmProviderDTO,
+  type CustomAppConfigDTO,
 } from "@/lib/api";
-import { setBenchmarkRunFks, setSelectedModel } from "@/store";
+import {
+  RESERVED_CONFIG_KEYS,
+  encodeCustomAppProviderId,
+  decodeCustomAppProviderId,
+} from "../constants/customAppConfig";
+import { setBenchmarkRunFks, setSelectedConfig, setSelectedModel } from "@/store";
 
 function sortModelConfigRows(a: ModelConfig, b: ModelConfig): number {
   const primary = (id: string) => {
@@ -68,7 +75,6 @@ function mapProviderDetailsToModelRows(
     });
   }
 
-  // Once a provider has saved configs, keep the picker focused on those config rows.
   if (dbConfigs.length === 0) {
     for (const m of details.models) {
       rows.push({
@@ -84,6 +90,22 @@ function mapProviderDetailsToModelRows(
   return rows;
 }
 
+function mapCustomAppConfigDtoToConfig(dto: CustomAppConfigDTO): Config {
+  const pairs = dto.savedConfigPairs ?? {};
+  return {
+    id: String(dto.id),
+    name: dto.name,
+    connector: encodeCustomAppProviderId(dto.custom_app_id),
+    configPairs: Object.entries(pairs)
+      .filter(([key]) => !RESERVED_CONFIG_KEYS.has(key))
+      .map(([key, value]) => ({ key, value: String(value) })),
+    apiType: pairs.api_type,
+    apiUrl: pairs.api_url,
+    apiBody: pairs.api_body,
+    apiKeyConfigured: Boolean(dto.api_key_configured),
+  };
+}
+
 function getSelectionValueForSavedConfig(savedConfig: DatabaseModelConfigDTO): string {
   return `${savedConfig.modelId}:${savedConfig.id}`;
 }
@@ -95,25 +117,44 @@ export default function ModelSelectionPage() {
 
   const [apiProviders, setApiProviders] = useState<Provider[]>([]);
   const [apiModels, setApiModels] = useState<ModelConfig[]>([]);
+  const [customApps, setCustomApps] = useState<ModelApp[]>([]);
+  const [customConfigs, setCustomConfigs] = useState<Config[]>([]);
   const [providersLoading, setProvidersLoading] = useState(true);
   const [providersError, setProvidersError] = useState<string | null>(null);
+  const [customAppsError, setCustomAppsError] = useState<string | null>(null);
   const [modelsLoading, setModelsLoading] = useState(false);
   const [modelsError, setModelsError] = useState<string | null>(null);
+  const [configsLoading, setConfigsLoading] = useState(false);
+  const [configsError, setConfigsError] = useState<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
     (async () => {
       setProvidersLoading(true);
       setProvidersError(null);
+      setCustomAppsError(null);
       try {
-        const dtos = await fetchProviders();
+        const [providerDtos, appDtos] = await Promise.all([
+          fetchProviders(),
+          fetchCustomApps(),
+        ]);
         if (!cancelled) {
-          setApiProviders(dtos.map(mapLlmProviderDtoToProvider));
+          setApiProviders(providerDtos.map(mapLlmProviderDtoToProvider));
+          setCustomApps(
+            appDtos.map((app) => ({
+              id: encodeCustomAppProviderId(app.id),
+              name: app.name,
+              type: 'custom',
+            }))
+          );
         }
       } catch (e) {
         if (!cancelled) {
-          setProvidersError(e instanceof ApiError ? e.message : "Failed to load providers");
+          const msg = e instanceof ApiError ? e.message : 'Failed to load providers';
+          setProvidersError(msg);
+          setCustomAppsError(msg);
           setApiProviders([]);
+          setCustomApps([]);
         }
       } finally {
         if (!cancelled) {
@@ -126,7 +167,7 @@ export default function ModelSelectionPage() {
     };
   }, []);
 
-  const isCustomConnector = custom_connectors.some(
+  const isCustomConnector = customApps.some(
     (connector) => connector.id === selectedProvider
   );
 
@@ -157,6 +198,28 @@ export default function ModelSelectionPage() {
     }
   }, [apiProviders]);
 
+  const loadConfigsForCustomApp = useCallback(async (appId: string): Promise<Config[]> => {
+    const parsed = decodeCustomAppProviderId(appId);
+    if (parsed == null) {
+      setCustomConfigs([]);
+      return [];
+    }
+    setConfigsLoading(true);
+    setConfigsError(null);
+    try {
+      const dtos = await fetchCustomAppConfigs(parsed);
+      const rows = dtos.map(mapCustomAppConfigDtoToConfig);
+      setCustomConfigs(rows);
+      return rows;
+    } catch (e) {
+      setConfigsError(e instanceof ApiError ? e.message : 'Failed to load configurations');
+      setCustomConfigs([]);
+      return [];
+    } finally {
+      setConfigsLoading(false);
+    }
+  }, []);
+
   useEffect(() => {
     if (isCustomConnector || !selectedProvider) {
       setApiModels([]);
@@ -165,6 +228,15 @@ export default function ModelSelectionPage() {
     }
     void loadModelsForProvider(selectedProvider);
   }, [selectedProvider, isCustomConnector, loadModelsForProvider]);
+
+  useEffect(() => {
+    if (!isCustomConnector || !selectedProvider) {
+      setCustomConfigs([]);
+      setConfigsError(null);
+      return;
+    }
+    void loadConfigsForCustomApp(selectedProvider);
+  }, [selectedProvider, isCustomConnector, loadConfigsForCustomApp]);
 
   const refreshModelsForSelectedProvider = useCallback(async (savedConfig: DatabaseModelConfigDTO) => {
     if (!selectedProvider || isCustomConnector) return;
@@ -179,10 +251,33 @@ export default function ModelSelectionPage() {
           llm_provider_id: Number.isFinite(providerId) ? providerId : null,
           llm_provider_model_id: savedConfig.modelId,
           llm_provider_model_config_id: Number.isFinite(configId) ? configId : null,
+          custom_app_id: null,
+          custom_app_config_id: null,
         })
       );
     }
   }, [dispatch, selectedProvider, isCustomConnector, loadModelsForProvider]);
+
+  const refreshConfigsForSelectedApp = useCallback(
+    async (savedConfig: CustomAppConfigDTO) => {
+      if (!selectedProvider || !isCustomConnector) return;
+      const rows = await loadConfigsForCustomApp(selectedProvider);
+      const nextId = String(savedConfig.id);
+      if (rows.some((row) => row.id === nextId)) {
+        dispatch(setSelectedConfig(nextId));
+        dispatch(
+          setBenchmarkRunFks({
+            llm_provider_id: null,
+            llm_provider_model_id: null,
+            llm_provider_model_config_id: null,
+            custom_app_id: savedConfig.custom_app_id,
+            custom_app_config_id: savedConfig.id,
+          })
+        );
+      }
+    },
+    [dispatch, selectedProvider, isCustomConnector, loadConfigsForCustomApp]
+  );
 
   const isModelSelected =
     (!isCustomConnector && selectedProvider && selectedModel) ||
@@ -214,9 +309,9 @@ export default function ModelSelectionPage() {
         <TestNameAndDescriptionCard />
         {isTestNameValid && (
           <>
-            {providersError && (
+            {(providersError || customAppsError) && (
               <p className="text-sm text-red-600 w-3xl mt-4" role="alert">
-                {providersError}
+                {providersError || customAppsError}
               </p>
             )}
             {providersLoading ? (
@@ -228,15 +323,24 @@ export default function ModelSelectionPage() {
                     {modelsError}
                   </p>
                 )}
+                {configsError && (
+                  <p className="text-sm text-red-600 w-3xl mt-2" role="alert">
+                    {configsError}
+                  </p>
+                )}
                 {modelsLoading && selectedProvider && !isCustomConnector && (
                   <p className="text-sm text-muted-foreground w-3xl mt-2">Loading models…</p>
+                )}
+                {configsLoading && selectedProvider && isCustomConnector && (
+                  <p className="text-sm text-muted-foreground w-3xl mt-2">Loading configurations…</p>
                 )}
                 <SelectAppOrModelCard
                   providers={apiProviders}
                   models={apiModels}
-                  custom_connectors={custom_connectors}
-                  configs={configs}
+                  custom_connectors={customApps}
+                  configs={customConfigs}
                   onModelsSaved={refreshModelsForSelectedProvider}
+                  onConfigsSaved={refreshConfigsForSelectedApp}
                 />
               </>
             )}

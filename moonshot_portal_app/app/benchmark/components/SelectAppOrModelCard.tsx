@@ -7,7 +7,7 @@ import { Card, CardContent, CardDescription, CardTitle } from "@/components/ui/c
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { Check, ChevronsUpDown, Edit, Plus, CircleAlert, CircleCheckBig } from "lucide-react";
 import type { Provider, ModelConfig, Config, ModelApp } from "../types/modelSelection";
-import type { DatabaseModelConfigDTO } from "@/lib/api";
+import type { CustomAppConfigDTO, DatabaseModelConfigDTO } from "@/lib/api";
 import { useAppDispatch, useAppSelector } from "@/hooks/reduxHooks";
 import {
   setSelectedProvider,
@@ -16,6 +16,7 @@ import {
   setBenchmarkRunFks,
   updateConfigValidity,
 } from "@/store";
+import { decodeCustomAppProviderId } from "../constants/customAppConfig";
 import EditModelSheet from "./EditModelSheet";
 import EditCustomApplicationSheet from "./EditCustomApplicationSheet";
 
@@ -27,6 +28,8 @@ interface SelectAppOrModelCardProps {
   configs: Config[];
   /** Called after a new DB model config is saved from EditModelSheet */
   onModelsSaved?: (savedConfig: DatabaseModelConfigDTO) => void | Promise<void>;
+  /** Called after a custom app config is saved from EditCustomApplicationSheet */
+  onConfigsSaved?: (savedConfig: CustomAppConfigDTO) => void | Promise<void>;
 }
 
 export default function SelectAppOrModelCard({
@@ -35,6 +38,7 @@ export default function SelectAppOrModelCard({
   custom_connectors,
   configs,
   onModelsSaved,
+  onConfigsSaved,
 }: SelectAppOrModelCardProps) {
   const dispatch = useAppDispatch();
   
@@ -305,6 +309,31 @@ export default function SelectAppOrModelCard({
                                 onSelect={(currentValue) => {
                                   const newConfig = currentValue === selectedConfig ? "" : currentValue;
                                   dispatch(setSelectedConfig(newConfig));
+                                  if (newConfig) {
+                                    const appId = decodeCustomAppProviderId(selectedProvider);
+                                    const configId = parseInt(newConfig, 10);
+                                    dispatch(
+                                      setBenchmarkRunFks({
+                                        llm_provider_id: null,
+                                        llm_provider_model_id: null,
+                                        llm_provider_model_config_id: null,
+                                        custom_app_id: appId,
+                                        custom_app_config_id: Number.isFinite(configId)
+                                          ? configId
+                                          : null,
+                                      })
+                                    );
+                                  } else {
+                                    dispatch(
+                                      setBenchmarkRunFks({
+                                        llm_provider_id: null,
+                                        llm_provider_model_id: null,
+                                        llm_provider_model_config_id: null,
+                                        custom_app_id: null,
+                                        custom_app_config_id: null,
+                                      })
+                                    );
+                                  }
                                   setModelOpen(false);
                                 }}
                                 data-testid={`config-option-${config.id}`}
@@ -348,6 +377,8 @@ export default function SelectAppOrModelCard({
                                         llm_provider_model_config_id: Number.isFinite(mcid)
                                           ? mcid
                                           : null,
+                                        custom_app_id: null,
+                                        custom_app_config_id: null,
                                       })
                                     );
                                   } else {
@@ -356,6 +387,8 @@ export default function SelectAppOrModelCard({
                                         llm_provider_id: null,
                                         llm_provider_model_id: null,
                                         llm_provider_model_config_id: null,
+                                        custom_app_id: null,
+                                        custom_app_config_id: null,
                                       })
                                     );
                                   }
@@ -429,6 +462,7 @@ export default function SelectAppOrModelCard({
       editingConfig={editingConfig}
       modelApps={custom_connectors}
       configs={configs}
+      onSaved={onConfigsSaved}
     />
   </>
   );

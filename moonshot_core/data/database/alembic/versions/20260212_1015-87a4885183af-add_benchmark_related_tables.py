@@ -6,7 +6,8 @@ Create Date: 2026-02-12 10:15:11.720319
 
 Benchmark test/dataset/metric/bundle tables + AIVF product tables
 (benchmark_run, run_test_status, run_test_prompt, run_test_bundle,
-llm_provider_endpoint_config, custom_app, custom_app_config).
+llm_provider_endpoint_config, custom_app, custom_app_config,
+custom_app_config_parameters, custom_app_config_secrets).
 benchmark_run references llm_provider_model_config for saved model configuration.
 """
 from typing import Sequence, Union
@@ -122,15 +123,52 @@ def upgrade() -> None:
         sa.Column("id", sa.Integer(), nullable=False, autoincrement=True),
         sa.Column("name", sa.String(), nullable=False),
         sa.PrimaryKeyConstraint("id"),
+        sa.UniqueConstraint("name", name="uq_custom_app_name"),
     )
     op.create_table(
         "custom_app_config",
         sa.Column("id", sa.Integer(), nullable=False, autoincrement=True),
         sa.Column("custom_app_id", sa.Integer(), nullable=False),
         sa.Column("name", sa.String(), nullable=False),
-        sa.Column("value", sa.String(), nullable=True),
+        sa.Column("update_dt", sa.DateTime(), nullable=False, server_default=sa.func.now()),
         sa.PrimaryKeyConstraint("id"),
         sa.ForeignKeyConstraint(["custom_app_id"], ["custom_app.id"]),
+        sa.UniqueConstraint(
+            "custom_app_id",
+            "name",
+            name="uq_custom_app_config_custom_app_id_name",
+        ),
+    )
+    op.create_table(
+        "custom_app_config_parameters",
+        sa.Column("id", sa.Integer(), nullable=False, autoincrement=True),
+        sa.Column("config_id", sa.Integer(), nullable=False),
+        sa.Column("key", sa.String(), nullable=False),
+        sa.Column("value", sa.String(), nullable=False),
+        sa.PrimaryKeyConstraint("id"),
+        sa.ForeignKeyConstraint(["config_id"], ["custom_app_config.id"]),
+        sa.UniqueConstraint(
+            "config_id",
+            "key",
+            name="uq_custom_app_config_parameters_config_key",
+        ),
+    )
+    op.create_table(
+        "custom_app_config_secrets",
+        sa.Column("id", sa.Integer(), nullable=False, autoincrement=True),
+        sa.Column("config_id", sa.Integer(), nullable=False),
+        sa.Column("key", sa.String(), nullable=False),
+        sa.Column("encrypted_secret", sa.String(), nullable=False),
+        sa.Column("salt", sa.String(), nullable=False),
+        sa.Column("nonce", sa.String(), nullable=False),
+        sa.Column("authentication_tag", sa.String(), nullable=False),
+        sa.PrimaryKeyConstraint("id"),
+        sa.ForeignKeyConstraint(["config_id"], ["custom_app_config.id"]),
+        sa.UniqueConstraint(
+            "config_id",
+            "key",
+            name="uq_custom_app_config_secrets_config_key",
+        ),
     )
     op.create_table(
         "benchmark_run",
@@ -216,6 +254,8 @@ def downgrade() -> None:
     op.drop_table("benchmark_run_test_prompt")
     op.drop_table("benchmark_run_test_status")
     op.drop_table("benchmark_run")
+    op.drop_table("custom_app_config_secrets")
+    op.drop_table("custom_app_config_parameters")
     op.drop_table("custom_app_config")
     op.drop_table("custom_app")
     op.drop_table("llm_provider_endpoint_config")

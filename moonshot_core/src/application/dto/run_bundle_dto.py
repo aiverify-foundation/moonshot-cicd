@@ -9,14 +9,16 @@ from pydantic import BaseModel, ConfigDict, Field, computed_field, model_validat
 class StartBenchmarkRunRequestDTO(BaseModel):
     """
     StartBenchmarkRunRequestDTO represents the request for starting a benchmark run
-    (one or more bundles with a single run name and relational LLM config).
+    (one or more bundles with a single run name and relational LLM or custom app config).
 
     Attributes:
         bundle_names (List[str]): Names/ids of the bundles to execute.
         run_name (str): Name for this benchmark run.
-        llm_provider_id (int): FK llm_provider.id
-        llm_provider_model_id (int): FK llm_provider_model.id
-        llm_provider_model_config_id (int): FK llm_provider_model_config.id
+        llm_provider_id (Optional[int]): FK llm_provider.id (LLM path).
+        llm_provider_model_id (Optional[int]): FK llm_provider_model.id (LLM path).
+        llm_provider_model_config_id (Optional[int]): FK llm_provider_model_config.id (LLM path).
+        custom_app_id (Optional[int]): FK custom_app.id (Custom_App path).
+        custom_app_config_id (Optional[int]): FK custom_app_config.id (Custom_App path).
         tests_by_bundle (Optional[Dict[str, List[int]]]): Optional map of bundle system_name
             to benchmark_test.id values to run for that bundle only. Keys must be a subset of
             bundle_names; omit a bundle to run all its tests. Each list must be non-empty when present.
@@ -24,10 +26,54 @@ class StartBenchmarkRunRequestDTO(BaseModel):
 
     bundle_names: List[str]
     run_name: str
-    llm_provider_id: int
-    llm_provider_model_id: int
-    llm_provider_model_config_id: int
+    llm_provider_id: Optional[int] = None
+    llm_provider_model_id: Optional[int] = None
+    llm_provider_model_config_id: Optional[int] = None
+    custom_app_id: Optional[int] = None
+    custom_app_config_id: Optional[int] = None
     tests_by_bundle: Optional[Dict[str, List[int]]] = None
+
+    @model_validator(mode="after")
+    def validate_endpoint_ids(self) -> "StartBenchmarkRunRequestDTO":
+        llm_set = (
+            self.llm_provider_id is not None
+            and self.llm_provider_model_id is not None
+            and self.llm_provider_model_config_id is not None
+        )
+        llm_partial = (
+            self.llm_provider_id is not None
+            or self.llm_provider_model_id is not None
+            or self.llm_provider_model_config_id is not None
+        )
+        custom_set = (
+            self.custom_app_id is not None and self.custom_app_config_id is not None
+        )
+        custom_partial = (
+            self.custom_app_id is not None or self.custom_app_config_id is not None
+        )
+        if llm_set and custom_partial:
+            raise ValueError(
+                "Provide either LLM provider ids or custom app ids, not both."
+            )
+        if custom_set and llm_partial:
+            raise ValueError(
+                "Provide either LLM provider ids or custom app ids, not both."
+            )
+        if not llm_set and not custom_set:
+            raise ValueError(
+                "Provide either all three LLM provider ids or both custom app ids."
+            )
+        if llm_partial and not llm_set:
+            raise ValueError(
+                "When using LLM provider endpoint, llm_provider_id, "
+                "llm_provider_model_id, and llm_provider_model_config_id are all required."
+            )
+        if custom_partial and not custom_set:
+            raise ValueError(
+                "When using Custom_App endpoint, custom_app_id and "
+                "custom_app_config_id are both required."
+            )
+        return self
 
     @model_validator(mode="after")
     def validate_tests_by_bundle_keys(self) -> "StartBenchmarkRunRequestDTO":
@@ -76,6 +122,8 @@ class BenchmarkRunResponseDTO(BaseModel):
     llm_provider_id: Optional[int] = None
     llm_provider_model_id: Optional[int] = None
     llm_provider_model_config_id: Optional[int] = None
+    custom_app_id: Optional[int] = None
+    custom_app_config_id: Optional[int] = None
 
 
 class BenchmarkRunTestBundleResponseDTO(BaseModel):

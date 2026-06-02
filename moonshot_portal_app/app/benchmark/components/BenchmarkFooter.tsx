@@ -6,7 +6,6 @@ import { Button } from "@/components/ui/button";
 import { useAppSelector } from '../../../hooks/reduxHooks';
 import { startBenchmarkRun, ApiError } from '@/lib/api';
 import { selectedTestsInBundle } from '@/lib/benchmarkTestSelection';
-import { custom_connectors } from './MockData';
 
 interface BenchmarkFooterProps {
   currentPage: 'bundle-selection' | 'model-selection';
@@ -26,10 +25,11 @@ export default function BenchmarkFooter({
   const {
     isConfigValid,
     testName,
-    selectedProvider,
     benchmarkLlmProviderId,
     benchmarkLlmProviderModelId,
     benchmarkLlmProviderModelConfigId,
+    benchmarkCustomAppId,
+    benchmarkCustomAppConfigId,
   } = useAppSelector((state) => state.modelSelection);
   const runName = (testName ?? '').trim();
 
@@ -66,16 +66,19 @@ export default function BenchmarkFooter({
     return { map: out } as const;
   }, [bundles, selectedBundleSystemNames, testSelection]);
 
-  const isCustomConnector = custom_connectors.some((c) => c.id === selectedProvider);
-
-  const canStartDbBenchmark =
-    !isCustomConnector &&
+  const canStartLlmBenchmark =
     benchmarkLlmProviderId != null &&
     benchmarkLlmProviderModelId != null &&
     benchmarkLlmProviderModelConfigId != null &&
     selectedBundleSystemNames.length > 0;
+
+  const canStartCustomAppBenchmark =
+    benchmarkCustomAppId != null &&
+    benchmarkCustomAppConfigId != null &&
+    selectedBundleSystemNames.length > 0;
+
+  const canStartBenchmark = canStartLlmBenchmark || canStartCustomAppBenchmark;
   
-  // Navigation functions
   const handleNavigateToModels = () => {
     setCurrentPage('model-selection');
   };
@@ -94,12 +97,10 @@ export default function BenchmarkFooter({
       window.alert('Please enter a Test Name before running.');
       return;
     }
-    if (
-      benchmarkLlmProviderId == null ||
-      benchmarkLlmProviderModelId == null ||
-      benchmarkLlmProviderModelConfigId == null
-    ) {
-      window.alert('Select a database-backed model with a saved configuration before running.');
+    if (!canStartLlmBenchmark && !canStartCustomAppBenchmark) {
+      window.alert(
+        'Select a saved model configuration or custom application configuration before running.'
+      );
       return;
     }
     if ('error' in testsByBundle) {
@@ -109,17 +110,27 @@ export default function BenchmarkFooter({
 
     setIsStartingRun(true);
     try {
-      const payload: Parameters<typeof startBenchmarkRun>[0] = {
-        run_name: runName,
-        bundle_names: selectedBundleSystemNames,
-        llm_provider_id: benchmarkLlmProviderId,
-        llm_provider_model_id: benchmarkLlmProviderModelId,
-        llm_provider_model_config_id: benchmarkLlmProviderModelConfigId,
-      };
-      if (Object.keys(testsByBundle.map).length > 0) {
-        payload.tests_by_bundle = testsByBundle.map;
+      const tests_by_bundle =
+        Object.keys(testsByBundle.map).length > 0 ? testsByBundle.map : undefined;
+
+      if (canStartCustomAppBenchmark) {
+        await startBenchmarkRun({
+          run_name: runName,
+          bundle_names: selectedBundleSystemNames,
+          custom_app_id: benchmarkCustomAppId!,
+          custom_app_config_id: benchmarkCustomAppConfigId!,
+          ...(tests_by_bundle ? { tests_by_bundle } : {}),
+        });
+      } else {
+        await startBenchmarkRun({
+          run_name: runName,
+          bundle_names: selectedBundleSystemNames,
+          llm_provider_id: benchmarkLlmProviderId!,
+          llm_provider_model_id: benchmarkLlmProviderModelId!,
+          llm_provider_model_config_id: benchmarkLlmProviderModelConfigId!,
+          ...(tests_by_bundle ? { tests_by_bundle } : {}),
+        });
       }
-      await startBenchmarkRun(payload);
       router.push('/history');
     } catch (e) {
       const msg =
@@ -134,7 +145,6 @@ export default function BenchmarkFooter({
     }
   };
   
-  // Calculate selected bundles count
   const selectedBundlesCount = selectedBundleSystemNames.length;
 
   const getLeftButton = () => {
@@ -188,8 +198,7 @@ export default function BenchmarkFooter({
               !isConfigValid ||
               !runName ||
               isStartingRun ||
-              isCustomConnector ||
-              !canStartDbBenchmark
+              !canStartBenchmark
             }
             data-testid="run-benchmark-tests"
           >
@@ -211,12 +220,9 @@ export default function BenchmarkFooter({
   return (
     <div className="fixed bottom-0 left-12 right-0 h-[60px] bg-white border-t border-gray-200 shadow-lg z-50">
       <div className="flex items-center justify-between h-full px-6">
-        {/* Left Button */}
         <div>
           {getLeftButton()}
         </div>
-
-        {/* Right Button */}
         <div>
           {getRightButton()}
         </div>

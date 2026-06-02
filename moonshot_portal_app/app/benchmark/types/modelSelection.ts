@@ -30,12 +30,18 @@ export interface ModelConfig {
   savedConfigPairs?: Record<string, string>;
 }
 
-/** Saved connector configuration row (custom-application path; static data until a backend API exists). */
+/** Saved connector configuration row (custom-application path). */
 export interface Config {
   id: string;
   name: string;
   connector: string;
   configPairs: Array<{ key: string; value: string }>;
+  /** Reserved / first-class fields split out for the edit sheet (from savedConfigPairs). */
+  apiType?: string;
+  apiUrl?: string;
+  apiBody?: string;
+  /** From GET custom app config; secret value is never returned. */
+  apiKeyConfigured?: boolean;
 }
 
 /** Custom application / connector app entry (custom-application path). */

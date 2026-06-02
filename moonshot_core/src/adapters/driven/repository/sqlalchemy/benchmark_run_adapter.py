@@ -35,6 +35,8 @@ class SqlAlchemyBenchmarkRunRepository(BenchmarkRunRepository):
             llm_provider_id=model.llm_provider_id,
             llm_provider_model_id=model.llm_provider_model_id,
             llm_provider_model_config_id=model.llm_provider_model_config_id,
+            custom_app_id=model.custom_app_id,
+            custom_app_config_id=model.custom_app_config_id,
         )
 
     @override
@@ -80,6 +82,8 @@ class SqlAlchemyBenchmarkRunRepository(BenchmarkRunRepository):
                 llm_provider_id=entity.llm_provider_id,
                 llm_provider_model_id=entity.llm_provider_model_id,
                 llm_provider_model_config_id=entity.llm_provider_model_config_id,
+                custom_app_id=entity.custom_app_id,
+                custom_app_config_id=entity.custom_app_config_id,
             )
             session.add(model)
             session.flush()
@@ -107,5 +111,7 @@ class SqlAlchemyBenchmarkRunRepository(BenchmarkRunRepository):
             model.llm_provider_id = entity.llm_provider_id
             model.llm_provider_model_id = entity.llm_provider_model_id
             model.llm_provider_model_config_id = entity.llm_provider_model_config_id
+            model.custom_app_id = entity.custom_app_id
+            model.custom_app_config_id = entity.custom_app_config_id
             session.flush()
             return self._model_to_entity(model)

@@ -51,6 +51,7 @@ from application.dto.llm_provider_api_key_dto import (
     SetLlmProviderApiKeyResponseDTO,
 )
 from application.services.provider_seed_service import ProviderSeedService
+from application.services.custom_app_seed_service import CustomAppSeedService
 from application.services.llm_provider_api_key_service import (
     LlmProviderApiKeyService,
     LlmProviderApiKeyUnknownProviderError,
@@ -62,6 +63,28 @@ from application.services.benchmark_execution_service import (
 )
 from application.services.database_connector_config_service import (
     DatabaseConnectorConfigError,
+)
+from application.services.database_custom_app_connector_config_service import (
+    DatabaseCustomAppConnectorConfigError,
+)
+from application.dto.custom_app_config_dto import (
+    CreateCustomAppBody,
+    CreateCustomAppConfigBody,
+    CustomAppConfigResponseDTO,
+    CustomAppResponseDTO,
+    SetCustomAppConfigSecretBody,
+    UpdateCustomAppConfigBody,
+)
+from application.services.database_custom_app_config_service import (
+    DatabaseCustomAppConfigBadRequestError,
+    DatabaseCustomAppConfigConflictError,
+    DatabaseCustomAppConfigNotFoundError,
+    DatabaseCustomAppConfigService,
+    DatabaseCustomAppService,
+)
+from application.services.custom_app_config_secret_service import (
+    CustomAppConfigSecretService,
+    CustomAppConfigSecretUnknownConfigError,
 )
 from application.services.benchmark_run_service import BenchmarkRunService
 from application.services.benchmark_run_test_bundle_query_service import (
@@ -87,6 +110,8 @@ async def lifespan(app: FastAPI):
     try:
         # Seed hardcoded LLM providers (idempotent, version-aware)
         ProviderSeedService().seed_hardcoded_providers()
+        # Seed built-in custom apps shown in model selection
+        CustomAppSeedService().seed_hardcoded_custom_apps()
 
         service = get_shared_config_seed_service()
         service.seed_if_test_file_changed()
@@ -187,6 +212,9 @@ provider_service = ProviderService()
 database_model_config_service = DatabaseModelConfigService()
 benchmark_execution_service = BenchmarkExecutionService()
 llm_provider_api_key_service = LlmProviderApiKeyService()
+database_custom_app_service = DatabaseCustomAppService()
+database_custom_app_config_service = DatabaseCustomAppConfigService()
+custom_app_config_secret_service = CustomAppConfigSecretService()
 
 # Lazy-initialized SharedConfigSeedService for seed-if-testfile-changed
 _shared_config_seed_service = None
@@ -442,6 +470,8 @@ async def start_benchmark_run(request: StartBenchmarkRunRequestDTO) -> StartBenc
             llm_provider_id=request.llm_provider_id,
             llm_provider_model_id=request.llm_provider_model_id,
             llm_provider_model_config_id=request.llm_provider_model_config_id,
+            custom_app_id=request.custom_app_id,
+            custom_app_config_id=request.custom_app_config_id,
             tests_by_bundle=request.tests_by_bundle,
         )
         return StartBenchmarkRunResponseDTO(message="Benchmark run started successfully.")
@@ -451,9 +481,107 @@ async def start_benchmark_run(request: StartBenchmarkRunRequestDTO) -> StartBenc
         raise HTTPException(status_code=400, detail=str(e)) from e
     except DatabaseConnectorConfigError as e:
         raise HTTPException(status_code=400, detail=str(e)) from e
+    except DatabaseCustomAppConnectorConfigError as e:
+        raise HTTPException(status_code=400, detail=str(e)) from e
     except Exception as e:
         logger.error(f"Error starting benchmark run: {e}")
         raise HTTPException(status_code=500, detail=f"Failed to start benchmark run: {str(e)}")
+
+
+@app.get("/api/custom-apps", response_model=List[CustomAppResponseDTO])
+async def list_custom_apps() -> List[CustomAppResponseDTO]:
+    """List all custom apps."""
+    try:
+        return database_custom_app_service.list_apps()
+    except Exception as e:
+        logger.error(f"Error listing custom apps: {e}")
+        raise HTTPException(status_code=500, detail="Failed to list custom apps")
+
+
+@app.post("/api/custom-apps", response_model=CustomAppResponseDTO)
+async def create_custom_app(payload: CreateCustomAppBody, response: Response):
+    """Create a new custom app."""
+    try:
+        dto = database_custom_app_service.create_app(payload)
+        response.status_code = 201
+        return dto
+    except Exception as e:
+        logger.error(f"Error creating custom app: {e}")
+        raise HTTPException(status_code=500, detail="Failed to create custom app")
+
+
+@app.get(
+    "/api/custom-apps/{app_id}/configs",
+    response_model=List[CustomAppConfigResponseDTO],
+)
+async def list_custom_app_configs(app_id: int) -> List[CustomAppConfigResponseDTO]:
+    """List configs for a custom app."""
+    try:
+        return database_custom_app_config_service.list_configs(app_id)
+    except DatabaseCustomAppConfigBadRequestError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        logger.error(f"Error listing custom app configs: {e}")
+        raise HTTPException(status_code=500, detail="Failed to list custom app configs")
+
+
+@app.post(
+    "/api/custom-apps/{app_id}/configs",
+    response_model=CustomAppConfigResponseDTO,
+)
+async def create_custom_app_config(
+    app_id: int, payload: CreateCustomAppConfigBody, response: Response
+):
+    """Create a custom app config with parameters."""
+    try:
+        dto = database_custom_app_config_service.create(app_id, payload)
+        response.status_code = 201
+        return dto
+    except DatabaseCustomAppConfigBadRequestError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except DatabaseCustomAppConfigConflictError as e:
+        raise HTTPException(status_code=409, detail=str(e))
+    except Exception as e:
+        logger.error(f"Error creating custom app config: {e}")
+        raise HTTPException(status_code=500, detail="Failed to create custom app config")
+
+
+@app.put(
+    "/api/custom-apps/configs/{config_id}",
+    response_model=CustomAppConfigResponseDTO,
+)
+async def update_custom_app_config(
+    config_id: int, payload: UpdateCustomAppConfigBody
+) -> CustomAppConfigResponseDTO:
+    """Update a custom app config and replace its parameters."""
+    try:
+        return database_custom_app_config_service.update(config_id, payload)
+    except DatabaseCustomAppConfigNotFoundError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    except DatabaseCustomAppConfigConflictError as e:
+        raise HTTPException(status_code=409, detail=str(e))
+    except DatabaseCustomAppConfigBadRequestError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        logger.error(f"Error updating custom app config: {e}")
+        raise HTTPException(status_code=500, detail="Failed to update custom app config")
+
+
+@app.put("/api/custom-apps/configs/{config_id}/secrets/{key}")
+async def set_custom_app_config_secret(
+    config_id: int, key: str, payload: SetCustomAppConfigSecretBody
+) -> dict:
+    """Set or replace an encrypted secret for a custom app config."""
+    try:
+        custom_app_config_secret_service.set_secret(config_id, key, payload.secret)
+        return {"message": "Secret stored successfully."}
+    except CustomAppConfigSecretUnknownConfigError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        logger.error(f"Error setting custom app config secret: {e}")
+        raise HTTPException(status_code=500, detail="Failed to set custom app config secret")
 
 
 @app.get(

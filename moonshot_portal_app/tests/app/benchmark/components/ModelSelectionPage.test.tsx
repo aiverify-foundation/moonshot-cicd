@@ -4,6 +4,8 @@ import ModelSelectionPage from '@/app/benchmark/components/ModelSelectionPage';
 
 const mockFetchProviders = jest.fn();
 const mockFetchProviderLatestDetails = jest.fn();
+const mockFetchCustomApps = jest.fn();
+const mockFetchCustomAppConfigs = jest.fn();
 
 jest.mock('@/lib/api', () => {
   const actual = jest.requireActual('@/lib/api') as Record<string, unknown>;
@@ -12,6 +14,8 @@ jest.mock('@/lib/api', () => {
     fetchProviders: (...args: unknown[]) => mockFetchProviders(...args),
     fetchProviderLatestDetails: (...args: unknown[]) =>
       mockFetchProviderLatestDetails(...args),
+    fetchCustomApps: (...args: unknown[]) => mockFetchCustomApps(...args),
+    fetchCustomAppConfigs: (...args: unknown[]) => mockFetchCustomAppConfigs(...args),
   };
 });
 
@@ -70,6 +74,8 @@ describe('ModelSelectionPage', () => {
   beforeEach(() => {
     mockFetchProviders.mockReset();
     mockFetchProviderLatestDetails.mockReset();
+    mockFetchCustomApps.mockReset();
+    mockFetchCustomAppConfigs.mockReset();
     mockFetchProviders.mockResolvedValue([
       {
         id: '1',
@@ -79,6 +85,8 @@ describe('ModelSelectionPage', () => {
         defaultModel: 'gpt-4',
       },
     ]);
+    mockFetchCustomApps.mockResolvedValue([]);
+    mockFetchCustomAppConfigs.mockResolvedValue([]);
   });
 
   it('shows updated model selection breadcrumb copy', async () => {
@@ -148,6 +156,8 @@ describe('ModelSelectionPage', () => {
           benchmarkLlmProviderId: 1,
           benchmarkLlmProviderModelId: 10,
           benchmarkLlmProviderModelConfigId: 20,
+          benchmarkCustomAppId: null,
+          benchmarkCustomAppConfigId: null,
         },
       },
     });

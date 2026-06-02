@@ -1,7 +1,6 @@
 import { render, screen } from '@/tests/utils/test-utils';
 import SelectAppOrModelCard from '@/app/benchmark/components/SelectAppOrModelCard';
-import { custom_connectors, configs } from '@/app/benchmark/components/MockData';
-import type { Provider, ModelConfig } from '@/app/benchmark/types/modelSelection';
+import type { Provider, ModelConfig, ModelApp, Config } from '@/app/benchmark/types/modelSelection';
 import { createTestStore } from '@/tests/utils/test-utils';
 
 /** Minimal fixtures for standard provider/model props (production uses API data). */
@@ -28,6 +27,20 @@ const testModels: ModelConfig[] = [
   },
 ];
 
+const testCustomApps: ModelApp[] = [
+  { id: '2', name: 'Custom API App', type: 'custom' },
+];
+
+const testConfigs: Config[] = [
+  {
+    id: '100',
+    name: 'Default Config',
+    connector: '2',
+    configPairs: [],
+    apiKeyConfigured: false,
+  },
+];
+
 describe('SelectAppOrModelCard', () => {
   beforeEach(() => {
     jest.clearAllMocks();
@@ -47,6 +60,8 @@ describe('SelectAppOrModelCard', () => {
           benchmarkLlmProviderId: null,
           benchmarkLlmProviderModelId: null,
           benchmarkLlmProviderModelConfigId: null,
+          benchmarkCustomAppId: null,
+          benchmarkCustomAppConfigId: null,
         },
       });
 
@@ -55,8 +70,8 @@ describe('SelectAppOrModelCard', () => {
         <SelectAppOrModelCard
           providers={testProviders}
           models={testModels}
-          custom_connectors={custom_connectors}
-          configs={configs}
+          custom_connectors={testCustomApps}
+          configs={testConfigs}
         />,
         {
           store,

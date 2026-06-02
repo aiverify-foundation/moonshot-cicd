@@ -22,3 +22,5 @@ class BenchmarkRunEntity(BaseModel):
     llm_provider_id: Optional[int] = None
     llm_provider_model_id: Optional[int] = None
     llm_provider_model_config_id: Optional[int] = None
+    custom_app_id: Optional[int] = None
+    custom_app_config_id: Optional[int] = None

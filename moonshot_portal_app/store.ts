@@ -80,6 +80,8 @@ const modelSelectionSlice = createSlice({
     benchmarkLlmProviderId: null as number | null,
     benchmarkLlmProviderModelId: null as number | null,
     benchmarkLlmProviderModelConfigId: null as number | null,
+    benchmarkCustomAppId: null as number | null,
+    benchmarkCustomAppConfigId: null as number | null,
   },
   reducers: {
     setSelectedProvider: (state, action) => {
@@ -90,11 +92,15 @@ const modelSelectionSlice = createSlice({
       state.benchmarkLlmProviderId = null;
       state.benchmarkLlmProviderModelId = null;
       state.benchmarkLlmProviderModelConfigId = null;
+      state.benchmarkCustomAppId = null;
+      state.benchmarkCustomAppConfigId = null;
     },
     setSelectedModel: (state, action) => {
       state.selectedModel = action.payload;
       // Clear config when model is selected
       state.selectedConfig = '';
+      state.benchmarkCustomAppId = null;
+      state.benchmarkCustomAppConfigId = null;
     },
     setSelectedConfig: (state, action) => {
       state.selectedConfig = action.payload;
@@ -111,12 +117,20 @@ const modelSelectionSlice = createSlice({
           llm_provider_id: number | null;
           llm_provider_model_id: number | null;
           llm_provider_model_config_id: number | null;
+          custom_app_id?: number | null;
+          custom_app_config_id?: number | null;
         };
       }
     ) => {
       state.benchmarkLlmProviderId = action.payload.llm_provider_id;
       state.benchmarkLlmProviderModelId = action.payload.llm_provider_model_id;
       state.benchmarkLlmProviderModelConfigId = action.payload.llm_provider_model_config_id;
+      if (action.payload.custom_app_id !== undefined) {
+        state.benchmarkCustomAppId = action.payload.custom_app_id;
+      }
+      if (action.payload.custom_app_config_id !== undefined) {
+        state.benchmarkCustomAppConfigId = action.payload.custom_app_config_id;
+      }
     },
     updateConfigValidity: (state) => {
       const base =
@@ -131,7 +145,9 @@ const modelSelectionSlice = createSlice({
           state.benchmarkLlmProviderModelConfigId != null &&
           state.benchmarkLlmProviderModelConfigId > 0;
       } else {
-        state.isConfigValid = Boolean(state.selectedConfig);
+        state.isConfigValid =
+          state.benchmarkCustomAppConfigId != null &&
+          state.benchmarkCustomAppConfigId > 0;
       }
     },
     setTestNameFilled: (state, action) => {
@@ -151,6 +167,8 @@ const modelSelectionSlice = createSlice({
       state.benchmarkLlmProviderId = null;
       state.benchmarkLlmProviderModelId = null;
       state.benchmarkLlmProviderModelConfigId = null;
+      state.benchmarkCustomAppId = null;
+      state.benchmarkCustomAppConfigId = null;
     },
   },
 });

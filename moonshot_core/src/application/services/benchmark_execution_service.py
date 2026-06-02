@@ -31,6 +31,10 @@ from application.services.database_connector_config_service import (
     DatabaseConnectorConfigError,
     DatabaseConnectorConfigService,
 )
+from application.services.database_custom_app_connector_config_service import (
+    DatabaseCustomAppConnectorConfigError,
+    DatabaseCustomAppConnectorConfigService,
+)
 from domain.entities.benchmark_run_entity import BenchmarkRunEntity
 from domain.services.logger import configure_logger
 from domain.services.task_manager import TaskManager
@@ -83,9 +87,11 @@ def _run_bundle_in_process(
     bundle_id: str,
     run_id: int,
     skip_alembic_upgrade: bool,
-    llm_provider_id: int,
-    llm_provider_model_id: int,
-    llm_provider_model_config_id: int,
+    llm_provider_id: Optional[int],
+    llm_provider_model_id: Optional[int],
+    llm_provider_model_config_id: Optional[int],
+    custom_app_id: Optional[int],
+    custom_app_config_id: Optional[int],
     test_ids: Optional[List[int]] = None,
 ) -> None:
     """
@@ -102,7 +108,8 @@ def _run_bundle_in_process(
         bundle_id: Bundle identifier to execute
         run_id: benchmark_run.id for this run
         skip_alembic_upgrade: If True, skip Alembic in this process (set before any DB use).
-        llm_provider_id / llm_provider_model_id / llm_provider_model_config_id: DB connector FKs.
+        llm_provider_id / llm_provider_model_id / llm_provider_model_config_id: DB connector FKs (LLM path).
+        custom_app_id / custom_app_config_id: DB connector FKs (Custom_App path).
         test_ids: Optional list of benchmark_test.id to run for this bundle (subset or full).
     """
     if skip_alembic_upgrade:
@@ -118,6 +125,8 @@ def _run_bundle_in_process(
             llm_provider_id=llm_provider_id,
             llm_provider_model_id=llm_provider_model_id,
             llm_provider_model_config_id=llm_provider_model_config_id,
+            custom_app_id=custom_app_id,
+            custom_app_config_id=custom_app_config_id,
             test_ids=test_ids,
         )
     finally:
@@ -142,9 +151,11 @@ class BenchmarkExecutionService:
         self,
         bundle_name: str,
         run_id: int,
-        llm_provider_id: int,
-        llm_provider_model_id: int,
-        llm_provider_model_config_id: int,
+        llm_provider_id: Optional[int] = None,
+        llm_provider_model_id: Optional[int] = None,
+        llm_provider_model_config_id: Optional[int] = None,
+        custom_app_id: Optional[int] = None,
+        custom_app_config_id: Optional[int] = None,
         test_ids: Optional[List[int]] = None,
     ) -> str:
         """
@@ -156,7 +167,8 @@ class BenchmarkExecutionService:
         Args:
             bundle_name: Bundle system name from the request (used to resolve the bundle in DB)
             run_id: benchmark_run.id for the background process.
-            llm_provider_id / llm_provider_model_id / llm_provider_model_config_id: DB-backed connector FKs.
+            llm_provider_id / llm_provider_model_id / llm_provider_model_config_id: DB-backed connector FKs (LLM path).
+            custom_app_id / custom_app_config_id: DB-backed connector FKs (Custom_App path).
             test_ids: When set, only these benchmark_test.id values are executed for the bundle.
 
         Returns:
@@ -181,6 +193,8 @@ class BenchmarkExecutionService:
                 llm_provider_id,
                 llm_provider_model_id,
                 llm_provider_model_config_id,
+                custom_app_id,
+                custom_app_config_id,
                 test_ids,
             ),
         )
@@ -196,9 +210,11 @@ class BenchmarkExecutionService:
         self,
         run_name: str,
         bundle_names: List[str],
-        llm_provider_id: int,
-        llm_provider_model_id: int,
-        llm_provider_model_config_id: int,
+        llm_provider_id: Optional[int] = None,
+        llm_provider_model_id: Optional[int] = None,
+        llm_provider_model_config_id: Optional[int] = None,
+        custom_app_id: Optional[int] = None,
+        custom_app_config_id: Optional[int] = None,
         tests_by_bundle: Optional[Dict[str, List[int]]] = None,
     ) -> None:
         """
@@ -206,27 +222,50 @@ class BenchmarkExecutionService:
         in separate daemon processes, passing the run id for them to use.
 
         Uses relational llm_provider / llm_provider_model / llm_provider_model_config ids
-        (no YAML connector) for benchmark execution.
+        or custom_app / custom_app_config ids for benchmark execution.
 
         Args:
             run_name: Name for this benchmark run.
             bundle_names: Names/ids of the bundles to execute.
-            llm_provider_id: FK llm_provider.id
-            llm_provider_model_id: FK llm_provider_model.id
-            llm_provider_model_config_id: FK llm_provider_model_config.id
+            llm_provider_id: FK llm_provider.id (LLM path).
+            llm_provider_model_id: FK llm_provider_model.id (LLM path).
+            llm_provider_model_config_id: FK llm_provider_model_config.id (LLM path).
+            custom_app_id: FK custom_app.id (Custom_App path).
+            custom_app_config_id: FK custom_app_config.id (Custom_App path).
             tests_by_bundle: Optional map bundle system_name -> benchmark_test.id list (subset per bundle).
 
         Raises:
             KeyError: If any bundle is not found.
             BenchmarkRunTestSelectionError: If tests_by_bundle references ids not in a bundle.
-            DatabaseConnectorConfigError: If DB connector resolution fails.
+            DatabaseConnectorConfigError: If LLM DB connector resolution fails.
+            DatabaseCustomAppConnectorConfigError: If custom app connector resolution fails.
         """
-        # Validate connector resolution before spawning workers
-        DatabaseConnectorConfigService().build_connector_entity(
-            llm_provider_id=llm_provider_id,
-            llm_provider_model_id=llm_provider_model_id,
-            llm_provider_model_config_id=llm_provider_model_config_id,
+        use_llm = (
+            llm_provider_id is not None
+            and llm_provider_model_id is not None
+            and llm_provider_model_config_id is not None
         )
+        use_custom_app = (
+            custom_app_id is not None and custom_app_config_id is not None
+        )
+
+        if use_llm:
+            DatabaseConnectorConfigService().build_connector_entity(
+                llm_provider_id=llm_provider_id,
+                llm_provider_model_id=llm_provider_model_id,
+                llm_provider_model_config_id=llm_provider_model_config_id,
+            )
+            endpoint_type = "LLM_Provider"
+        elif use_custom_app:
+            DatabaseCustomAppConnectorConfigService().build_connector_entity(
+                custom_app_id=custom_app_id,
+                custom_app_config_id=custom_app_config_id,
+            )
+            endpoint_type = "Custom_App"
+        else:
+            raise ValueError(
+                "Provide either LLM provider ids or custom app ids to start a benchmark run."
+            )
 
         config_adapter = BenchmarkTestConfigAdapter()
         resolved_test_ids = _bundle_names_to_resolved_test_ids(
@@ -235,12 +274,16 @@ class BenchmarkExecutionService:
 
         logger.info(
             "[BenchmarkExecutionService] Starting benchmark run: run_name=%s, "
-            "llm_provider_id=%s, llm_provider_model_id=%s, llm_provider_model_config_id=%s, bundles=%s, "
-            "tests_by_bundle=%s",
+            "endpoint_type=%s, llm_provider_id=%s, llm_provider_model_id=%s, "
+            "llm_provider_model_config_id=%s, custom_app_id=%s, custom_app_config_id=%s, "
+            "bundles=%s, tests_by_bundle=%s",
             run_name,
+            endpoint_type,
             llm_provider_id,
             llm_provider_model_id,
             llm_provider_model_config_id,
+            custom_app_id,
+            custom_app_config_id,
             bundle_names,
             tests_by_bundle,
         )
@@ -248,11 +291,13 @@ class BenchmarkExecutionService:
         run_entity = BenchmarkRunEntity(
             name=run_name,
             status="running",
-            endpoint_type="LLM_Provider",
+            endpoint_type=endpoint_type,
             start_time=datetime.now(timezone.utc),
             llm_provider_id=llm_provider_id,
             llm_provider_model_id=llm_provider_model_id,
             llm_provider_model_config_id=llm_provider_model_config_id,
+            custom_app_id=custom_app_id,
+            custom_app_config_id=custom_app_config_id,
         )
         saved_run = BenchmarkRunService().save_run(run_entity)
         run_id = saved_run.id
@@ -275,9 +320,11 @@ class BenchmarkExecutionService:
             self.start_bundle_in_background(
                 bundle_name,
                 run_id,
-                llm_provider_id,
-                llm_provider_model_id,
-                llm_provider_model_config_id,
+                llm_provider_id=llm_provider_id,
+                llm_provider_model_id=llm_provider_model_id,
+                llm_provider_model_config_id=llm_provider_model_config_id,
+                custom_app_id=custom_app_id,
+                custom_app_config_id=custom_app_config_id,
                 test_ids=ids_for_bundle,
             )
 
@@ -290,6 +337,8 @@ class BenchmarkExecutionService:
         llm_provider_id: Optional[int] = None,
         llm_provider_model_id: Optional[int] = None,
         llm_provider_model_config_id: Optional[int] = None,
+        custom_app_id: Optional[int] = None,
+        custom_app_config_id: Optional[int] = None,
         write_combined_results_file: bool = True,
         test_ids: Optional[List[int]] = None,
     ) -> None:
@@ -312,7 +361,8 @@ class BenchmarkExecutionService:
             bundle_id: Bundle system name (e.g. minimal-bundle) for DB lookup, or bundle id for file fallback.
             connector: YAML connector id when using legacy path (mutually exclusive with DB ids).
             run_id: Optional benchmark run id (from BenchmarkRunEntity). Required for DB path; if None on DB path, a run is created.
-            llm_provider_id / llm_provider_model_id / llm_provider_model_config_id: When all set, build ConnectorEntity from DB (no YAML).
+            llm_provider_id / llm_provider_model_id / llm_provider_model_config_id: When all set, build ConnectorEntity from LLM DB rows.
+            custom_app_id / custom_app_config_id: When both set, build ConnectorEntity from custom app DB rows.
             write_to_db: If True (default), run_benchmark writes results to DB when run_test/prompts exist. If False, prompts come from dataset load and no DB write.
             write_combined_results_file: If True (default), write combined bundle JSON under MOONSHOT_BENCHMARK_RESULTS_DIR.
                 Background workers for ``start_benchmark_run`` pass False so API runs persist only to the DB.
@@ -322,24 +372,34 @@ class BenchmarkExecutionService:
         try:
             logger.info(f"[BenchmarkExecutionService] Starting bundle execution for bundle: {bundle_id}")
 
-            use_db_connector = (
+            use_llm_connector = (
                 llm_provider_id is not None
                 and llm_provider_model_id is not None
                 and llm_provider_model_config_id is not None
             )
+            use_custom_app_connector = (
+                custom_app_id is not None and custom_app_config_id is not None
+            )
             db_connector_entity = None
-            if use_db_connector:
+            if use_llm_connector:
                 db_connector_entity = DatabaseConnectorConfigService().build_connector_entity(
                     llm_provider_id=llm_provider_id,
                     llm_provider_model_id=llm_provider_model_id,
                     llm_provider_model_config_id=llm_provider_model_config_id,
                 )
                 bench_connector = ""
+            elif use_custom_app_connector:
+                db_connector_entity = DatabaseCustomAppConnectorConfigService().build_connector_entity(
+                    custom_app_id=custom_app_id,
+                    custom_app_config_id=custom_app_config_id,
+                )
+                bench_connector = ""
             elif connector is not None:
                 bench_connector = connector
             else:
                 logger.error(
-                    "[BenchmarkExecutionService] execute_bundle requires connector or DB id trio"
+                    "[BenchmarkExecutionService] execute_bundle requires connector, "
+                    "LLM id trio, or custom app id pair"
                 )
                 return
 

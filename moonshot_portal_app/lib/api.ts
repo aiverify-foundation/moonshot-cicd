@@ -113,19 +113,23 @@ export async function fetchBundles(): Promise<Bundle[]> {
 }
 
 /** POST /api/start-benchmark-run */
-export interface StartBenchmarkRunRequest {
-  run_name: string;
-  /** Each entry is a bundle system_name (same as `Bundle.id` from GET /api/bundles). */
-  bundle_names: string[];
-  llm_provider_id: number;
-  llm_provider_model_id: number;
-  llm_provider_model_config_id: number;
-  /**
-   * Optional map of bundle system_name → benchmark_test.id list to run only those tests.
-   * Omit a bundle to run all its tests. Keys must be subset of `bundle_names`.
-   */
-  tests_by_bundle?: Record<string, number[]>;
-}
+export type StartBenchmarkRunRequest =
+  | {
+      run_name: string;
+      /** Each entry is a bundle system_name (same as `Bundle.id` from GET /api/bundles). */
+      bundle_names: string[];
+      llm_provider_id: number;
+      llm_provider_model_id: number;
+      llm_provider_model_config_id: number;
+      tests_by_bundle?: Record<string, number[]>;
+    }
+  | {
+      run_name: string;
+      bundle_names: string[];
+      custom_app_id: number;
+      custom_app_config_id: number;
+      tests_by_bundle?: Record<string, number[]>;
+    };
 
 export interface StartBenchmarkRunResponse {
   message: string;
@@ -676,5 +680,142 @@ export async function patchBenchmarkRunPromptUserFeedback(
     throw new ApiError(
       `Network error: ${error instanceof Error ? error.message : 'Unknown error'}`
     );
+  }
+}
+
+/** GET /api/custom-apps */
+export interface CustomAppDTO {
+  id: number;
+  name: string;
+}
+
+/** GET/POST/PUT custom app config responses */
+export interface CustomAppConfigDTO {
+  id: number;
+  custom_app_id: number;
+  name: string;
+  savedConfigPairs: Record<string, string>;
+  update_dt?: string | null;
+  api_key_configured?: boolean;
+}
+
+export interface CreateCustomAppConfigPayload {
+  name: string;
+  savedConfigPairs?: Record<string, string>;
+}
+
+export type UpdateCustomAppConfigPayload = CreateCustomAppConfigPayload;
+
+export interface SetCustomAppConfigSecretResponse {
+  message: string;
+}
+
+export async function fetchCustomApps(): Promise<CustomAppDTO[]> {
+  try {
+    return await handleJsonGet<CustomAppDTO[]>(
+      `${API_BASE_URL}/api/custom-apps`,
+      'fetch custom apps'
+    );
+  } catch (error) {
+    handleConnectError(error, 'Network error');
+  }
+}
+
+export async function fetchCustomAppConfigs(
+  appId: number
+): Promise<CustomAppConfigDTO[]> {
+  try {
+    return await handleJsonGet<CustomAppConfigDTO[]>(
+      `${API_BASE_URL}/api/custom-apps/${appId}/configs`,
+      'fetch custom app configs'
+    );
+  } catch (error) {
+    handleConnectError(error, 'Network error');
+  }
+}
+
+export async function createCustomAppConfig(
+  appId: number,
+  payload: CreateCustomAppConfigPayload
+): Promise<CustomAppConfigDTO> {
+  try {
+    const response = await fetch(
+      `${API_BASE_URL}/api/custom-apps/${appId}/configs`,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: payload.name,
+          savedConfigPairs: payload.savedConfigPairs ?? {},
+        }),
+      }
+    );
+    if (!response.ok) {
+      const errorText = await response.text().catch(() => 'Unknown error');
+      console.error(`API Error: ${response.status} - ${errorText}`);
+      const detail = parseErrorDetail(errorText);
+      throw new ApiError(detail, response.status, response.statusText);
+    }
+    return response.json() as Promise<CustomAppConfigDTO>;
+  } catch (error) {
+    console.error('Create custom app config error:', error);
+    handleConnectError(error, 'Network error');
+  }
+}
+
+export async function updateCustomAppConfig(
+  configId: number,
+  payload: UpdateCustomAppConfigPayload
+): Promise<CustomAppConfigDTO> {
+  try {
+    const response = await fetch(
+      `${API_BASE_URL}/api/custom-apps/configs/${configId}`,
+      {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: payload.name,
+          savedConfigPairs: payload.savedConfigPairs ?? {},
+        }),
+      }
+    );
+    if (!response.ok) {
+      const errorText = await response.text().catch(() => 'Unknown error');
+      console.error(`API Error: ${response.status} - ${errorText}`);
+      const detail = parseErrorDetail(errorText);
+      throw new ApiError(detail, response.status, response.statusText);
+    }
+    return response.json() as Promise<CustomAppConfigDTO>;
+  } catch (error) {
+    console.error('Update custom app config error:', error);
+    handleConnectError(error, 'Network error');
+  }
+}
+
+export async function setCustomAppConfigSecret(
+  configId: number,
+  key: string,
+  secret: string
+): Promise<SetCustomAppConfigSecretResponse> {
+  try {
+    const encodedKey = encodeURIComponent(key);
+    const response = await fetch(
+      `${API_BASE_URL}/api/custom-apps/configs/${configId}/secrets/${encodedKey}`,
+      {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ secret }),
+      }
+    );
+    if (!response.ok) {
+      const errorText = await response.text().catch(() => 'Unknown error');
+      console.error(`API Error: ${response.status} - ${errorText}`);
+      const detail = parseErrorDetail(errorText);
+      throw new ApiError(detail, response.status, response.statusText);
+    }
+    return response.json() as Promise<SetCustomAppConfigSecretResponse>;
+  } catch (error) {
+    console.error('Set custom app config secret error:', error);
+    handleConnectError(error, 'Network error');
   }
 }

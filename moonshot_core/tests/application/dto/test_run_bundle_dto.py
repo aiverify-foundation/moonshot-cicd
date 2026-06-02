@@ -22,6 +22,30 @@ def test_start_benchmark_run_request_accepts_tests_by_bundle():
     assert body.tests_by_bundle == {"a": [10, 11]}
 
 
+def test_start_benchmark_run_request_accepts_custom_app_ids():
+    body = StartBenchmarkRunRequestDTO(
+        bundle_names=["a"],
+        run_name="r",
+        custom_app_id=1,
+        custom_app_config_id=2,
+    )
+    assert body.custom_app_id == 1
+    assert body.custom_app_config_id == 2
+
+
+def test_start_benchmark_run_request_rejects_mixed_endpoint_ids():
+    with pytest.raises(ValidationError, match="not both"):
+        StartBenchmarkRunRequestDTO(
+            bundle_names=["a"],
+            run_name="r",
+            llm_provider_id=1,
+            llm_provider_model_id=2,
+            llm_provider_model_config_id=3,
+            custom_app_id=1,
+            custom_app_config_id=2,
+        )
+
+
 def test_start_benchmark_run_request_rejects_tests_by_bundle_key_not_in_bundles():
     with pytest.raises(ValidationError, match="tests_by_bundle"):
         StartBenchmarkRunRequestDTO(
