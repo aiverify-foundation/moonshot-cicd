@@ -1,5 +1,5 @@
 import { render, screen, waitFor } from '@/tests/utils/test-utils';
-import ViewTest from '@/app/view_test/page';
+import ViewTestApp from '@/app/view_test/components/ViewTestApp';
 import type { Bundle } from '@/lib/api';
 
 const mockFetchBundles = jest.fn();
@@ -56,7 +56,7 @@ const bundleWithDetails: Bundle[] = [
   },
 ];
 
-describe('ViewTest page', () => {
+describe('ViewTestApp', () => {
   beforeEach(() => {
     mockFetchBundles.mockReset();
     getUseSearchParamsMock().mockReturnValue({
@@ -71,7 +71,7 @@ describe('ViewTest page', () => {
   it('renders test metadata and detail rows from API', async () => {
     mockFetchBundles.mockResolvedValue(bundleWithDetails);
 
-    render(<ViewTest />);
+    render(<ViewTestApp />);
 
     await waitFor(() => {
       expect(screen.getByRole('heading', { level: 1, name: 'Sample Test' })).toBeInTheDocument();
@@ -103,7 +103,7 @@ describe('ViewTest page', () => {
       },
     ]);
 
-    render(<ViewTest />);
+    render(<ViewTestApp />);
 
     await waitFor(() => {
       expect(screen.getByRole('heading', { level: 1, name: 'Sample Test' })).toBeInTheDocument();
@@ -121,7 +121,7 @@ describe('ViewTest page', () => {
       },
     ]);
 
-    render(<ViewTest />);
+    render(<ViewTestApp />);
 
     await waitFor(() => {
       expect(
@@ -135,7 +135,7 @@ describe('ViewTest page', () => {
       get: () => null,
     });
 
-    render(<ViewTest />);
+    render(<ViewTestApp />);
 
     expect(
       screen.getByText(/Missing test or dataset in the URL/i),
