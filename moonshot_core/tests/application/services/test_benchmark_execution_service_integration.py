@@ -152,6 +152,8 @@ class TestStartBenchmarkRunIntegration:
                 pid,
                 mid,
                 mcid,
+                custom_app_id,
+                custom_app_config_id,
                 passed_test_ids,
             ) = args
             assert passed_run_id == run_id
@@ -159,6 +161,8 @@ class TestStartBenchmarkRunIntegration:
             assert pid == llm_provider_id
             assert mid == llm_provider_model_id
             assert mcid == llm_provider_model_config_id
+            assert custom_app_id is None
+            assert custom_app_config_id is None
             assert passed_test_ids == [101, 102]
             started_bundles.append(bundle_name)
         assert started_bundles == bundle_names

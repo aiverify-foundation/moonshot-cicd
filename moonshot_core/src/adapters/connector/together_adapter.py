@@ -21,9 +21,9 @@ class TogetherAdapter(ConnectorPort):
     PROVIDER_NAME = "TogetherAI"
     SYSTEM_NAME = "together_adapter"
     VERSION = 1
-    DEFAULT_MODEL = "meta-llama/Meta-Llama-3-70B-Instruct"
+    DEFAULT_MODEL = "meta-llama/Llama-3.3-70B-Instruct-Turbo"
     MODEL_TEXTBOX_EXPLANATION = (
-        "Enter a TogetherAI model ID, e.g. meta-llama/Meta-Llama-3-70B-Instruct"
+        "Enter a TogetherAI model ID, e.g. meta-llama/Llama-3.3-70B-Instruct-Turbo"
     )
     DEFAULT_CONFIG_PAIRS = {
         "temperature": "0.7",

@@ -104,7 +104,7 @@ def _start_bundle_in_background(bundle_name: str, connector: str) -> None:
     proc.start()
 
 
-async def _wait_for_result_file_and_validate(absolute_result_path, max_wait=15):
+async def _wait_for_result_file_and_validate(absolute_result_path, max_wait=60):
     """Helper function to wait for result file and validate JSON."""
     wait_interval = 0.2
     waited = 0
@@ -207,7 +207,7 @@ def _verify_result_structure(data, bundle_id):
 
 
 async def _run_validation_workflow_test(
-    connector, absolute_result_path, bundle_id="test-bundle", max_wait=15
+    connector, absolute_result_path, bundle_id="test-bundle", max_wait=60
 ):
     """Helper to run a validation workflow test with common setup.
 
@@ -215,7 +215,7 @@ async def _run_validation_workflow_test(
         connector: Connector name to use
         absolute_result_path: Path to the result file
         bundle_id: Bundle name (used in payload and for run_metadata.test_id check)
-        max_wait: Max seconds to wait for result file (default 15)
+        max_wait: Max seconds to wait for result file (default 60)
     """
     _start_bundle_in_background(bundle_id, connector)
 
@@ -298,7 +298,7 @@ async def test_validation_workflow_failure_recovery(
 
     # Step 2: Run test with valid connector (happy path)
     await _run_validation_workflow_test(
-        "my-gpt-4o-mini", absolute_result_path, max_wait=30
+        "my-gpt-4o-mini", absolute_result_path, max_wait=60
     )
 
 

@@ -23,7 +23,7 @@ def _default_no_db_api_key_for_together_configure(request):
 def connector_entity():
     return ConnectorEntity(
         connector_adapter="together",
-        model="meta-llama/Meta-Llama-3-70B-Instruct",
+        model="meta-llama/Llama-3.3-70B-Instruct-Turbo",
         model_endpoint="https://api.together.xyz/v1",
         params={
             "api_type": "together",

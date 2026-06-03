@@ -14,7 +14,7 @@ logger = configure_logger(__name__)
 
 DEFAULT_API_TYPE = "POST"
 DEFAULT_API_URL = "https://api.together.xyz/v1/chat/completions"
-# Together serverless chat model (Meta-Llama-3-70B-Instruct is dedicated-only).
+
 DEFAULT_API_BODY = (
     '{"model": "meta-llama/Llama-3.3-70B-Instruct-Turbo", '
     '"messages": [{"role": "user", "content": ""}], "max_tokens": 128}'

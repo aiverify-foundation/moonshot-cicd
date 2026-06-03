@@ -8,6 +8,13 @@ from domain.services.enums.test_types import TestTypes
 from domain.services.loader.file_loader import FileLoader
 from domain.services.loader.module_loader import ModuleLoader
 
+
+def _attack_module_mock(execute_result=([], {})):
+    mock = MagicMock()
+    mock.execute = AsyncMock(return_value=execute_result)
+    return mock
+
+
 @pytest.mark.asyncio
 async def test_run_benchmark():
     # Create a TaskManager instance
@@ -240,10 +247,7 @@ async def test_run_scan():
 
     # Mock the dependencies
     mock_connector_entity = MagicMock()
-    mock_attack_module_instance = AsyncMock()
-    mock_attack_module_instance.execute.return_value = ([], {})
-    mock_attack_module_instance.configure = MagicMock()
-    mock_attack_module_instance.update_params = MagicMock()
+    mock_attack_module_instance = _attack_module_mock()
 
     # Mock the methods in TaskManager
     with patch.object(task_manager, '_get_connector_config', return_value=mock_connector_entity), \
@@ -291,11 +295,8 @@ async def test_run_scan():
 async def test_run_scan_connector_config_none():
     """Test run_scan when connector config returns None"""
     task_manager = TaskManager()
-    mock_attack_module_instance = AsyncMock()
-    mock_attack_module_instance.configure = MagicMock()
-    mock_attack_module_instance.update_params = MagicMock()
-    mock_attack_module_instance.execute.return_value = ([], {})
-    
+    mock_attack_module_instance = _attack_module_mock()
+
     with patch.object(task_manager, '_get_connector_config', return_value=None), \
          patch.object(task_manager, '_load_module', return_value=(mock_attack_module_instance, "am_id")):
         result = await task_manager.run_scan(
@@ -335,8 +336,7 @@ async def test_run_scan_serialization_fails():
     """Test run_scan when serialization fails"""
     task_manager = TaskManager()
     mock_connector_entity = MagicMock()
-    mock_attack_module_instance = AsyncMock()
-    mock_attack_module_instance.execute.return_value = ([], {})
+    mock_attack_module_instance = _attack_module_mock()
     with patch.object(task_manager, '_get_connector_config', return_value=mock_connector_entity), \
          patch.object(task_manager, '_load_module', return_value=(mock_attack_module_instance, "am_id")), \
          patch.object(task_manager, '_convert_prompt_entities_to_dicts', return_value={}), \
@@ -358,8 +358,7 @@ async def test_run_scan_write_result_false():
     """Test run_scan with write_result=False"""
     task_manager = TaskManager()
     mock_connector_entity = MagicMock()
-    mock_attack_module_instance = AsyncMock()
-    mock_attack_module_instance.execute.return_value = ([], {})
+    mock_attack_module_instance = _attack_module_mock()
     with patch.object(task_manager, '_get_connector_config', return_value=mock_connector_entity), \
          patch.object(task_manager, '_load_module', return_value=(mock_attack_module_instance, "am_id")), \
          patch.object(task_manager, '_convert_prompt_entities_to_dicts', return_value={}), \
@@ -381,11 +380,8 @@ async def test_run_scan_write_result_false():
 async def test_run_scan_exception_handling():
     """Test run_scan exception handling"""
     task_manager = TaskManager()
-    mock_attack_module_instance = AsyncMock()
-    mock_attack_module_instance.configure = MagicMock()
-    mock_attack_module_instance.update_params = MagicMock()
-    mock_attack_module_instance.execute.return_value = ([], {})
-    
+    mock_attack_module_instance = _attack_module_mock()
+
     with patch.object(task_manager, '_get_connector_config', side_effect=Exception("Test error")), \
          patch.object(task_manager, '_load_module', return_value=(mock_attack_module_instance, "am_id")):
         with pytest.raises(Exception) as exc_info:
@@ -406,8 +402,7 @@ async def test_run_scan_with_callback():
     """Test run_scan with callback function"""
     task_manager = TaskManager()
     mock_connector_entity = MagicMock()
-    mock_attack_module_instance = AsyncMock()
-    mock_attack_module_instance.execute.return_value = ([], {})
+    mock_attack_module_instance = _attack_module_mock()
     callback_mock = MagicMock()
     with patch.object(task_manager, '_get_connector_config', return_value=mock_connector_entity), \
          patch.object(task_manager, '_load_module', return_value=(mock_attack_module_instance, "am_id")), \
@@ -531,10 +526,7 @@ async def test_run_scan_input(
 ):
     task_manager = TaskManager()
 
-    am_inst = AsyncMock()
-    am_inst.execute.return_value = execute_result
-    am_inst.configure = MagicMock()
-    am_inst.update_params = MagicMock()
+    am_inst = _attack_module_mock(execute_result=execute_result)
     load_module_side_effect = None
     if load_module_exception:
         load_module_side_effect = load_module_exception
