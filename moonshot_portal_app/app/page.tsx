@@ -21,11 +21,18 @@ function QuickStartButton() {
 function HowToGuideButton() {
   return (
     <Button
+      asChild
       variant="outline"
       className="h-[70px] w-full flex-col items-start p-4 text-left hover:bg-accent whitespace-normal"
     >
-      <h3 className="text-base font-semibold text-gray-900 leading-none break-words mb-0">How-to guide</h3>
-      <p className="text-sm text-slate-700 leading-normal break-words mt-0">Understand how the product works step-by-step</p>
+      <a
+        href="https://github.com/aiverify-foundation/moonshot-cicd/wiki"
+        target="_blank"
+        rel="noopener noreferrer"
+      >
+        <h3 className="text-base font-semibold text-gray-900 leading-none break-words mb-0">How-to guide</h3>
+        <p className="text-sm text-slate-700 leading-normal break-words mt-0">Understand how the product works step-by-step</p>
+      </a>
     </Button>
   );
 }
