@@ -104,6 +104,17 @@ class StartBenchmarkRunResponseDTO(BaseModel):
     message: str
 
 
+class CheckBenchmarkRunNameResponseDTO(BaseModel):
+    """
+    Response DTO for benchmark run name availability check.
+
+    Returned by GET /api/benchmark-runs/check-name.
+    """
+
+    run_name: str
+    available: bool
+
+
 class BenchmarkRunResponseDTO(BaseModel):
     """
     Response DTO for a benchmark_run row.

@@ -41,6 +41,7 @@ from application.dto.run_bundle_dto import (
     BenchmarkRunResultsResponseDTO,
     BenchmarkRunTestBundleResponseDTO,
     BenchmarkRunTestPromptResponseDTO,
+    CheckBenchmarkRunNameResponseDTO,
     PatchBenchmarkRunTestPromptUserDTO,
     StartBenchmarkRunRequestDTO,
     StartBenchmarkRunResponseDTO,
@@ -606,6 +607,36 @@ async def list_benchmark_runs() -> List[BenchmarkRunResponseDTO]:
         raise HTTPException(
             status_code=500,
             detail=f"Failed to list benchmark runs: {str(e)}",
+        )
+
+
+@app.get(
+    "/api/benchmark-runs/check-name",
+    response_model=CheckBenchmarkRunNameResponseDTO,
+)
+async def check_benchmark_run_name(run_name: str) -> CheckBenchmarkRunNameResponseDTO:
+    """
+    Check whether a benchmark run name is available (not already in use).
+
+    Uses BenchmarkRunService.get_run_by_name on the trimmed name.
+    """
+    trimmed = run_name.strip()
+    if not trimmed:
+        raise HTTPException(status_code=400, detail="run_name must not be empty.")
+    try:
+        service = BenchmarkRunService()
+        existing = service.get_run_by_name(trimmed)
+        return CheckBenchmarkRunNameResponseDTO(
+            run_name=trimmed,
+            available=existing is None,
+        )
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error checking benchmark run name: {e}")
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to check benchmark run name: {str(e)}",
         )
 
 

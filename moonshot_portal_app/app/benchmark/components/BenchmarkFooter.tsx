@@ -24,6 +24,7 @@ export default function BenchmarkFooter({
   const bundles = useAppSelector((state) => state.bundles.data);
   const {
     isConfigValid,
+    isTestNameValid,
     testName,
     benchmarkLlmProviderId,
     benchmarkLlmProviderModelId,
@@ -197,6 +198,7 @@ export default function BenchmarkFooter({
             disabled={
               !isConfigValid ||
               !runName ||
+              !isTestNameValid ||
               isStartingRun ||
               !canStartBenchmark
             }

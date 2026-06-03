@@ -213,6 +213,12 @@ export interface BenchmarkRun {
   llm_provider_model_config_id?: number | null;
 }
 
+/** GET /api/benchmark-runs/check-name */
+export interface CheckBenchmarkRunNameResponse {
+  run_name: string;
+  available: boolean;
+}
+
 /** GET /api/benchmark-runs/{run_id}/run-test-bundles */
 export interface BenchmarkRunTestBundleRow {
   id?: number | null;
@@ -535,6 +541,31 @@ export async function fetchBenchmarkRuns(): Promise<BenchmarkRun[]> {
     return await handleJsonGet<BenchmarkRun[]>(
       `${API_BASE_URL}/api/benchmark-runs`,
       'fetch benchmark runs'
+    );
+  } catch (error) {
+    if (error instanceof ApiError) throw error;
+    if (error instanceof TypeError && error.message.includes('fetch')) {
+      throw new ApiError(
+        `Cannot connect to API server at ${API_BASE_URL}. Please ensure the backend is running on port 8000.`
+      );
+    }
+    throw new ApiError(
+      `Network error: ${error instanceof Error ? error.message : 'Unknown error'}`
+    );
+  }
+}
+
+/**
+ * Check whether a benchmark run name is available.
+ */
+export async function checkBenchmarkRunName(
+  runName: string
+): Promise<CheckBenchmarkRunNameResponse> {
+  try {
+    const params = new URLSearchParams({ run_name: runName });
+    return await handleJsonGet<CheckBenchmarkRunNameResponse>(
+      `${API_BASE_URL}/api/benchmark-runs/check-name?${params.toString()}`,
+      'check benchmark run name'
     );
   } catch (error) {
     if (error instanceof ApiError) throw error;

@@ -155,7 +155,6 @@ const modelSelectionSlice = createSlice({
     },
     setBenchmarkTestName: (state, action: { payload: string }) => {
       state.testName = action.payload;
-      state.isTestNameValid = action.payload.trim().length > 0;
     },
     resetModelSelection: (state) => {
       state.selectedProvider = '';

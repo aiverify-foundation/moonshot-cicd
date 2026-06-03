@@ -139,6 +139,49 @@ def test_list_benchmark_runs_returns_runs(mock_service_class):
     mock_svc.get_all_runs.assert_called_once_with()
 
 
+@patch("entrypoints.api.BenchmarkRunService")
+def test_check_benchmark_run_name_empty(mock_service_class):
+    """GET /api/benchmark-runs/check-name returns 400 for empty name."""
+    response = client.get("/api/benchmark-runs/check-name", params={"run_name": "   "})
+    assert response.status_code == 400
+    mock_service_class.assert_not_called()
+
+
+@patch("entrypoints.api.BenchmarkRunService")
+def test_check_benchmark_run_name_available(mock_service_class):
+    """GET /api/benchmark-runs/check-name returns available true when name is free."""
+    mock_svc = MagicMock()
+    mock_service_class.return_value = mock_svc
+    mock_svc.get_run_by_name.return_value = None
+
+    response = client.get(
+        "/api/benchmark-runs/check-name", params={"run_name": "  new-run  "}
+    )
+    assert response.status_code == 200
+    assert response.json() == {"run_name": "new-run", "available": True}
+    mock_svc.get_run_by_name.assert_called_once_with("new-run")
+
+
+@patch("entrypoints.api.BenchmarkRunService")
+def test_check_benchmark_run_name_taken(mock_service_class):
+    """GET /api/benchmark-runs/check-name returns available false when name exists."""
+    mock_svc = MagicMock()
+    mock_service_class.return_value = mock_svc
+    mock_svc.get_run_by_name.return_value = BenchmarkRunEntity(
+        id=1,
+        name="existing-run",
+        status="completed",
+        endpoint_type="LLM_Provider",
+    )
+
+    response = client.get(
+        "/api/benchmark-runs/check-name", params={"run_name": "existing-run"}
+    )
+    assert response.status_code == 200
+    assert response.json() == {"run_name": "existing-run", "available": False}
+    mock_svc.get_run_by_name.assert_called_once_with("existing-run")
+
+
 @patch("entrypoints.api.BenchmarkRunTestBundleQueryService")
 def test_get_benchmark_run_test_bundles_empty(mock_service_class):
     """GET /api/benchmark-runs/{run_id}/run-test-bundles returns [] when none."""

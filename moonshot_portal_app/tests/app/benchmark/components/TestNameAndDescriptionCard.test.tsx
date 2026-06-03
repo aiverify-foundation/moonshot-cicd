@@ -1,10 +1,24 @@
 import { render, screen, waitFor } from '@/tests/utils/test-utils';
 import userEvent from '@testing-library/user-event';
 import TestNameAndDescriptionCard from '@/app/benchmark/components/TestNameAndDescriptionCard';
+import { checkBenchmarkRunName } from '@/lib/api';
+import { TEST_NAME_DUPLICATE_ERROR } from '@/hooks/useTestNameValidation';
+
+jest.mock('@/lib/api', () => ({
+  checkBenchmarkRunName: jest.fn(),
+}));
+
+const mockCheckBenchmarkRunName = checkBenchmarkRunName as jest.MockedFunction<
+  typeof checkBenchmarkRunName
+>;
 
 describe('TestNameAndDescriptionCard', () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    mockCheckBenchmarkRunName.mockImplementation(async (runName: string) => ({
+      run_name: runName.trim(),
+      available: true,
+    }));
   });
 
   describe('Initial Page Load Display', () => {
@@ -94,13 +108,58 @@ describe('TestNameAndDescriptionCard', () => {
 
       // Then will perform input validation for Test Name text input field per key stroke event
       // AND card header displays Card Complete Indicator
-      await waitFor(() => {
-        statusIndicator = screen.getByTestId('test-name-status-indicator');
-        expect(statusIndicator).toHaveClass('text-green-500');
-      });
+      await waitFor(
+        () => {
+          statusIndicator = screen.getByTestId('test-name-status-indicator');
+          expect(statusIndicator).toHaveClass('text-green-500');
+        },
+        { timeout: 3000 }
+      );
+
+      expect(mockCheckBenchmarkRunName).toHaveBeenCalledWith('Valid test name');
 
       const state = store.getState();
       expect(state.modelSelection.isTestNameValid).toBe(true);
+    });
+
+    it('shows duplicate name error when name is already taken', async () => {
+      const user = userEvent.setup();
+      mockCheckBenchmarkRunName.mockResolvedValue({
+        run_name: 'existing-run',
+        available: false,
+      });
+
+      render(<TestNameAndDescriptionCard />, {
+        preloadedState: {
+          modelSelection: {
+            selectedProvider: '',
+            selectedModel: '',
+            selectedConfig: '',
+            isConfigValid: false,
+            isTestNameValid: false,
+            testName: '',
+            benchmarkLlmProviderId: null,
+            benchmarkLlmProviderModelId: null,
+            benchmarkLlmProviderModelConfigId: null,
+          },
+        },
+      });
+
+      const testNameInput = screen.getByTestId('test-name-input');
+      await user.type(testNameInput, 'existing-run');
+
+      await waitFor(
+        () => {
+          expect(screen.getByTestId('test-name-error')).toHaveTextContent(
+            TEST_NAME_DUPLICATE_ERROR
+          );
+        },
+        { timeout: 3000 }
+      );
+
+      const statusIndicator = screen.getByTestId('test-name-status-indicator');
+      expect(statusIndicator).toHaveClass('text-red-500');
+      expect(testNameInput).toHaveAttribute('aria-invalid', 'true');
     });
 
     it.skip('Scenario: Test Name validation - Entering invalid test name displays error message and Card Incomplete Icon', async () => {
@@ -357,6 +416,11 @@ describe('TestNameAndDescriptionCard', () => {
     });
 
     it('Scenario: Expanding accordion shows validation indicator', async () => {
+      mockCheckBenchmarkRunName.mockResolvedValue({
+        run_name: 'Valid',
+        available: true,
+      });
+
       const user = userEvent.setup();
       render(<TestNameAndDescriptionCard />, {
         preloadedState: {
@@ -389,9 +453,16 @@ describe('TestNameAndDescriptionCard', () => {
 
       // And the test name is valid
       // And the green CircleCheckBig icon is displayed in the trigger
+      await waitFor(
+        () => {
+          const statusIndicator = screen.getByTestId('test-name-status-indicator');
+          expect(statusIndicator).toHaveClass('text-green-500');
+        },
+        { timeout: 3000 }
+      );
+
       let statusIndicator = screen.getByTestId('test-name-status-indicator');
       expect(statusIndicator).toBeVisible();
-      expect(statusIndicator).toHaveClass('text-green-500');
 
       // When I click on the accordion trigger to expand it
       await user.click(accordionTrigger);
