@@ -2,7 +2,7 @@
 #
 #   docker build -f Dockerfile.install-test -t moonshot-install-test .
 #   docker run --rm moonshot-install-test                    # install smoke (dev :3000 + API :8000)
-#   docker run --rm -p 8000:8000 -p 3000:3000 moonshot-install-test serve
+#   ./docker/serve.sh   OR   docker compose -f docker-compose.install-test.yml up
 #   docker run --rm moonshot-install-test e2e                # Playwright (built portal on :8000)
 #   docker run --rm moonshot-install-test e2e -- tests/model-selection.spec.js
 #   docker run --rm -v "$(pwd)/system_test/test-results:/app/system_test/test-results" moonshot-install-test e2e
@@ -29,7 +29,7 @@ ENV PATH="/app/moonshot-env/bin:${PATH}"
 ENV VIRTUAL_ENV=/app/moonshot-env
 ENV PYTHONUNBUFFERED=1
 ENV PYTHONPATH=/app/moonshot_core
-ENV MOONSHOT_DB_PATH=/app/moonshot_core/data/database/moonshot_install_test.db
+# MOONSHOT_DB_PATH is set at runtime (serve: volume; verify/e2e: entrypoint)
 # Must match moonshot_portal_app/lib/api.ts (localhost:8000) for same-origin fetches in Playwright
 ENV BASE_URL=http://localhost:8000
 ENV E2E_PYTHON=/app/moonshot-env/bin/python

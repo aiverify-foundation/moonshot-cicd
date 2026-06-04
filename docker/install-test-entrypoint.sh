@@ -72,8 +72,17 @@ start_api() {
   echo "Starting FastAPI on port ${API_PORT}..."
   export PYTHONPATH="${CORE_DIR}"
   export MOONSHOT_DB_PATH="${E2E_DB_PATH}"
+  echo "Database: ${MOONSHOT_DB_PATH}"
+  if [[ -f "${MOONSHOT_DB_PATH}" ]]; then
+    echo "Database file size: $(wc -c < "${MOONSHOT_DB_PATH}" | tr -d ' ') bytes"
+  fi
   cd "${CORE_DIR}"
-  python run_api.py >"${API_LOG}" 2>&1 &
+  if [[ "${MOONSHOT_API_NO_RELOAD:-}" == "1" ]]; then
+    python -m uvicorn src.entrypoints.api:app \
+      --host 0.0.0.0 --port "${API_PORT}" --log-level info >"${API_LOG}" 2>&1 &
+  else
+    python run_api.py >"${API_LOG}" 2>&1 &
+  fi
   API_PID=$!
   sleep 1
   if ! kill -0 "${API_PID}" 2>/dev/null; then
@@ -164,8 +173,12 @@ cmd_verify() {
 }
 
 cmd_serve() {
-  export MOONSHOT_DB_PATH="${CORE_DIR}/data/database/moonshot_install_test.db"
+  # serve.sh / Compose: one volume at /var/lib/moonshot (DB + results/)
+  export MOONSHOT_DB_PATH="${MOONSHOT_DB_PATH:-/var/lib/moonshot/moonshot_install_test.db}"
+  export MOONSHOT_BENCHMARK_RESULTS_DIR="${MOONSHOT_BENCHMARK_RESULTS_DIR:-/var/lib/moonshot/results}"
+  mkdir -p "$(dirname "${MOONSHOT_DB_PATH}")" "${MOONSHOT_BENCHMARK_RESULTS_DIR}"
   E2E_DB_PATH="${MOONSHOT_DB_PATH}"
+  export MOONSHOT_API_NO_RELOAD="${MOONSHOT_API_NO_RELOAD:-1}"
   start_api
   wait_for_url "${BASE_URL}/api/bundles" "API" "${API_PID}"
   start_portal
