@@ -34,8 +34,6 @@ async function navigateToModelSelection(page) {
 }
 
 async function fillInTestName(page, testName) {
-  await navigateToModelSelection(page);
-      
   // Wait for the test name card to be visible
   const testNameCard = page.locator('[data-testid="additional-card-title"]');
   await expect(testNameCard).toBeVisible();
@@ -56,6 +54,18 @@ async function fillInTestName(page, testName) {
   
   // Fill in the test name input with testName
   await testNameInput.fill(testName);
+}
+
+async function selectStandardProviderWithModels(page) {
+  await page.click('[data-testid="provider-combobox-trigger"]');
+  await page.waitForSelector('[data-testid^="provider-option-"]', { timeout: 5000 });
+  await page.locator('[data-testid^="provider-option-"]').first().click();
+  await page.waitForTimeout(500);
+}
+
+async function openModelDropdownWithOptions(page) {
+  await page.click('[data-testid="model-combobox-trigger"]');
+  await page.waitForSelector('[data-testid^="model-option-"]', { timeout: 10000 });
 }
 
 async function expandModelSelectionCard(page) {
@@ -124,18 +134,9 @@ test.describe('Model Selection Page Integration Tests', () => {
     test('GIVEN as a user WHEN a standard provider is selected THEN display models with edit buttons', async ({ page }) => {
       await getToModelSelectionCard(page);
       
-      // Select a standard provider
-      await page.click('[data-testid="provider-combobox-trigger"]');
-      await page.waitForSelector('[data-testid^="provider-option-"]', { timeout: 5000 });
-      const firstProvider = page.locator('[data-testid^="provider-option-"]').first();
-      await firstProvider.click();
-      await page.waitForTimeout(500);
+      await selectStandardProviderWithModels(page);
       
-      // Open model dropdown
-      await page.click('[data-testid="model-combobox-trigger"]');
-      
-      // Wait for models to load
-      await page.waitForSelector('[data-testid^="model-option-"]', { timeout: 5000 });
+      await openModelDropdownWithOptions(page);
       
       // Get all model options
       const modelOptions = page.locator('[data-testid^="model-option-"]');
@@ -187,18 +188,9 @@ test.describe('Model Selection Page Integration Tests', () => {
     test('GIVEN as a user WHEN edit button is clicked THEN edit model sheet opens', async ({ page }) => {
       await getToModelSelectionCard(page);
       
-      // Select a standard provider
-      await page.click('[data-testid="provider-combobox-trigger"]');
-      await page.waitForSelector('[data-testid^="provider-option-"]', { timeout: 5000 });
-      const firstProvider = page.locator('[data-testid^="provider-option-"]').first();
-      await firstProvider.click();
-      await page.waitForTimeout(500);
+      await selectStandardProviderWithModels(page);
       
-      // Open model dropdown
-      await page.click('[data-testid="model-combobox-trigger"]');
-      
-      // Wait for models to load
-      await page.waitForSelector('[data-testid^="model-option-"]', { timeout: 5000 });
+      await openModelDropdownWithOptions(page);
       
       // Click on the first edit button
       const firstEditButton = page.locator('[data-testid^="edit-model-"]').first();
@@ -356,16 +348,9 @@ test.describe('Model Selection Page Integration Tests', () => {
     test('GIVEN as a user WHEN a Model or Config is Selected THEN display a green check button', async ({ page }) => {
       await getToModelSelectionCard(page);
       
-      // Select a standard provider
-      await page.click('[data-testid="provider-combobox-trigger"]');
-      await page.waitForSelector('[data-testid^="provider-option-"]', { timeout: 5000 });
-      const firstProvider = page.locator('[data-testid^="provider-option-"]').first();
-      await firstProvider.click();
-      await page.waitForTimeout(500);
+      await selectStandardProviderWithModels(page);
       
-      // Select a model
-      await page.click('[data-testid="model-combobox-trigger"]');
-      await page.waitForSelector('[data-testid^="model-option-"]', { timeout: 5000 });
+      await openModelDropdownWithOptions(page);
       const firstModel = page.locator('[data-testid^="model-option-"]').first();
       await firstModel.click();
       await page.waitForTimeout(500);
@@ -477,16 +462,9 @@ test.describe('Model Selection Page Integration Tests', () => {
     test('GIVEN as a user WHEN provider selection changes THEN reset model/config selection', async ({ page }) => {
       await getToModelSelectionCard(page);
       
-      // Select first provider
-      await page.click('[data-testid="provider-combobox-trigger"]');
-      await page.waitForSelector('[data-testid^="provider-option-"]', { timeout: 5000 });
-      const firstProvider = page.locator('[data-testid^="provider-option-"]').first();
-      await firstProvider.click();
-      await page.waitForTimeout(500);
+      await selectStandardProviderWithModels(page);
       
-      // Select a model
-      await page.click('[data-testid="model-combobox-trigger"]');
-      await page.waitForSelector('[data-testid^="model-option-"]', { timeout: 5000 });
+      await openModelDropdownWithOptions(page);
       const firstModel = page.locator('[data-testid^="model-option-"]').first();
       await firstModel.click();
       await page.waitForTimeout(500);

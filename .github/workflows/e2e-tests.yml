@@ -102,10 +102,11 @@ jobs:
             exit 1
           fi
           
-          # Run system tests
+          # Run system tests (Playwright globalSetup seeds E2E data via API)
           cd ../system_test
           npm install
           npx playwright install-deps
+          export E2E_PYTHON="$(which python)"
           npm run test
           TEST_EXIT_CODE=$?
           
