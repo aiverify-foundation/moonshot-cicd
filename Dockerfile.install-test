@@ -1,12 +1,11 @@
-# Install-test image: frontend (Next dev :3000) + backend (FastAPI :8000).
-# Mirrors the Installation Guide web stack. CLI is not tested.
+# Install-test image: Installation Guide (verify/serve) + Playwright E2E (e2e mode).
 #
 #   docker build -f Dockerfile.install-test -t moonshot-install-test .
-#   docker run --rm moonshot-install-test
+#   docker run --rm moonshot-install-test                    # install smoke (dev :3000 + API :8000)
 #   docker run --rm -p 8000:8000 -p 3000:3000 moonshot-install-test serve
-#
-# Future Playwright / CI path (not implemented):
-#   target e2e — npm run build in portal, single API on :8000 serving out/, system_test/
+#   docker run --rm moonshot-install-test e2e                # Playwright (built portal on :8000)
+#   docker run --rm moonshot-install-test e2e -- tests/model-selection.spec.js
+#   docker run --rm -v "$(pwd)/system_test/test-results:/app/system_test/test-results" moonshot-install-test e2e
 
 FROM node:22-bookworm AS node_base
 
@@ -25,27 +24,36 @@ RUN ln -sf /usr/local/lib/node_modules/npm/bin/npm-cli.js /usr/local/bin/npm \
 
 WORKDIR /app
 
-# Installation Guide Step 2: virtual environment at repo root
 RUN python3 -m venv /app/moonshot-env
 ENV PATH="/app/moonshot-env/bin:${PATH}"
 ENV VIRTUAL_ENV=/app/moonshot-env
 ENV PYTHONUNBUFFERED=1
 ENV PYTHONPATH=/app/moonshot_core
 ENV MOONSHOT_DB_PATH=/app/moonshot_core/data/database/moonshot_install_test.db
+# Must match moonshot_portal_app/lib/api.ts (localhost:8000) for same-origin fetches in Playwright
+ENV BASE_URL=http://localhost:8000
+ENV E2E_PYTHON=/app/moonshot-env/bin/python
+ENV CI=true
 
 COPY moonshot_core /app/moonshot_core
 COPY moonshot_portal_app /app/moonshot_portal_app
+COPY system_test /app/system_test
 
 RUN mkdir -p /app/moonshot_core/data/database
 
-# Installation Guide Step 3: backend dependencies
 WORKDIR /app/moonshot_core
 RUN pip install --upgrade pip && pip install poetry==2.1.2 --no-cache-dir \
     && (set +e; poetry install; set -e; poetry install)
 
-# Installation Guide Step 3: frontend dependencies
+# Portal: deps + static export for E2E (API serves moonshot_portal_app/out on :8000)
 WORKDIR /app/moonshot_portal_app
-RUN npm install
+RUN npm install && npm run build
+
+# Playwright system tests (Chromium + OS libraries for headless browser)
+WORKDIR /app/system_test
+RUN npm install \
+    && npx playwright install chromium \
+    && npx playwright install-deps chromium
 
 COPY docker/install-test-entrypoint.sh /app/docker/install-test-entrypoint.sh
 RUN chmod +x /app/docker/install-test-entrypoint.sh

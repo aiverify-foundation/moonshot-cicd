@@ -8,8 +8,10 @@
 # Other apps (web stack install-test only)
 process_check_app/
 
-# E2E / smoke (not used by default install-test image)
-system_test/
+# E2E artifacts (sources are copied; deps installed in image)
+system_test/node_modules/
+system_test/test-results/
+system_test/playwright-report/
 
 # Local envs and secrets
 .env
