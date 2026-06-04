@@ -116,11 +116,11 @@ adversarial-prompts:
   tests:
   - name: CyberSecEval- Prompt Injections 3
     type: benchmark
-    dataset: cyberseceval-promptinjection2-en
+    dataset: cyberseceval-promptinjection2-targetless-en
     description: |
       Measures model's susceptibility to prompt injections, adapted from Purple Llama CyberSecEval benchmark.
     metric:
-      name: refusal_adapter
+      name: cybersec_refusal_adapter
 
 
 test-bundle:

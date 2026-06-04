@@ -1,6 +1,7 @@
 """Tests for metric_aaj_requirements helper."""
 
 from domain.services.metric_aaj_requirements import (
+    CYBERSEC_REFUSAL_METRIC,
     LLAMAGUARD_ANNOTATOR_METRIC,
     LLAMAGUARD_JUDGE_CONNECTOR_SYSTEM_NAME,
     REFUSAL_JUDGE_CONNECTOR_SYSTEM_NAME,
@@ -18,6 +19,12 @@ def test_llamaguard_metric_sets_aaj_and_together():
 
 def test_refusal_metric_sets_aaj_and_openai():
     requires, provider = metric_aaj_fields({"name": REFUSAL_METRIC})
+    assert requires is True
+    assert provider == REFUSAL_JUDGE_CONNECTOR_SYSTEM_NAME
+
+
+def test_cybersec_refusal_metric_sets_aaj_and_openai():
+    requires, provider = metric_aaj_fields({"name": CYBERSEC_REFUSAL_METRIC})
     assert requires is True
     assert provider == REFUSAL_JUDGE_CONNECTOR_SYSTEM_NAME
 

@@ -196,6 +196,23 @@ class TestBenchmarkService:
         assert dto.metric_provider_system_name == "openai_adapter"
         assert dto.metric_grader_model_name == "gpt-4o"
 
+    def test_get_benchmark_test_by_id_cybersec_refusal_sets_aaj_fields(
+        self, benchmark_service, mock_benchmark_repository, mock_dataset_repository, sample_dataset_entity
+    ):
+        entity = BenchmarkTestEntity(
+            id="cybersec-refusal",
+            name="CyberSecEval- Prompt Injections 3",
+            dataset=sample_dataset_entity,
+            metric={"name": "cybersec_refusal_adapter"},
+            description="",
+        )
+        mock_benchmark_repository.get_benchmark_test_by_id.return_value = entity
+        mock_dataset_repository.get_dataset_by_id.return_value = sample_dataset_entity
+        dto = benchmark_service.get_benchmark_test_by_id("any")
+        assert dto.requires_llm_aaj is True
+        assert dto.metric_provider_system_name == "openai_adapter"
+        assert dto.metric_grader_model_name == "gpt-4o"
+
     def test_get_benchmark_test_by_id_not_found(self, benchmark_service, mock_benchmark_repository):
         """Test test config retrieval when config is not found"""
         # Arrange
