@@ -39,6 +39,28 @@ cd /path/to/moonshot-cicd
 
 First run may take several minutes while the image builds.
 
+**Or manual `docker run`** (same as `serve.sh`; volume `moonshot-install-test-data`):
+
+```bash
+cd /path/to/moonshot-cicd
+# Build the image (first time, or after code changes)
+docker build -f Dockerfile.install-test -t moonshot-install-test .
+# Create the persistent data volume (safe to re-run)
+docker volume create moonshot-install-test-data
+```
+
+```bash
+cd /path/to/moonshot-cicd
+docker run --rm \
+  -p 8000:8000 \
+  -p 3000:3000 \
+  -v moonshot-install-test-data:/var/lib/moonshot \
+  -e MOONSHOT_DB_PATH=/var/lib/moonshot/moonshot_install_test.db \
+  -e MOONSHOT_BENCHMARK_RESULTS_DIR=/var/lib/moonshot/results \
+  -e MOONSHOT_API_NO_RELOAD=1 \
+  moonshot-install-test serve
+```
+
 **Or Docker Compose** (one volume `moonshot-data`):
 
 ```bash
