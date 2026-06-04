@@ -157,7 +157,7 @@ export default function SelectAppOrModelCard({
               <CardContent className="flex gap-6">
               <div className="w-80">
                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                  LLM Provider
+                  LLM Provider/ Application Connector
                 </label>
                 <Popover open={providerOpen} onOpenChange={setProviderOpen}>
                   <PopoverTrigger asChild>
@@ -176,7 +176,7 @@ export default function SelectAppOrModelCard({
                   </PopoverTrigger>
                   <PopoverContent className="w-full p-0" align="start">
                     <Command>
-                      <CommandInput placeholder="Search providers..." />
+                      <CommandInput placeholder="Search" />
                       <CommandList className="max-h-[300px] overflow-y-auto">
                         <CommandEmpty>No provider found.</CommandEmpty>
                         <CommandGroup heading="Model Providers" data-testid="model-providers-group">
@@ -222,7 +222,7 @@ export default function SelectAppOrModelCard({
                             </CommandItem>
                           )}
                         </CommandGroup>
-                        <CommandGroup heading="Custom Applications" data-testid="custom-applications-group">
+                        <CommandGroup heading="Application Connectors" data-testid="custom-applications-group">
                           {custom_connectors.slice(0, showAllCustomConnectors ? custom_connectors.length : 3).map((connector) => (
                             <CommandItem
                               key={connector.id}
@@ -275,7 +275,7 @@ export default function SelectAppOrModelCard({
               {selectedProvider && (
                 <div className="flex-1">
                   <label className="block text-sm font-medium text-gray-700 mb-2" data-testid={isCustomConnector ? "configuration-label" : "model-label"}>
-                    {isCustomConnector ? "Configuration" : "Model"}
+                    {isCustomConnector ? "Application Configuration" : "Model Configuration"}
                   </label>
                   <Popover open={modelOpen} onOpenChange={setModelOpen}>
                     <PopoverTrigger asChild>
@@ -289,16 +289,16 @@ export default function SelectAppOrModelCard({
                         {isCustomConnector 
                           ? (selectedConfig
                               ? filteredConfigs.find((config) => config.id === selectedConfig)?.name
-                              : "Select configuration...")
+                              : "Select application configuration")
                           : (selectedModel
                               ? filteredModels.find((model) => model.id === selectedModel)?.name
-                              : "Select model...")}
+                              : "Select model configuration")}
                         <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
                       </Button>
                     </PopoverTrigger>
                     <PopoverContent className="w-full p-0" align="start">
                       <Command>
-                        <CommandInput placeholder={isCustomConnector ? "Search configurations..." : "Search models..."} />
+                        <CommandInput placeholder="Search" />
                         <CommandList>
                           <CommandEmpty>{isCustomConnector ? "No configuration found." : "No model found."}</CommandEmpty>
                           {isCustomConnector ? (
@@ -427,7 +427,7 @@ export default function SelectAppOrModelCard({
                             data-testid={`add-new-${isCustomConnector ? 'config' : 'model'}-from-dropdown`}
                           >
                             <Plus className="mr-2 h-4 w-4" />
-                            Add New {isCustomConnector ? 'Configuration' : 'Model'}
+                            {isCustomConnector ? 'Add New App Configuration' : 'Add New Model Configuration'}
                           </CommandItem>
                         </CommandList>
                       </Command>

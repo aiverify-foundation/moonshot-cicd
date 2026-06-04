@@ -102,7 +102,7 @@ test.describe('Model Selection Page Integration Tests', () => {
 
   test.describe('Standard Provider Selection', () => {
     
-    test('GIVEN as a user WHEN a standard provider is selected THEN display "Model" AND display a combobox', async ({ page }) => {
+    test('GIVEN as a user WHEN a standard provider is selected THEN display "Model Configuration" AND display a combobox', async ({ page }) => {
       await getToModelSelectionCard(page);
       
       // Verify initial state - no provider selected
@@ -121,14 +121,15 @@ test.describe('Model Selection Page Integration Tests', () => {
       // Wait for dropdown to close
       await page.waitForTimeout(500);
       
-      // Verify that "Model" label is displayed
+      // Verify that "Model Configuration" label is displayed
       const modelLabel = page.locator('[data-testid="model-label"]');
       await expect(modelLabel).toBeVisible();
+      await expect(modelLabel).toContainText('Model Configuration');
       
       // Verify that model combobox is displayed
       const modelCombobox = page.locator('[data-testid="model-combobox-trigger"]');
       await expect(modelCombobox).toBeVisible();
-      await expect(modelCombobox).toContainText('Select model...');
+      await expect(modelCombobox).toContainText('Select model configuration');
     });
 
     test('GIVEN as a user WHEN a standard provider is selected THEN display models with edit buttons', async ({ page }) => {
@@ -162,7 +163,7 @@ test.describe('Model Selection Page Integration Tests', () => {
       }
     });
 
-    test('GIVEN as a user WHEN a standard provider is selected THEN display "Add new Model" command', async ({ page }) => {
+    test('GIVEN as a user WHEN a standard provider is selected THEN display "Add New Model Configuration" command', async ({ page }) => {
       await getToModelSelectionCard(page);
       
       // Select a standard provider
@@ -178,10 +179,10 @@ test.describe('Model Selection Page Integration Tests', () => {
       // Wait for dropdown content to load
       await page.waitForTimeout(1000);
       
-      // Verify "Add New Model" command is displayed
+      // Verify "Add New Model Configuration" command is displayed
       const addNewModelCommand = page.locator('[data-testid="add-new-model-from-dropdown"]');
       await expect(addNewModelCommand).toBeVisible();
-      await expect(addNewModelCommand).toContainText('Add New Model');
+      await expect(addNewModelCommand).toContainText('Add New Model Configuration');
       
     });
 
@@ -207,7 +208,7 @@ test.describe('Model Selection Page Integration Tests', () => {
 
   test.describe('Custom Application Selection', () => {
     
-    test('GIVEN as a user WHEN a Custom Application is selected THEN display "Configuration" AND display a combobox', async ({ page }) => {
+    test('GIVEN as a user WHEN a Custom Application is selected THEN display "Application Configuration" AND display a combobox', async ({ page }) => {
       await getToModelSelectionCard(page);
       
       // Click on provider combobox to open it
@@ -223,14 +224,15 @@ test.describe('Model Selection Page Integration Tests', () => {
       // Wait for dropdown to close
       await page.waitForTimeout(500);
       
-      // Verify that "Configuration" label is displayed
+      // Verify that "Application Configuration" label is displayed
       const configLabel = page.locator('[data-testid="configuration-label"]');
       await expect(configLabel).toBeVisible();
+      await expect(configLabel).toContainText('Application Configuration');
       
       // Verify that configuration combobox is displayed
       const configCombobox = page.locator('[data-testid="model-combobox-trigger"]');
       await expect(configCombobox).toBeVisible();
-      await expect(configCombobox).toContainText('Select configuration...');
+      await expect(configCombobox).toContainText('Select application configuration');
     });
 
     test('GIVEN as a user WHEN a Custom Application is selected THEN display configurations with edit buttons', async ({ page }) => {
@@ -297,7 +299,7 @@ test.describe('Model Selection Page Integration Tests', () => {
 
     });
 
-    test('GIVEN as a user WHEN a Custom Application is selected THEN display "Add new Configuration" command', async ({ page }) => {
+    test('GIVEN as a user WHEN a Custom Application is selected THEN display "Add New App Configuration" command', async ({ page }) => {
       await getToModelSelectionCard(page);
       
       // Select a custom connector
@@ -313,10 +315,10 @@ test.describe('Model Selection Page Integration Tests', () => {
       // Wait for dropdown content to load
       await page.waitForTimeout(1000);
       
-      // Verify "Add New Configuration" command is displayed
+      // Verify "Add New App Configuration" command is displayed
       const addNewConfigCommand = page.locator('[data-testid="add-new-config-from-dropdown"]');
       await expect(addNewConfigCommand).toBeVisible();
-      await expect(addNewConfigCommand).toContainText('Add New Configuration');
+      await expect(addNewConfigCommand).toContainText('Add New App Configuration');
       
       // Verify it has a plus icon
       const plusIcon = addNewConfigCommand.locator('svg');
@@ -472,7 +474,7 @@ test.describe('Model Selection Page Integration Tests', () => {
       // Verify model is selected
       const modelCombobox = page.locator('[data-testid="model-combobox-trigger"]');
       const selectedModelText = await modelCombobox.textContent();
-      await expect(selectedModelText).not.toContain('Select model...');
+      await expect(selectedModelText).not.toContain('Select model configuration');
       
       // Change provider
       await page.click('[data-testid="provider-combobox-trigger"]');
@@ -482,7 +484,7 @@ test.describe('Model Selection Page Integration Tests', () => {
       await page.waitForTimeout(500);
       
       // Verify model selection is reset
-      await expect(modelCombobox).toContainText('Select model...');
+      await expect(modelCombobox).toContainText('Select model configuration');
     });
   });
 
