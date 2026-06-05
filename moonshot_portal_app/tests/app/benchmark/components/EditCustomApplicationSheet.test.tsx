@@ -111,7 +111,7 @@ describe('EditCustomApplicationSheet', () => {
     await user.type(screen.getByLabelText(/configuration name/i), 'Prod');
     await user.clear(screen.getByLabelText(/^url/i));
     await user.type(screen.getByLabelText(/^url/i), 'https://api.example.com');
-    await user.type(screen.getByLabelText(/api secret/i), 'sk-test-key');
+    await user.type(screen.getByLabelText(/authorization secret/i), 'sk-test-key');
 
     const parametersSection = getParametersSection();
     const addParamButton = within(parametersSection).getAllByRole('button')[0];
@@ -336,7 +336,7 @@ describe('EditCustomApplicationSheet', () => {
     await user.type(screen.getByLabelText(/configuration name/i), 'Prod');
     await user.clear(screen.getByLabelText(/^url/i));
     await user.type(screen.getByLabelText(/^url/i), 'https://api.example.com');
-    await user.type(screen.getByLabelText(/api secret/i), 'sk-test-key');
+    await user.type(screen.getByLabelText(/authorization secret/i), 'sk-test-key');
 
     const headersSection = getHeadersSection();
     const addHeaderButton = within(headersSection).getAllByRole('button')[0];

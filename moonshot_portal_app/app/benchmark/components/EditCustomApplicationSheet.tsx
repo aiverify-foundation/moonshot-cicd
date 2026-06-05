@@ -296,11 +296,11 @@ export default function EditCustomApplicationSheet({
 
     const trimmedSecret = secretValue.trim();
     if (isNewConfig && !trimmedSecret) {
-      window.alert('Enter an API secret for this configuration.');
+      window.alert('Enter an Authorization secret for this configuration.');
       return;
     }
     if (!isNewConfig && !apiKeyConfigured && !trimmedSecret) {
-      window.alert('Enter an API secret (no secret is stored yet).');
+      window.alert('Enter an Authorization secret (no secret is stored yet).');
       return;
     }
 
@@ -484,14 +484,14 @@ export default function EditCustomApplicationSheet({
 
                 <div className="space-y-2">
                   <Label htmlFor="apiSecret" className="text-sm font-medium">
-                    {apiKeyConfigured ? 'API Secret (optional)' : 'API Secret*'}
+                    {apiKeyConfigured ? 'Authorization Secret (optional)' : 'Authorization Secret*'}
                   </Label>
                   <Input
                     id="apiSecret"
                     placeholder={
                       apiKeyConfigured && !secretValue
                         ? '••••••••'
-                        : 'Enter API secret'
+                        : 'Enter Authorization secret'
                     }
                     type="password"
                     value={secretValue}
