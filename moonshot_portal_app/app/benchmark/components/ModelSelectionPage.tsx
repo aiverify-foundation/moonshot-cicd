@@ -19,9 +19,10 @@ import {
   type CustomAppConfigDTO,
 } from "@/lib/api";
 import {
-  RESERVED_CONFIG_KEYS,
   encodeCustomAppProviderId,
   decodeCustomAppProviderId,
+  hydrateConfigPairsFromSavedPairs,
+  hydrateHeaderPairsFromSavedPairs,
 } from "../constants/customAppConfig";
 import { setBenchmarkRunFks, setSelectedConfig, setSelectedModel } from "@/store";
 
@@ -92,13 +93,13 @@ function mapProviderDetailsToModelRows(
 
 function mapCustomAppConfigDtoToConfig(dto: CustomAppConfigDTO): Config {
   const pairs = dto.savedConfigPairs ?? {};
+  const headerPairs = hydrateHeaderPairsFromSavedPairs(pairs);
   return {
     id: String(dto.id),
     name: dto.name,
     connector: encodeCustomAppProviderId(dto.custom_app_id),
-    configPairs: Object.entries(pairs)
-      .filter(([key]) => !RESERVED_CONFIG_KEYS.has(key))
-      .map(([key, value]) => ({ key, value: String(value) })),
+    configPairs: hydrateConfigPairsFromSavedPairs(pairs),
+    headerPairs: headerPairs.length > 0 ? headerPairs : undefined,
     apiType: pairs.api_type,
     apiUrl: pairs.api_url,
     apiBody: pairs.api_body,

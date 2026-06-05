@@ -35,7 +35,10 @@ export interface Config {
   id: string;
   name: string;
   connector: string;
+  /** Hydrated from savedConfigPairs.parameters JSON (legacy: non-reserved flat keys). */
   configPairs: Array<{ key: string; value: string }>;
+  /** Hydrated from savedConfigPairs.headers JSON. */
+  headerPairs?: Array<{ key: string; value: string }>;
   /** Reserved / first-class fields split out for the edit sheet (from savedConfigPairs). */
   apiType?: string;
   apiUrl?: string;

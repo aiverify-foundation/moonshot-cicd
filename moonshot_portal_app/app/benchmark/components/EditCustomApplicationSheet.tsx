@@ -22,14 +22,26 @@ import {
   DEFAULT_CUSTOM_API_URL,
   DEFAULT_CUSTOM_API_BODY,
   DEFAULT_CONNECTOR_ADAPTER,
+  PARAMETERS_CONFIG_KEY,
+  HEADERS_CONFIG_KEY,
   decodeCustomAppProviderId,
+  serializeParametersJson,
+  serializeHeadersJson,
 } from "../constants/customAppConfig";
 
 const TEST_POPOVER_TIMEOUT = 3000;
+const AUTOSAVE_DEBOUNCE_MS = 500;
 const API_TYPE_OPTIONS = ['GET', 'POST', 'PUT', 'PATCH', 'DELETE'] as const;
 
-interface AdvancedParam {
+type AutosaveStatus = 'idle' | 'saving' | 'saved' | 'error';
+
+interface ParameterRow {
   parameter: string;
+  value: string;
+}
+
+interface HeaderRow {
+  header: string;
   value: string;
 }
 
@@ -43,11 +55,21 @@ const getModelAppConfigInfo = (editingConfig: string, modelApps: ModelApp[], con
   return { isNewConfig, currentConfig, currentModelApp };
 };
 
-const getAdvancedParamsFromConfig = (currentConfig: Config | null | undefined): AdvancedParam[] => {
+const getParameterRowsFromConfig = (currentConfig: Config | null | undefined): ParameterRow[] => {
   if (currentConfig?.configPairs && currentConfig.configPairs.length > 0) {
     return currentConfig.configPairs.map((cp) => ({
       parameter: cp.key,
       value: cp.value,
+    }));
+  }
+  return [];
+};
+
+const getHeaderRowsFromConfig = (currentConfig: Config | null | undefined): HeaderRow[] => {
+  if (currentConfig?.headerPairs && currentConfig.headerPairs.length > 0) {
+    return currentConfig.headerPairs.map((hp) => ({
+      header: hp.key,
+      value: hp.value,
     }));
   }
   return [];
@@ -68,6 +90,24 @@ const getInitialApiFields = (currentConfig: Config | null | undefined, isNewConf
     apiBody: currentConfig.apiBody ?? DEFAULT_CUSTOM_API_BODY,
     apiKeyConfigured: Boolean(currentConfig.apiKeyConfigured),
   };
+};
+
+const buildParametersObject = (rows: ParameterRow[]): Record<string, string> => {
+  const out: Record<string, string> = {};
+  for (const row of rows) {
+    const k = row.parameter.trim();
+    if (k) out[k] = row.value;
+  }
+  return out;
+};
+
+const buildHeadersObject = (rows: HeaderRow[]): Record<string, string> => {
+  const out: Record<string, string> = {};
+  for (const row of rows) {
+    const k = row.header.trim();
+    if (k) out[k] = row.value;
+  }
+  return out;
 };
 
 interface EditCustomApplicationSheetProps {
@@ -108,10 +148,28 @@ export default function EditCustomApplicationSheet({
   const [saving, setSaving] = React.useState(false);
   const [testResult, setTestResult] = React.useState<boolean | null>(null);
   const [popoverOpen, setPopoverOpen] = React.useState(false);
-  const [advancedParams, setAdvancedParams] = React.useState(() =>
-    getAdvancedParamsFromConfig(currentConfig)
+  const [parameters, setParameters] = React.useState(() =>
+    getParameterRowsFromConfig(currentConfig)
   );
+  const [headers, setHeaders] = React.useState(() =>
+    getHeaderRowsFromConfig(currentConfig)
+  );
+  const [autosaveStatus, setAutosaveStatus] = React.useState<AutosaveStatus>('idle');
   const timeoutRef = React.useRef<NodeJS.Timeout | null>(null);
+  const autosaveDebounceRef = React.useRef<NodeJS.Timeout | null>(null);
+  const skipNextAutosaveRef = React.useRef(true);
+
+  const buildSavedConfigPairs = React.useCallback((): Record<string, string> => {
+    const out: Record<string, string> = {
+      connector_adapter: DEFAULT_CONNECTOR_ADAPTER,
+      api_type: apiType.trim() || DEFAULT_CUSTOM_API_TYPE,
+      api_url: apiUrl.trim(),
+      api_body: apiBody,
+      [PARAMETERS_CONFIG_KEY]: serializeParametersJson(buildParametersObject(parameters)),
+      [HEADERS_CONFIG_KEY]: serializeHeadersJson(buildHeadersObject(headers)),
+    };
+    return out;
+  }, [apiType, apiUrl, apiBody, parameters, headers]);
 
   React.useEffect(() => {
     const fields = getInitialApiFields(currentConfig, isNewConfig);
@@ -123,7 +181,10 @@ export default function EditCustomApplicationSheet({
     setApiKeyConfigured(fields.apiKeyConfigured);
     setTestResult(null);
     setPopoverOpen(false);
-    setAdvancedParams(getAdvancedParamsFromConfig(currentConfig));
+    setParameters(getParameterRowsFromConfig(currentConfig));
+    setHeaders(getHeaderRowsFromConfig(currentConfig));
+    setAutosaveStatus('idle');
+    skipNextAutosaveRef.current = true;
   }, [isNewConfig, currentConfig, editingConfig]);
 
   React.useEffect(() => {
@@ -131,26 +192,61 @@ export default function EditCustomApplicationSheet({
       if (timeoutRef.current) {
         clearTimeout(timeoutRef.current);
       }
+      if (autosaveDebounceRef.current) {
+        clearTimeout(autosaveDebounceRef.current);
+      }
     };
   }, []);
 
-  const buildSavedConfigPairs = (): Record<string, string> => {
-    const out: Record<string, string> = {
-      connector_adapter: DEFAULT_CONNECTOR_ADAPTER,
-      api_type: apiType.trim() || DEFAULT_CUSTOM_API_TYPE,
-      api_url: apiUrl.trim(),
-      api_body: apiBody,
-    };
-    for (const row of advancedParams) {
-      const k = row.parameter.trim();
-      if (!k || RESERVED_CONFIG_KEYS.has(k)) continue;
-      out[k] = row.value;
+  React.useEffect(() => {
+    if (!open) return;
+    if (skipNextAutosaveRef.current) {
+      skipNextAutosaveRef.current = false;
+      return;
     }
-    return out;
-  };
+    if (isNewConfig || !currentConfig) return;
 
-  const hasReservedKeyInPairs = (): string | null => {
-    for (const row of advancedParams) {
+    const configId = parseInt(currentConfig.id, 10);
+    if (!Number.isFinite(configId) || configId <= 0) return;
+
+    if (autosaveDebounceRef.current) {
+      clearTimeout(autosaveDebounceRef.current);
+    }
+
+    autosaveDebounceRef.current = setTimeout(() => {
+      autosaveDebounceRef.current = null;
+      void (async () => {
+        setAutosaveStatus('saving');
+        try {
+          await updateCustomAppConfig(configId, {
+            name: configName.trim() || currentConfig.name,
+            savedConfigPairs: buildSavedConfigPairs(),
+          });
+          setAutosaveStatus('saved');
+        } catch {
+          setAutosaveStatus('error');
+        }
+      })();
+    }, AUTOSAVE_DEBOUNCE_MS);
+
+    return () => {
+      if (autosaveDebounceRef.current) {
+        clearTimeout(autosaveDebounceRef.current);
+        autosaveDebounceRef.current = null;
+      }
+    };
+  }, [
+    open,
+    isNewConfig,
+    currentConfig,
+    parameters,
+    headers,
+    configName,
+    buildSavedConfigPairs,
+  ]);
+
+  const hasReservedKeyInParameters = (): string | null => {
+    for (const row of parameters) {
       const k = row.parameter.trim();
       if (k && RESERVED_CONFIG_KEYS.has(k)) return k;
     }
@@ -167,13 +263,16 @@ export default function EditCustomApplicationSheet({
     setApiKeyConfigured(fields.apiKeyConfigured);
     setTestResult(null);
     setPopoverOpen(false);
-    setAdvancedParams(getAdvancedParamsFromConfig(currentConfig));
+    setParameters(getParameterRowsFromConfig(currentConfig));
+    setHeaders(getHeaderRowsFromConfig(currentConfig));
+    setAutosaveStatus('idle');
+    skipNextAutosaveRef.current = true;
   };
 
   const handleSave = async () => {
     if (testResult !== true) return;
 
-    const reserved = hasReservedKeyInPairs();
+    const reserved = hasReservedKeyInParameters();
     if (reserved) {
       window.alert(`"${reserved}" is a reserved parameter name. Use the dedicated fields above.`);
       return;
@@ -247,7 +346,7 @@ export default function EditCustomApplicationSheet({
   };
 
   const handleTest = () => {
-    const reserved = hasReservedKeyInPairs();
+    const reserved = hasReservedKeyInParameters();
     if (reserved) {
       setTestResult(false);
     } else if (configName.trim() && apiUrl.trim()) {
@@ -266,18 +365,41 @@ export default function EditCustomApplicationSheet({
   };
 
   const addParameter = () => {
-    setAdvancedParams([...advancedParams, { parameter: '', value: '' }]);
+    setParameters([...parameters, { parameter: '', value: '' }]);
   };
 
   const removeParameter = (index: number) => {
-    setAdvancedParams(advancedParams.filter((_: AdvancedParam, i: number) => i !== index));
+    setParameters(parameters.filter((_: ParameterRow, i: number) => i !== index));
   };
 
   const updateParameter = (index: number, field: 'parameter' | 'value', value: string) => {
-    const updated = [...advancedParams];
+    const updated = [...parameters];
     updated[index][field] = value;
-    setAdvancedParams(updated);
+    setParameters(updated);
   };
+
+  const addHeader = () => {
+    setHeaders([...headers, { header: '', value: '' }]);
+  };
+
+  const removeHeader = (index: number) => {
+    setHeaders(headers.filter((_: HeaderRow, i: number) => i !== index));
+  };
+
+  const updateHeader = (index: number, field: 'header' | 'value', value: string) => {
+    const updated = [...headers];
+    updated[index][field] = value;
+    setHeaders(updated);
+  };
+
+  const autosaveStatusLabel =
+    autosaveStatus === 'saving'
+      ? 'Saving…'
+      : autosaveStatus === 'saved'
+        ? 'Saved'
+        : autosaveStatus === 'error'
+          ? 'Save failed'
+          : null;
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
@@ -387,7 +509,18 @@ export default function EditCustomApplicationSheet({
 
             <div className="space-y-4">
               <div className="flex items-center justify-between">
-                <h3 className="text-lg font-semibold">Configuration Pairs</h3>
+                <h3 className="text-lg font-semibold">Parameters</h3>
+                {autosaveStatusLabel ? (
+                  <span
+                    className={
+                      autosaveStatus === 'error'
+                        ? 'text-sm text-red-600'
+                        : 'text-sm text-gray-500'
+                    }
+                  >
+                    {autosaveStatusLabel}
+                  </span>
+                ) : null}
               </div>
 
               <div className="space-y-3">
@@ -401,7 +534,7 @@ export default function EditCustomApplicationSheet({
                   <div className="w-16"></div>
                 </div>
 
-                {advancedParams.map((param: AdvancedParam, index: number) => (
+                {parameters.map((param: ParameterRow, index: number) => (
                   <div key={index} className="flex items-center gap-3">
                     <div className="flex-1">
                       <Input
@@ -426,7 +559,7 @@ export default function EditCustomApplicationSheet({
                       >
                         <Trash2 className="h-4 w-4" />
                       </Button>
-                      {index === advancedParams.length - 1 && (
+                      {index === parameters.length - 1 && (
                         <Button
                           variant="ghost"
                           size="sm"
@@ -440,7 +573,7 @@ export default function EditCustomApplicationSheet({
                   </div>
                 ))}
 
-                {advancedParams.length === 0 && (
+                {parameters.length === 0 && (
                   <div className="flex items-center gap-3">
                     <div className="flex-1"></div>
                     <div className="flex-1"></div>
@@ -450,6 +583,81 @@ export default function EditCustomApplicationSheet({
                         variant="ghost"
                         size="sm"
                         onClick={addParameter}
+                        className="h-8 w-8 p-0"
+                      >
+                        <Plus className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            <div className="space-y-4">
+              <div className="flex items-center justify-between">
+                <h3 className="text-lg font-semibold">Headers</h3>
+              </div>
+
+              <div className="space-y-3">
+                <div className="flex items-center gap-3">
+                  <div className="flex-1">
+                    <Label className="text-sm font-medium text-gray-600">Header</Label>
+                  </div>
+                  <div className="flex-1">
+                    <Label className="text-sm font-medium text-gray-600">Value</Label>
+                  </div>
+                  <div className="w-16"></div>
+                </div>
+
+                {headers.map((row: HeaderRow, index: number) => (
+                  <div key={index} className="flex items-center gap-3">
+                    <div className="flex-1">
+                      <Input
+                        value={row.header}
+                        onChange={(e) => updateHeader(index, 'header', e.target.value)}
+                        tabIndex={-1}
+                      />
+                    </div>
+                    <div className="flex-1">
+                      <Input
+                        value={row.value}
+                        onChange={(e) => updateHeader(index, 'value', e.target.value)}
+                        tabIndex={-1}
+                      />
+                    </div>
+                    <div className="flex items-center gap-1 w-16">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => removeHeader(index)}
+                        className="h-8 w-8 p-0"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                      {index === headers.length - 1 && (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={addHeader}
+                          className="h-8 w-8 p-0"
+                        >
+                          <Plus className="h-4 w-4" />
+                        </Button>
+                      )}
+                    </div>
+                  </div>
+                ))}
+
+                {headers.length === 0 && (
+                  <div className="flex items-center gap-3">
+                    <div className="flex-1"></div>
+                    <div className="flex-1"></div>
+                    <div className="flex items-center gap-1 w-16">
+                      <div className="h-8 w-8"></div>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={addHeader}
                         className="h-8 w-8 p-0"
                       >
                         <Plus className="h-4 w-4" />
