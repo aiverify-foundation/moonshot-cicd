@@ -11,6 +11,11 @@ import {
   fetchBenchmarkRuns,
   fetchBenchmarkRunTestBundles,
 } from "@/lib/api";
+import {
+  formatDurationMinutes,
+  formatRunTimestamp,
+  parseApiUtcTimestamp,
+} from "@/lib/formatTimestamp";
 
 interface HistoryCardProps {
   title: string;
@@ -28,33 +33,6 @@ function mapRunStatusToDisplay(status: string): string {
   if (s === "running") return "In Progress";
   if (s === "failed" || s === "error") return "Failed";
   return status.charAt(0).toUpperCase() + status.slice(1);
-}
-
-function formatRunTimestamp(iso: string | null | undefined, kind: "completed" | "started"): string {
-  if (!iso) return kind === "completed" ? "Completed —" : "Started —";
-  const d = new Date(iso);
-  if (Number.isNaN(d.getTime())) return kind === "completed" ? "Completed —" : "Started —";
-  const label = kind === "completed" ? "Completed" : "Started";
-  return `${label} ${d.toLocaleString(undefined, {
-    day: "numeric",
-    month: "short",
-    year: "numeric",
-    hour: "numeric",
-    minute: "2-digit",
-  })}`;
-}
-
-function formatDurationMinutes(startIso: string | null | undefined, endIso: string | null | undefined): string | null {
-  if (!startIso || !endIso) return null;
-  const start = new Date(startIso).getTime();
-  const end = new Date(endIso).getTime();
-  if (Number.isNaN(start) || Number.isNaN(end) || end < start) return null;
-  const mins = Math.round((end - start) / 60000);
-  if (mins < 1) return "<1 min";
-  if (mins < 60) return `${mins}min`;
-  const h = Math.floor(mins / 60);
-  const m = mins % 60;
-  return m ? `${h}h ${m}min` : `${h}h`;
 }
 
 const createHistoryCard = ({
@@ -135,8 +113,8 @@ export default function History() {
     try {
       const list = await fetchBenchmarkRuns();
       const sorted = [...list].sort((a, b) => {
-        const ta = a.start_time ? new Date(a.start_time).getTime() : 0;
-        const tb = b.start_time ? new Date(b.start_time).getTime() : 0;
+        const ta = a.start_time ? (parseApiUtcTimestamp(a.start_time)?.getTime() ?? 0) : 0;
+        const tb = b.start_time ? (parseApiUtcTimestamp(b.start_time)?.getTime() ?? 0) : 0;
         if (tb !== ta) return tb - ta;
         return (b.id ?? 0) - (a.id ?? 0);
       });
