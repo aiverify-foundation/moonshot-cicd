@@ -44,3 +44,23 @@ class CustomAppConfigResponseDTO(BaseModel):
 
 class SetCustomAppConfigSecretBody(BaseModel):
     secret: str
+
+
+class TestCustomAppConnectionBody(BaseModel):
+    savedConfigPairs: Dict[str, str] = Field(default_factory=dict)
+    api_key: Optional[str] = None
+    config_id: Optional[int] = None
+
+
+class ResponseLeafRowDTO(BaseModel):
+    path: str
+    value: str
+
+
+class TestCustomAppConnectionResponseDTO(BaseModel):
+    success: bool
+    status_code: Optional[int] = None
+    response_body: str = ""
+    error: Optional[str] = None
+    response_leaves: list[ResponseLeafRowDTO] = Field(default_factory=list)
+    response_is_json: bool = False

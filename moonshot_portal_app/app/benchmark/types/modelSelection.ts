@@ -43,8 +43,13 @@ export interface Config {
   apiType?: string;
   apiUrl?: string;
   apiBody?: string;
+  responsePath?: string;
   /** From GET custom app config; secret value is never returned. */
   apiKeyConfigured?: boolean;
+  /** How the authorization secret is sent (Authorization header vs custom header). */
+  apiKeyAuthScheme?: string;
+  /** Header name when apiKeyAuthScheme is custom. */
+  apiKeyAuthCustomHeader?: string;
 }
 
 /** Custom application / connector app entry (custom-application path). */

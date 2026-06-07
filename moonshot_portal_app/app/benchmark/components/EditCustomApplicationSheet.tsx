@@ -14,16 +14,28 @@ import {
   createCustomAppConfig,
   updateCustomAppConfig,
   setCustomAppConfigSecret,
+  testCustomAppConnection,
   type CustomAppConfigDTO,
+  type TestCustomAppConnectionResponse,
 } from "@/lib/api";
 import {
   RESERVED_CONFIG_KEYS,
   DEFAULT_CUSTOM_API_TYPE,
   DEFAULT_CUSTOM_API_URL,
   DEFAULT_CUSTOM_API_BODY,
+  DEFAULT_RESPONSE_PATH,
   DEFAULT_CONNECTOR_ADAPTER,
+  RESPONSE_PATH_CONFIG_KEY,
+  PROMPT_PLACEHOLDER,
+  bodyContainsPromptPlaceholder,
   PARAMETERS_CONFIG_KEY,
   HEADERS_CONFIG_KEY,
+  API_KEY_AUTH_SCHEME_CONFIG_KEY,
+  API_KEY_AUTH_CUSTOM_HEADER_CONFIG_KEY,
+  DEFAULT_API_KEY_AUTH_SCHEME,
+  API_KEY_AUTH_SCHEME_OPTIONS,
+  parseApiKeyAuthScheme,
+  type ApiKeyAuthScheme,
   decodeCustomAppProviderId,
   serializeParametersJson,
   serializeHeadersJson,
@@ -81,14 +93,20 @@ const getInitialApiFields = (currentConfig: Config | null | undefined, isNewConf
       apiType: DEFAULT_CUSTOM_API_TYPE,
       apiUrl: DEFAULT_CUSTOM_API_URL,
       apiBody: DEFAULT_CUSTOM_API_BODY,
+      responsePath: DEFAULT_RESPONSE_PATH,
       apiKeyConfigured: false,
+      apiKeyAuthScheme: DEFAULT_API_KEY_AUTH_SCHEME,
+      apiKeyAuthCustomHeader: '',
     };
   }
   return {
     apiType: currentConfig.apiType ?? DEFAULT_CUSTOM_API_TYPE,
     apiUrl: currentConfig.apiUrl ?? DEFAULT_CUSTOM_API_URL,
     apiBody: currentConfig.apiBody ?? DEFAULT_CUSTOM_API_BODY,
+    responsePath: currentConfig.responsePath ?? DEFAULT_RESPONSE_PATH,
     apiKeyConfigured: Boolean(currentConfig.apiKeyConfigured),
+    apiKeyAuthScheme: parseApiKeyAuthScheme(currentConfig.apiKeyAuthScheme),
+    apiKeyAuthCustomHeader: currentConfig.apiKeyAuthCustomHeader ?? '',
   };
 };
 
@@ -143,11 +161,21 @@ export default function EditCustomApplicationSheet({
   const [apiType, setApiType] = React.useState(initialFields.apiType);
   const [apiUrl, setApiUrl] = React.useState(initialFields.apiUrl);
   const [apiBody, setApiBody] = React.useState(initialFields.apiBody);
+  const [responsePath, setResponsePath] = React.useState(initialFields.responsePath);
   const [secretValue, setSecretValue] = React.useState('');
   const [apiKeyConfigured, setApiKeyConfigured] = React.useState(initialFields.apiKeyConfigured);
+  const [apiKeyAuthScheme, setApiKeyAuthScheme] = React.useState<ApiKeyAuthScheme>(
+    initialFields.apiKeyAuthScheme
+  );
+  const [apiKeyAuthCustomHeader, setApiKeyAuthCustomHeader] = React.useState(
+    initialFields.apiKeyAuthCustomHeader
+  );
   const [saving, setSaving] = React.useState(false);
   const [testResult, setTestResult] = React.useState<boolean | null>(null);
   const [popoverOpen, setPopoverOpen] = React.useState(false);
+  const [connectionTesting, setConnectionTesting] = React.useState(false);
+  const [connectionTestResult, setConnectionTestResult] =
+    React.useState<TestCustomAppConnectionResponse | null>(null);
   const [parameters, setParameters] = React.useState(() =>
     getParameterRowsFromConfig(currentConfig)
   );
@@ -165,11 +193,26 @@ export default function EditCustomApplicationSheet({
       api_type: apiType.trim() || DEFAULT_CUSTOM_API_TYPE,
       api_url: apiUrl.trim(),
       api_body: apiBody,
+      [RESPONSE_PATH_CONFIG_KEY]: responsePath.trim(),
       [PARAMETERS_CONFIG_KEY]: serializeParametersJson(buildParametersObject(parameters)),
       [HEADERS_CONFIG_KEY]: serializeHeadersJson(buildHeadersObject(headers)),
+      [API_KEY_AUTH_SCHEME_CONFIG_KEY]: apiKeyAuthScheme,
+      [API_KEY_AUTH_CUSTOM_HEADER_CONFIG_KEY]:
+        apiKeyAuthScheme === 'custom'
+          ? apiKeyAuthCustomHeader.trim()
+          : '',
     };
     return out;
-  }, [apiType, apiUrl, apiBody, parameters, headers]);
+  }, [
+    apiType,
+    apiUrl,
+    apiBody,
+    responsePath,
+    parameters,
+    headers,
+    apiKeyAuthScheme,
+    apiKeyAuthCustomHeader,
+  ]);
 
   React.useEffect(() => {
     const fields = getInitialApiFields(currentConfig, isNewConfig);
@@ -177,10 +220,14 @@ export default function EditCustomApplicationSheet({
     setApiType(fields.apiType);
     setApiUrl(fields.apiUrl);
     setApiBody(fields.apiBody);
+    setResponsePath(fields.responsePath);
     setSecretValue('');
     setApiKeyConfigured(fields.apiKeyConfigured);
+    setApiKeyAuthScheme(fields.apiKeyAuthScheme);
+    setApiKeyAuthCustomHeader(fields.apiKeyAuthCustomHeader);
     setTestResult(null);
     setPopoverOpen(false);
+    setConnectionTestResult(null);
     setParameters(getParameterRowsFromConfig(currentConfig));
     setHeaders(getHeaderRowsFromConfig(currentConfig));
     setAutosaveStatus('idle');
@@ -242,6 +289,8 @@ export default function EditCustomApplicationSheet({
     parameters,
     headers,
     configName,
+    apiKeyAuthScheme,
+    apiKeyAuthCustomHeader,
     buildSavedConfigPairs,
   ]);
 
@@ -259,10 +308,14 @@ export default function EditCustomApplicationSheet({
     setApiType(fields.apiType);
     setApiUrl(fields.apiUrl);
     setApiBody(fields.apiBody);
+    setResponsePath(fields.responsePath);
     setSecretValue('');
     setApiKeyConfigured(fields.apiKeyConfigured);
+    setApiKeyAuthScheme(fields.apiKeyAuthScheme);
+    setApiKeyAuthCustomHeader(fields.apiKeyAuthCustomHeader);
     setTestResult(null);
     setPopoverOpen(false);
+    setConnectionTestResult(null);
     setParameters(getParameterRowsFromConfig(currentConfig));
     setHeaders(getHeaderRowsFromConfig(currentConfig));
     setAutosaveStatus('idle');
@@ -301,6 +354,14 @@ export default function EditCustomApplicationSheet({
     }
     if (!isNewConfig && !apiKeyConfigured && !trimmedSecret) {
       window.alert('Enter an Authorization secret (no secret is stored yet).');
+      return;
+    }
+    if (!bodyContainsPromptPlaceholder(apiBody)) {
+      window.alert(`Request body must include ${PROMPT_PLACEHOLDER} where the benchmark prompt should be inserted.`);
+      return;
+    }
+    if (!responsePath.trim()) {
+      window.alert('Enter a Response Path before saving.');
       return;
     }
 
@@ -349,7 +410,11 @@ export default function EditCustomApplicationSheet({
     const reserved = hasReservedKeyInParameters();
     if (reserved) {
       setTestResult(false);
-    } else if (configName.trim() && apiUrl.trim()) {
+    } else if (
+      configName.trim() &&
+      apiUrl.trim() &&
+      bodyContainsPromptPlaceholder(apiBody)
+    ) {
       setTestResult(true);
     } else {
       setTestResult(false);
@@ -362,6 +427,57 @@ export default function EditCustomApplicationSheet({
     timeoutRef.current = setTimeout(() => {
       setPopoverOpen(false);
     }, TEST_POPOVER_TIMEOUT);
+  };
+
+  const handleTestConnection = async () => {
+    if (!apiUrl.trim()) {
+      window.alert('Enter a URL before testing the connection.');
+      return;
+    }
+    if (!bodyContainsPromptPlaceholder(apiBody)) {
+      window.alert(
+        `Request body must include ${PROMPT_PLACEHOLDER} where the benchmark prompt should be inserted.`
+      );
+      return;
+    }
+
+    const trimmedSecret = secretValue.trim();
+    const configId =
+      !isNewConfig && currentConfig
+        ? parseInt(currentConfig.id, 10)
+        : Number.NaN;
+    const hasStoredSecret =
+      !isNewConfig && apiKeyConfigured && Number.isFinite(configId) && configId > 0;
+
+    if (!trimmedSecret && !hasStoredSecret) {
+      window.alert('Enter an authorization secret before testing the connection.');
+      return;
+    }
+
+    setConnectionTesting(true);
+    setConnectionTestResult(null);
+    try {
+      const result = await testCustomAppConnection({
+        savedConfigPairs: buildSavedConfigPairs(),
+        api_key: trimmedSecret || undefined,
+        config_id: hasStoredSecret ? configId : undefined,
+      });
+      setConnectionTestResult(result);
+    } catch (e) {
+      const msg =
+        e instanceof ApiError
+          ? e.message
+          : e instanceof Error
+            ? e.message
+            : 'Connection test failed';
+      setConnectionTestResult({
+        success: false,
+        response_body: '',
+        error: msg,
+      });
+    } finally {
+      setConnectionTesting(false);
+    }
   };
 
   const addParameter = () => {
@@ -403,30 +519,33 @@ export default function EditCustomApplicationSheet({
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent side="right" className="w-[1400px] sm:max-w-[700px] ml-4 overflow-y-auto pl-6 pr-6">
-        <SheetHeader>
-          <SheetTitle className="sr-only">Edit Custom Application Configuration</SheetTitle>
-        </SheetHeader>
+      <SheetContent
+        side="right"
+        className="w-[1400px] sm:max-w-[700px] ml-4 pl-6 pr-6 flex flex-col overflow-hidden"
+      >
+        <div className="flex flex-col flex-1 min-h-0">
+          <div className="flex-1 min-h-0 overflow-y-auto space-y-6 pb-6">
+            <SheetHeader className="p-0">
+              <SheetTitle className="sr-only">Edit Custom Application Configuration</SheetTitle>
+            </SheetHeader>
 
-        <div className="flex items-center justify-between mb-6">
-          <h2 className="text-lg font-semibold">Edit Custom Application Configuration</h2>
-        </div>
+            <div className="flex items-center justify-between">
+              <h2 className="text-lg font-semibold">Edit Custom Application Configuration</h2>
+            </div>
 
-        <div className="space-y-2 mb-6">
-          <Label htmlFor="configName" className="text-sm font-medium">
-            Configuration Name*
-          </Label>
-          <Input
-            id="configName"
-            placeholder="Enter configuration name"
-            value={configName}
-            onChange={(e) => setConfigName(e.target.value)}
-            tabIndex={-1}
-          />
-        </div>
+            <div className="space-y-2">
+              <Label htmlFor="configName" className="text-sm font-medium">
+                Configuration Name*
+              </Label>
+              <Input
+                id="configName"
+                placeholder="Enter configuration name"
+                value={configName}
+                onChange={(e) => setConfigName(e.target.value)}
+                tabIndex={-1}
+              />
+            </div>
 
-        <div className="flex flex-col h-full">
-          <div className="flex-1 space-y-6 pb-6">
             <Card className="py-0 gap-0">
               <CardContent className="p-4 space-y-4">
                 <div className="space-y-2">
@@ -474,13 +593,61 @@ export default function EditCustomApplicationSheet({
                   </Label>
                   <Textarea
                     id="apiBody"
-                    placeholder='{"messages": []}'
+                    placeholder={'{"messages": [{"role": "user", "content": "{{prompt}}"}]}'}
                     value={apiBody}
                     onChange={(e) => setApiBody(e.target.value)}
                     className="min-h-[120px] font-mono text-sm"
                     tabIndex={-1}
                   />
+                  <p className="text-sm text-gray-600">
+                    Include {PROMPT_PLACEHOLDER} where the benchmark prompt should be inserted.
+                  </p>
                 </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="apiKeyAuthScheme" className="text-sm font-medium">
+                    Authorization Type*
+                  </Label>
+                  <select
+                    id="apiKeyAuthScheme"
+                    value={apiKeyAuthScheme}
+                    onChange={(e) => setApiKeyAuthScheme(e.target.value as ApiKeyAuthScheme)}
+                    className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-xs"
+                    tabIndex={-1}
+                  >
+                    {API_KEY_AUTH_SCHEME_OPTIONS.map((option) => (
+                      <option key={option.value} value={option.value}>
+                        {option.label}
+                      </option>
+                    ))}
+                  </select>
+                  <p className="text-sm text-gray-600">
+                    {apiKeyAuthScheme === 'bearer'
+                      ? 'Sends Authorization: Bearer <secret>'
+                      : apiKeyAuthScheme === 'authorization_api_key'
+                        ? 'Sends Authorization: ApiKey <secret>'
+                        : apiKeyAuthScheme === 'x_api_key'
+                          ? 'Sends X-API-Key: <secret>'
+                          : apiKeyAuthScheme === 'x_api_key_lower'
+                            ? 'Sends x-api-key: <secret>'
+                            : 'Enter a custom header name below; the secret is sent as the header value.'}
+                  </p>
+                </div>
+
+                {apiKeyAuthScheme === 'custom' ? (
+                  <div className="space-y-2">
+                    <Label htmlFor="apiKeyAuthCustomHeader" className="text-sm font-medium">
+                      Custom Header*
+                    </Label>
+                    <Input
+                      id="apiKeyAuthCustomHeader"
+                      placeholder="e.g. X-API-Key:"
+                      value={apiKeyAuthCustomHeader}
+                      onChange={(e) => setApiKeyAuthCustomHeader(e.target.value)}
+                      tabIndex={-1}
+                    />
+                  </div>
+                ) : null}
 
                 <div className="space-y-2">
                   <Label htmlFor="apiSecret" className="text-sm font-medium">
@@ -667,9 +834,100 @@ export default function EditCustomApplicationSheet({
                 )}
               </div>
             </div>
+
+            <div className="space-y-2">
+              <Label className="text-sm font-medium">Connection test response</Label>
+              {connectionTestResult ? (
+                <>
+                  <p
+                    className={
+                      connectionTestResult.success
+                        ? 'text-sm text-green-600'
+                        : 'text-sm text-red-600'
+                    }
+                  >
+                    {connectionTestResult.success
+                      ? `Connection succeeded (HTTP ${connectionTestResult.status_code ?? '—'})`
+                      : connectionTestResult.error ||
+                        `Connection failed (HTTP ${connectionTestResult.status_code ?? '—'})`}
+                  </p>
+                  {connectionTestResult.response_is_json &&
+                  (connectionTestResult.response_leaves?.length ?? 0) > 0 ? (
+                    <div className="max-h-48 overflow-y-auto rounded-md border bg-gray-50 p-3">
+                      <div className="space-y-2">
+                        <div className="flex items-start gap-3">
+                          <div className="flex-1">
+                            <Label className="text-xs font-medium text-gray-600">Path</Label>
+                          </div>
+                          <div className="flex-1">
+                            <Label className="text-xs font-medium text-gray-600">Value</Label>
+                          </div>
+                        </div>
+                        <p className="text-xs text-gray-600">
+                          Click a path to set Response Path.
+                        </p>
+                        {connectionTestResult.response_leaves?.map((leaf, index) => (
+                          <div key={index} className="flex items-start gap-3">
+                            <div className="flex-1">
+                              <button
+                                type="button"
+                                className="w-full text-left text-xs font-mono break-words text-gray-800 hover:bg-gray-100 hover:underline rounded px-1 py-0.5"
+                                title="Click to use as Response Path"
+                                onClick={() => setResponsePath(leaf.path)}
+                              >
+                                {leaf.path}
+                              </button>
+                            </div>
+                            <div className="flex-1 text-xs font-mono break-words text-gray-800">
+                              {leaf.value}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  ) : connectionTestResult.response_is_json === false ? (
+                    <>
+                      <p className="text-sm text-gray-600">
+                        Response is not JSON; showing raw body below.
+                      </p>
+                      <div className="max-h-48 overflow-y-auto rounded-md border bg-gray-50 p-3">
+                        <pre className="text-xs font-mono whitespace-pre-wrap break-words">
+                          {connectionTestResult.response_body ||
+                            connectionTestResult.error ||
+                            ''}
+                        </pre>
+                      </div>
+                    </>
+                  ) : (
+                    <p className="text-sm text-gray-600">No scalar fields found.</p>
+                  )}
+                </>
+              ) : (
+                <p className="text-sm text-gray-600">
+                  Run Test Connection to send a live request with the current form values.
+                </p>
+              )}
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="responsePath" className="text-sm font-medium">
+                Response Path*
+              </Label>
+              <Input
+                id="responsePath"
+                placeholder={DEFAULT_RESPONSE_PATH}
+                value={responsePath}
+                onChange={(e) => setResponsePath(e.target.value)}
+                className="font-mono text-sm"
+                tabIndex={-1}
+              />
+              <p className="text-sm text-gray-600">
+                JSONPath used to read the model reply from the API response.
+              </p>
+            </div>
           </div>
 
-          <div className="mt-auto pt-6 pb-6 border-t">
+          <div className="shrink-0 pt-6 pb-6 border-t">
             <div className="flex justify-between items-center">
               <Button
                 variant="outline"
@@ -681,6 +939,13 @@ export default function EditCustomApplicationSheet({
                 Back
               </Button>
               <div className="flex gap-3">
+                <Button
+                  variant="outline"
+                  onClick={() => void handleTestConnection()}
+                  disabled={connectionTesting}
+                >
+                  {connectionTesting ? 'Testing…' : 'Test Connection'}
+                </Button>
                 <Popover open={popoverOpen} onOpenChange={setPopoverOpen}>
                   <PopoverTrigger asChild>
                     <Button variant="outline" onClick={handleTest}>

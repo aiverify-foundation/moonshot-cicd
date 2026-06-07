@@ -741,6 +741,26 @@ export interface SetCustomAppConfigSecretResponse {
   message: string;
 }
 
+export interface TestCustomAppConnectionPayload {
+  savedConfigPairs: Record<string, string>;
+  api_key?: string;
+  config_id?: number;
+}
+
+export interface ResponseLeafRow {
+  path: string;
+  value: string;
+}
+
+export interface TestCustomAppConnectionResponse {
+  success: boolean;
+  status_code?: number | null;
+  response_body: string;
+  error?: string | null;
+  response_leaves?: ResponseLeafRow[];
+  response_is_json?: boolean;
+}
+
 export async function fetchCustomApps(): Promise<CustomAppDTO[]> {
   try {
     return await handleJsonGet<CustomAppDTO[]>(
@@ -819,6 +839,31 @@ export async function updateCustomAppConfig(
     return response.json() as Promise<CustomAppConfigDTO>;
   } catch (error) {
     console.error('Update custom app config error:', error);
+    handleConnectError(error, 'Network error');
+  }
+}
+
+export async function testCustomAppConnection(
+  payload: TestCustomAppConnectionPayload
+): Promise<TestCustomAppConnectionResponse> {
+  try {
+    const response = await fetch(
+      `${API_BASE_URL}/api/custom-apps/test-connection`,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      }
+    );
+    if (!response.ok) {
+      const errorText = await response.text().catch(() => 'Unknown error');
+      console.error(`API Error: ${response.status} - ${errorText}`);
+      const detail = parseErrorDetail(errorText);
+      throw new ApiError(detail, response.status, response.statusText);
+    }
+    return response.json() as Promise<TestCustomAppConnectionResponse>;
+  } catch (error) {
+    console.error('Test custom app connection error:', error);
     handleConnectError(error, 'Network error');
   }
 }

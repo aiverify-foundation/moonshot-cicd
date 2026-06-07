@@ -7,7 +7,7 @@ import sys
 import os
 from datetime import datetime, timezone
 from pathlib import Path
-from unittest.mock import patch, MagicMock
+from unittest.mock import AsyncMock, patch, MagicMock
 from fastapi.testclient import TestClient
 
 from domain.entities.benchmark_run_entity import BenchmarkRunEntity
@@ -582,6 +582,43 @@ def test_api_bundles_cors_preflight():
     )
     assert response.status_code == 200
     assert response.headers.get("access-control-allow-origin") == "http://localhost:3000"
+
+
+@patch("entrypoints.api.custom_app_connection_test_service")
+def test_test_custom_app_connection_endpoint(mock_service):
+    from application.dto.custom_app_config_dto import (
+        ResponseLeafRowDTO,
+        TestCustomAppConnectionResponseDTO,
+    )
+
+    mock_service.test_connection = AsyncMock(
+        return_value=TestCustomAppConnectionResponseDTO(
+            success=True,
+            status_code=200,
+            response_body='{"ok": true}',
+            response_is_json=True,
+            response_leaves=[ResponseLeafRowDTO(path="ok", value="true")],
+        )
+    )
+
+    response = client.post(
+        "/api/custom-apps/test-connection",
+        json={
+            "savedConfigPairs": {
+                "api_url": "https://api.example.com",
+                "api_body": '{"messages":[{"role":"user","content":"{{prompt}}"}]}',
+            },
+            "api_key": "sk-test",
+        },
+    )
+
+    assert response.status_code == 200
+    data = response.json()
+    assert data["success"] is True
+    assert data["status_code"] == 200
+    assert data["response_body"] == '{"ok": true}'
+    assert data["response_is_json"] is True
+    assert data["response_leaves"] == [{"path": "ok", "value": "true"}]
 
 
 def test_configure_cors_middleware_respects_ms_cors_origins_env(monkeypatch):

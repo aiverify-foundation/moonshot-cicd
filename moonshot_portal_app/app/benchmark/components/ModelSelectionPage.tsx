@@ -103,7 +103,10 @@ function mapCustomAppConfigDtoToConfig(dto: CustomAppConfigDTO): Config {
     apiType: pairs.api_type,
     apiUrl: pairs.api_url,
     apiBody: pairs.api_body,
+    responsePath: pairs.response_path,
     apiKeyConfigured: Boolean(dto.api_key_configured),
+    apiKeyAuthScheme: pairs.api_key_auth_scheme,
+    apiKeyAuthCustomHeader: pairs.api_key_auth_custom_header,
   };
 }
 

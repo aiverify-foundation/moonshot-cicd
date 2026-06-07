@@ -74,7 +74,12 @@ from application.dto.custom_app_config_dto import (
     CustomAppConfigResponseDTO,
     CustomAppResponseDTO,
     SetCustomAppConfigSecretBody,
+    TestCustomAppConnectionBody,
+    TestCustomAppConnectionResponseDTO,
     UpdateCustomAppConfigBody,
+)
+from application.services.custom_app_connection_test_service import (
+    CustomAppConnectionTestService,
 )
 from application.services.database_custom_app_config_service import (
     DatabaseCustomAppConfigBadRequestError,
@@ -216,6 +221,9 @@ llm_provider_api_key_service = LlmProviderApiKeyService()
 database_custom_app_service = DatabaseCustomAppService()
 database_custom_app_config_service = DatabaseCustomAppConfigService()
 custom_app_config_secret_service = CustomAppConfigSecretService()
+custom_app_connection_test_service = CustomAppConnectionTestService(
+    secret_service=custom_app_config_secret_service,
+)
 
 # Lazy-initialized SharedConfigSeedService for seed-if-testfile-changed
 _shared_config_seed_service = None
@@ -566,6 +574,25 @@ async def update_custom_app_config(
     except Exception as e:
         logger.error(f"Error updating custom app config: {e}")
         raise HTTPException(status_code=500, detail="Failed to update custom app config")
+
+
+@app.post(
+    "/api/custom-apps/test-connection",
+    response_model=TestCustomAppConnectionResponseDTO,
+)
+async def test_custom_app_connection(
+    payload: TestCustomAppConnectionBody,
+) -> TestCustomAppConnectionResponseDTO:
+    """Probe a custom app configuration with a live HTTP request."""
+    try:
+        return await custom_app_connection_test_service.test_connection(payload)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        logger.error(f"Error testing custom app connection: {e}")
+        raise HTTPException(
+            status_code=500, detail="Failed to test custom app connection"
+        )
 
 
 @app.put("/api/custom-apps/configs/{config_id}/secrets/{key}")

@@ -44,7 +44,7 @@ class TestDatabaseCustomAppConnectorConfigService:
                 "connector_adapter": "custom_api_connector_adapter",
                 "api_type": "POST",
                 "api_url": "https://api.example.com/v1/chat",
-                "api_body": '{"messages": []}',
+                "api_body": '{"messages": [{"role": "user", "content": "{{prompt}}"}]}',
             },
         )
         CustomAppConfigSecretService(session_manager=sm).set_secret(
