@@ -37,9 +37,17 @@ def connector_entity():
     )
 
 
+@pytest.fixture
+def mock_app_config_max_attempts():
+    with patch("adapters.connector.together_adapter.AppConfig") as mock_cls:
+        mock_cls.return_value.get_common_config.return_value = 3
+        yield mock_cls
+
+
 @pytest.mark.asyncio
 async def test_get_response_strips_connector_keys_before_create(
     connector_entity,
+    mock_app_config_max_attempts,
 ):
     mock_response = MagicMock()
     mock_response.choices = [MagicMock()]
@@ -69,7 +77,9 @@ async def test_get_response_strips_connector_keys_before_create(
 
 
 @pytest.mark.asyncio
-async def test_get_response_coerces_string_temperature(connector_entity):
+async def test_get_response_coerces_string_temperature(
+    connector_entity, mock_app_config_max_attempts
+):
     connector_entity.params = {
         "api_type": "together",
         "temperature": "0.25",
@@ -101,7 +111,9 @@ async def test_get_response_coerces_string_temperature(connector_entity):
     assert isinstance(kwargs["max_tokens"], int)
 
 
-def test_configure_prefers_db_api_key_from_provider_system_name(connector_entity):
+def test_configure_prefers_db_api_key_from_provider_system_name(
+    connector_entity, mock_app_config_max_attempts
+):
     with (
         patch("adapters.connector.together_adapter.ProviderConnectorEnvKeyService") as mock_class,
         patch("adapters.connector.together_adapter.os.getenv") as mock_getenv,
@@ -122,7 +134,76 @@ def test_configure_prefers_db_api_key_from_provider_system_name(connector_entity
         mock_together_cls.assert_called_once_with(
             api_key="db-key",
             base_url=connector_entity.model_endpoint or None,
+            max_retries=2,
         )
+
+
+def test_configure_uses_common_max_attempts(connector_entity):
+    with (
+        patch("adapters.connector.together_adapter.AppConfig") as mock_app_config_cls,
+        patch("adapters.connector.together_adapter.os.getenv", return_value="k"),
+        patch("adapters.connector.together_adapter.AsyncTogether") as mock_together_cls,
+    ):
+        mock_app_config_cls.return_value.get_common_config.return_value = 5
+        mock_together_cls.return_value = MagicMock()
+
+        TogetherAdapter().configure(connector_entity)
+
+        mock_app_config_cls.return_value.get_common_config.assert_called_with("max_attempts")
+        mock_together_cls.assert_called_once_with(
+            api_key="k",
+            base_url=connector_entity.model_endpoint or None,
+            max_retries=4,
+        )
+
+
+def test_configure_connector_param_overrides_common(connector_entity):
+    connector_entity.params["max_attempts"] = 2
+    with (
+        patch("adapters.connector.together_adapter.AppConfig") as mock_app_config_cls,
+        patch("adapters.connector.together_adapter.os.getenv", return_value="k"),
+        patch("adapters.connector.together_adapter.AsyncTogether") as mock_together_cls,
+    ):
+        mock_together_cls.return_value = MagicMock()
+
+        TogetherAdapter().configure(connector_entity)
+
+        mock_app_config_cls.return_value.get_common_config.assert_not_called()
+        mock_together_cls.assert_called_once_with(
+            api_key="k",
+            base_url=connector_entity.model_endpoint or None,
+            max_retries=1,
+        )
+
+
+@pytest.mark.asyncio
+async def test_get_response_strips_max_attempts_from_create_kwargs(
+    connector_entity, mock_app_config_max_attempts
+):
+    connector_entity.params["max_attempts"] = 3
+    connector_entity.params["max_concurrency"] = 5
+
+    mock_response = MagicMock()
+    mock_response.choices = [MagicMock()]
+    mock_response.choices[0].message = MagicMock()
+    mock_response.choices[0].message.content = "ok"
+
+    adapter = TogetherAdapter()
+    with (
+        patch("adapters.connector.together_adapter.os.getenv", return_value="k"),
+        patch("adapters.connector.together_adapter.AsyncTogether") as mock_cls,
+        patch.object(adapter, "_process_response", new_callable=AsyncMock, return_value="ok"),
+    ):
+        mock_client = MagicMock()
+        mock_cls.return_value = mock_client
+        mock_client.chat.completions.create = AsyncMock(return_value=mock_response)
+
+        adapter.configure(connector_entity)
+        await adapter.get_response("hello")
+
+    kwargs = mock_client.chat.completions.create.call_args.kwargs
+    assert "max_attempts" not in kwargs
+    assert "max_concurrency" not in kwargs
 
 
 def test_configure_raises_type_error_when_system_name_empty(connector_entity):

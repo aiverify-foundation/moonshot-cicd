@@ -39,6 +39,9 @@ from application.services.benchmark_execution_service import BenchmarkExecutionS
 from process_check_app.backend.report_validation import validate_json
 from domain.services.app_config import AppConfig
 
+# test-bundle uses llamaguardannotator_adapter (OpenAI target + Together judge per prompt).
+TEST_BUNDLE_MAX_WAIT = 120
+
 
 # ============================================================================
 # Helper Functions
@@ -134,11 +137,16 @@ async def _wait_for_result_file_and_validate(absolute_result_path, max_wait=60):
 
 
 async def _run_single_bundle_and_wait(
-    absolute_result_path, connector="my-gpt-4o-mini", bundle_name="test-bundle"
+    absolute_result_path,
+    connector="my-gpt-4o-mini",
+    bundle_name="test-bundle",
+    max_wait=TEST_BUNDLE_MAX_WAIT,
 ):
     """Helper function to run a single bundle and wait for its result file."""
     _start_bundle_in_background(bundle_name, connector)
-    return await _wait_for_result_file_and_validate(absolute_result_path)
+    return await _wait_for_result_file_and_validate(
+        absolute_result_path, max_wait=max_wait
+    )
 
 
 # ============================================================================
@@ -207,7 +215,10 @@ def _verify_result_structure(data, bundle_id):
 
 
 async def _run_validation_workflow_test(
-    connector, absolute_result_path, bundle_id="test-bundle", max_wait=60
+    connector,
+    absolute_result_path,
+    bundle_id="test-bundle",
+    max_wait=TEST_BUNDLE_MAX_WAIT,
 ):
     """Helper to run a validation workflow test with common setup.
 
@@ -215,7 +226,7 @@ async def _run_validation_workflow_test(
         connector: Connector name to use
         absolute_result_path: Path to the result file
         bundle_id: Bundle name (used in payload and for run_metadata.test_id check)
-        max_wait: Max seconds to wait for result file (default 60)
+        max_wait: Max seconds to wait for result file (default TEST_BUNDLE_MAX_WAIT)
     """
     _start_bundle_in_background(bundle_id, connector)
 
@@ -297,9 +308,7 @@ async def test_validation_workflow_failure_recovery(
     _cleanup_bundle_run_db("test-bundle")
 
     # Step 2: Run test with valid connector (happy path)
-    await _run_validation_workflow_test(
-        "my-gpt-4o-mini", absolute_result_path, max_wait=60
-    )
+    await _run_validation_workflow_test("my-gpt-4o-mini", absolute_result_path)
 
 
 @pytest.mark.asyncio

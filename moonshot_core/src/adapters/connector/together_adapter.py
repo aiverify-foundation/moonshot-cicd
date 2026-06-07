@@ -11,10 +11,40 @@ from adapters.connector.strip_connector_chat_kwargs import (
 from domain.entities.connector_entity import ConnectorEntity
 from domain.entities.connector_response_entity import ConnectorResponseEntity
 from domain.ports.connector_port import ConnectorPort
+from domain.services.app_config import AppConfig
 from domain.services.logger import configure_logger
 
 # Initialize a logger for this module
 logger = configure_logger(__name__)
+
+DEFAULT_MAX_ATTEMPTS = 3
+_CHAT_COMPLETION_EXTRA_STRIP_KEYS = frozenset({"max_attempts", "max_concurrency"})
+
+
+def _coerce_max_attempts(value: Any) -> int:
+    if isinstance(value, str):
+        try:
+            value = int(float(value.strip()))
+        except ValueError as exc:
+            raise ValueError(f"max_attempts must be a valid integer, got {value!r}") from exc
+    if not isinstance(value, int):
+        raise ValueError("max_attempts must be of type int.")
+    if value < 1:
+        raise ValueError("max_attempts must be at least 1.")
+    return value
+
+
+def _resolve_max_attempts(connector_entity: ConnectorEntity) -> int:
+    raw = connector_entity.params.get("max_attempts")
+    if raw is None:
+        raw = AppConfig().get_common_config("max_attempts")
+    if raw in (None, {}):
+        return DEFAULT_MAX_ATTEMPTS
+    return _coerce_max_attempts(raw)
+
+
+def _resolve_max_retries(connector_entity: ConnectorEntity) -> int:
+    return max(0, _resolve_max_attempts(connector_entity) - 1)
 
 
 class TogetherAdapter(ConnectorPort):
@@ -81,16 +111,23 @@ class TogetherAdapter(ConnectorPort):
             logger.warning(self.WARNING_NO_API_KEY)
         
         endpoint = self.connector_entity.model_endpoint or "default (api.together.xyz/v1)"
+        max_retries = _resolve_max_retries(connector_entity)
         logger.info(
             self.INFO_CONFIGURED.format(
                 model=self.connector_entity.model,
                 endpoint=endpoint
             )
         )
-        
+        logger.info(
+            "[TogetherAdapter] Configured max_retries=%s (max_attempts=%s)",
+            max_retries,
+            max_retries + 1,
+        )
+
         self._client = AsyncTogether(
             api_key=api_key,
             base_url=self.connector_entity.model_endpoint or None,
+            max_retries=max_retries,
         )
 
     async def get_response(self, prompt: Any) -> ConnectorResponseEntity:
@@ -120,7 +157,10 @@ class TogetherAdapter(ConnectorPort):
             "messages": together_request,
         }
         new_params = coerce_numeric_string_chat_params(
-            strip_connector_keys_for_chat_completion(new_params)
+            strip_connector_keys_for_chat_completion(
+                new_params,
+                extra_keys=_CHAT_COMPLETION_EXTRA_STRIP_KEYS,
+            )
         )
 
         endpoint = self.connector_entity.model_endpoint or "default (api.together.xyz/v1)"
