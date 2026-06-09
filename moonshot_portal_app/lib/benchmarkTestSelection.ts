@@ -53,3 +53,12 @@ export function countSelectedTestsAcrossBundles(
     return acc + Object.values(bundleState).filter(Boolean).length;
   }, 0);
 }
+
+export function hasAnySelectedTestsInBundle(
+  state: TestSelectionState,
+  bundleId: string
+): boolean {
+  const bundleTests = state[bundleId];
+  if (!bundleTests) return false;
+  return Object.values(bundleTests).some(Boolean);
+}

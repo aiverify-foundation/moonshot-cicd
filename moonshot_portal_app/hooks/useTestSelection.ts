@@ -1,4 +1,5 @@
 import { useMemo } from 'react';
+import { useStore } from 'react-redux';
 import { useAppSelector, useAppDispatch } from './reduxHooks';
 import {
   setTestSelected,
@@ -6,11 +7,14 @@ import {
   setMultipleTestsSelected,
   clearTestSelection,
   clearTestsForBundle,
+  setBundleSelected,
+  type RootState,
 } from '../store';
 import type { BundleTest } from '../lib/api';
 import {
   areAllTestsSelected,
   getTestSelectionKey,
+  hasAnySelectedTestsInBundle,
   isTestSelected,
   selectedTestsInBundle,
 } from '../lib/benchmarkTestSelection';
@@ -121,6 +125,17 @@ export function useAreAllTestsInBundleChecked(
  */
 export function useTestSelectionActions() {
   const dispatch = useAppDispatch();
+  const store = useStore<RootState>();
+
+  const syncBundleSelection = (bundleId: string) => {
+    const { bundleSelection, testSelection } = store.getState();
+    if (
+      bundleSelection[bundleId] &&
+      !hasAnySelectedTestsInBundle(testSelection, bundleId)
+    ) {
+      dispatch(setBundleSelected({ bundleId, selected: false }));
+    }
+  };
 
   const setTest = (
     bundleId: string,
@@ -134,6 +149,7 @@ export function useTestSelectionActions() {
         selected,
       })
     );
+    syncBundleSelection(bundleId);
   };
 
   const toggleTest = (bundleId: string, test: Pick<BundleTest, 'name' | 'benchmark_test_id'>) => {
@@ -143,6 +159,7 @@ export function useTestSelectionActions() {
         testKey: getTestSelectionKey(test),
       })
     );
+    syncBundleSelection(bundleId);
   };
 
   const setMultipleTests = (
@@ -157,6 +174,7 @@ export function useTestSelectionActions() {
         selected,
       })
     );
+    syncBundleSelection(bundleId);
   };
 
   const clearBundleTests = (bundleId: string) => {

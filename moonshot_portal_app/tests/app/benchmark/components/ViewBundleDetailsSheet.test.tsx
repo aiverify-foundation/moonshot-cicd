@@ -1,5 +1,7 @@
+import userEvent from '@testing-library/user-event';
 import { render, screen, waitFor } from '@/tests/utils/test-utils';
 import ViewBundleDetailsSheet from '@/app/benchmark/components/ViewBundleDetailsSheet';
+import { hasAnySelectedTestsInBundle } from '@/lib/benchmarkTestSelection';
 import type { Bundle } from '@/lib/api';
 
 const mockFetchProviders = jest.fn();
@@ -118,5 +120,51 @@ describe('ViewBundleDetailsSheet', () => {
     );
 
     expect(mockFetchProviders).not.toHaveBeenCalled();
+  });
+
+  it('removes bundle from selection when all tests are deselected after Add', async () => {
+    const user = userEvent.setup();
+    const onOpenChange = jest.fn();
+
+    const { store, rerender } = render(
+      <ViewBundleDetailsSheet
+        open
+        bundle={bundleWithoutAaj}
+        onOpenChange={onOpenChange}
+      />,
+      {
+        preloadedState: {
+          bundles: { data: [bundleWithoutAaj], loading: false, error: null },
+        },
+      }
+    );
+
+    await waitFor(() => {
+      expect(mockFetchProviders).toHaveBeenCalled();
+    });
+
+    await user.click(screen.getByRole('button', { name: 'Toggle test' }));
+    await user.click(screen.getByRole('button', { name: 'Add 1 test' }));
+
+    expect(store.getState().bundleSelection['accuracy-bundle']).toBe(true);
+    expect(onOpenChange).toHaveBeenCalledWith(false);
+
+    rerender(
+      <ViewBundleDetailsSheet
+        open
+        bundle={bundleWithoutAaj}
+        onOpenChange={onOpenChange}
+      />
+    );
+
+    await user.click(screen.getByRole('button', { name: 'Toggle test' }));
+
+    expect(store.getState().bundleSelection['accuracy-bundle']).toBe(false);
+    expect(
+      hasAnySelectedTestsInBundle(
+        store.getState().testSelection,
+        'accuracy-bundle'
+      )
+    ).toBe(false);
   });
 });

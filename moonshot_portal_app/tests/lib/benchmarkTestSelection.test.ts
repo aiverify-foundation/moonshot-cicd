@@ -1,6 +1,7 @@
 import {
   areAllTestsSelected,
   getTestSelectionKey,
+  hasAnySelectedTestsInBundle,
   isTestSelected,
   selectedTestsInBundle,
   type TestSelectionState,
@@ -40,5 +41,20 @@ describe('benchmarkTestSelection', () => {
     expect(areAllTestsSelected(state, 'bundle_b', [sharedTest])).toBe(false);
     expect(selectedTestsInBundle(state, 'bundle_a', [sharedTest])).toHaveLength(1);
     expect(selectedTestsInBundle(state, 'bundle_b', [sharedTest])).toHaveLength(0);
+  });
+
+  it('hasAnySelectedTestsInBundle returns true when at least one test is selected', () => {
+    const state: TestSelectionState = {
+      bundle_a: { '42': true, '99': false },
+    };
+    expect(hasAnySelectedTestsInBundle(state, 'bundle_a')).toBe(true);
+  });
+
+  it('hasAnySelectedTestsInBundle returns false when no tests are selected', () => {
+    const state: TestSelectionState = {
+      bundle_a: { '42': false },
+    };
+    expect(hasAnySelectedTestsInBundle(state, 'bundle_a')).toBe(false);
+    expect(hasAnySelectedTestsInBundle(state, 'missing_bundle')).toBe(false);
   });
 });
