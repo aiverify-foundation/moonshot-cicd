@@ -63,6 +63,15 @@ function getHeadersSection() {
   return section;
 }
 
+async function clickTestConnectionAndWait(
+  user: ReturnType<typeof userEvent.setup>
+) {
+  await user.click(screen.getByRole('button', { name: 'Test Connection' }));
+  await waitFor(() => {
+    expect(getTestCustomAppConnectionMock()).toHaveBeenCalled();
+  });
+}
+
 describe('EditCustomApplicationSheet', () => {
   beforeEach(() => {
     jest.clearAllMocks();
@@ -115,6 +124,20 @@ describe('EditCustomApplicationSheet', () => {
     jest.useRealTimers();
   });
 
+  it('disables save until test connection has been run', () => {
+    render(
+      <EditCustomApplicationSheet
+        open
+        onOpenChange={() => {}}
+        editingConfig={customProviderId}
+        modelApps={modelApps}
+        configs={[]}
+      />
+    );
+
+    expect(screen.getByRole('button', { name: 'Save' })).toBeDisabled();
+  });
+
   it('creates config with reserved fields and JSON parameters/headers', async () => {
     const user = userEvent.setup({ advanceTimers: jest.advanceTimersByTime });
     const onSaved = jest.fn();
@@ -143,7 +166,7 @@ describe('EditCustomApplicationSheet', () => {
     await user.type(paramInputs[0], 'timeout');
     await user.type(paramInputs[1], '30');
 
-    await user.click(screen.getByRole('button', { name: 'Test' }));
+    await clickTestConnectionAndWait(user);
     await user.click(screen.getByRole('button', { name: 'Save' }));
 
     await waitFor(() => {
@@ -258,7 +281,7 @@ describe('EditCustomApplicationSheet', () => {
       />
     );
 
-    await user.click(screen.getByRole('button', { name: 'Test' }));
+    await clickTestConnectionAndWait(user);
     await user.click(screen.getByRole('button', { name: 'Save' }));
 
     await waitFor(() => {
@@ -322,8 +345,9 @@ describe('EditCustomApplicationSheet', () => {
     });
   });
 
-  it('rejects reserved parameter name in Parameters grid on test', async () => {
+  it('rejects reserved parameter name on test connection', async () => {
     const user = userEvent.setup({ advanceTimers: jest.advanceTimersByTime });
+    const alertSpy = jest.spyOn(window, 'alert').mockImplementation(() => {});
 
     render(
       <EditCustomApplicationSheet
@@ -346,10 +370,16 @@ describe('EditCustomApplicationSheet', () => {
     await user.type(screen.getByLabelText(/configuration name/i), 'Prod');
     await user.clear(screen.getByLabelText(/^url/i));
     await user.type(screen.getByLabelText(/^url/i), 'https://api.example.com');
+    await user.type(screen.getByLabelText(/authorization secret/i), 'sk-test-key');
 
-    await user.click(screen.getByRole('button', { name: 'Test' }));
+    await user.click(screen.getByRole('button', { name: 'Test Connection' }));
 
-    expect(screen.getByText('Test Failed')).toBeInTheDocument();
+    expect(alertSpy).toHaveBeenCalledWith(
+      '"parameters" is a reserved parameter name. Use the dedicated fields above.'
+    );
+    expect(getTestCustomAppConnectionMock()).not.toHaveBeenCalled();
+    expect(screen.getByRole('button', { name: 'Save' })).toBeDisabled();
+    alertSpy.mockRestore();
   });
 
   it('adds header row and includes headers in save payload', async () => {
@@ -378,7 +408,7 @@ describe('EditCustomApplicationSheet', () => {
     await user.type(headerInputs[0], 'Accept');
     await user.type(headerInputs[1], 'application/json');
 
-    await user.click(screen.getByRole('button', { name: 'Test' }));
+    await clickTestConnectionAndWait(user);
     await user.click(screen.getByRole('button', { name: 'Save' }));
 
     await waitFor(() => {
@@ -414,7 +444,7 @@ describe('EditCustomApplicationSheet', () => {
     await user.type(screen.getByLabelText(/^custom header/i), 'X-API-Key');
     await user.type(screen.getByLabelText(/authorization secret/i), 'sk-test-key');
 
-    await user.click(screen.getByRole('button', { name: 'Test' }));
+    await clickTestConnectionAndWait(user);
     await user.click(screen.getByRole('button', { name: 'Save' }));
 
     await waitFor(() => {
@@ -479,7 +509,7 @@ describe('EditCustomApplicationSheet', () => {
     await user.type(screen.getByLabelText(/authorization secret/i), 'sk-test-key');
     await user.clear(screen.getByLabelText(/response path/i));
 
-    await user.click(screen.getByRole('button', { name: 'Test' }));
+    await clickTestConnectionAndWait(user);
     await user.click(screen.getByRole('button', { name: 'Save' }));
 
     expect(alertSpy).toHaveBeenCalledWith('Enter a Response Path before saving.');

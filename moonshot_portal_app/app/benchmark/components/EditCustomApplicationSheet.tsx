@@ -7,7 +7,6 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Trash2, Plus } from "lucide-react";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import type { ModelApp, Config } from "../types/modelSelection";
 import {
   ApiError,
@@ -41,7 +40,6 @@ import {
   serializeHeadersJson,
 } from "../constants/customAppConfig";
 
-const TEST_POPOVER_TIMEOUT = 3000;
 const AUTOSAVE_DEBOUNCE_MS = 500;
 const API_TYPE_OPTIONS = ['GET', 'POST', 'PUT', 'PATCH', 'DELETE'] as const;
 
@@ -171,9 +169,8 @@ export default function EditCustomApplicationSheet({
     initialFields.apiKeyAuthCustomHeader
   );
   const [saving, setSaving] = React.useState(false);
-  const [testResult, setTestResult] = React.useState<boolean | null>(null);
-  const [popoverOpen, setPopoverOpen] = React.useState(false);
   const [connectionTesting, setConnectionTesting] = React.useState(false);
+  const [connectionTestAttempted, setConnectionTestAttempted] = React.useState(false);
   const [connectionTestResult, setConnectionTestResult] =
     React.useState<TestCustomAppConnectionResponse | null>(null);
   const [parameters, setParameters] = React.useState(() =>
@@ -183,7 +180,6 @@ export default function EditCustomApplicationSheet({
     getHeaderRowsFromConfig(currentConfig)
   );
   const [autosaveStatus, setAutosaveStatus] = React.useState<AutosaveStatus>('idle');
-  const timeoutRef = React.useRef<NodeJS.Timeout | null>(null);
   const autosaveDebounceRef = React.useRef<NodeJS.Timeout | null>(null);
   const skipNextAutosaveRef = React.useRef(true);
 
@@ -225,8 +221,7 @@ export default function EditCustomApplicationSheet({
     setApiKeyConfigured(fields.apiKeyConfigured);
     setApiKeyAuthScheme(fields.apiKeyAuthScheme);
     setApiKeyAuthCustomHeader(fields.apiKeyAuthCustomHeader);
-    setTestResult(null);
-    setPopoverOpen(false);
+    setConnectionTestAttempted(false);
     setConnectionTestResult(null);
     setParameters(getParameterRowsFromConfig(currentConfig));
     setHeaders(getHeaderRowsFromConfig(currentConfig));
@@ -236,9 +231,6 @@ export default function EditCustomApplicationSheet({
 
   React.useEffect(() => {
     return () => {
-      if (timeoutRef.current) {
-        clearTimeout(timeoutRef.current);
-      }
       if (autosaveDebounceRef.current) {
         clearTimeout(autosaveDebounceRef.current);
       }
@@ -313,8 +305,7 @@ export default function EditCustomApplicationSheet({
     setApiKeyConfigured(fields.apiKeyConfigured);
     setApiKeyAuthScheme(fields.apiKeyAuthScheme);
     setApiKeyAuthCustomHeader(fields.apiKeyAuthCustomHeader);
-    setTestResult(null);
-    setPopoverOpen(false);
+    setConnectionTestAttempted(false);
     setConnectionTestResult(null);
     setParameters(getParameterRowsFromConfig(currentConfig));
     setHeaders(getHeaderRowsFromConfig(currentConfig));
@@ -323,7 +314,7 @@ export default function EditCustomApplicationSheet({
   };
 
   const handleSave = async () => {
-    if (testResult !== true) return;
+    if (!connectionTestAttempted) return;
 
     const reserved = hasReservedKeyInParameters();
     if (reserved) {
@@ -406,30 +397,13 @@ export default function EditCustomApplicationSheet({
     }
   };
 
-  const handleTest = () => {
+  const handleTestConnection = async () => {
     const reserved = hasReservedKeyInParameters();
     if (reserved) {
-      setTestResult(false);
-    } else if (
-      configName.trim() &&
-      apiUrl.trim() &&
-      bodyContainsPromptPlaceholder(apiBody)
-    ) {
-      setTestResult(true);
-    } else {
-      setTestResult(false);
+      window.alert(`"${reserved}" is a reserved parameter name. Use the dedicated fields above.`);
+      return;
     }
 
-    setPopoverOpen(true);
-    if (timeoutRef.current) {
-      clearTimeout(timeoutRef.current);
-    }
-    timeoutRef.current = setTimeout(() => {
-      setPopoverOpen(false);
-    }, TEST_POPOVER_TIMEOUT);
-  };
-
-  const handleTestConnection = async () => {
     if (!apiUrl.trim()) {
       window.alert('Enter a URL before testing the connection.');
       return;
@@ -454,6 +428,7 @@ export default function EditCustomApplicationSheet({
       return;
     }
 
+    setConnectionTestAttempted(true);
     setConnectionTesting(true);
     setConnectionTestResult(null);
     try {
@@ -946,24 +921,12 @@ export default function EditCustomApplicationSheet({
                 >
                   {connectionTesting ? 'Testing…' : 'Test Connection'}
                 </Button>
-                <Popover open={popoverOpen} onOpenChange={setPopoverOpen}>
-                  <PopoverTrigger asChild>
-                    <Button variant="outline" onClick={handleTest}>
-                      Test
-                    </Button>
-                  </PopoverTrigger>
-                  {testResult !== null && (
-                    <PopoverContent className="bg-background border-2 border-gray-300 text-foreground shadow-lg w-auto max-w-fit p-2">
-                      <p className={testResult ? 'text-green-600' : 'text-red-600'}>
-                        {testResult ? 'Test Passed' : 'Test Failed'}
-                      </p>
-                    </PopoverContent>
-                  )}
-                </Popover>
                 <Button
                   onClick={() => void handleSave()}
-                  disabled={testResult !== true || saving}
-                  className={testResult !== true ? 'opacity-50 bg-gray-100 text-gray-400' : ''}
+                  disabled={!connectionTestAttempted || saving}
+                  className={
+                    !connectionTestAttempted ? 'opacity-50 bg-gray-100 text-gray-400' : ''
+                  }
                 >
                   {saving ? 'Saving…' : 'Save'}
                 </Button>
