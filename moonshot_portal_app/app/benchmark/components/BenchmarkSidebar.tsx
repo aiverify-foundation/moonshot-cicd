@@ -132,7 +132,15 @@ export default function BenchmarkSidebar({ currentPage }: BenchmarkSidebarProps)
                       <span className="font-medium">Description :</span>
                       <p className="mt-1">{data.description || 'No description available'}</p>
                     </div>
-                    <Button variant="outline" size="sm">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => {
+                        const testName = encodeURIComponent(data.test.name);
+                        const datasetId = encodeURIComponent(data.test.dataset.id);
+                        window.open(`/view_test?test=${testName}&dataset=${datasetId}`, '_blank');
+                      }}
+                    >
                       Learn More
                     </Button>
                   </div>
