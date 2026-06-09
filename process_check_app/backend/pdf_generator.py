@@ -1190,9 +1190,14 @@ def generate_pdf_technical_test_page(test_result_info):
     evaluation_summaries_and_metadata = test_result_info.get(
         "evaluation_summaries_and_metadata", []
     )
+    table_cell_style = ParagraphStyle(
+        "TechnicalTestTableCell",
+        wordWrap="CJK",
+    )
     table_data = [["Test Name", "Score"]]
     for entry in evaluation_summaries_and_metadata:
         test_name = entry.get("test_name", "Unknown Test")
+        test_name_para = Paragraph(test_name, table_cell_style)
         if (
             isinstance(entry.get("summary", None), dict)
             and "avg_grade_value" in entry["summary"]
@@ -1217,7 +1222,7 @@ def generate_pdf_technical_test_page(test_result_info):
                 score = str(summary_dict)
         else:
             score = entry.get("summary", "N/A")
-        table_data.append([test_name, score])
+        table_data.append([test_name_para, score])
     # Make the score column wider
     table = Table(table_data, colWidths=[3.0 * inch, 3.5 * inch], hAlign="CENTER")
     table.setStyle(

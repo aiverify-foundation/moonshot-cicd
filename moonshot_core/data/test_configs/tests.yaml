@@ -211,3 +211,10 @@ sample_test:
     dataset: test_sample_dataset
     metric: 
       name: accuracy_adapter
+
+test_bundle:
+  - name: test_bundle
+    type: benchmark
+    dataset: mlc-ailuminate-spc-lgl
+    metric:
+      name: llamaguardannotator_adapter
