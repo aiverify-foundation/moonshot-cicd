@@ -9,7 +9,7 @@ import { useTestNameValidation } from "@/hooks/useTestNameValidation";
 import { setBenchmarkTestName } from "@/store";
 import { useState } from "react";
 
-export default function TestNameAndDescriptionCard() {
+export default function TestNameCard() {
   const dispatch = useAppDispatch();
   const testName = useAppSelector(state => state.modelSelection.testName);
   const { isTestNameValid, errorMessage, isChecking } = useTestNameValidation();
@@ -24,14 +24,14 @@ export default function TestNameAndDescriptionCard() {
 
   return (
     <>       
-      <Card className="w-3xl mb-6 py-1" data-testid="test-name-and-description-card">
+      <Card className="w-3xl mb-6 py-1" data-testid="test-name-card">
         <Accordion type="single" collapsible defaultValue="item-1">
           <AccordionItem value="item-1">
             <AccordionTrigger className="flex flex-row items-center hover:no-underline px-6 py-4">
               <div className="flex-1">
-                <CardTitle data-testid="additional-card-title">Fill in Test Name and Description</CardTitle>
+                <CardTitle data-testid="additional-card-title">Fill in Test Name</CardTitle>
                 <CardDescription data-testid="additional-card-description">
-                  Provide a name and description for your benchmark test.
+                  Provide a name for your benchmark test.
                 </CardDescription>
               </div>
               {/* Status indicators */}
@@ -63,10 +63,6 @@ export default function TestNameAndDescriptionCard() {
                     {errorMessage}
                   </p>
                 )}
-                <div className="mt-4 mb-2">
-                  <Label htmlFor="test-description-input">Test Description</Label>
-                </div>
-                <Input type="text" placeholder="Test Description" id="test-description-input" data-testid="test-description-input" />
               </CardContent>
             </AccordionContent>
           </AccordionItem>

@@ -3,7 +3,7 @@ import React, { useCallback, useEffect, useState } from 'react';
 import { Breadcrumb, BreadcrumbList, BreadcrumbItem, BreadcrumbPage, BreadcrumbSeparator } from '@/components/ui/breadcrumb';
 import RequiredEndpointsCard from "./RequiredEndpointsCard";
 import SampleSizeCard from "./SampleSizeCard";
-import TestNameAndDescriptionCard from "./TestNameAndDescriptionCard";
+import TestNameCard from "./TestNameCard";
 import SelectAppOrModelCard from "./SelectAppOrModelCard";
 import type { Provider, ModelConfig, Config, ModelApp } from "../types/modelSelection";
 import { useAppDispatch, useAppSelector } from "@/hooks/reduxHooks";
@@ -310,7 +310,7 @@ export default function ModelSelectionPage() {
       </div>
 
       <div className="flex flex-col items-center justify-center min-h-[200px] mb-10">
-        <TestNameAndDescriptionCard />
+        <TestNameCard />
         {isTestNameValid && (
           <>
             {(providersError || customAppsError) && (

@@ -19,7 +19,7 @@ jest.mock('@/lib/api', () => {
   };
 });
 
-jest.mock('@/app/benchmark/components/TestNameAndDescriptionCard', () => () => (
+jest.mock('@/app/benchmark/components/TestNameCard', () => () => (
   <div data-testid="test-name-card" />
 ));
 

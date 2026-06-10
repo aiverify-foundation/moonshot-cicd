@@ -32,26 +32,26 @@ async function navigateToModelSelection(page) {
   await expect(page.locator('[data-testid="select-model-header"]')).toContainText('Configure And Run Tests');
 }
 
-test.describe('Test Name and Description Card Initial State', () => {
+test.describe('Test Name Card Initial State', () => {
   
-  test('GIVEN as a user first load Test Configuration page WHEN Test Name and Description Accordion Card rendered for the first time THEN card header displays title "Fill in Test Name and Description" AND card header displays description "Provide a name and description for your benchmark test." AND card header displays Card Incomplete Indicator (red circle alert icon) AND card content is expanded by default AND card content displays text "Test Name (Required)" AND card content contain empty Test Name text input field with thick grey border AND card content displays text "Text Description (Optional)" AND card content empty Text Description text input field', async ({ page }) => {
+  test('GIVEN as a user first load Test Configuration page WHEN Test Name Accordion Card rendered for the first time THEN card header displays title "Fill in Test Name" AND card header displays description "Provide a name for your benchmark test." AND card header displays Card Incomplete Indicator (red circle alert icon) AND card content is expanded by default AND card content displays text "Test Name (Required)" AND card content contain empty Test Name text input field with thick grey border', async ({ page }) => {
     
     // Navigate to model selection page (Test Configuration page)
     await navigateToModelSelection(page);
     
-    // Wait for the Test Name and Description card to be visible
-    const testNameCard = page.locator('[data-testid="test-name-and-description-card"]');
+    // Wait for the Test Name card to be visible
+    const testNameCard = page.locator('[data-testid="test-name-card"]');
     await expect(testNameCard).toBeVisible();
     
-    // Verify card header displays title "Fill in Test Name and Description"
+    // Verify card header displays title "Fill in Test Name"
     const cardTitle = page.locator('[data-testid="additional-card-title"]');
     await expect(cardTitle).toBeVisible();
-    await expect(cardTitle).toContainText('Fill in Test Name and Description');
+    await expect(cardTitle).toContainText('Fill in Test Name');
     
-    // Verify card header displays description "Provide a name and description for your benchmark test."
+    // Verify card header displays description "Provide a name for your benchmark test."
     const cardDescription = page.locator('[data-testid="additional-card-description"]');
     await expect(cardDescription).toBeVisible();
-    await expect(cardDescription).toContainText('Provide a name and description for your benchmark test.');
+    await expect(cardDescription).toContainText('Provide a name for your benchmark test.');
     
     // Verify card header displays Card Incomplete Indicator (red circle alert icon)
     // The status indicator should be visible and should be the red CircleAlert icon
@@ -96,21 +96,6 @@ test.describe('Test Name and Description Card Initial State', () => {
     });
     expect(inputBorder.borderWidth).not.toBe('0px');
     expect(inputBorder.borderStyle).not.toBe('none');
-    
-    // Verify card content displays text "Text Description (Optional)"
-    // Find the label associated with the test-description-input using data-testid
-    const testDescriptionInput = page.locator('[data-testid="test-description-input"]');
-    await expect(testDescriptionInput).toBeVisible();
-    
-    // Find the label by its relationship to the input with data-testid
-    const testDescriptionLabel = page.locator('label[for="test-description-input"]');
-    await expect(testDescriptionLabel).toBeVisible();
-    const descriptionLabelText = await testDescriptionLabel.textContent();
-    expect(descriptionLabelText).toContain('Description');
-    
-    // Verify card content has empty Text Description text input field
-    const testDescriptionValue = await testDescriptionInput.inputValue();
-    expect(testDescriptionValue).toBe('');
   });
 });
 

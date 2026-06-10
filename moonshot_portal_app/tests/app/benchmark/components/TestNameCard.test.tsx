@@ -1,6 +1,6 @@
 import { render, screen, waitFor } from '@/tests/utils/test-utils';
 import userEvent from '@testing-library/user-event';
-import TestNameAndDescriptionCard from '@/app/benchmark/components/TestNameAndDescriptionCard';
+import TestNameCard from '@/app/benchmark/components/TestNameCard';
 import { checkBenchmarkRunName } from '@/lib/api';
 import { TEST_NAME_DUPLICATE_ERROR } from '@/hooks/useTestNameValidation';
 
@@ -12,7 +12,7 @@ const mockCheckBenchmarkRunName = checkBenchmarkRunName as jest.MockedFunction<
   typeof checkBenchmarkRunName
 >;
 
-describe('TestNameAndDescriptionCard', () => {
+describe('TestNameCard', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     mockCheckBenchmarkRunName.mockImplementation(async (runName: string) => ({
@@ -23,7 +23,7 @@ describe('TestNameAndDescriptionCard', () => {
 
   describe('Initial Page Load Display', () => {
     it('Scenario: Initial state with empty text fields and displays Card Incomplete Icon', () => {
-      render(<TestNameAndDescriptionCard />, {
+      render(<TestNameCard />, {
         preloadedState: {
           modelSelection: {
             selectedProvider: '',
@@ -39,12 +39,12 @@ describe('TestNameAndDescriptionCard', () => {
         },
       });
 
-      // Then card header displays title "Fill in Test Name and Description"
-      expect(screen.getByTestId('additional-card-title')).toHaveTextContent('Fill in Test Name and Description');
+      // Then card header displays title "Fill in Test Name"
+      expect(screen.getByTestId('additional-card-title')).toHaveTextContent('Fill in Test Name');
 
-      // And card header displays description "Provide a name and description for your benchmark test."
+      // And card header displays description "Provide a name for your benchmark test."
       expect(screen.getByTestId('additional-card-description')).toHaveTextContent(
-        'Provide a name and description for your benchmark test.'
+        'Provide a name for your benchmark test.'
       );
 
       // And card header displays Card Incomplete Indicator (red circle alert icon)
@@ -62,21 +62,13 @@ describe('TestNameAndDescriptionCard', () => {
       // And card content contain empty Test Name text input field with thick grey border
       expect(testNameInput).toHaveValue('');
       expect(testNameInput).toHaveAttribute('placeholder', 'Test Name');
-
-      // And card content displays text "Text Description (Optional)"
-      expect(screen.getByText('Test Description')).toBeInTheDocument();
-
-      // And card content empty Text Description text input field
-      const testDescriptionInput = screen.getByTestId('test-description-input');
-      expect(testDescriptionInput).toHaveValue('');
-      expect(testDescriptionInput).toHaveAttribute('placeholder', 'Test Description');
     });
   });
 
   describe('Test Name Validation', () => {
     it('Scenario: Test Name validation - Entering a valid test name shows Card Complete Indicator', async () => {
       const user = userEvent.setup();
-      const { store } = render(<TestNameAndDescriptionCard />, {
+      const { store } = render(<TestNameCard />, {
         preloadedState: {
           modelSelection: {
             selectedProvider: '',
@@ -129,7 +121,7 @@ describe('TestNameAndDescriptionCard', () => {
         available: false,
       });
 
-      render(<TestNameAndDescriptionCard />, {
+      render(<TestNameCard />, {
         preloadedState: {
           modelSelection: {
             selectedProvider: '',
@@ -164,7 +156,7 @@ describe('TestNameAndDescriptionCard', () => {
 
     it.skip('Scenario: Test Name validation - Entering invalid test name displays error message and Card Incomplete Icon', async () => {
       const user = userEvent.setup();
-      render(<TestNameAndDescriptionCard />, {
+      render(<TestNameCard />, {
         preloadedState: {
           modelSelection: {
             selectedProvider: '',
@@ -205,7 +197,7 @@ describe('TestNameAndDescriptionCard', () => {
 
     it.skip('Scenario: Test Name validation - Clearing a previously valid test name displays error message and Card Incomplete Icon', async () => {
       const user = userEvent.setup();
-      const { store } = render(<TestNameAndDescriptionCard />, {
+      const { store } = render(<TestNameCard />, {
         preloadedState: {
           modelSelection: {
             selectedProvider: '',
@@ -280,7 +272,7 @@ describe('TestNameAndDescriptionCard', () => {
       validTestNames.forEach((testName) => {
         it(`should accept valid test name: "${testName}"`, async () => {
           const user = userEvent.setup();
-          const { store } = render(<TestNameAndDescriptionCard />, {
+          const { store } = render(<TestNameCard />, {
             preloadedState: {
               modelSelection: {
                 selectedProvider: '',
@@ -313,7 +305,7 @@ describe('TestNameAndDescriptionCard', () => {
       invalidTestNames.forEach(({ name, errorMessage }) => {
         it.skip(`should reject invalid test name: "${name}" with error "${errorMessage}"`, async () => {
           const user = userEvent.setup();
-          render(<TestNameAndDescriptionCard />, {
+          render(<TestNameCard />, {
             preloadedState: {
               modelSelection: {
                 selectedProvider: '',
@@ -360,7 +352,7 @@ describe('TestNameAndDescriptionCard', () => {
   describe('Collapsing/Expanding of Accordion Card', () => {
     it('Scenario: Collapsing Accordion Card will keeps card title, description and Card Completion Indicator visible', async () => {
       const user = userEvent.setup();
-      render(<TestNameAndDescriptionCard />, {
+      render(<TestNameCard />, {
         preloadedState: {
           modelSelection: {
             selectedProvider: '',
@@ -422,7 +414,7 @@ describe('TestNameAndDescriptionCard', () => {
       });
 
       const user = userEvent.setup();
-      render(<TestNameAndDescriptionCard />, {
+      render(<TestNameCard />, {
         preloadedState: {
           modelSelection: {
             selectedProvider: '',
