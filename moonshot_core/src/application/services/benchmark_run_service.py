@@ -7,11 +7,16 @@ async code or different threads.
 
 from typing import Optional
 
-from domain.entities.benchmark_run_entity import BenchmarkRunEntity
-
 from adapters.driven.repository.sqlalchemy.benchmark_run_adapter import (
     SqlAlchemyBenchmarkRunRepository,
 )
+from adapters.driven.repository.sqlalchemy.llm_provider_models import (
+    CustomAppConfigModel,
+    LLMProviderModelConfigModel,
+)
+from adapters.driven.repository.sqlalchemy.session_manager import SessionManager
+from application.dto.run_bundle_dto import BenchmarkRunResponseDTO
+from domain.entities.benchmark_run_entity import BenchmarkRunEntity
 
 
 class BenchmarkRunService:
@@ -84,3 +89,41 @@ class BenchmarkRunService:
         """
         repo = SqlAlchemyBenchmarkRunRepository()
         return repo.update(entity)
+
+    @staticmethod
+    def resolve_endpoint_config_name(entity: BenchmarkRunEntity) -> Optional[str]:
+        """
+        Return the user-facing configuration name linked to the run, if any.
+
+        LLM runs use llm_provider_model_config.name; custom app runs use
+        custom_app_config.name.
+        """
+        if entity.llm_provider_model_config_id is not None:
+            with SessionManager.get_instance().get_session() as session:
+                row = (
+                    session.query(LLMProviderModelConfigModel)
+                    .filter(
+                        LLMProviderModelConfigModel.id
+                        == entity.llm_provider_model_config_id
+                    )
+                    .first()
+                )
+                return row.name if row is not None else None
+        if entity.custom_app_config_id is not None:
+            with SessionManager.get_instance().get_session() as session:
+                row = (
+                    session.query(CustomAppConfigModel)
+                    .filter(CustomAppConfigModel.id == entity.custom_app_config_id)
+                    .first()
+                )
+                return row.name if row is not None else None
+        return None
+
+    def to_response_dto(self, entity: BenchmarkRunEntity) -> BenchmarkRunResponseDTO:
+        """Map a run entity to the API response DTO with endpoint_config_name."""
+        return BenchmarkRunResponseDTO.model_validate(
+            {
+                **entity.model_dump(),
+                "endpoint_config_name": self.resolve_endpoint_config_name(entity),
+            }
+        )

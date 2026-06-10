@@ -14,6 +14,7 @@ from domain.entities.benchmark_run_entity import BenchmarkRunEntity
 from domain.entities.benchmark_run_test_bundle_entity import (
     BenchmarkRunTestBundleEntity,
 )
+from application.dto.run_bundle_dto import BenchmarkRunResponseDTO
 
 # Add the src directory to the Python path
 src_path = Path(__file__).parent.parent.parent / "src"
@@ -30,6 +31,10 @@ from application.services.llm_provider_api_key_service import (
 )
 
 client = TestClient(app)
+
+
+def _benchmark_run_response_dto(entity: BenchmarkRunEntity) -> BenchmarkRunResponseDTO:
+    return BenchmarkRunResponseDTO.model_validate(entity.model_dump())
 
 
 @patch('entrypoints.api.get_build_directory')
@@ -126,6 +131,7 @@ def test_list_benchmark_runs_returns_runs(mock_service_class):
             end_time=t,
         ),
     ]
+    mock_svc.to_response_dto.side_effect = _benchmark_run_response_dto
 
     response = client.get("/api/benchmark-runs")
     assert response.status_code == 200
@@ -254,6 +260,7 @@ def test_get_benchmark_run_returns_run(mock_service_class):
         start_time=t,
         end_time=t,
     )
+    mock_svc.to_response_dto.side_effect = _benchmark_run_response_dto
 
     response = client.get("/api/benchmark-runs/3")
     assert response.status_code == 200

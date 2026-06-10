@@ -211,6 +211,9 @@ export interface BenchmarkRun {
   llm_provider_id?: number | null;
   llm_provider_model_id?: number | null;
   llm_provider_model_config_id?: number | null;
+  custom_app_id?: number | null;
+  custom_app_config_id?: number | null;
+  endpoint_config_name?: string | null;
 }
 
 /** GET /api/benchmark-runs/check-name */

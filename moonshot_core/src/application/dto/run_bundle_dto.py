@@ -135,6 +135,7 @@ class BenchmarkRunResponseDTO(BaseModel):
     llm_provider_model_config_id: Optional[int] = None
     custom_app_id: Optional[int] = None
     custom_app_config_id: Optional[int] = None
+    endpoint_config_name: Optional[str] = None
 
 
 class BenchmarkRunTestBundleResponseDTO(BaseModel):

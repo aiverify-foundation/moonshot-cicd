@@ -21,6 +21,9 @@ from sqlalchemy import text
 from adapters.driven.repository.sqlalchemy.llm_provider_models import (
     BenchmarkRunTestPromptModel,
     BenchmarkRunTestStatusModel,
+    LLMProviderModel,
+    LLMProviderModelConfigModel,
+    LLMProviderModelModel,
 )
 from adapters.driven.repository.sqlalchemy.session_manager import SessionManager
 from adapters.driven.repository.sqlalchemy.benchmark_test_config_adapter import (
@@ -131,6 +134,46 @@ def _insert_benchmark_run(session_manager, name: str) -> int:
         session.flush()
         (run_id,) = session.execute(text("SELECT last_insert_rowid()")).fetchone()
         return run_id
+
+
+def _link_run_to_model_config(
+    session_manager,
+    run_id: int,
+    config_name: str = "integration-test-config",
+) -> None:
+    """Seed llm_provider_model_config and attach it to an existing benchmark_run."""
+    from datetime import datetime, timezone
+
+    updated = datetime.now(timezone.utc).replace(tzinfo=None)
+    with session_manager.get_session() as session:
+        prov = LLMProviderModel(
+            name="Results API Provider",
+            system_name="results_api_provider",
+            version=0,
+        )
+        session.add(prov)
+        session.flush()
+        model = LLMProviderModelModel(
+            llm_provider_id=prov.id,
+            name="results-model",
+        )
+        session.add(model)
+        session.flush()
+        cfg = LLMProviderModelConfigModel(
+            model_id=model.id,
+            name=config_name,
+            updated_dt=updated,
+        )
+        session.add(cfg)
+        session.flush()
+        session.execute(
+            text("""
+                UPDATE benchmark_run
+                SET llm_provider_model_config_id = :config_id
+                WHERE id = :run_id
+            """),
+            {"config_id": cfg.id, "run_id": run_id},
+        )
 
 
 def _get_run_test_status(session_manager, run_id: int, test_id: int):
@@ -866,12 +909,16 @@ def test_get_benchmark_run_results_api(
         session_manager, run_id, test_ids, "get-results-api response"
     )
 
+    config_name = "integration-test-config"
+    _link_run_to_model_config(session_manager, run_id, config_name=config_name)
+
     client = TestClient(fastapi_app)
     response = client.get(f"/api/benchmark-runs/{run_id}/results")
 
     assert response.status_code == 200, response.text
     data = response.json()
     assert data["run"]["id"] == run_id
+    assert data["run"]["endpoint_config_name"] == config_name
     assert isinstance(data["bundles"], list)
     assert len(data["bundles"]) >= 1
     b0 = data["bundles"][0]

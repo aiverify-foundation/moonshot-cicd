@@ -16,7 +16,6 @@ from adapters.driven.repository.sqlalchemy.llm_provider_models import (
 )
 from adapters.driven.repository.sqlalchemy.session_manager import SessionManager
 from application.dto.run_bundle_dto import (
-    BenchmarkRunResponseDTO,
     BenchmarkRunResultsBundleSummaryDTO,
     BenchmarkRunResultsResponseDTO,
     BenchmarkRunTestMarginOfErrorDTO,
@@ -82,7 +81,7 @@ class BenchmarkRunResultsQueryService:
         ]
 
         return BenchmarkRunResultsResponseDTO(
-            run=BenchmarkRunResponseDTO.model_validate(run_entity.model_dump()),
+            run=run_service.to_response_dto(run_entity),
             bundles=bundle_rows,
             prompts=prompts,
             test_margin_of_error=test_margins,

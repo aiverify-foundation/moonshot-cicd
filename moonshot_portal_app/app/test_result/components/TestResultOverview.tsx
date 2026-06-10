@@ -276,23 +276,13 @@ export interface OverviewBundleChart {
 }
 
 export interface TestResultOverviewProps {
-    /** When false, show Figma demo charts. */
-    runMode?: boolean
     overviewLoading?: boolean
     overviewError?: string | null
-    /** Real run: one chart per DB bundle (or a single "All results" entry for legacy runs). */
+    /** One chart per DB bundle (or a single "All results" entry for legacy runs). */
     bundleCharts?: OverviewBundleChart[]
     /** URL `debugMargin=1`: show margin / ErrorBar diagnostics on charts. */
     showMarginDebug?: boolean
 }
-
-const demoUndesirable: ChartDataItem[] = [
-    { test_name: "MLCommons AILuminate - Hate", adjusted_percentage_score: 79 },
-]
-
-const demoDisclosure: ChartDataItem[] = [
-    { test_name: "MLCommons AILuminate - Privacy - English", adjusted_percentage_score: 80 },
-]
 
 function gridClassForChartCount(n: number): string {
     if (n >= 3) return "grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4"
@@ -301,32 +291,11 @@ function gridClassForChartCount(n: number): string {
 }
 
 export default function TestResultOverview({
-    runMode = false,
     overviewLoading = false,
     overviewError = null,
     bundleCharts = [],
     showMarginDebug = false,
 }: TestResultOverviewProps) {
-    if (!runMode) {
-        return (
-            <div className="flex flex-col gap-4 mt-2">
-                <TestResultNote />
-                <div className="grid grid-cols-2 gap-4">
-                    <ReportChartScrollAdjustableHeight
-                        chartData={demoUndesirable}
-                        bundleName="Undesirable Content"
-                        showMarginDebug={false}
-                    />
-                    <ReportChartScrollAdjustableHeight
-                        chartData={demoDisclosure}
-                        bundleName="Data Disclosure"
-                        showMarginDebug={false}
-                    />
-                </div>
-            </div>
-        )
-    }
-
     if (overviewLoading) {
         return (
             <div className="mt-4 text-sm text-slate-600">Loading overview…</div>

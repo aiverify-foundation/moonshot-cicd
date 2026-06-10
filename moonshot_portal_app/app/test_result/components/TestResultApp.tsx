@@ -80,7 +80,6 @@ function mapStatusLabel(status: string): string {
   if (s === "completed") return "Complete";
   if (s === "running") return "In Progress";
   if (s === "failed" || s === "error") return "Failed";
-  if (s === "demo") return "Demo";
   return status.charAt(0).toUpperCase() + status.slice(1);
 }
 
@@ -197,14 +196,10 @@ export default function TestResultApp() {
     }));
   }, [benchmarkRunId, loading, resultBundles, prompts, marginPercentByTestId]);
 
-  const runMode = benchmarkRunId != null;
-  const displayTitle =
-    runMode && run ? run.name : loading && runMode ? "Loading…" : "Demo Test Run";
-  const statusRaw = runMode && run ? run.status : "demo";
-  const statusLabel = mapStatusLabel(statusRaw);
+  const displayTitle = run ? run.name : loading ? "Loading…" : "";
+  const statusLabel = run ? mapStatusLabel(run.status) : "";
 
   const runTabs = useMemo(() => {
-    if (!runMode) return [] as { id: string; label: string; badge: string | null }[];
     if (resultBundles.length === 0) {
       const pts = prompts
         .map((p) => accuracyToPercent(p.score))
@@ -238,13 +233,25 @@ export default function TestResultApp() {
         return m !== null ? `${m}%` : prompts.length ? "—" : null;
       })(),
     }));
-  }, [
-    runMode,
-    resultBundles,
-    prompts,
-    bundleTabScores,
-    allTabScore,
-  ]);
+  }, [resultBundles, prompts, bundleTabScores, allTabScore]);
+
+  if (!benchmarkRunId) {
+    return (
+      <main className="p-8 w-[1300px]">
+        <p className="text-slate-700 text-[14px] font-medium">Report</p>
+        <h1 className="text-2xl font-semibold text-gray-900 mt-3">Test results</h1>
+        <p className="mt-4 text-sm text-slate-600">
+          Open a completed run from history to view results.
+        </p>
+        <Link
+          href="/history"
+          className="mt-2 inline-block text-sm font-medium text-slate-900 underline"
+        >
+          Go to history
+        </Link>
+      </main>
+    );
+  }
 
   return (
     <main className="p-8 w-[1300px]">
@@ -255,23 +262,23 @@ export default function TestResultApp() {
             <h1 className="text-2xl font-semibold text-gray-900">
               {displayTitle}
             </h1>
-            <Badge variant="outline">
-              <div className="text-left">{statusLabel}</div>
-            </Badge>
-            {runMode && benchmarkRunId && (
-              <span className="text-sm text-slate-500">Run #{benchmarkRunId}</span>
+            {statusLabel && (
+              <Badge variant="outline">
+                <div className="text-left">{statusLabel}</div>
+              </Badge>
             )}
+            <span className="text-sm text-slate-500">Run #{benchmarkRunId}</span>
           </div>
           <Button
             className="font-extrabold text-[14px] text-white"
             style={{ backgroundColor: "#702F8A" }}
-            disabled={runMode && (loading || !prompts.length)}
+            disabled={loading || !prompts.length}
           >
             Download
           </Button>
         </div>
 
-        {error && runMode && (
+        {error && (
           <div className="mt-4 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-800">
             <p>{error}</p>
             <Link
@@ -283,36 +290,20 @@ export default function TestResultApp() {
           </div>
         )}
 
-        <div className="text-left font-medium text-[14px] text-slate-500 mb-3 mt-2">
-          {runMode && run
-            ? `Endpoint type: ${run.endpoint_type}`
-            : " This is a test Description"}
-        </div>
         <div className="flex items-center gap-2 mt-2 flex-wrap">
           <div className="text-left font-medium text-[12px] text-slate-500">
             Endpoint
           </div>
           <div className="text-left font-semibold text-[12px] text-slate-700">
-            {runMode && run ? run.endpoint_type : "mistral-7b"}
+            {run?.endpoint_config_name}
           </div>
           <div className="h-4 w-px bg-slate-300" />
           <div className="text-left font-medium text-[12px] text-slate-500">
             Prompts
           </div>
           <div className="text-left font-semibold text-[12px] text-slate-700">
-            {runMode ? (loading ? "—" : String(prompts.length)) : "200"}
+            {loading ? "—" : String(prompts.length)}
           </div>
-          {!runMode && (
-            <>
-              <div className="h-4 w-px bg-slate-300" />
-              <div className="text-left font-medium text-[12px] text-slate-500">
-                Confidence Level
-              </div>
-              <div className="text-left font-semibold text-[12px] text-slate-700">
-                95%
-              </div>
-            </>
-          )}
         </div>
       </div>
 
@@ -333,37 +324,35 @@ export default function TestResultApp() {
           </p>
         </button>
 
-        {runMode &&
-          runTabs.map((t) => (
-            <button
-              key={t.id}
-              type="button"
-              onClick={() => setActiveTab(t.id)}
-              className={`flex gap-[10px] items-center px-3 py-1.5 rounded-[3px] transition-colors max-w-[min(100%,280px)] ${
-                activeTab === t.id ? "bg-white" : "bg-transparent hover:bg-white/50"
+        {runTabs.map((t) => (
+          <button
+            key={t.id}
+            type="button"
+            onClick={() => setActiveTab(t.id)}
+            className={`flex gap-[10px] items-center px-3 py-1.5 rounded-[3px] transition-colors max-w-[min(100%,280px)] ${
+              activeTab === t.id ? "bg-white" : "bg-transparent hover:bg-white/50"
+            }`}
+          >
+            <p
+              className={`font-semibold text-[14px] truncate ${
+                activeTab === t.id ? "text-slate-800" : "text-slate-600"
               }`}
+              title={t.label}
             >
-              <p
-                className={`font-semibold text-[14px] truncate ${
-                  activeTab === t.id ? "text-slate-800" : "text-slate-600"
-                }`}
-                title={t.label}
-              >
-                {t.label}
-              </p>
-              {t.badge != null && (
-                <div className="bg-gray-100 border border-gray-200 flex gap-1 items-center justify-center p-1 rounded-[6px] shrink-0">
-                  <p className="font-semibold text-[12px] text-gray-800 whitespace-nowrap">
-                    {t.badge}
-                  </p>
-                </div>
-              )}
-            </button>
-          ))}
-
+              {t.label}
+            </p>
+            {t.badge != null && (
+              <div className="bg-gray-100 border border-gray-200 flex gap-1 items-center justify-center p-1 rounded-[6px] shrink-0">
+                <p className="font-semibold text-[12px] text-gray-800 whitespace-nowrap">
+                  {t.badge}
+                </p>
+              </div>
+            )}
+          </button>
+        ))}
       </div>
 
-      {runMode && showMarginDebug && (
+      {showMarginDebug && (
         <div
           className="mt-4 rounded-md border border-amber-300 bg-amber-50 px-3 py-2 text-left text-xs text-amber-950"
           data-testid="margin-debug-panel"
@@ -430,7 +419,7 @@ export default function TestResultApp() {
         </div>
       )}
 
-      {runMode && resultBundles.length === 0 && (
+      {resultBundles.length === 0 && (
         <div className={activeTab === TAB_ALL ? "" : "hidden"}>
           <TestResultBundle
             apiPrompts={prompts}
@@ -445,37 +434,35 @@ export default function TestResultApp() {
         </div>
       )}
 
-      {runMode &&
-        resultBundles.map((b) => (
-          <div
-            key={b.test_bundle_id}
-            className={activeTab === tabBundleId(b.test_bundle_id) ? "" : "hidden"}
-          >
-            <TestResultBundle
-              apiPrompts={prompts}
-              apiLoading={loading}
-              apiError={error}
-              filterTestIds={b.test_ids}
-              bundleDisplayName={b.name}
-              marginHalfWidthPercentByTestId={marginPctRecord}
-              showMarginDebug={showMarginDebug}
-              onAdjustedScoreChange={(score) =>
-                setBundleTabScores((prev) => ({
-                  ...prev,
-                  [b.test_bundle_id]: score,
-                }))
-              }
-            />
-          </div>
-        ))}
+      {resultBundles.map((b) => (
+        <div
+          key={b.test_bundle_id}
+          className={activeTab === tabBundleId(b.test_bundle_id) ? "" : "hidden"}
+        >
+          <TestResultBundle
+            apiPrompts={prompts}
+            apiLoading={loading}
+            apiError={error}
+            filterTestIds={b.test_ids}
+            bundleDisplayName={b.name}
+            marginHalfWidthPercentByTestId={marginPctRecord}
+            showMarginDebug={showMarginDebug}
+            onAdjustedScoreChange={(score) =>
+              setBundleTabScores((prev) => ({
+                ...prev,
+                [b.test_bundle_id]: score,
+              }))
+            }
+          />
+        </div>
+      ))}
 
       {activeTab === TAB_OVERVIEW && (
         <TestResultOverview
-          runMode={runMode}
-          overviewLoading={runMode && loading}
-          overviewError={runMode && error ? error : null}
-          bundleCharts={runMode ? bundleCharts : undefined}
-          showMarginDebug={runMode && showMarginDebug}
+          overviewLoading={loading}
+          overviewError={error}
+          bundleCharts={bundleCharts}
+          showMarginDebug={showMarginDebug}
         />
       )}
     </main>
