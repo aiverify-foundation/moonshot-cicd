@@ -677,6 +677,111 @@ export async function fetchBenchmarkRunResults(
   }
 }
 
+function parseContentDispositionFilename(header: string | null): string | null {
+  if (!header) return null;
+  const match = /filename\*?=(?:UTF-8''|")?([^";]+)"?/i.exec(header);
+  if (!match?.[1]) return null;
+  try {
+    return decodeURIComponent(match[1].trim());
+  } catch {
+    return match[1].trim();
+  }
+}
+
+function triggerAnchorDownload(blob: Blob, filename: string): void {
+  const objectUrl = URL.createObjectURL(blob);
+  const anchor = document.createElement('a');
+  anchor.href = objectUrl;
+  anchor.download = filename;
+  anchor.style.display = 'none';
+  document.body.appendChild(anchor);
+  anchor.click();
+  document.body.removeChild(anchor);
+  URL.revokeObjectURL(objectUrl);
+}
+
+function isUserAbortError(error: unknown): boolean {
+  return error instanceof DOMException && error.name === 'AbortError';
+}
+
+type SaveFilePickerFn = (options?: {
+  suggestedName?: string;
+  types?: Array<{
+    description?: string;
+    accept: Record<string, string[]>;
+  }>;
+}) => Promise<FileSystemFileHandle>;
+
+function getSaveFilePicker(): SaveFilePickerFn | null {
+  if (typeof window === 'undefined') return null;
+  const picker = (window as Window & { showSaveFilePicker?: SaveFilePickerFn })
+    .showSaveFilePicker;
+  return typeof picker === 'function' ? picker : null;
+}
+
+/**
+ * Save a blob via the native Save As dialog when supported, else trigger a direct download.
+ */
+async function saveBlobAsFile(blob: Blob, filename: string): Promise<void> {
+  const showSaveFilePicker = getSaveFilePicker();
+  if (showSaveFilePicker) {
+    try {
+      const handle = await showSaveFilePicker({
+        suggestedName: filename,
+        types: [
+          {
+            description: 'JSON',
+            accept: { 'application/json': ['.json'] },
+          },
+        ],
+      });
+      const writable = await handle.createWritable();
+      await writable.write(blob);
+      await writable.close();
+      return;
+    } catch (error) {
+      if (isUserAbortError(error)) return;
+      throw error;
+    }
+  }
+
+  triggerAnchorDownload(blob, filename);
+}
+
+/**
+ * Downloads GA Schema1 JSON for a completed benchmark run via GET /api/benchmark-runs/{run_id}/export.
+ */
+export async function downloadBenchmarkRunResults(
+  runId: number,
+  runName?: string
+): Promise<void> {
+  try {
+    const response = await fetch(
+      `${API_BASE_URL}/api/benchmark-runs/${runId}/export`,
+      { method: 'GET' }
+    );
+
+    if (!response.ok) {
+      const errorText = await response.text().catch(() => 'Unknown error');
+      const detail = parseErrorDetail(errorText);
+      throw new ApiError(
+        detail || `Failed to download run results: ${response.statusText} (${response.status})`,
+        response.status,
+        response.statusText
+      );
+    }
+
+    const blob = await response.blob();
+    const filename =
+      parseContentDispositionFilename(response.headers.get('Content-Disposition')) ??
+      (runName ? `${runName}.json` : `benchmark-run-${runId}.json`);
+
+    await saveBlobAsFile(blob, filename);
+  } catch (error) {
+    handleConnectError(error, 'Failed to download run results');
+  }
+}
+
 /**
  * Updates user verdict (user_evaluation) and notes (user_notes) for one benchmark_run_test_prompt row.
  */

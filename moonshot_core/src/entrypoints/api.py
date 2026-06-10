@@ -7,7 +7,7 @@ from contextlib import asynccontextmanager
 import sys
 
 from fastapi import FastAPI, Request, Response, HTTPException
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, Response
 import os
 from pathlib import Path
 from urllib.parse import urlparse
@@ -99,6 +99,10 @@ from application.services.benchmark_run_test_bundle_query_service import (
 from application.services.benchmark_run_prompt_service import BenchmarkRunPromptService
 from application.services.benchmark_run_results_query_service import (
     BenchmarkRunResultsQueryService,
+)
+from application.services.benchmark_run_results_export_service import (
+    BenchmarkRunResultsExportError,
+    BenchmarkRunResultsExportService,
 )
 from adapters.driven.repository.sqlalchemy.benchmark_run_test_status_adapter import (
     SqlAlchemyBenchmarkRunTestStatusRepository,
@@ -745,6 +749,51 @@ async def get_benchmark_run_results(run_id: int) -> BenchmarkRunResultsResponseD
         raise HTTPException(
             status_code=500,
             detail=f"Failed to fetch run results: {str(e)}",
+        )
+
+
+@app.get("/api/benchmark-runs/{run_id}/export")
+async def export_benchmark_run_results(run_id: int) -> Response:
+    """
+    Download GA Schema1 JSON for a completed benchmark run.
+
+    ``run_metadata.test_id`` equals ``run_metadata.run_id`` (the run name). One
+    ``run_results[]`` entry is emitted per benchmark test in the run.
+    """
+    try:
+        run_service = BenchmarkRunService()
+        run_entity = run_service.get_run_by_id(run_id)
+        if run_entity is None:
+            raise HTTPException(
+                status_code=404,
+                detail=f"Benchmark run not found: run_id={run_id}",
+            )
+
+        export_service = BenchmarkRunResultsExportService()
+        payload_json = export_service.export_run_json(run_id, redact_secrets=True)
+        if payload_json is None:
+            raise HTTPException(
+                status_code=404,
+                detail=f"Benchmark run not found: run_id={run_id}",
+            )
+
+        filename = f"{run_entity.name}.json"
+        return Response(
+            content=payload_json,
+            media_type="application/json",
+            headers={
+                "Content-Disposition": f'attachment; filename="{filename}"',
+            },
+        )
+    except BenchmarkRunResultsExportError as e:
+        raise HTTPException(status_code=409, detail=str(e)) from e
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error exporting run results for run_id={run_id}: {e}")
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to export run results: {str(e)}",
         )
 
 

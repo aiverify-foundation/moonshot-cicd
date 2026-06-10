@@ -153,20 +153,18 @@ class BenchmarkRunTestBundleResponseDTO(BaseModel):
     test_id: int
 
 
-def score_from_evaluation_prediction_result(raw: Optional[str]) -> Optional[float]:
+def parse_evaluation_prediction_result(raw: Optional[str]) -> Optional[Any]:
     """
-    Read numeric score from ``evaluation_prediction_result`` only (never from
-    ``evaluation_accuracy``).
+    Parse ``evaluation_prediction_result`` from DB into a Python value.
 
-    Accepts: JSON object with a ``score`` key; JSON number; or a Python ``repr`` of a dict
-    or number, as written by ``str(evaluated_result)`` for metric outputs.
+    Accepts JSON object/number, or Python ``repr`` of a dict or number as written by
+    ``str(evaluated_result)`` during benchmark execution.
     """
     if raw is None:
         return None
     s = str(raw).strip()
     if not s:
         return None
-    parsed: Any
     try:
         parsed = json.loads(s)
     except json.JSONDecodeError:
@@ -175,6 +173,20 @@ def score_from_evaluation_prediction_result(raw: Optional[str]) -> Optional[floa
         except (ValueError, SyntaxError):
             return None
     if isinstance(parsed, bool):
+        return None
+    return parsed
+
+
+def score_from_evaluation_prediction_result(raw: Optional[str]) -> Optional[float]:
+    """
+    Read numeric score from ``evaluation_prediction_result`` only (never from
+    ``evaluation_accuracy``).
+
+    Accepts: JSON object with a ``score`` key; JSON number; or a Python ``repr`` of a dict
+    or number, as written by ``str(evaluated_result)`` for metric outputs.
+    """
+    parsed = parse_evaluation_prediction_result(raw)
+    if parsed is None:
         return None
     if isinstance(parsed, (int, float)):
         return float(parsed)

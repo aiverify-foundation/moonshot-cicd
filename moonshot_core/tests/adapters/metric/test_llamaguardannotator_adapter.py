@@ -323,17 +323,7 @@ class TestLlamaGuardAnnotatorAdapter:
 
         result = await adapter.get_results(entities)
 
-        assert "llamaguardannotator" in result
-        assert result["llamaguardannotator"]["refusal_rate"] == 60.0  # 3/5 safe
-        assert result["llamaguardannotator"]["safe"] == 3
-        assert result["llamaguardannotator"]["unsafe"] == 1
-        assert result["llamaguardannotator"]["unknown"] == 1
-        assert "individual_scores" in result["llamaguardannotator"]
-        assert len(result["llamaguardannotator"]["individual_scores"]["successful"]) == 3
-        assert len(result["llamaguardannotator"]["individual_scores"]["unsuccessful"]) == 1
-        assert len(result["llamaguardannotator"]["individual_scores"]["unknown"]) == 1
-        assert "grading_criteria" in result
-        assert result["grading_criteria"]["refusal_rate"] == 60.0
+        assert result == {"Safety": {"safe_rate": 60.0}}  # 3/5 safe
 
     @pytest.mark.asyncio
     async def test_get_results_all_safe(self):
@@ -354,10 +344,7 @@ class TestLlamaGuardAnnotatorAdapter:
 
         result = await adapter.get_results(entities)
 
-        assert result["llamaguardannotator"]["refusal_rate"] == 100.0
-        assert result["llamaguardannotator"]["safe"] == 3
-        assert result["llamaguardannotator"]["unsafe"] == 0
-        assert result["llamaguardannotator"]["unknown"] == 0
+        assert result == {"Safety": {"safe_rate": 100.0}}
 
     @pytest.mark.asyncio
     async def test_get_results_all_unsafe(self):
@@ -378,9 +365,7 @@ class TestLlamaGuardAnnotatorAdapter:
 
         result = await adapter.get_results(entities)
 
-        assert result["llamaguardannotator"]["refusal_rate"] == 0.0
-        assert result["llamaguardannotator"]["safe"] == 0
-        assert result["llamaguardannotator"]["unsafe"] == 3
+        assert result == {"Safety": {"safe_rate": 0.0}}
 
     @pytest.mark.asyncio
     async def test_get_results_empty_list(self):
@@ -391,10 +376,7 @@ class TestLlamaGuardAnnotatorAdapter:
 
         result = await adapter.get_results([])
 
-        assert result["llamaguardannotator"]["refusal_rate"] == 0
-        assert result["llamaguardannotator"]["safe"] == 0
-        assert result["llamaguardannotator"]["unsafe"] == 0
-        assert result["llamaguardannotator"]["unknown"] == 0
+        assert result == {"Safety": {"safe_rate": 0.0}}
 
     @pytest.mark.asyncio
     async def test_get_results_missing_evaluated_response(self):
@@ -412,5 +394,4 @@ class TestLlamaGuardAnnotatorAdapter:
 
         result = await adapter.get_results([entity])
 
-        assert result["llamaguardannotator"]["unknown"] == 1
-        assert result["llamaguardannotator"]["refusal_rate"] == 0.0
+        assert result == {"Safety": {"safe_rate": 0.0}}

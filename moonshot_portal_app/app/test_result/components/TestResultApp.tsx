@@ -17,6 +17,7 @@ import {
   BenchmarkRunResultsBundleSummary,
   BenchmarkRunTestMarginOfError,
   BenchmarkRunTestPrompt,
+  downloadBenchmarkRunResults,
   fetchBenchmarkRunResults,
 } from "@/lib/api";
 
@@ -102,6 +103,8 @@ export default function TestResultApp() {
   const [testMargins, setTestMargins] = useState<BenchmarkRunTestMarginOfError[]>([]);
   const [loading, setLoading] = useState(!!benchmarkRunId);
   const [error, setError] = useState<string | null>(null);
+  const [downloading, setDownloading] = useState(false);
+  const [downloadError, setDownloadError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState(TAB_OVERVIEW);
   const [bundleTabScores, setBundleTabScores] = useState<
     Record<number, number | null>
@@ -112,6 +115,7 @@ export default function TestResultApp() {
     setActiveTab(TAB_OVERVIEW);
     setBundleTabScores({});
     setAllTabScore(null);
+    setDownloadError(null);
   }, [benchmarkRunId]);
 
   useEffect(() => {
@@ -199,6 +203,21 @@ export default function TestResultApp() {
   const displayTitle = run ? run.name : loading ? "Loading…" : "";
   const statusLabel = run ? mapStatusLabel(run.status) : "";
 
+  const handleDownload = async () => {
+    if (!benchmarkRunId) return;
+    setDownloading(true);
+    setDownloadError(null);
+    try {
+      await downloadBenchmarkRunResults(benchmarkRunId, run?.name);
+    } catch (e) {
+      setDownloadError(
+        e instanceof ApiError ? e.message : "Failed to download run results"
+      );
+    } finally {
+      setDownloading(false);
+    }
+  };
+
   const runTabs = useMemo(() => {
     if (resultBundles.length === 0) {
       const pts = prompts
@@ -272,11 +291,24 @@ export default function TestResultApp() {
           <Button
             className="font-extrabold text-[14px] text-white"
             style={{ backgroundColor: "#702F8A" }}
-            disabled={loading || !prompts.length}
+            disabled={
+              loading ||
+              downloading ||
+              !benchmarkRunId ||
+              !prompts.length ||
+              run?.status !== "completed"
+            }
+            onClick={handleDownload}
           >
-            Download
+            {downloading ? "Downloading…" : "Download"}
           </Button>
         </div>
+
+        {downloadError && (
+          <div className="mt-4 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-800">
+            <p>{downloadError}</p>
+          </div>
+        )}
 
         {error && (
           <div className="mt-4 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-800">

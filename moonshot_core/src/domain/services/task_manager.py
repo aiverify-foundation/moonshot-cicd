@@ -17,6 +17,10 @@ from domain.services.enums.module_types import ModuleTypes
 from domain.services.enums.test_types import TestTypes
 from domain.services.loader.file_loader import FileLoader
 from domain.services.loader.module_loader import ModuleLoader
+from domain.services.ga_results_formatter import (
+    convert_prompt_entities_to_dicts,
+    format_metadata as format_ga_metadata,
+)
 from domain.services.logger import configure_logger
 
 # Initialize a logger for this module
@@ -562,87 +566,8 @@ class TaskManager:
     def _convert_prompt_entities_to_dicts(
         self, prompt_entities: list[PromptEntity], metric: dict
     ) -> dict:
-        """
-        Convert a list of PromptEntity objects to a list of dictionaries.
-
-        Args:
-            prompt_entities (list[PromptEntity]): A list of PromptEntity instances to be converted.
-            metric (dict): The metric configuration.
-
-        Returns:
-            list[dict]: A list of dictionaries representing the prompt entities.
-        """
-
-        # get the metric configuration from the config file
-        try:
-            _, metric_id = self._load_module(
-                ModuleLoader,
-                metric["name"],
-                ModuleTypes.METRIC,
-                self.METRIC_LOADED_MSG,
-                self.ERROR_RETRIEVING_CONFIG_MSG,
-            )
-            app_config = AppConfig()
-            metric_config = app_config.get_metric_config(metric_id)
-            if metric_config is None:
-                logger.error(self.METRIC_CONFIG_NOT_FOUND_MSG.format(metric_id))
-                raise ValueError(self.METRIC_CONFIG_NOT_FOUND_MSG.format(metric_id))
-        except Exception as e:
-            logger.error(self.ERROR_RETRIEVING_CONFIG_MSG.format(metric_id, e))
-            raise
-
-        # if there is no need to categorise the results (i.e. results are continuous values and not discrete values)
-        if not metric_config.params.get("categorise_result"):
-            uncategorised_results = []
-            for prompt_entity in prompt_entities:
-                prompt_entity_dict = {
-                    "prompt_id": prompt_entity.index,
-                    "prompt": prompt_entity.evaluation_result.prompt,
-                    "predicted_result": {
-                        "response": prompt_entity.evaluation_result.predicted_result.response,
-                        "context": prompt_entity.evaluation_result.predicted_result.context,
-                    },
-                    "target": prompt_entity.evaluation_result.target,
-                    "evaluated_result": prompt_entity.evaluation_result.evaluated_result,
-                    "prompt_additional_info": prompt_entity.additional_info,
-                    "state": prompt_entity.state.value,
-                }
-                uncategorised_results.append(prompt_entity_dict)
-            return {"all_results": uncategorised_results}
-        else:
-            # Original categorization logic for metrics that need categorization
-            categorised_results = {}
-            for prompt_entity in prompt_entities:
-                evaluated_response = prompt_entity.evaluation_result.evaluated_result[
-                    "evaluated_response"
-                ]
-
-                # Create a new list for this evaluated_response if it doesn't exist
-                if evaluated_response not in categorised_results:
-                    categorised_results[evaluated_response] = []
-
-                prompt_entity_dict = {
-                    "prompt_id": prompt_entity.index,
-                    "prompt": prompt_entity.evaluation_result.prompt,
-                    "predicted_result": {
-                        "response": prompt_entity.evaluation_result.predicted_result.response,
-                        "context": prompt_entity.evaluation_result.predicted_result.context,
-                    },
-                    "target": prompt_entity.evaluation_result.target,
-                    "evaluated_result": prompt_entity.evaluation_result.evaluated_result,
-                    "prompt_additional_info": prompt_entity.additional_info,
-                    "state": prompt_entity.state.value,
-                }
-
-                # Append the prompt entity to the appropriate list
-                categorised_results[evaluated_response].append(prompt_entity_dict)
-
-            # Sort the dictionary by key
-            categorised_results = {
-                key: categorised_results[key] for key in sorted(categorised_results)
-            }
-
-            return categorised_results
+        """Delegate to shared GA Schema1 formatter."""
+        return convert_prompt_entities_to_dicts(prompt_entities, metric)
 
     def _format_metadata(
         self,
@@ -652,40 +577,10 @@ class TaskManager:
         connector_entity: ConnectorEntity,
         task_type: str,
     ) -> dict:
-        """
-        Format the metadata for the benchmark results.
-
-        Args:
-            test_name (str): The name of the test that has been run.
-            dataset (str): The name of the dataset module.
-            metric (dict): The metric information in dictionary.
-            connector_entity (ConnectorEntity): The connector entity configuration.
-            task_type (str): The type of the task (e.g., "benchmark", "scan").
-
-        Returns:
-            dict: The formatted metadata.
-        """
-        formatted_metadata = {
-            "test_name": test_name,
-            "dataset": dataset,
-            "metric": metric,
-            "type": task_type,
-            "connector": {
-                "connector_adapter": connector_entity.connector_adapter,
-                "model": connector_entity.model,
-                "model_endpoint": connector_entity.model_endpoint,
-                "params": connector_entity.params,
-                "connector_pre_prompt": connector_entity.connector_pre_prompt,
-                "connector_post_prompt": connector_entity.connector_post_prompt,
-                "system_prompt": connector_entity.system_prompt,
-            },
-        }
-
-        # Remove dataset for scan as we do not use dataset for our current attack modules
-        if task_type == "scan":
-            del formatted_metadata["dataset"]
-
-        return formatted_metadata
+        """Delegate to shared GA Schema1 formatter."""
+        return format_ga_metadata(
+            test_name, dataset, metric, connector_entity, task_type
+        )
 
     def _generate_prompts_from_run_test_id(
         self, run_test_id: int

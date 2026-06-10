@@ -269,6 +269,77 @@ def test_get_benchmark_run_returns_run(mock_service_class):
     mock_svc.get_run_by_id.assert_called_once_with(3)
 
 
+@patch("entrypoints.api.BenchmarkRunResultsExportService")
+@patch("entrypoints.api.BenchmarkRunService")
+def test_export_benchmark_run_not_found(
+    mock_run_service_class, mock_export_service_class
+):
+    """GET /api/benchmark-runs/{run_id}/export returns 404 when run is missing."""
+    mock_run_service_class.return_value.get_run_by_id.return_value = None
+
+    response = client.get("/api/benchmark-runs/999/export")
+    assert response.status_code == 404
+    mock_export_service_class.return_value.export_run_json.assert_not_called()
+
+
+@patch("entrypoints.api.BenchmarkRunResultsExportService")
+@patch("entrypoints.api.BenchmarkRunService")
+def test_export_benchmark_run_returns_attachment(
+    mock_run_service_class, mock_export_service_class
+):
+    """GET /api/benchmark-runs/{run_id}/export returns GA JSON attachment."""
+    t = datetime.now(timezone.utc)
+    mock_run_service_class.return_value.get_run_by_id.return_value = BenchmarkRunEntity(
+        id=5,
+        name="my-sample-run-3",
+        status="completed",
+        endpoint_type="LLM_Provider",
+        start_time=t,
+        end_time=t,
+    )
+    mock_export_service_class.return_value.export_run_json.return_value = (
+        '{"run_metadata": {"run_id": "my-sample-run-3"}}'
+    )
+
+    response = client.get("/api/benchmark-runs/5/export")
+    assert response.status_code == 200
+    assert response.headers["content-type"] == "application/json"
+    assert response.headers["content-disposition"] == (
+        'attachment; filename="my-sample-run-3.json"'
+    )
+    assert response.text == '{"run_metadata": {"run_id": "my-sample-run-3"}}'
+    mock_export_service_class.return_value.export_run_json.assert_called_once_with(
+        5, redact_secrets=True
+    )
+
+
+@patch("entrypoints.api.BenchmarkRunResultsExportService")
+@patch("entrypoints.api.BenchmarkRunService")
+def test_export_benchmark_run_incomplete_returns_409(
+    mock_run_service_class, mock_export_service_class
+):
+    """GET /api/benchmark-runs/{run_id}/export returns 409 when export is blocked."""
+    from application.services.benchmark_run_results_export_service import (
+        BenchmarkRunResultsExportError,
+    )
+
+    t = datetime.now(timezone.utc)
+    mock_run_service_class.return_value.get_run_by_id.return_value = BenchmarkRunEntity(
+        id=6,
+        name="running-run",
+        status="running",
+        endpoint_type="LLM_Provider",
+        start_time=t,
+    )
+    mock_export_service_class.return_value.export_run_json.side_effect = (
+        BenchmarkRunResultsExportError("Benchmark run 'running-run' is not completed")
+    )
+
+    response = client.get("/api/benchmark-runs/6/export")
+    assert response.status_code == 409
+    assert "not completed" in response.json()["detail"]
+
+
 @patch('entrypoints.api.get_build_directory')
 def test_static_files_with_referer(mock_get_build_dir):
     """Test that static files are served when accessed with proper referer header."""
