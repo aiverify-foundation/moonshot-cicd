@@ -146,18 +146,17 @@ export default function BundleSelectionPage() {
           >
             selected
           </CheckboxToggleButton>
-          <a 
-            href="#" 
-            className="ml-auto" 
+          <Button
+            variant="outline"
+            className="w-28 justify-center"
             data-testid="learn-more-link"
-            onClick={(e) => {
-              e.preventDefault();
+            onClick={() => {
               setSelectedBundle(bundle);
               setSheetOpen(true);
             }}
           >
             Learn more
-          </a>
+          </Button>
         </CardFooter>
       </Card>
     );
