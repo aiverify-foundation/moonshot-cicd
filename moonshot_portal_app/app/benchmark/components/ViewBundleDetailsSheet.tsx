@@ -109,10 +109,10 @@ function TestDetailCard({
           aria-label="Toggle test"
           size="sm"
         />
-        <Button 
-          variant="ghost" 
-          size="sm" 
-          className="text-sm"
+        <Button
+          variant="outline"
+          size="sm"
+          className="w-[110px] justify-center"
           onClick={() => {
             const testName = encodeURIComponent(test.name);
             const datasetId = encodeURIComponent(test.dataset.id);
