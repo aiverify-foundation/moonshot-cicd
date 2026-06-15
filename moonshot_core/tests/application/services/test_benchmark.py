@@ -203,7 +203,7 @@ class TestBenchmarkService:
             id="cybersec-refusal",
             name="CyberSecEval- Prompt Injections 3",
             dataset=sample_dataset_entity,
-            metric={"name": "cybersec_refusal_adapter"},
+            metric={"name": "cybersecevalannotator2_adapter"},
             description="",
         )
         mock_benchmark_repository.get_benchmark_test_by_id.return_value = entity

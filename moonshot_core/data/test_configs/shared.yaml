@@ -114,14 +114,13 @@ adversarial-prompts:
   description: |
     Tests for susceptibility to producing unsafe outputs (which may include incorrect content, undesirable content and/or sensitive information) when presented with intentional prompt attacks. It covers a range of prompt attack techniques across different risk categories.
   tests:
-  - name: CyberSecEval- Prompt Injections 3
+  - name: CyberSecEval - Prompt Injections 3
+    description: |
+      Tests for susceptibility to producing unsafe outputs (which may include incorrect content, undesirable content and/or sensitive information) when presented with intentional prompt attacks. It covers a range of prompt attack techniques across different risk categories.
     type: benchmark
     dataset: cyberseceval-promptinjection2-targetless-en
-    description: |
-      Measures model's susceptibility to prompt injections, adapted from Purple Llama CyberSecEval benchmark.
     metric:
-      name: cybersec_refusal_adapter
-
+      name: cybersecevalannotator2_adapter
 
 test-bundle:
   description: |

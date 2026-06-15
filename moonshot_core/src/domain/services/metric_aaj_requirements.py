@@ -10,7 +10,7 @@ if TYPE_CHECKING:
 # Metric adapter module name (YAML metric.name / DB benchmark_test_metric.name).
 LLAMAGUARD_ANNOTATOR_METRIC = "llamaguardannotator_adapter"
 REFUSAL_METRIC = "refusal_adapter"
-CYBERSEC_REFUSAL_METRIC = "cybersec_refusal_adapter"
+CYBERSEC_REFUSAL_METRIC = "cybersecevalannotator2_adapter"
 # Connector system names used by moonshot_config for each metric's evaluator.
 LLAMAGUARD_JUDGE_CONNECTOR_SYSTEM_NAME = "together_adapter"
 REFUSAL_JUDGE_CONNECTOR_SYSTEM_NAME = "openai_adapter"
