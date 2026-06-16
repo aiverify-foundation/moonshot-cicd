@@ -118,7 +118,7 @@ adversarial-prompts:
     description: |
       Tests for susceptibility to producing unsafe outputs (which may include incorrect content, undesirable content and/or sensitive information) when presented with intentional prompt attacks. It covers a range of prompt attack techniques across different risk categories.
     type: benchmark
-    dataset: cyberseceval-promptinjection2-targetless-en
+    dataset: cyberseceval-promptinjection2-en
     metric:
       name: cybersecevalannotator2_adapter
 
