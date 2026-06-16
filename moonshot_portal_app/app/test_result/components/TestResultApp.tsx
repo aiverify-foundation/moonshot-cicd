@@ -291,6 +291,7 @@ export default function TestResultApp() {
           <Button
             className="font-extrabold text-[14px] text-white"
             style={{ backgroundColor: "#702F8A" }}
+            data-testid="download-results-button"
             disabled={
               loading ||
               downloading ||

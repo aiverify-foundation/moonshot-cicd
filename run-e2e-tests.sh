@@ -162,6 +162,13 @@ seed_e2e_data() {
   python "${ROOT}/system_test/scripts/seed_e2e_data.py"
 }
 
+seed_download_run() {
+  echo "Seeding completed benchmark run for download tests..."
+  export MOONSHOT_DB_PATH="${E2E_DB_PATH}"
+  export PYTHONPATH="${ROOT}/moonshot_core"
+  python "${ROOT}/system_test/scripts/seed_completed_download_run.py"
+}
+
 run_playwright() {
   echo "Running Playwright system tests..."
   cd "${ROOT}/system_test"
@@ -191,6 +198,7 @@ main() {
   start_api
   wait_for_server
   seed_e2e_data
+  seed_download_run
   run_playwright "$@"
 }
 

@@ -7,15 +7,18 @@ const path = require('path');
  */
 module.exports = async function globalSetup() {
   const python = process.env.E2E_PYTHON || 'python3';
-  const script = path.join(__dirname, 'scripts', 'seed_e2e_data.py');
-  const result = spawnSync(python, [script], {
-    env: {
-      ...process.env,
-      BASE_URL: process.env.BASE_URL || 'http://localhost:8000',
-    },
-    stdio: 'inherit',
-  });
-  if (result.status !== 0) {
-    throw new Error(`E2E data seed failed (exit ${result.status ?? 'unknown'})`);
+  const scriptsDir = path.join(__dirname, 'scripts');
+  const env = {
+    ...process.env,
+    BASE_URL: process.env.BASE_URL || 'http://localhost:8000',
+    PYTHONPATH: process.env.PYTHONPATH || path.join(__dirname, '..', 'moonshot_core'),
+  };
+
+  for (const scriptName of ['seed_e2e_data.py', 'seed_completed_download_run.py']) {
+    const script = path.join(scriptsDir, scriptName);
+    const result = spawnSync(python, [script], { env, stdio: 'inherit' });
+    if (result.status !== 0) {
+      throw new Error(`${scriptName} failed (exit ${result.status ?? 'unknown'})`);
+    }
   }
 };

@@ -25,6 +25,7 @@ interface HistoryCardProps {
   progressValue: number;
   footerLine: string;
   href?: string;
+  runId?: number;
 }
 
 function mapRunStatusToDisplay(status: string): string {
@@ -43,6 +44,7 @@ const createHistoryCard = ({
   progressValue,
   footerLine,
   href = "/test_result",
+  runId,
 }: HistoryCardProps) => {
   const statusColors = {
     Complete: "bg-green-100 border-green-200 text-green-800",
@@ -72,7 +74,10 @@ const createHistoryCard = ({
         : "text-gray-600";
 
   return (
-    <Link href={href}>
+    <Link
+      href={href}
+      data-testid={runId != null ? `history-run-link-${runId}` : undefined}
+    >
       <Badge
         variant="outline"
         className="w-full p-4 bg-slate-50 border-slate-200 cursor-pointer hover:bg-slate-100 transition-colors"
@@ -217,6 +222,7 @@ export default function History() {
                     progressValue,
                     footerLine,
                     href: cardHref,
+                    runId: run.id ?? undefined,
                   })}
                 </div>
               );
