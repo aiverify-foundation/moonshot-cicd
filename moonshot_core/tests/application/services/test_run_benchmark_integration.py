@@ -252,8 +252,6 @@ async def test_run_benchmark_happy_path_write_to_db(
         return real_module_loader_load(module_name, module_type)
 
     task_manager = TaskManager()
-    # _load_module is called: 1) dataset, 2) prompt_processor, 3) metric (in _convert_prompt_entities_to_dicts)
-    mock_metric_for_convert = MagicMock()
     with (
         patch.object(task_manager, "_get_connector_config", return_value=connector_entity),
         patch.object(
@@ -262,7 +260,6 @@ async def test_run_benchmark_happy_path_write_to_db(
             side_effect=[
                 MagicMock(),  # dataset (not used when prompts from DB)
                 (AsyncioPromptProcessor(), "asyncio_pp"),
-                (mock_metric_for_convert, "refusal_adapter"),  # metric for result conversion
             ],
         ),
         patch.object(ModuleLoader, "load", side_effect=mock_load_module),
@@ -354,13 +351,11 @@ async def test_run_benchmark_twice_two_runs_updates_both(
         return real_module_loader_load(module_name, module_type)
 
     task_manager = TaskManager()
-    mock_metric_for_convert = MagicMock()
-    # Two runs: each run_benchmark uses 3 _load_module calls (dataset, prompt_processor, metric)
+    # Two runs: each run_benchmark uses 2 _load_module calls (dataset, prompt_processor)
     load_module_side_effect = []
     for _ in range(2):
         load_module_side_effect.append(MagicMock())
         load_module_side_effect.append((AsyncioPromptProcessor(), "asyncio_pp"))
-        load_module_side_effect.append((mock_metric_for_convert, "refusal_adapter"))
 
     with (
         patch.object(task_manager, "_get_connector_config", return_value=connector_entity),
@@ -466,12 +461,10 @@ async def test_run_benchmark_two_runs_two_tests_both_updated(
         return real_module_loader_load(module_name, module_type)
 
     task_manager = TaskManager()
-    mock_metric_for_convert = MagicMock()
     load_module_side_effect = []
     for _ in range(2):
         load_module_side_effect.append(MagicMock())
         load_module_side_effect.append((AsyncioPromptProcessor(), "asyncio_pp"))
-        load_module_side_effect.append((mock_metric_for_convert, "refusal_adapter"))
 
     with (
         patch.object(task_manager, "_get_connector_config", return_value=connector_entity),

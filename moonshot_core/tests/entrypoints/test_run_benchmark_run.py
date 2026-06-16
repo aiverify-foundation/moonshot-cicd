@@ -95,16 +95,14 @@ def _ensure_relational_openai_benchmark_ids() -> tuple[int, int, int]:
         return int(provider.id), int(model.id), int(cfg.id)
 
 
-def _make_load_module_side_effect(num_tests: int):
-    """Three _load_module results per test: dataset, prompt_processor, metric."""
+def _make_load_module_side_effect(num_run_benchmarks: int):
+    """Two _load_module results per run_benchmark: dataset, prompt_processor."""
     from adapters.prompt_processor.asyncio_prompt_processor_adapter import AsyncioPromptProcessor
 
-    mock_metric = MagicMock()
     return [
         MagicMock(),
         (AsyncioPromptProcessor(), "asyncio_pp"),
-        (mock_metric, "refusal_adapter"),
-    ] * num_tests
+    ] * num_run_benchmarks
 
 
 def _wait_for_result_file(absolute_result_path: Path, max_wait: float = 15) -> dict:

@@ -207,15 +207,14 @@ def _get_run_test_prompts(session_manager, run_test_id: int):
         ]
 
 
-def _make_load_module_side_effect(num_tests: int):
-    """Build _load_module side_effect list: 3 items per run_benchmark (dataset, prompt_processor, metric)."""
+def _make_load_module_side_effect(num_run_benchmarks: int):
+    """Build _load_module side_effect list: 2 items per run_benchmark (dataset, prompt_processor)."""
     from adapters.prompt_processor.asyncio_prompt_processor_adapter import AsyncioPromptProcessor
-    mock_metric = MagicMock()
+
     return [
         MagicMock(),
         (AsyncioPromptProcessor(), "asyncio_pp"),
-        (mock_metric, "refusal_adapter"),
-    ] * num_tests
+    ] * num_run_benchmarks
 
 
 
@@ -379,7 +378,7 @@ def test_execute_bundle_two_runs_back_to_back(
             return (mock_metric, "refusal_adapter")
         return real_module_loader_load(module_name, module_type)
 
-    # 2 runs × 1 test × 3 _load_module calls = 6
+    # 2 execute_bundle calls × 2 _load_module calls per run_benchmark = 4
     load_side_effect = _make_load_module_side_effect(2)
     with (
         patch.object(AppConfig, "DEFAULT_RESULTS_PATH", str(tmp_path)),
@@ -472,7 +471,7 @@ def test_execute_bundle_bundle_with_two_tests(
             return (mock_metric, "refusal_adapter")
         return real_module_loader_load(module_name, module_type)
 
-    # 2 tests run sequentially; 2 × 3 _load_module calls = 6
+    # 2 tests run sequentially; 2 × 2 _load_module calls per run_benchmark = 4
     with (
         patch.object(AppConfig, "DEFAULT_RESULTS_PATH", str(tmp_path)),
         patch.object(TaskManager, "_get_connector_config", return_value=connector_entity),
@@ -558,7 +557,7 @@ def test_execute_bundle_duplicate_run_name_no_new_run(
             return (mock_metric, "refusal_adapter")
         return real_module_loader_load(module_name, module_type)
 
-    # 2 calls × 1 test × 3 _load_module = 6
+    # 2 execute_bundle calls × 2 _load_module calls per run_benchmark = 4
     load_side_effect = _make_load_module_side_effect(2)
     with (
         patch.object(AppConfig, "DEFAULT_RESULTS_PATH", str(tmp_path)),

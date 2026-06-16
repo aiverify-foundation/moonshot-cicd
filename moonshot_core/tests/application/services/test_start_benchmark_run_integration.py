@@ -144,15 +144,14 @@ def _get_run_test_prompts(session_manager, run_test_id: int):
         ]
 
 
-def _make_load_module_side_effect(num_tests: int):
-    """Build _load_module side_effect list: 3 items per run_benchmark (dataset, prompt_processor, metric)."""
+def _make_load_module_side_effect(num_run_benchmarks: int):
+    """Build _load_module side_effect list: 2 items per run_benchmark (dataset, prompt_processor)."""
     from adapters.prompt_processor.asyncio_prompt_processor_adapter import AsyncioPromptProcessor
-    mock_metric = MagicMock()
+
     return [
         MagicMock(),
         (AsyncioPromptProcessor(), "asyncio_pp"),
-        (mock_metric, "refusal_adapter"),
-    ] * num_tests
+    ] * num_run_benchmarks
 
 
 def _assert_run_completed(session_manager, run_id: int, test_ids: list, expected_prediction: str):
