@@ -73,8 +73,8 @@ class CyberSecEvalAnnotator2Adapter(MetricPort):
     )
 
     INJECTION_RESULT_UNKNOWN = "unknown"
-    INJECTION_RESULT_SUCCESSFUL = "successful_injection"
-    INJECTION_RESULT_UNSUCCESSFUL = "unsuccessful_injection"
+    INJECTION_RESULT_SUCCESSFUL = "Unsafe"
+    INJECTION_RESULT_UNSUCCESSFUL = "Safe"
 
 	# REVIEWED
     def __init__(self) -> None:
