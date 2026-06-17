@@ -100,6 +100,40 @@ export function calculateSampleSize(
     return Math.ceil(n);
   }
 
+export function getConfidenceIntervalBounds(
+  testScorePct: number,
+  marginOfErrorPct: number
+): { lower: number; upper: number } {
+  return {
+    lower: Math.max(0, testScorePct - marginOfErrorPct),
+    upper: Math.min(100, testScorePct + marginOfErrorPct),
+  };
+}
+
+export interface SampleSizeInterpretationParams {
+  testScorePct: number;
+  perTestSampleSize: number;
+  confidenceLevelPct: number;
+  lower: number;
+  upper: number;
+  numberOfSelectedTests: number;
+}
+
+export function buildSampleSizeInterpretation({
+  testScorePct,
+  perTestSampleSize,
+  confidenceLevelPct,
+  lower,
+  upper,
+  numberOfSelectedTests,
+}: SampleSizeInterpretationParams): string {
+  const perTestSuffix = numberOfSelectedTests > 1 ? " per test" : "";
+  return (
+    `How to interpret: For a test score of ${testScorePct}%, ${perTestSampleSize} or more prompts${perTestSuffix} ` +
+    `are needed to have a confidence level of ${confidenceLevelPct}% that the real value is ${lower}%-${upper}%`
+  );
+}
+
 export default function SampleSizeCard() {
   const [populationMeanOpen, setPopulationMeanOpen] = React.useState(false);
   const [confidenceLevelOpen, setConfidenceLevelOpen] = React.useState(false);
@@ -139,20 +173,36 @@ export default function SampleSizeCard() {
     return countSelectedTestsAcrossBundles(testSelection, selectedBundleIds);
   }, [testSelection, selectedBundleIds]);
 
-  // Calculate recommended sample size based on selected values
-  const calculateRecommendedSampleSize = () => {
+  const sampleSizeValues = React.useMemo(() => {
     try {
+      const testScorePct = parseInt(selectedPopulationMean);
       const confidenceLevel = parseInt(selectedConfidenceLevel);
       const marginOfError = parseInt(selectedMarginOfError);
-      const populationMean = parseInt(selectedPopulationMean) / 100; // Convert to decimal
-      
-      return calculateSampleSize(confidenceLevel, marginOfError, populationMean) * numberOfSelectedTests;
-    } catch (error) {
-      return 0;
-    }
-  };
+      const populationMean = testScorePct / 100;
+      const perTestSampleSize = calculateSampleSize(confidenceLevel, marginOfError, populationMean);
+      const recommendedSampleSize = perTestSampleSize * numberOfSelectedTests;
+      const { lower, upper } = getConfidenceIntervalBounds(testScorePct, marginOfError);
+      const interpretationText = buildSampleSizeInterpretation({
+        testScorePct,
+        perTestSampleSize,
+        confidenceLevelPct: confidenceLevel,
+        lower,
+        upper,
+        numberOfSelectedTests,
+      });
 
-  const recommendedSampleSize = calculateRecommendedSampleSize();
+      return { perTestSampleSize, recommendedSampleSize, interpretationText };
+    } catch {
+      return { perTestSampleSize: 0, recommendedSampleSize: 0, interpretationText: "" };
+    }
+  }, [
+    selectedPopulationMean,
+    selectedConfidenceLevel,
+    selectedMarginOfError,
+    numberOfSelectedTests,
+  ]);
+
+  const { recommendedSampleSize, interpretationText } = sampleSizeValues;
 
   const sampleSizeToggleOptions = React.useMemo(
     () =>
@@ -354,7 +404,7 @@ export default function SampleSizeCard() {
                 </div>
                 
                 {/* Recommended Sample Size Alert */}
-                <div className="mt-4">
+                <div className="mt-4 space-y-4">
                   <Alert className="border-blue-200 bg-blue-50">
                     <AlertDescription className="flex justify-between items-center">
                       <span>Recommended sample size: {recommendedSampleSize} prompts</span>
@@ -377,6 +427,18 @@ export default function SampleSizeCard() {
                           </div>
                         </TooltipContent>
                       </Tooltip>
+                    </AlertDescription>
+                  </Alert>
+
+                  <Alert
+                    className="border-blue-200 bg-blue-50"
+                    data-testid="sample-size-interpretation-alert"
+                  >
+                    <AlertDescription
+                      className="text-sm text-slate-700"
+                      data-testid="sample-size-interpretation"
+                    >
+                      {interpretationText}
                     </AlertDescription>
                   </Alert>
                 </div>
