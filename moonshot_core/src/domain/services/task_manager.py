@@ -1,7 +1,7 @@
 import asyncio
 import json
 import os
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Callable, Optional
 
 from adapters.file_format.json_adapter import JsonAdapter
@@ -15,12 +15,12 @@ from domain.services.dataset_examples_converter import examples_to_prompts
 from domain.services.enums.file_types import FileTypes
 from domain.services.enums.module_types import ModuleTypes
 from domain.services.enums.test_types import TestTypes
-from domain.services.loader.file_loader import FileLoader
-from domain.services.loader.module_loader import ModuleLoader
 from domain.services.ga_results_formatter import (
     convert_prompt_entities_to_dicts,
-    format_metadata as format_ga_metadata,
 )
+from domain.services.ga_results_formatter import format_metadata as format_ga_metadata
+from domain.services.loader.file_loader import FileLoader
+from domain.services.loader.module_loader import ModuleLoader
 from domain.services.logger import configure_logger
 
 # Initialize a logger for this module
@@ -114,9 +114,9 @@ class TaskManager:
             str: The file path where the results are stored.
         """
         try:
-            # Record the start time of the benchmark
-            start_time = datetime.now()
-         
+            # Record the start time of the benchmark (UTC; matches benchmark_run.start_time and API contract)
+            start_time = datetime.now(timezone.utc)
+
             logger.info(
                 f"Benchmark started at: {start_time.strftime('%Y-%m-%d %H:%M:%S')}"
             )
@@ -174,15 +174,16 @@ class TaskManager:
                 else:
                     # TODO: proper default_test_id resolution (e.g. resolve from benchmark_test by test_name)
                     effective_test_id = test_id if test_id is not None else 1
+                    from adapters.driven.repository.sqlalchemy.benchmark_run_test_status_adapter import (  # noqa: WPS433
+                        SqlAlchemyBenchmarkRunTestStatusRepository,
+                    )
                     from application.services.benchmark_run_test_status_service import (  # noqa: WPS433
                         BenchmarkRunTestStatusService,
                     )
                     from domain.entities.benchmark_run_test_status_entity import (  # noqa: WPS433
                         BenchmarkRunTestStatusEntity,
                     )
-                    from adapters.driven.repository.sqlalchemy.benchmark_run_test_status_adapter import (  # noqa: WPS433
-                        SqlAlchemyBenchmarkRunTestStatusRepository,
-                    )
+
                     status_repo = SqlAlchemyBenchmarkRunTestStatusRepository()
                     existing_status = status_repo.get_by_run_and_test(
                         db_run_id, effective_test_id
@@ -197,7 +198,7 @@ class TaskManager:
                         BenchmarkRunTestStatusService().update_run_test_status(
                             saved_benchmark_run_test_status
                         )
-                    #else throw error
+                    # else throw error
 
             # Generate prompts: from DB run_test_prompts when write_to_db and run_test exists, else from dataset
             run_test_id = getattr(saved_benchmark_run_test_status, "id", None)
@@ -207,15 +208,15 @@ class TaskManager:
                 prompts = self._generate_prompts(dataset_entity)
             logger.info(self.INFO_PROMPTS_COUNT.format(count=len(prompts)))
             # Process the prompts and get results
-            prompts_with_results, evaluation_summary = (
-                await prompt_processor_instance[0].process_prompts(
-                    prompts,
-                    connector_entity,
-                    metric,
-                    callback_fn,
-                    write_to_db,
-                    run_test_id=run_test_id,
-                )
+            prompts_with_results, evaluation_summary = await prompt_processor_instance[
+                0
+            ].process_prompts(
+                prompts,
+                connector_entity,
+                metric,
+                callback_fn,
+                write_to_db,
+                run_test_id=run_test_id,
             )
 
             # Invoke the callback function to indicate the formatting stage
@@ -236,7 +237,7 @@ class TaskManager:
             }
 
             # Record the end time of the benchmark and calculate the duration
-            end_time = datetime.now()
+            end_time = datetime.now(timezone.utc)
             duration = (end_time - start_time).total_seconds()
             logger.info(f"Benchmark ended at: {end_time.strftime('%Y-%m-%d %H:%M:%S')}")
             logger.info(f"Benchmark duration: {duration} seconds")
@@ -247,6 +248,7 @@ class TaskManager:
                 from application.services.benchmark_run_test_status_service import (  # noqa: WPS433
                     BenchmarkRunTestStatusService,
                 )
+
                 BenchmarkRunTestStatusService().update_run_test_status(
                     saved_benchmark_run_test_status
                 )

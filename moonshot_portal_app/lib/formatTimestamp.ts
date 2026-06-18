@@ -38,6 +38,14 @@ export function formatRunTimestamp(
   })}`;
 }
 
+function formatMinuteCount(mins: number): string {
+  if (mins < 1) return "<1min";
+  if (mins < 60) return `${mins}min`;
+  const h = Math.floor(mins / 60);
+  const m = mins % 60;
+  return m ? `${h}h ${m}min` : `${h}h`;
+}
+
 export function formatDurationMinutes(
   startIso: string | null | undefined,
   endIso: string | null | undefined
@@ -50,9 +58,17 @@ export function formatDurationMinutes(
   const end = endDate.getTime();
   if (end < start) return null;
   const mins = Math.round((end - start) / 60000);
-  if (mins < 1) return "<1 min";
-  if (mins < 60) return `${mins}min`;
-  const h = Math.floor(mins / 60);
-  const m = mins % 60;
-  return m ? `${h}h ${m}min` : `${h}h`;
+  return formatMinuteCount(mins);
+}
+
+/** Elapsed time from a run or test start timestamp to now (or a fixed instant). */
+export function formatElapsedSinceStart(
+  startIso: string | null | undefined,
+  nowMs = Date.now()
+): string | null {
+  if (!startIso) return null;
+  const startDate = parseApiUtcTimestamp(startIso);
+  if (!startDate) return null;
+  const mins = Math.max(0, Math.round((nowMs - startDate.getTime()) / 60000));
+  return formatMinuteCount(mins);
 }

@@ -1,6 +1,6 @@
-from datetime import datetime
 import ast
 import json
+from datetime import datetime
 from typing import Any, Dict, List, Optional
 
 from pydantic import BaseModel, ConfigDict, Field, computed_field, model_validator
@@ -231,7 +231,9 @@ class BenchmarkRunTestPromptResponseDTO(BaseModel):
     @property
     def score(self) -> Optional[float]:
         """Numeric score parsed only from ``evaluation_prediction_result`` (see ``score_from_evaluation_prediction_result``)."""
-        return score_from_evaluation_prediction_result(self.evaluation_prediction_result)
+        return score_from_evaluation_prediction_result(
+            self.evaluation_prediction_result
+        )
 
 
 class PatchBenchmarkRunTestPromptUserDTO(BaseModel):
@@ -257,6 +259,19 @@ class BenchmarkRunTestMarginOfErrorDTO(BaseModel):
 
     test_id: int
     margin_of_error: float
+
+
+class BenchmarkRunTestStatusSummaryDTO(BaseModel):
+    """
+    Per-test execution timing from ``benchmark_run_test_status`` for the in-progress results UI.
+
+    ``start_dt`` is set when the test transitions to ``in_progress``; null while ``not_started``.
+    """
+
+    model_config = ConfigDict(arbitrary_types_allowed=True)
+
+    test_id: int
+    start_dt: Optional[datetime] = None
 
 
 class BenchmarkRunResultsBundleSummaryDTO(BaseModel):
@@ -289,5 +304,8 @@ class BenchmarkRunResultsResponseDTO(BaseModel):
     bundles: List[BenchmarkRunResultsBundleSummaryDTO]
     prompts: List[BenchmarkRunTestPromptResponseDTO]
     test_margin_of_error: List[BenchmarkRunTestMarginOfErrorDTO] = Field(
+        default_factory=list
+    )
+    test_run_status: List[BenchmarkRunTestStatusSummaryDTO] = Field(
         default_factory=list
     )

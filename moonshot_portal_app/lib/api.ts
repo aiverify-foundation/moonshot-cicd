@@ -271,6 +271,12 @@ export interface BenchmarkRunTestMarginOfError {
   margin_of_error: number;
 }
 
+/** Per-test execution timing from benchmark_run_test_status on GET .../results. */
+export interface BenchmarkRunTestStatusSummary {
+  test_id: number;
+  start_dt?: string | null;
+}
+
 /** GET /api/benchmark-runs/{run_id}/results */
 export interface BenchmarkRunResultsBundleSummary {
   test_bundle_id: number;
@@ -284,6 +290,7 @@ export interface BenchmarkRunResults {
   bundles: BenchmarkRunResultsBundleSummary[];
   prompts: BenchmarkRunTestPrompt[];
   test_margin_of_error: BenchmarkRunTestMarginOfError[];
+  test_run_status: BenchmarkRunTestStatusSummary[];
 }
 
 /** PATCH /api/benchmark-run-test-prompts/{prompt_id} */

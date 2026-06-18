@@ -1,5 +1,6 @@
 import {
   formatDurationMinutes,
+  formatElapsedSinceStart,
   formatRunTimestamp,
   parseApiUtcTimestamp,
 } from "@/lib/formatTimestamp";
@@ -65,5 +66,27 @@ describe("formatDurationMinutes", () => {
   it("returns null when start or end is missing", () => {
     expect(formatDurationMinutes(null, "2026-06-04T11:00:00")).toBeNull();
     expect(formatDurationMinutes("2026-06-04T10:00:00", null)).toBeNull();
+  });
+});
+
+describe("formatElapsedSinceStart", () => {
+  it("formats elapsed minutes from a naive UTC start", () => {
+    const nowMs = Date.parse("2026-06-04T10:12:00Z");
+    expect(formatElapsedSinceStart("2026-06-04T10:00:00", nowMs)).toBe("12min");
+  });
+
+  it("computes elapsed from naive UTC start_dt against a fixed now", () => {
+    const nowMs = Date.parse("2026-06-04T10:20:00Z");
+    expect(formatElapsedSinceStart("2026-06-04T10:00:00", nowMs)).toBe("20min");
+  });
+
+  it("parses start_dt with timezone suffix as UTC", () => {
+    const nowMs = Date.parse("2026-06-04T10:20:00Z");
+    expect(formatElapsedSinceStart("2026-06-04T10:00:00Z", nowMs)).toBe("20min");
+  });
+
+  it("does not add timezone offset for naive UTC start_dt (UTC+8 regression)", () => {
+    const nowMs = Date.parse("2026-06-04T02:30:00Z");
+    expect(formatElapsedSinceStart("2026-06-04T02:00:00", nowMs)).toBe("30min");
   });
 });

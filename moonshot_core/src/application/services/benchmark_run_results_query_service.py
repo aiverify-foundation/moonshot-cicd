@@ -20,12 +20,13 @@ from application.dto.run_bundle_dto import (
     BenchmarkRunResultsResponseDTO,
     BenchmarkRunTestMarginOfErrorDTO,
     BenchmarkRunTestPromptResponseDTO,
-)
-from application.services.bundle_score_confidence import (
-    margin_of_error_by_test,
+    BenchmarkRunTestStatusSummaryDTO,
 )
 from application.services.benchmark_run_prompt_service import BenchmarkRunPromptService
 from application.services.benchmark_run_service import BenchmarkRunService
+from application.services.bundle_score_confidence import (
+    margin_of_error_by_test,
+)
 from domain.entities.benchmark_run_test_prompt_entity import (
     BenchmarkRunTestPromptEntity,
 )
@@ -79,12 +80,19 @@ class BenchmarkRunResultsQueryService:
                 prompts, RUN_RESULTS_SCORE_CONFIDENCE_ALPHA
             )
         ]
+        status_repo = SqlAlchemyBenchmarkRunTestStatusRepository()
+        statuses = status_repo.get_all_by_run_id(run_id)
+        test_run_status = [
+            BenchmarkRunTestStatusSummaryDTO(test_id=s.test_id, start_dt=s.start_dt)
+            for s in statuses
+        ]
 
         return BenchmarkRunResultsResponseDTO(
             run=run_service.to_response_dto(run_entity),
             bundles=bundle_rows,
             prompts=prompts,
             test_margin_of_error=test_margins,
+            test_run_status=test_run_status,
         )
 
     def _run_test_enrichment_maps(
@@ -126,7 +134,9 @@ class BenchmarkRunResultsQueryService:
             }
         )
 
-    def _load_bundle_summaries(self, run_id: int) -> list[BenchmarkRunResultsBundleSummaryDTO]:
+    def _load_bundle_summaries(
+        self, run_id: int
+    ) -> list[BenchmarkRunResultsBundleSummaryDTO]:
         with SessionManager.get_instance().get_session() as session:
             rows = (
                 session.query(BenchmarkRunTestBundleModel, BenchmarkTestBundleModel)

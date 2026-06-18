@@ -2,6 +2,8 @@
 import { InfoIcon, XIcon } from "lucide-react"
 import React, { useState } from "react"
 import { BarChart, Bar, XAxis, YAxis, ResponsiveContainer, Cell, LabelList, Tooltip, ErrorBar, Text, ReferenceLine } from "recharts"
+import { BenchmarkRunResultsBundleSummary, BenchmarkRunTestPrompt, BenchmarkRunTestStatusSummary } from "@/lib/api"
+import TestResultInProgress from "./TestResultInProgress"
 
 function TestResultNote() {
     const [isVisible, setIsVisible] = useState(true)
@@ -282,6 +284,11 @@ export interface TestResultOverviewProps {
     bundleCharts?: OverviewBundleChart[]
     /** URL `debugMargin=1`: show margin / ErrorBar diagnostics on charts. */
     showMarginDebug?: boolean
+    /** When true, show only the in-progress progress card (no charts or note). */
+    isRunInProgress?: boolean
+    prompts?: BenchmarkRunTestPrompt[]
+    resultBundles?: BenchmarkRunResultsBundleSummary[]
+    testRunStatus?: BenchmarkRunTestStatusSummary[]
 }
 
 function gridClassForChartCount(n: number): string {
@@ -295,6 +302,10 @@ export default function TestResultOverview({
     overviewError = null,
     bundleCharts = [],
     showMarginDebug = false,
+    isRunInProgress = false,
+    prompts = [],
+    resultBundles = [],
+    testRunStatus = [],
 }: TestResultOverviewProps) {
     if (overviewLoading) {
         return (
@@ -305,6 +316,18 @@ export default function TestResultOverview({
     if (overviewError) {
         return (
             <div className="mt-4 text-sm text-red-600">{overviewError}</div>
+        )
+    }
+
+    if (isRunInProgress) {
+        return (
+            <div className="flex flex-col gap-4 mt-2">
+                <TestResultInProgress
+                  prompts={prompts}
+                  bundles={resultBundles}
+                  testRunStatus={testRunStatus}
+                />
+            </div>
         )
     }
 

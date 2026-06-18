@@ -17,6 +17,7 @@ import {
   BenchmarkRunResultsBundleSummary,
   BenchmarkRunTestMarginOfError,
   BenchmarkRunTestPrompt,
+  BenchmarkRunTestStatusSummary,
   downloadBenchmarkRunResults,
   fetchBenchmarkRunResults,
 } from "@/lib/api";
@@ -101,6 +102,7 @@ export default function TestResultApp() {
     []
   );
   const [testMargins, setTestMargins] = useState<BenchmarkRunTestMarginOfError[]>([]);
+  const [testRunStatus, setTestRunStatus] = useState<BenchmarkRunTestStatusSummary[]>([]);
   const [loading, setLoading] = useState(!!benchmarkRunId);
   const [error, setError] = useState<string | null>(null);
   const [downloading, setDownloading] = useState(false);
@@ -110,6 +112,8 @@ export default function TestResultApp() {
     Record<number, number | null>
   >({});
   const [allTabScore, setAllTabScore] = useState<number | null>(null);
+
+  const isRunInProgress = run?.status?.toLowerCase() === "running";
 
   useEffect(() => {
     setActiveTab(TAB_OVERVIEW);
@@ -124,6 +128,7 @@ export default function TestResultApp() {
       setPrompts([]);
       setResultBundles([]);
       setTestMargins([]);
+      setTestRunStatus([]);
       setLoading(false);
       setError(null);
       return;
@@ -134,6 +139,7 @@ export default function TestResultApp() {
     setPrompts([]);
     setResultBundles([]);
     setTestMargins([]);
+    setTestRunStatus([]);
     fetchBenchmarkRunResults(benchmarkRunId)
       .then((res) => {
         if (!cancelled) {
@@ -141,6 +147,7 @@ export default function TestResultApp() {
           setPrompts(res.prompts);
           setResultBundles(res.bundles);
           setTestMargins(res.test_margin_of_error ?? []);
+          setTestRunStatus(res.test_run_status ?? []);
           setLoading(false);
           if (res.bundles.length > 0) {
             setActiveTab((cur) => (cur === TAB_ALL ? TAB_OVERVIEW : cur));
@@ -153,6 +160,7 @@ export default function TestResultApp() {
           setPrompts([]);
           setResultBundles([]);
           setTestMargins([]);
+          setTestRunStatus([]);
           setLoading(false);
           setError(e instanceof ApiError ? e.message : "Failed to load run");
         }
@@ -161,6 +169,38 @@ export default function TestResultApp() {
       cancelled = true;
     };
   }, [benchmarkRunId]);
+
+  useEffect(() => {
+    if (!benchmarkRunId || run?.status?.toLowerCase() !== "running") return;
+
+    let cancelled = false;
+    const poll = () => {
+      fetchBenchmarkRunResults(benchmarkRunId)
+        .then((res) => {
+          if (cancelled) return;
+          setRun(res.run);
+          setPrompts(res.prompts);
+          setResultBundles(res.bundles);
+          setTestMargins(res.test_margin_of_error ?? []);
+          setTestRunStatus(res.test_run_status ?? []);
+        })
+        .catch(() => {
+          /* keep showing last snapshot while polling */
+        });
+    };
+
+    const interval = window.setInterval(poll, 5000);
+    return () => {
+      cancelled = true;
+      window.clearInterval(interval);
+    };
+  }, [benchmarkRunId, run?.status]);
+
+  useEffect(() => {
+    if (isRunInProgress) {
+      setActiveTab(TAB_OVERVIEW);
+    }
+  }, [isRunInProgress]);
 
   const marginPercentByTestId = useMemo(() => {
     const m = new Map<number, number>();
@@ -357,32 +397,33 @@ export default function TestResultApp() {
           </p>
         </button>
 
-        {runTabs.map((t) => (
-          <button
-            key={t.id}
-            type="button"
-            onClick={() => setActiveTab(t.id)}
-            className={`flex gap-[10px] items-center px-3 py-1.5 rounded-[3px] transition-colors max-w-[min(100%,280px)] ${
-              activeTab === t.id ? "bg-white" : "bg-transparent hover:bg-white/50"
-            }`}
-          >
-            <p
-              className={`font-semibold text-[14px] truncate ${
-                activeTab === t.id ? "text-slate-800" : "text-slate-600"
+        {!isRunInProgress &&
+          runTabs.map((t) => (
+            <button
+              key={t.id}
+              type="button"
+              onClick={() => setActiveTab(t.id)}
+              className={`flex gap-[10px] items-center px-3 py-1.5 rounded-[3px] transition-colors max-w-[min(100%,280px)] ${
+                activeTab === t.id ? "bg-white" : "bg-transparent hover:bg-white/50"
               }`}
-              title={t.label}
             >
-              {t.label}
-            </p>
-            {t.badge != null && (
-              <div className="bg-gray-100 border border-gray-200 flex gap-1 items-center justify-center p-1 rounded-[6px] shrink-0">
-                <p className="font-semibold text-[12px] text-gray-800 whitespace-nowrap">
-                  {t.badge}
-                </p>
-              </div>
-            )}
-          </button>
-        ))}
+              <p
+                className={`font-semibold text-[14px] truncate ${
+                  activeTab === t.id ? "text-slate-800" : "text-slate-600"
+                }`}
+                title={t.label}
+              >
+                {t.label}
+              </p>
+              {t.badge != null && (
+                <div className="bg-gray-100 border border-gray-200 flex gap-1 items-center justify-center p-1 rounded-[6px] shrink-0">
+                  <p className="font-semibold text-[12px] text-gray-800 whitespace-nowrap">
+                    {t.badge}
+                  </p>
+                </div>
+              )}
+            </button>
+          ))}
       </div>
 
       {showMarginDebug && (
@@ -452,7 +493,7 @@ export default function TestResultApp() {
         </div>
       )}
 
-      {resultBundles.length === 0 && (
+      {!isRunInProgress && resultBundles.length === 0 && (
         <div className={activeTab === TAB_ALL ? "" : "hidden"}>
           <TestResultBundle
             apiPrompts={prompts}
@@ -467,7 +508,8 @@ export default function TestResultApp() {
         </div>
       )}
 
-      {resultBundles.map((b) => (
+      {!isRunInProgress &&
+        resultBundles.map((b) => (
         <div
           key={b.test_bundle_id}
           className={activeTab === tabBundleId(b.test_bundle_id) ? "" : "hidden"}
@@ -490,12 +532,16 @@ export default function TestResultApp() {
         </div>
       ))}
 
-      {activeTab === TAB_OVERVIEW && (
+      {(isRunInProgress || activeTab === TAB_OVERVIEW) && (
         <TestResultOverview
           overviewLoading={loading}
           overviewError={error}
           bundleCharts={bundleCharts}
           showMarginDebug={showMarginDebug}
+          isRunInProgress={isRunInProgress}
+          prompts={prompts}
+          resultBundles={resultBundles}
+          testRunStatus={testRunStatus}
         />
       )}
     </main>
