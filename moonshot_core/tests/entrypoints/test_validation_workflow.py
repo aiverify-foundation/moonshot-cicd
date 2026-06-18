@@ -40,7 +40,7 @@ from process_check_app.backend.report_validation import validate_json
 from domain.services.app_config import AppConfig
 
 # test-bundle uses llamaguardannotator_adapter (OpenAI target + Together judge per prompt).
-TEST_BUNDLE_MAX_WAIT = 120
+TEST_BUNDLE_MAX_WAIT = 600
 
 
 # ============================================================================
