@@ -908,13 +908,10 @@ def test_get_benchmark_run_results_api(
     pre_response = client.get(f"/api/benchmark-runs/{run_id}/results")
     assert pre_response.status_code == 200, pre_response.text
     pre_data = pre_response.json()
-    pre_status = pre_data.get("test_run_status") or []
-    assert isinstance(pre_status, list)
-    assert len(pre_status) >= len(test_ids)
-    pre_by_tid = {row["test_id"]: row for row in pre_status}
-    for tid in test_ids:
-        assert tid in pre_by_tid
-        assert pre_by_tid[tid].get("start_dt") is None
+    # Status rows are created when execute_bundle runs, not at populate time.
+    assert (pre_data.get("test_run_status") or []) == []
+    assert set(pre_data["bundles"][0]["test_ids"]) == set(test_ids)
+    assert (pre_data.get("prompts") or []) == []
 
     mock_connector = MagicMock()
     mock_connector.get_response = AsyncMock(
