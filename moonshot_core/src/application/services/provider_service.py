@@ -1,3 +1,4 @@
+from domain.services.logger import get_logger
 ##TODO: Remove this service and use the SQLAlchemy implementation instead
 ## THIS IS MARKED FOR DELETION
 
@@ -28,7 +29,6 @@ from application.dto.model_config_dto import (
 )
 from application.services.sqlite_adapter import SQLiteAdapter
 from domain.ports.connector_port import ConnectorPort
-from domain.services.logger import configure_logger
 
 _ADAPTER_BY_SYSTEM_NAME: Dict[str, Type[ConnectorPort]] = {
     OpenAIAdapter.SYSTEM_NAME: OpenAIAdapter,
@@ -52,7 +52,7 @@ class ProviderService:
             provider_repository (ProviderRepository): The repository for provider data access.
         """
         self.provider_repository = LLMProviderAdapter()
-        self.logger = configure_logger(__name__)
+        self.logger = get_logger(__name__)
         self._session_manager = SessionManager.get_instance()
     
     def _provider_entity_to_dto(self, entity: ProviderEntity) -> ProviderDTO:

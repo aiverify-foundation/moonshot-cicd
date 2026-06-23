@@ -1,9 +1,10 @@
 """SQLAlchemy-based implementation of ProviderRepository."""
 
+from domain.services.logger import get_logger
+
 from typing import List, Optional, override
 from application.ports.provider_repository import ProviderRepository
 from domain.entities.provider_entity import ProviderEntity
-from domain.services.logger import configure_logger
 from adapters.driven.repository.sqlalchemy.session_manager import SessionManager
 from adapters.driven.repository.sqlalchemy.llm_provider_models import LLMProviderModel
 
@@ -18,7 +19,7 @@ class LLMProviderAdapter(ProviderRepository):
         Initialize the SQLAlchemy repository adapter with the SessionManager.
         """
         self.session_manager = SessionManager.get_instance()
-        self.logger = configure_logger(__name__)
+        self.logger = get_logger(__name__)
     
     def _model_to_entity(self, model: LLMProviderModel) -> ProviderEntity:
         """

@@ -1,10 +1,11 @@
 """SQLAlchemy-based implementation of MoonshotConfigRepository."""
 
+from domain.services.logger import get_logger
+
 from typing import Dict, Optional, override
 
 from application.ports.moonshot_config_repository import MoonshotConfigRepository
 from domain.entities.moonshot_config_entity import MoonshotConfigEntity
-from domain.services.logger import configure_logger
 from adapters.driven.repository.sqlalchemy.session_manager import SessionManager
 from adapters.driven.repository.sqlalchemy.llm_provider_models import MoonshotConfigModel
 
@@ -14,7 +15,7 @@ class MoonshotConfigAdapter(MoonshotConfigRepository):
 
     def __init__(self) -> None:
         self.session_manager = SessionManager.get_instance()
-        self.logger = configure_logger(__name__)
+        self.logger = get_logger(__name__)
 
     def _model_to_entity(self, model: MoonshotConfigModel) -> MoonshotConfigEntity:
         return MoonshotConfigEntity(id=model.id, key=model.key, value=model.value)

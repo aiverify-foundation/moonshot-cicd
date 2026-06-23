@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from domain.services.logger import get_logger
+
 from typing import override
 
 from adapters.driven.repository.sqlalchemy.llm_provider_models import LLMProviderApiKeyModel
@@ -12,14 +14,13 @@ from application.ports.llm_provider_api_key_repository import (
     LlmProviderApiKeyNotFoundError,
     LlmProviderApiKeyRepository,
 )
-from domain.services.logger import configure_logger
 from domain.services.secret_encryption import EncryptedApiKeyFields
 
 
 class LLMProviderApiKeyAdapter(LlmProviderApiKeyRepository):
     def __init__(self, session_manager: SessionManager | None = None) -> None:
         self._session_manager = session_manager or SessionManager.get_instance()
-        self._logger = configure_logger(__name__)
+        self._logger = get_logger(__name__)
 
     def _rows_for_provider(self, session, llm_provider_id: int) -> list[LLMProviderApiKeyModel]:
         return (

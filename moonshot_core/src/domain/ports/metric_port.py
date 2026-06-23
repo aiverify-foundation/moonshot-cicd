@@ -1,4 +1,4 @@
-import logging
+from domain.services.logger import get_logger
 from abc import ABC, abstractmethod
 
 from domain.entities.metric_config_entity import MetricConfigEntity
@@ -6,7 +6,7 @@ from domain.entities.metric_individual_entity import MetricIndividualEntity
 from domain.services.app_config import AppConfig
 
 # Initialize a logger for this module
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 
 class MetricPort(ABC):

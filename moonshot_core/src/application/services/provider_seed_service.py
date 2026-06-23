@@ -1,3 +1,4 @@
+from domain.services.logger import get_logger
 from typing import List, Optional
 
 from application.ports.provider_repository import ProviderRepository
@@ -5,7 +6,6 @@ from adapters.connector.openai_adapter import OpenAIAdapter
 from adapters.connector.together_adapter import TogetherAdapter
 from adapters.driven.repository.sqlalchemy.llm_provider_adapter import LLMProviderAdapter
 from domain.entities.provider_entity import ProviderEntity
-from domain.services.logger import configure_logger
 
 
 class ProviderSeedService:
@@ -19,7 +19,7 @@ class ProviderSeedService:
     """
 
     def __init__(self, provider_repository: Optional[ProviderRepository] = None) -> None:
-        self.logger = configure_logger(__name__)
+        self.logger = get_logger(__name__)
         self.provider_repository: ProviderRepository = provider_repository or LLMProviderAdapter()
 
     def _get_adapter_provider_definitions(self) -> list[dict]:

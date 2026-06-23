@@ -1,5 +1,7 @@
 """SQLAlchemy-based implementation of BenchmarkRunTestStatusRepository."""
 
+from domain.services.logger import get_logger
+
 from typing import Optional, override
 
 from adapters.driven.repository.sqlalchemy.llm_provider_models import \
@@ -10,7 +12,6 @@ from application.ports.benchmark_run_test_status_repository import \
     BenchmarkRunTestStatusRepository
 from domain.entities.benchmark_run_test_status_entity import \
     BenchmarkRunTestStatusEntity
-from domain.services.logger import configure_logger
 
 
 class SqlAlchemyBenchmarkRunTestStatusRepository(BenchmarkRunTestStatusRepository):
@@ -22,7 +23,7 @@ class SqlAlchemyBenchmarkRunTestStatusRepository(BenchmarkRunTestStatusRepositor
 
     def __init__(self):
         self.session_manager = SessionManager.get_instance()
-        self.logger = configure_logger(__name__)
+        self.logger = get_logger(__name__)
 
     def _model_to_entity(
         self, model: BenchmarkRunTestStatusModel

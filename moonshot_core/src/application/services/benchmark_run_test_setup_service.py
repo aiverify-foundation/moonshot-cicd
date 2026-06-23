@@ -5,6 +5,8 @@ Given benchmark_run_id and benchmark_test_id, inserts one benchmark_run_test_sta
 and one benchmark_run_test_prompt per dataset prompt, with target and prompt filled.
 """
 
+from domain.services.logger import get_logger
+
 from typing import List, Optional
 
 from application.ports.benchmark_run_test_prompt_repository import (
@@ -20,7 +22,6 @@ from domain.entities.benchmark_run_test_prompt_entity import (
 from domain.entities.benchmark_run_test_status_entity import (
     BenchmarkRunTestStatusEntity,
 )
-from domain.services.logger import configure_logger
 from application.services.benchmark_run_test_status_service import (
     BenchmarkRunTestStatusService,
 )
@@ -61,7 +62,7 @@ class BenchmarkRunTestSetupService:
         self._prompt_repo = prompt_repository or SqlAlchemyBenchmarkRunTestPromptRepository()
         self._config = config_adapter or BenchmarkTestConfigAdapter()
         self._dataset_repo = dataset_repository or SqlAlchemyDatasetRepository()
-        self.logger = configure_logger(__name__)
+        self.logger = get_logger(__name__)
 
     def create_run_test_with_prompts(
         self,

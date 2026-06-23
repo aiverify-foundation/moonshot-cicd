@@ -1,3 +1,4 @@
+from domain.services.logger import get_logger
 from typing import Any, Dict, List, Optional
 
 from application.ports.dataset_repository import DatasetRepository
@@ -8,7 +9,6 @@ from domain.entities.dataset_entity import DatasetEntity
 from domain.services.loader.file_loader import FileLoader, FileTypes
 from application.services.utils import load_module
 from domain.services.app_config import AppConfig
-from domain.services.logger import configure_logger
 
 class FileDatasetRepository(DatasetRepository):
     """
@@ -30,7 +30,7 @@ class FileDatasetRepository(DatasetRepository):
         super().__init__(dataset_source)
         
         # Initialize logger
-        self.logger = configure_logger(__name__)
+        self.logger = get_logger(__name__)
         if self.dataset_source is None:
             self.dataset_source = AppConfig.DEFAULT_DATASETS_PATH
         

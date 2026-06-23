@@ -11,13 +11,14 @@ are provided at construction, seed_if_test_file_changed() can be used to seed on
 config file has changed (mtime check), seeding datasets first then bundles/tests/groupings.
 """
 
+from domain.services.logger import get_logger
+
 import re
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Optional
 
 import yaml
 
-from domain.services.logger import configure_logger
 from domain.services.app_config import AppConfig
 from application.services.utils import get_application_root_path
 from adapters.driven.repository.sqlalchemy.benchmark_test_config_adapter import (
@@ -75,7 +76,7 @@ class SharedConfigSeedService:
         self._moonshot_config = moonshot_config_repository
         self._shared_config_repo = shared_config_repository
         self._dataset_seed_service = benchmark_dataset_seed_service
-        self.logger = configure_logger(__name__)
+        self.logger = get_logger(__name__)
 
     def _default_config_path(self) -> Path:
         """Return default path to shared.yaml under data/test_configs."""

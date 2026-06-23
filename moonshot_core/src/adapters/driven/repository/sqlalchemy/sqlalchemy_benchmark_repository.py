@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from domain.services.logger import get_logger
+
 from sqlalchemy import func
 from sqlalchemy.orm import joinedload
 
@@ -18,7 +20,6 @@ from application.ports.dataset_repository import DatasetRepository
 from domain.entities.benchmark_test_entity import BenchmarkTestEntity
 from domain.entities.dataset_entity import DatasetEntity
 from domain.entities.test_bundle_entity import TestBundleEntity
-from domain.services.logger import configure_logger
 
 
 class SqlAlchemyBenchmarkRepository(BenchmarkRepository):
@@ -32,7 +33,7 @@ class SqlAlchemyBenchmarkRepository(BenchmarkRepository):
         super().__init__(None)
         self._dataset_repository = dataset_repository
         self._session_manager = SessionManager.get_instance()
-        self._logger = configure_logger(__name__)
+        self._logger = get_logger(__name__)
 
     def get_dataset_by_id(self, dataset_id: str) -> DatasetEntity:
         return self._dataset_repository.get_dataset_by_id(dataset_id)

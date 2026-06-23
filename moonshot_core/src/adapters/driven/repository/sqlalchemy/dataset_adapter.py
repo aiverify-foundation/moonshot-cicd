@@ -1,5 +1,7 @@
 """SQLAlchemy-based implementation of DatasetRepository."""
 
+from domain.services.logger import get_logger
+
 from typing import Optional, override
 
 from sqlalchemy import func
@@ -14,7 +16,6 @@ from domain.services.dataset_examples_converter import (
     examples_to_prompts,
     prompts_to_examples,
 )
-from domain.services.logger import configure_logger
 from adapters.driven.repository.sqlalchemy.session_manager import SessionManager
 from adapters.driven.repository.sqlalchemy.llm_provider_models import (
     BenchmarkTestDatasetModel,
@@ -33,7 +34,7 @@ class SqlAlchemyDatasetRepository(DatasetRepository):
     def __init__(self, dataset_source: Optional[object] = None):
         super().__init__(dataset_source)
         self.session_manager = SessionManager.get_instance()
-        self.logger = configure_logger(__name__)
+        self.logger = get_logger(__name__)
 
     def _parse_dataset_id(self, dataset_id: str) -> int:
         """Parse and validate dataset_id; raise ValueError if invalid."""

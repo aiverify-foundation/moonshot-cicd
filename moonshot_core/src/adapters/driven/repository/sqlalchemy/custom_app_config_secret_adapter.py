@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from domain.services.logger import get_logger
+
 from typing import List, override
 
 from adapters.driven.repository.sqlalchemy.llm_provider_models import (
@@ -13,14 +15,13 @@ from application.ports.custom_app_config_secret_repository import (
     CustomAppConfigSecretNotFoundError,
     CustomAppConfigSecretRepository,
 )
-from domain.services.logger import configure_logger
 from domain.services.secret_encryption import EncryptedApiKeyFields
 
 
 class CustomAppConfigSecretAdapter(CustomAppConfigSecretRepository):
     def __init__(self, session_manager: SessionManager | None = None) -> None:
         self._session_manager = session_manager or SessionManager.get_instance()
-        self._logger = configure_logger(__name__)
+        self._logger = get_logger(__name__)
 
     def _row_to_fields(self, row: CustomAppConfigSecretsModel) -> EncryptedApiKeyFields:
         return EncryptedApiKeyFields(

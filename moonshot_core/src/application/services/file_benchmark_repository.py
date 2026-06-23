@@ -1,3 +1,4 @@
+from domain.services.logger import get_logger
 from typing import Any, Dict, List, Optional
 from application.ports.benchmark_repository import BenchmarkRepository
 from application.ports.dataset_repository import DatasetRepository
@@ -8,7 +9,6 @@ from domain.entities.test_bundle_entity import TestBundleEntity
 from domain.services.loader.file_loader import FileLoader, FileTypes
 from application.services.utils import load_module
 from domain.services.app_config import AppConfig
-from domain.services.logger import configure_logger
 from domain.entities.dataset_entity import DatasetEntity
 from domain.entities.benchmark_test_entity import BenchmarkTestEntity
 
@@ -35,7 +35,7 @@ class FileBenchmarkRepository(BenchmarkRepository):
         super().__init__(benchmark_source)
         
         # Initialize logger
-        self.logger = configure_logger(__name__)
+        self.logger = get_logger(__name__)
         if self.benchmark_source is None:
             self.benchmark_source = AppConfig().get_benchmark_source()
         

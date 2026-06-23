@@ -1,10 +1,8 @@
 import asyncio
-import logging
 from typing import Any, Generator
 
 import click
 import toml
-from rich.logging import RichHandler
 from rich.panel import Panel
 from rich.progress import (
     BarColumn,
@@ -16,14 +14,12 @@ from rich.progress import (
 )
 from rich.table import Column
 
+from domain.services.logger import configure_logger
+
+logger = configure_logger(__name__)
+
 from adapters.api.api_adapter import ApiAdapter
 from domain.services.app_config import AppConfig
-
-# Configure rich logging
-logging.basicConfig(
-    level="INFO", format="%(message)s", datefmt="[%X]", handlers=[RichHandler()]
-)
-logger = logging.getLogger("rich")
 
 with open("pyproject.toml", "r") as f:
     pyproject = toml.load(f)

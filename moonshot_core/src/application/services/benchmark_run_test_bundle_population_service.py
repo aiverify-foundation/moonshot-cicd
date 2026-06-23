@@ -5,10 +5,11 @@ The service performs all saves via the repository; the entity is data-only and n
 saves itself.
 """
 
+from domain.services.logger import get_logger
+
 from typing import List, Optional
 
 from domain.entities.benchmark_run_test_bundle_entity import BenchmarkRunTestBundleEntity
-from domain.services.logger import configure_logger
 from application.ports.benchmark_run_test_bundle_repository import (
     BenchmarkRunTestBundleRepository,
 )
@@ -37,7 +38,7 @@ class BenchmarkRunTestBundlePopulationService:
     ) -> None:
         self._repo = run_test_bundle_repository or SqlAlchemyBenchmarkRunTestBundleRepository()
         self._config = config_adapter or BenchmarkTestConfigAdapter()
-        self.logger = configure_logger(__name__)
+        self.logger = get_logger(__name__)
 
     def insert_run_test_bundle(
         self,

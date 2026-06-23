@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from domain.services.logger import get_logger
+
 from datetime import datetime, timezone
 from typing import Dict, List, Optional, override
 
@@ -15,7 +17,6 @@ from adapters.driven.repository.sqlalchemy.llm_provider_models import (
 from adapters.driven.repository.sqlalchemy.session_manager import SessionManager
 from application.ports.custom_app_config_repository import CustomAppConfigRepository
 from domain.entities.custom_app_config_entity import CustomAppConfigEntity
-from domain.services.logger import configure_logger
 
 
 def _utc_naive_now() -> datetime:
@@ -25,7 +26,7 @@ def _utc_naive_now() -> datetime:
 class CustomAppConfigAdapter(CustomAppConfigRepository):
     def __init__(self, session_manager: SessionManager | None = None) -> None:
         self._session_manager = session_manager or SessionManager.get_instance()
-        self._logger = configure_logger(__name__)
+        self._logger = get_logger(__name__)
 
     def _model_to_entity(self, model: CustomAppConfigModel) -> CustomAppConfigEntity:
         return CustomAppConfigEntity(

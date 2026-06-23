@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from domain.services.logger import get_logger
+
 from adapters.driven.repository.sqlalchemy.custom_app_config_adapter import (
     CustomAppConfigAdapter,
 )
@@ -15,7 +17,6 @@ from application.ports.custom_app_config_secret_repository import (
     CustomAppConfigSecretRepository,
 )
 from application.services.secrets_master_key_service import SecretsMasterKeyService
-from domain.services.logger import configure_logger
 from domain.services.secret_encryption import (
     EncryptedApiKeyFields,
     LegacyApiKeyStorageError,
@@ -43,7 +44,7 @@ class CustomAppConfigSecretService:
         self._secrets_master_key = secrets_master_key or SecretsMasterKeyService(
             MoonshotConfigAdapter()
         )
-        self._logger = configure_logger(__name__)
+        self._logger = get_logger(__name__)
 
     def _ensure_config_exists(self, config_id: int) -> None:
         if self._config_repository.get_by_id(config_id) is None:

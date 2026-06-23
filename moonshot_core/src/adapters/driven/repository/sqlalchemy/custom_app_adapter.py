@@ -2,19 +2,20 @@
 
 from __future__ import annotations
 
+from domain.services.logger import get_logger
+
 from typing import List, Optional, override
 
 from adapters.driven.repository.sqlalchemy.llm_provider_models import CustomAppModel
 from adapters.driven.repository.sqlalchemy.session_manager import SessionManager
 from application.ports.custom_app_repository import CustomAppRepository
 from domain.entities.custom_app_entity import CustomAppEntity
-from domain.services.logger import configure_logger
 
 
 class CustomAppAdapter(CustomAppRepository):
     def __init__(self, session_manager: SessionManager | None = None) -> None:
         self._session_manager = session_manager or SessionManager.get_instance()
-        self._logger = configure_logger(__name__)
+        self._logger = get_logger(__name__)
 
     def _model_to_entity(self, model: CustomAppModel) -> CustomAppEntity:
         return CustomAppEntity(id=model.id, name=model.name)

@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from domain.services.logger import get_logger
+
 from sqlalchemy.exc import IntegrityError
 
 from adapters.driven.repository.sqlalchemy.custom_app_adapter import CustomAppAdapter
@@ -21,7 +23,6 @@ from application.ports.custom_app_repository import CustomAppRepository
 from application.services.custom_app_config_secret_service import (
     CustomAppConfigSecretService,
 )
-from domain.services.logger import configure_logger
 
 
 class DatabaseCustomAppConfigNotFoundError(Exception):
@@ -45,7 +46,7 @@ class DatabaseCustomAppService:
         session_manager: SessionManager | None = None,
     ) -> None:
         self._repository = repository or CustomAppAdapter(session_manager)
-        self._logger = configure_logger(__name__)
+        self._logger = get_logger(__name__)
 
     def list_apps(self) -> list[CustomAppResponseDTO]:
         return [
@@ -73,7 +74,7 @@ class DatabaseCustomAppConfigService:
         self._secret_service = secret_service or CustomAppConfigSecretService(
             session_manager=session_manager
         )
-        self._logger = configure_logger(__name__)
+        self._logger = get_logger(__name__)
 
     def list_configs(self, custom_app_id: int) -> list[CustomAppConfigResponseDTO]:
         if self._app_repository.get_by_id(custom_app_id) is None:

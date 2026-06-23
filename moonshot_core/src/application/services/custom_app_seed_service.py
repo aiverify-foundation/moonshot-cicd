@@ -1,8 +1,8 @@
+from domain.services.logger import get_logger
 from typing import Optional
 
 from adapters.driven.repository.sqlalchemy.custom_app_adapter import CustomAppAdapter
 from application.ports.custom_app_repository import CustomAppRepository
-from domain.services.logger import configure_logger
 
 
 class CustomAppSeedService:
@@ -11,7 +11,7 @@ class CustomAppSeedService:
     DEFAULT_CUSTOM_APPS = ("API Connector",)
 
     def __init__(self, custom_app_repository: Optional[CustomAppRepository] = None) -> None:
-        self.logger = configure_logger(__name__)
+        self.logger = get_logger(__name__)
         self.custom_app_repository = custom_app_repository or CustomAppAdapter()
 
     def seed_hardcoded_custom_apps(self) -> None:

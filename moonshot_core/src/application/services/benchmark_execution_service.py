@@ -114,6 +114,7 @@ def _run_bundle_in_process(
     """
     if skip_alembic_upgrade:
         set_skip_alembic_upgrade(True)
+    configure_logger(__name__)
     try:
         execution_service = BenchmarkExecutionService()
         execution_service.execute_bundle(

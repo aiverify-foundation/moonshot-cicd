@@ -1,10 +1,11 @@
 """SQLAlchemy adapter for seeding benchmark_test_bundle, benchmark_test, and benchmark_test_bundle_grouping."""
 
+from domain.services.logger import get_logger
+
 from typing import Optional
 
 from sqlalchemy.exc import IntegrityError
 
-from domain.services.logger import configure_logger
 from adapters.driven.repository.sqlalchemy.session_manager import SessionManager
 from adapters.driven.repository.sqlalchemy.llm_provider_models import (
     BenchmarkTestDatasetModel,
@@ -25,7 +26,7 @@ class BenchmarkTestConfigAdapter:
 
     def __init__(self) -> None:
         self.session_manager = SessionManager.get_instance()
-        self.logger = configure_logger(__name__)
+        self.logger = get_logger(__name__)
 
     def get_or_create_metric(self, name: str) -> int:
         """

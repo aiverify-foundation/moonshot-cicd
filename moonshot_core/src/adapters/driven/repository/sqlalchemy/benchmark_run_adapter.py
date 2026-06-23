@@ -1,5 +1,7 @@
 """SQLAlchemy-based implementation of BenchmarkRunRepository."""
 
+from domain.services.logger import get_logger
+
 from datetime import datetime, timezone
 from typing import Optional, override
 
@@ -9,7 +11,6 @@ from adapters.driven.repository.sqlalchemy.session_manager import \
     SessionManager
 from application.ports.benchmark_run_repository import BenchmarkRunRepository
 from domain.entities.benchmark_run_entity import BenchmarkRunEntity
-from domain.services.logger import configure_logger
 
 
 class SqlAlchemyBenchmarkRunRepository(BenchmarkRunRepository):
@@ -21,7 +22,7 @@ class SqlAlchemyBenchmarkRunRepository(BenchmarkRunRepository):
 
     def __init__(self):
         self.session_manager = SessionManager.get_instance()
-        self.logger = configure_logger(__name__)
+        self.logger = get_logger(__name__)
 
     def _model_to_entity(self, model: BenchmarkRunModel) -> BenchmarkRunEntity:
         """Map BenchmarkRunModel to BenchmarkRunEntity."""

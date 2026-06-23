@@ -11,8 +11,12 @@ from fastapi.responses import FileResponse, Response
 import os
 from pathlib import Path
 from urllib.parse import urlparse
-from domain.services.app_config import AppConfig
+
 from domain.services.logger import configure_logger
+
+logger = configure_logger(__name__)
+
+from domain.services.app_config import AppConfig
 from application.services.benchmark import BenchmarkService
 from adapters.driven.repository.sqlalchemy.dataset_adapter import SqlAlchemyDatasetRepository
 from adapters.driven.repository.sqlalchemy.sqlalchemy_benchmark_repository import (
@@ -109,9 +113,6 @@ from adapters.driven.repository.sqlalchemy.benchmark_run_test_status_adapter imp
 )
 # Comment out this import to disable CORS middleware ( This is used for local development only)
 from entrypoints.cors_middleware_setup import configure_cors_middleware
-
-# Configure the logger for this module
-logger = configure_logger(__name__)
 
 
 @asynccontextmanager

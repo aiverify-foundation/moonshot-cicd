@@ -6,8 +6,9 @@ and persists it using a target DatasetRepository (e.g. SqlAlchemyDatasetReposito
 from dataset_adapter.py).
 """
 
+from domain.services.logger import get_logger
+
 from application.ports.dataset_repository import DatasetRepository
-from domain.services.logger import configure_logger
 
 
 class BenchmarkDatasetSeedService:
@@ -27,7 +28,7 @@ class BenchmarkDatasetSeedService:
     ):
         self.source = source_dataset_repository
         self.target = target_dataset_repository
-        self.logger = configure_logger(__name__)
+        self.logger = get_logger(__name__)
 
     def seed_benchmark_dataset(self, dataset_id: str) -> None:
         """

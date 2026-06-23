@@ -1,5 +1,7 @@
 """SQLAlchemy-based implementation of BenchmarkRunTestPromptRepository."""
 
+from domain.services.logger import get_logger
+
 from typing import Optional, override
 
 from adapters.driven.repository.sqlalchemy.llm_provider_models import (
@@ -11,7 +13,6 @@ from application.ports.benchmark_run_test_prompt_repository import \
     BenchmarkRunTestPromptRepository
 from domain.entities.benchmark_run_test_prompt_entity import \
     BenchmarkRunTestPromptEntity
-from domain.services.logger import configure_logger
 
 
 class SqlAlchemyBenchmarkRunTestPromptRepository(BenchmarkRunTestPromptRepository):
@@ -24,7 +25,7 @@ class SqlAlchemyBenchmarkRunTestPromptRepository(BenchmarkRunTestPromptRepositor
 
     def __init__(self):
         self.session_manager = SessionManager.get_instance()
-        self.logger = configure_logger(__name__)
+        self.logger = get_logger(__name__)
 
     def _model_to_entity(
         self, model: BenchmarkRunTestPromptModel

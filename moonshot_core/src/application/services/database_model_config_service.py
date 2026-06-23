@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from domain.services.logger import get_logger
+
 from datetime import datetime, timezone
 from typing import Dict
 
@@ -20,7 +22,6 @@ from application.dto.model_config_dto import (
     ModelConfigDTO,
     UpdateDatabaseModelConfigBody,
 )
-from domain.services.logger import configure_logger
 
 
 class DatabaseModelConfigNotFoundError(Exception):
@@ -44,7 +45,7 @@ class DatabaseModelConfigService:
 
     def __init__(self, session_manager: SessionManager | None = None) -> None:
         self._session_manager = session_manager or SessionManager.get_instance()
-        self._logger = configure_logger(__name__)
+        self._logger = get_logger(__name__)
 
     def create(self, body: CreateDatabaseModelConfigBody) -> tuple[ModelConfigDTO, bool]:
         """

@@ -1,10 +1,11 @@
 """File-based implementation of SharedConfigRepository for shared.yaml-style config."""
 
+from domain.services.logger import get_logger
+
 import yaml
 from pathlib import Path
 
 from application.ports.shared_config_repository import SharedConfigRepository
-from domain.services.logger import configure_logger
 
 
 class FileSharedConfigRepository(SharedConfigRepository):
@@ -13,7 +14,7 @@ class FileSharedConfigRepository(SharedConfigRepository):
     """
 
     def __init__(self) -> None:
-        self.logger = configure_logger(__name__)
+        self.logger = get_logger(__name__)
 
     def get_config(self, path: Path) -> dict:
         """Load and parse YAML from path. Raises on missing file or invalid structure."""
