@@ -20,7 +20,9 @@ import { useAppSelector } from '@/hooks/reduxHooks';
 import {
   countSelectedTestsAcrossBundles,
   isTestSelected,
+  type TestSelectionState,
 } from '@/lib/benchmarkTestSelection';
+import type { Bundle } from '@/lib/api';
 
 const CONSTANTS = {
   MINIMUM_SAMPLE_SIZE: 5,
@@ -134,6 +136,40 @@ export function buildSampleSizeInterpretation({
   );
 }
 
+export function getSelectedTestPromptCounts(
+  bundles: Bundle[],
+  testSelection: TestSelectionState,
+  bundleSelection: Record<string, boolean>
+): number[] {
+  const promptCounts: number[] = [];
+  bundles.forEach((bundle) => {
+    if (!bundleSelection[bundle.id]) return;
+    bundle.tests.forEach((test) => {
+      if (isTestSelected(testSelection, bundle.id, test)) {
+        promptCounts.push(test.dataset?.num_of_dataset_prompts ?? 0);
+      }
+    });
+  });
+  return promptCounts;
+}
+
+export function calculateAdjustedSampleSize(
+  perTestSampleSize: number,
+  promptCounts: number[]
+): number {
+  return promptCounts.reduce(
+    (sum, promptCount) => sum + Math.min(perTestSampleSize, promptCount),
+    0
+  );
+}
+
+export function hasTestsWithInsufficientPrompts(
+  perTestSampleSize: number,
+  promptCounts: number[]
+): boolean {
+  return promptCounts.some((promptCount) => promptCount < perTestSampleSize);
+}
+
 export default function SampleSizeCard() {
   const [populationMeanOpen, setPopulationMeanOpen] = React.useState(false);
   const [confidenceLevelOpen, setConfidenceLevelOpen] = React.useState(false);
@@ -154,19 +190,15 @@ export default function SampleSizeCard() {
     [bundleSelection]
   );
 
-  // Calculate total number of prompts from selected tests in selected bundles
-  const totalPromptsFromSelectedTests = React.useMemo(() => {
-    let total = 0;
-    bundles.forEach((bundle) => {
-      if (!bundleSelection[bundle.id]) return;
-      bundle.tests.forEach((test) => {
-        if (isTestSelected(testSelection, bundle.id, test)) {
-          total += test.dataset?.num_of_dataset_prompts ?? 0;
-        }
-      });
-    });
-    return total;
-  }, [bundles, testSelection, bundleSelection]);
+  const selectedTestPromptCounts = React.useMemo(
+    () => getSelectedTestPromptCounts(bundles, testSelection, bundleSelection),
+    [bundles, testSelection, bundleSelection]
+  );
+
+  const totalPromptsFromSelectedTests = React.useMemo(
+    () => selectedTestPromptCounts.reduce((total, count) => total + count, 0),
+    [selectedTestPromptCounts]
+  );
 
   // Calculate number of selected tests in selected bundles
   const numberOfSelectedTests = React.useMemo(() => {
@@ -191,18 +223,45 @@ export default function SampleSizeCard() {
         numberOfSelectedTests,
       });
 
-      return { perTestSampleSize, recommendedSampleSize, interpretationText };
+      const adjustedCalculatedSampleSize = calculateAdjustedSampleSize(
+        perTestSampleSize,
+        selectedTestPromptCounts
+      );
+      const showInsufficientPromptsWarning = hasTestsWithInsufficientPrompts(
+        perTestSampleSize,
+        selectedTestPromptCounts
+      );
+
+      return {
+        perTestSampleSize,
+        recommendedSampleSize,
+        adjustedCalculatedSampleSize,
+        showInsufficientPromptsWarning,
+        interpretationText,
+      };
     } catch {
-      return { perTestSampleSize: 0, recommendedSampleSize: 0, interpretationText: "" };
+      return {
+        perTestSampleSize: 0,
+        recommendedSampleSize: 0,
+        adjustedCalculatedSampleSize: 0,
+        showInsufficientPromptsWarning: false,
+        interpretationText: "",
+      };
     }
   }, [
     selectedPopulationMean,
     selectedConfidenceLevel,
     selectedMarginOfError,
     numberOfSelectedTests,
+    selectedTestPromptCounts,
   ]);
 
-  const { recommendedSampleSize, interpretationText } = sampleSizeValues;
+  const {
+    recommendedSampleSize,
+    adjustedCalculatedSampleSize,
+    showInsufficientPromptsWarning,
+    interpretationText,
+  } = sampleSizeValues;
 
   const sampleSizeToggleOptions = React.useMemo(
     () =>
@@ -210,7 +269,7 @@ export default function SampleSizeCard() {
         {
           value: "calculated",
           label: "Calculated — under development",
-          count: `(${recommendedSampleSize})`,
+          count: `(${adjustedCalculatedSampleSize})`,
           selectable: false,
         },
         {
@@ -220,7 +279,7 @@ export default function SampleSizeCard() {
           selectable: true,
         },
       ],
-    [recommendedSampleSize, totalPromptsFromSelectedTests]
+    [adjustedCalculatedSampleSize, totalPromptsFromSelectedTests]
   );
 
   // Handle toggle selection
@@ -464,6 +523,20 @@ export default function SampleSizeCard() {
                     ))}
                   </div>
                 </div>
+
+                {showInsufficientPromptsWarning && (
+                  <div className="mt-4">
+                    <Alert
+                      className="border-yellow-200 bg-yellow-50"
+                      data-testid="sample-size-insufficient-prompts-warning"
+                    >
+                      <AlertDescription className="text-yellow-900">
+                        Some test(s) contain fewer prompts than recommended. If you proceed, the full
+                        prompt dataset for the affected test(s) will be used.
+                      </AlertDescription>
+                    </Alert>
+                  </div>
+                )}
 
                 {/* Minimum Selection Alert - Only shows when minimum is selected */}
                 {selectedToggleValue === "test" && (
