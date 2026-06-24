@@ -769,6 +769,126 @@ def test_start_benchmark_run_tests_by_bundle_subset_one_of_two(
         assert n_rtb == 1
 
 
+@pytest.mark.integration
+def test_start_benchmark_run_prompts_by_test_limits_prompt_count(
+    shared_config_seed_service,
+    test_db_env,
+    tmp_path,
+):
+    """
+    start_benchmark_run with prompts_by_test populates only the first N prompts per test.
+    """
+    assert CONFIG_PATH_TWO_TESTS.exists(), f"Fixture config missing: {CONFIG_PATH_TWO_TESTS}"
+    BenchmarkDatasetSeedService(
+        source_dataset_repository=FileDatasetRepository(),
+        target_dataset_repository=SqlAlchemyDatasetRepository(),
+    ).seed_benchmark_dataset("test_sample_dataset")
+    shared_config_seed_service.seed_from_config(config_path=CONFIG_PATH_TWO_TESTS, version=11)
+
+    config_adapter = BenchmarkTestConfigAdapter()
+    bundle_id = config_adapter.get_bundle_id_by_system_name_latest("minimal-bundle")
+    all_test_ids = sorted(config_adapter.get_test_ids_by_bundle_id(bundle_id))
+    assert len(all_test_ids) == 2
+    test_id_1, test_id_2 = all_test_ids
+
+    run_name = f"prompts-by-test-run-{uuid.uuid4().hex[:12]}"
+    expected_prediction = "prompts_by_test integration response"
+
+    mock_connector = MagicMock()
+    mock_connector.get_response = AsyncMock(
+        return_value=ConnectorResponseEntity(response=expected_prediction, context=[])
+    )
+    mock_connector.configure = MagicMock()
+
+    mock_metric = MagicMock()
+    mock_metric.get_individual_result = AsyncMock(return_value=1.0)
+    mock_metric.get_results = AsyncMock(return_value={})
+    mock_metric.update_metric_params = MagicMock()
+
+    connector_entity = ConnectorEntity(
+        connector_adapter="mock_execute_bundle_connector",
+        model="test-model",
+        model_endpoint="",
+        params={"max_concurrency": 2},
+    )
+
+    from domain.services.loader.module_loader import ModuleLoader
+
+    real_load = ModuleLoader.load
+
+    def mock_load_module_impl(module_name, module_type):
+        if module_type == ModuleTypes.CONNECTOR and module_name == "mock_execute_bundle_connector":
+            return (mock_connector, None)
+        if module_type == ModuleTypes.METRIC and module_name == "refusal_adapter":
+            return (mock_metric, "refusal_adapter")
+        return real_load(module_name, module_type)
+
+    def fake_process(*, target=None, args=(), **kwargs):
+        fake = MagicMock()
+
+        def start():
+            if target is not None:
+                target(*args)
+
+        fake.start = start
+        return fake
+
+    with (
+        patch.object(AppConfig, "DEFAULT_RESULTS_PATH", str(tmp_path)),
+        patch.object(
+            DatabaseConnectorConfigService,
+            "build_connector_entity",
+            return_value=connector_entity,
+        ),
+        patch.object(
+            TaskManager,
+            "_load_module",
+            side_effect=_make_load_module_side_effect(2),
+        ),
+        patch.object(ModuleLoader, "load", side_effect=mock_load_module_impl),
+        patch(
+            "application.services.benchmark_execution_service.multiprocessing.Process",
+            side_effect=fake_process,
+        ),
+        patch("domain.services.task_manager.AppConfig") as mock_app_config_cls,
+    ):
+        mock_app_config = MagicMock()
+        mock_app_config.DEFAULT_RESULTS_PATH = str(tmp_path)
+        mock_app_config.get_metric_config.return_value = MagicMock(
+            params={"categorise_result": False}
+        )
+        mock_app_config_cls.return_value = mock_app_config
+        mock_app_config_cls.DEFAULT_RESULTS_PATH = str(tmp_path)
+
+        service = BenchmarkExecutionService()
+        service.start_benchmark_run(
+            run_name=run_name,
+            bundle_names=["minimal-bundle"],
+            llm_provider_id=STUB_LLM_PROVIDER_ID,
+            llm_provider_model_id=STUB_LLM_PROVIDER_MODEL_ID,
+            llm_provider_model_config_id=STUB_LLM_PROVIDER_MODEL_CONFIG_ID,
+            prompts_by_test={test_id_1: 2, test_id_2: 1},
+        )
+
+    run_entity = BenchmarkRunService().get_run_by_name(run_name)
+    assert run_entity is not None
+    assert run_entity.id is not None
+    assert run_entity.status == "completed"
+
+    session_manager = SessionManager.get_instance()
+    _assert_run_completed(
+        session_manager, run_entity.id, all_test_ids, expected_prediction
+    )
+    _assert_all_statuses_completed(session_manager, run_entity.id)
+
+    run_test_id_1, _, _ = _get_run_test_status(session_manager, run_entity.id, test_id_1)
+    run_test_id_2, _, _ = _get_run_test_status(session_manager, run_entity.id, test_id_2)
+    assert run_test_id_1 is not None
+    assert run_test_id_2 is not None
+    assert len(_get_run_test_prompts(session_manager, run_test_id_1)) == 2
+    assert len(_get_run_test_prompts(session_manager, run_test_id_2)) == 1
+
+
 def _ensure_openai_benchmark_ids() -> tuple[int, int, int]:
     ProviderSeedService().seed_hardcoded_providers()
     session_manager = SessionManager.get_instance()

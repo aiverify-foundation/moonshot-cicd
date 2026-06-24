@@ -254,12 +254,55 @@ export const {
   clearAllEndpointStatuses 
 } = endpointStatusSlice.actions;
 
+export type SampleSizeMode = 'all' | 'calculated';
+
+export interface SampleSizeSelectionState {
+  mode: SampleSizeMode;
+  populationMean: string;
+  confidenceLevel: string;
+  marginOfError: string;
+}
+
+const sampleSizeSelectionInitialState: SampleSizeSelectionState = {
+  mode: 'all',
+  populationMean: '90',
+  confidenceLevel: '95',
+  marginOfError: '3',
+};
+
+const sampleSizeSelectionSlice = createSlice({
+  name: 'sampleSizeSelection',
+  initialState: sampleSizeSelectionInitialState,
+  reducers: {
+    setSampleSizeMode: (state, action: { payload: SampleSizeMode }) => {
+      state.mode = action.payload;
+    },
+    setSampleSizePopulationMean: (state, action: { payload: string }) => {
+      state.populationMean = action.payload;
+    },
+    setSampleSizeConfidenceLevel: (state, action: { payload: string }) => {
+      state.confidenceLevel = action.payload;
+    },
+    setSampleSizeMarginOfError: (state, action: { payload: string }) => {
+      state.marginOfError = action.payload;
+    },
+  },
+});
+
+export const {
+  setSampleSizeMode,
+  setSampleSizePopulationMean,
+  setSampleSizeConfidenceLevel,
+  setSampleSizeMarginOfError,
+} = sampleSizeSelectionSlice.actions;
+
 const rootReducer = combineReducers({
   bundles: bundlesSlice.reducer,
   bundleSelection: bundleSelectionSlice.reducer,
   modelSelection: modelSelectionSlice.reducer,
   testSelection: testSelectionSlice.reducer,
   endpointStatus: endpointStatusSlice.reducer,
+  sampleSizeSelection: sampleSizeSelectionSlice.reducer,
 });
 
 const store = configureStore({
@@ -281,6 +324,10 @@ export function createTestStore(preloadedState?: Partial<RootState>) {
         modelSelection: { ...defaultState.modelSelection, ...(preloadedState.modelSelection || {}) },
         testSelection: { ...defaultState.testSelection, ...(preloadedState.testSelection || {}) },
         endpointStatus: { ...defaultState.endpointStatus, ...(preloadedState.endpointStatus || {}) },
+        sampleSizeSelection: {
+          ...defaultState.sampleSizeSelection,
+          ...(preloadedState.sampleSizeSelection || {}),
+        },
       }
     : defaultState;
   

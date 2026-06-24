@@ -16,7 +16,14 @@ import {
   } from "@/components/ui/accordion"
 import { Toggle } from '@/components/ui/toggle';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
-import { useAppSelector } from '@/hooks/reduxHooks';
+import { useAppSelector, useAppDispatch } from '@/hooks/reduxHooks';
+import {
+  setSampleSizeMode,
+  setSampleSizePopulationMean,
+  setSampleSizeConfidenceLevel,
+  setSampleSizeMarginOfError,
+  type SampleSizeMode,
+} from '@/store';
 import {
   countSelectedTestsAcrossBundles,
   isTestSelected,
@@ -171,14 +178,17 @@ export function hasTestsWithInsufficientPrompts(
 }
 
 export default function SampleSizeCard() {
+  const dispatch = useAppDispatch();
   const [populationMeanOpen, setPopulationMeanOpen] = React.useState(false);
   const [confidenceLevelOpen, setConfidenceLevelOpen] = React.useState(false);
   const [marginOfErrorOpen, setMarginOfErrorOpen] = React.useState(false);
-  
-  const [selectedPopulationMean, setSelectedPopulationMean] = React.useState(CONSTANTS.DEFAULT_EXPECTED_PROPORTION.toString());
-  const [selectedConfidenceLevel, setSelectedConfidenceLevel] = React.useState(CONSTANTS.DEFAULT_CONFIDENCE_LEVEL.toString());
-  const [selectedMarginOfError, setSelectedMarginOfError] = React.useState(CONSTANTS.DEFAULT_MARGIN_OF_ERROR.toString());
-  const [selectedToggleValue, setSelectedToggleValue] = React.useState("all");
+
+  const {
+    mode: selectedToggleValue,
+    populationMean: selectedPopulationMean,
+    confidenceLevel: selectedConfidenceLevel,
+    marginOfError: selectedMarginOfError,
+  } = useAppSelector((state) => state.sampleSizeSelection);
 
   // Get bundles and test selection to calculate total prompts
   const bundles = useAppSelector((state) => state.bundles.data);
@@ -268,9 +278,9 @@ export default function SampleSizeCard() {
       [
         {
           value: "calculated",
-          label: "Calculated — under development",
+          label: "Calculated",
           count: `(${adjustedCalculatedSampleSize})`,
-          selectable: false,
+          selectable: true,
         },
         {
           value: "all",
@@ -284,7 +294,7 @@ export default function SampleSizeCard() {
 
   // Handle toggle selection
   const handleToggleChange = (value: string) => {
-    setSelectedToggleValue(value);
+    dispatch(setSampleSizeMode(value as SampleSizeMode));
   };
 
   const populationMeanOptions = [
@@ -355,7 +365,7 @@ export default function SampleSizeCard() {
                                   key={option.value}
                                   value={option.value}
                                   onSelect={(currentValue) => {
-                                    setSelectedPopulationMean(currentValue);
+                                    dispatch(setSampleSizePopulationMean(currentValue));
                                     setPopulationMeanOpen(false);
                                   }}
                                   data-testid={`population-mean-option-${option.value}`}
@@ -399,7 +409,7 @@ export default function SampleSizeCard() {
                                   key={option.value}
                                   value={option.value}
                                   onSelect={(currentValue) => {
-                                    setSelectedConfidenceLevel(currentValue);
+                                    dispatch(setSampleSizeConfidenceLevel(currentValue));
                                     setConfidenceLevelOpen(false);
                                   }}
                                   data-testid={`confidence-level-option-${option.value}`}
@@ -443,7 +453,7 @@ export default function SampleSizeCard() {
                                   key={option.value}
                                   value={option.value}
                                   onSelect={(currentValue) => {
-                                    setSelectedMarginOfError(currentValue);
+                                    dispatch(setSampleSizeMarginOfError(currentValue));
                                     setMarginOfErrorOpen(false);
                                   }}
                                   data-testid={`margin-of-error-option-${option.value}`}
@@ -538,16 +548,6 @@ export default function SampleSizeCard() {
                   </div>
                 )}
 
-                {/* Minimum Selection Alert - Only shows when minimum is selected */}
-                {selectedToggleValue === "test" && (
-                  <div className="mt-4">
-                    <Alert className="border-orange-200 bg-orange-50">
-                      <AlertDescription>
-                        Your Sample size is smaller than recommended. This may generate unreliable test results. Proceed with caution.
-                      </AlertDescription>
-                    </Alert>
-                  </div>
-                )}
               </CardContent>
             </AccordionContent>
           </AccordionItem>

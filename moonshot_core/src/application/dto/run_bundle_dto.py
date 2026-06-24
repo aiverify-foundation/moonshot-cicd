@@ -22,6 +22,9 @@ class StartBenchmarkRunRequestDTO(BaseModel):
         tests_by_bundle (Optional[Dict[str, List[int]]]): Optional map of bundle system_name
             to benchmark_test.id values to run for that bundle only. Keys must be a subset of
             bundle_names; omit a bundle to run all its tests. Each list must be non-empty when present.
+        prompts_by_test (Optional[Dict[int, int]]): Optional map of benchmark_test.id to the
+            number of prompts to populate and run for that test (first N in dataset order).
+            Tests not present in the map run all prompts. Each value must be >= 1.
     """
 
     bundle_names: List[str]
@@ -32,6 +35,7 @@ class StartBenchmarkRunRequestDTO(BaseModel):
     custom_app_id: Optional[int] = None
     custom_app_config_id: Optional[int] = None
     tests_by_bundle: Optional[Dict[str, List[int]]] = None
+    prompts_by_test: Optional[Dict[int, int]] = None
 
     @model_validator(mode="after")
     def validate_endpoint_ids(self) -> "StartBenchmarkRunRequestDTO":
@@ -89,6 +93,17 @@ class StartBenchmarkRunRequestDTO(BaseModel):
             if len(ids) == 0:
                 raise ValueError(
                     f"tests_by_bundle[{key!r}] must not be an empty list when provided."
+                )
+        return self
+
+    @model_validator(mode="after")
+    def validate_prompts_by_test_values(self) -> "StartBenchmarkRunRequestDTO":
+        if self.prompts_by_test is None:
+            return self
+        for test_id, count in self.prompts_by_test.items():
+            if count < 1:
+                raise ValueError(
+                    f"prompts_by_test[{test_id}] must be >= 1, got {count}."
                 )
         return self
 

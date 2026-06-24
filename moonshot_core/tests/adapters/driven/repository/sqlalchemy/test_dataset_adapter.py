@@ -104,3 +104,19 @@ class TestGetPromptsByDatasetId:
         assert by_id[id2].prompt == "What is 3+3?" and by_id[id2].target == "6"
         assert by_id[id1].benchmark_test_dataset_id == dataset_id
         assert by_id[id2].benchmark_test_dataset_id == dataset_id
+
+    def test_returns_prompts_in_id_order(self, dataset_repo):
+        """Returned prompts follow benchmark_test_dataset_prompt.id order."""
+        session_manager = dataset_repo.session_manager
+        dataset_id = _insert_dataset(session_manager, "ds-order", 1)
+        id_first = _insert_prompt(
+            session_manager, dataset_id, "first prompt", "first"
+        )
+        id_second = _insert_prompt(
+            session_manager, dataset_id, "second prompt", "second"
+        )
+
+        result = dataset_repo.get_prompts_by_dataset_id(dataset_id)
+
+        assert [e.id for e in result] == [id_first, id_second]
+        assert [e.prompt for e in result] == ["first prompt", "second prompt"]

@@ -64,6 +64,7 @@ class SqlAlchemyBenchmarkRunTestPromptRepository(BenchmarkRunTestPromptRepositor
             models = (
                 session.query(BenchmarkRunTestPromptModel)
                 .filter(BenchmarkRunTestPromptModel.run_test_id == run_test_id)
+                .order_by(BenchmarkRunTestPromptModel.id)
                 .all()
             )
             return [self._model_to_entity(m) for m in models]

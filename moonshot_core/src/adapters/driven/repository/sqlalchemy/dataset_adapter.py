@@ -143,6 +143,7 @@ class SqlAlchemyDatasetRepository(DatasetRepository):
                     BenchmarkTestDatasetPromptModel.benchmark_test_dataset_id
                     == dataset_id,
                 )
+                .order_by(BenchmarkTestDatasetPromptModel.id)
                 .all()
             )
             return [

@@ -487,6 +487,7 @@ async def start_benchmark_run(request: StartBenchmarkRunRequestDTO) -> StartBenc
             custom_app_id=request.custom_app_id,
             custom_app_config_id=request.custom_app_config_id,
             tests_by_bundle=request.tests_by_bundle,
+            prompts_by_test=request.prompts_by_test,
         )
         return StartBenchmarkRunResponseDTO(message="Benchmark run started successfully.")
     except KeyError as e:

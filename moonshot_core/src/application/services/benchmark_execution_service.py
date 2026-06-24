@@ -83,6 +83,28 @@ def _bundle_names_to_resolved_test_ids(
     return resolved
 
 
+def _validate_prompts_by_test(
+    resolved_test_ids: Dict[str, List[int]],
+    prompts_by_test: Optional[Dict[int, int]],
+) -> None:
+    """
+    Ensure every key in prompts_by_test is a benchmark_test.id included in this run.
+
+    Raises:
+        BenchmarkRunTestSelectionError: If prompts_by_test references ids not in the run.
+    """
+    if prompts_by_test is None:
+        return
+    allowed: set[int] = set()
+    for ids in resolved_test_ids.values():
+        allowed.update(ids)
+    bad = sorted(set(prompts_by_test.keys()) - allowed)
+    if bad:
+        raise BenchmarkRunTestSelectionError(
+            f"prompts_by_test contains test id(s) not in this run: {bad}"
+        )
+
+
 def _run_bundle_in_process(
     bundle_id: str,
     run_id: int,
@@ -93,6 +115,7 @@ def _run_bundle_in_process(
     custom_app_id: Optional[int],
     custom_app_config_id: Optional[int],
     test_ids: Optional[List[int]] = None,
+    prompts_by_test: Optional[Dict[int, int]] = None,
 ) -> None:
     """
     Wrapper to run a bundle in a separate process.
@@ -111,6 +134,7 @@ def _run_bundle_in_process(
         llm_provider_id / llm_provider_model_id / llm_provider_model_config_id: DB connector FKs (LLM path).
         custom_app_id / custom_app_config_id: DB connector FKs (Custom_App path).
         test_ids: Optional list of benchmark_test.id to run for this bundle (subset or full).
+        prompts_by_test: Optional map of benchmark_test.id to max prompts to populate per test.
     """
     if skip_alembic_upgrade:
         set_skip_alembic_upgrade(True)
@@ -129,6 +153,7 @@ def _run_bundle_in_process(
             custom_app_id=custom_app_id,
             custom_app_config_id=custom_app_config_id,
             test_ids=test_ids,
+            prompts_by_test=prompts_by_test,
         )
     finally:
         if skip_alembic_upgrade:
@@ -158,6 +183,7 @@ class BenchmarkExecutionService:
         custom_app_id: Optional[int] = None,
         custom_app_config_id: Optional[int] = None,
         test_ids: Optional[List[int]] = None,
+        prompts_by_test: Optional[Dict[int, int]] = None,
     ) -> str:
         """
         Validate the bundle (DB only), start its execution in a daemon process, and return the bundle id.
@@ -171,6 +197,7 @@ class BenchmarkExecutionService:
             llm_provider_id / llm_provider_model_id / llm_provider_model_config_id: DB-backed connector FKs (LLM path).
             custom_app_id / custom_app_config_id: DB-backed connector FKs (Custom_App path).
             test_ids: When set, only these benchmark_test.id values are executed for the bundle.
+            prompts_by_test: Optional map of benchmark_test.id to max prompts per test.
 
         Returns:
             The resolved bundle id (same as bundle_name).
@@ -197,6 +224,7 @@ class BenchmarkExecutionService:
                 custom_app_id,
                 custom_app_config_id,
                 test_ids,
+                prompts_by_test,
             ),
         )
         process.daemon = True
@@ -217,6 +245,7 @@ class BenchmarkExecutionService:
         custom_app_id: Optional[int] = None,
         custom_app_config_id: Optional[int] = None,
         tests_by_bundle: Optional[Dict[str, List[int]]] = None,
+        prompts_by_test: Optional[Dict[int, int]] = None,
     ) -> None:
         """
         Start a benchmark run: create a benchmark run entity, then execute multiple bundles
@@ -234,6 +263,7 @@ class BenchmarkExecutionService:
             custom_app_id: FK custom_app.id (Custom_App path).
             custom_app_config_id: FK custom_app_config.id (Custom_App path).
             tests_by_bundle: Optional map bundle system_name -> benchmark_test.id list (subset per bundle).
+            prompts_by_test: Optional map benchmark_test.id -> max prompts to populate per test.
 
         Raises:
             KeyError: If any bundle is not found.
@@ -272,12 +302,13 @@ class BenchmarkExecutionService:
         resolved_test_ids = _bundle_names_to_resolved_test_ids(
             bundle_names, tests_by_bundle, config_adapter
         )
+        _validate_prompts_by_test(resolved_test_ids, prompts_by_test)
 
         logger.info(
             "[BenchmarkExecutionService] Starting benchmark run: run_name=%s, "
             "endpoint_type=%s, llm_provider_id=%s, llm_provider_model_id=%s, "
             "llm_provider_model_config_id=%s, custom_app_id=%s, custom_app_config_id=%s, "
-            "bundles=%s, tests_by_bundle=%s",
+            "bundles=%s, tests_by_bundle=%s, prompts_by_test=%s",
             run_name,
             endpoint_type,
             llm_provider_id,
@@ -287,6 +318,7 @@ class BenchmarkExecutionService:
             custom_app_config_id,
             bundle_names,
             tests_by_bundle,
+            prompts_by_test,
         )
 
         run_entity = BenchmarkRunEntity(
@@ -327,6 +359,7 @@ class BenchmarkExecutionService:
                 custom_app_id=custom_app_id,
                 custom_app_config_id=custom_app_config_id,
                 test_ids=ids_for_bundle,
+                prompts_by_test=prompts_by_test,
             )
 
     def execute_bundle(
@@ -342,6 +375,7 @@ class BenchmarkExecutionService:
         custom_app_config_id: Optional[int] = None,
         write_combined_results_file: bool = True,
         test_ids: Optional[List[int]] = None,
+        prompts_by_test: Optional[Dict[int, int]] = None,
     ) -> None:
         """
         Execute a bundle (multiple benchmark tests) synchronously and optionally write a combined results file.
@@ -369,6 +403,8 @@ class BenchmarkExecutionService:
                 Background workers for ``start_benchmark_run`` pass False so API runs persist only to the DB.
             test_ids: When set on the DB path, only these benchmark_test.id values are run (must be a subset of the bundle).
                 Ignored for file-based bundles (a warning is logged if set).
+            prompts_by_test: When set on the DB path, limits prompts populated per test (first N by dataset id order).
+                Ignored for file-based bundles.
         """
         try:
             logger.info(f"[BenchmarkExecutionService] Starting bundle execution for bundle: {bundle_id}")
@@ -449,7 +485,12 @@ class BenchmarkExecutionService:
                             saved_run = run_service.save_run(run_entity)
                             effective_run_id = saved_run.id
                     for tid in test_ids_to_run:
-                        setup_service.create_run_test_with_prompts(effective_run_id, tid)
+                        max_prompts = (
+                            prompts_by_test.get(tid) if prompts_by_test else None
+                        )
+                        setup_service.create_run_test_with_prompts(
+                            effective_run_id, tid, max_prompts=max_prompts
+                        )
                 for tid in test_ids_to_run:
                     test_name, dataset_system_name, metric_name = config_adapter.get_test_info(tid)
                     test_tuples.append((tid, test_name, dataset_system_name, {"name": metric_name}))

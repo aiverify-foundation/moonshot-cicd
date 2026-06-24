@@ -5,7 +5,8 @@ import { Loader2 } from 'lucide-react';
 import { Button } from "@/components/ui/button";
 import { useAppSelector } from '../../../hooks/reduxHooks';
 import { startBenchmarkRun, ApiError } from '@/lib/api';
-import { selectedTestsInBundle } from '@/lib/benchmarkTestSelection';
+import { buildPromptsByTest, selectedTestsInBundle } from '@/lib/benchmarkTestSelection';
+import { calculateSampleSize } from './SampleSizeCard';
 
 interface BenchmarkFooterProps {
   currentPage: 'bundle-selection' | 'model-selection';
@@ -32,6 +33,12 @@ export default function BenchmarkFooter({
     benchmarkCustomAppId,
     benchmarkCustomAppConfigId,
   } = useAppSelector((state) => state.modelSelection);
+  const {
+    mode: sampleSizeMode,
+    populationMean,
+    confidenceLevel,
+    marginOfError,
+  } = useAppSelector((state) => state.sampleSizeSelection);
   const runName = (testName ?? '').trim();
 
   const selectedBundleSystemNames = useMemo(
@@ -66,6 +73,43 @@ export default function BenchmarkFooter({
     }
     return { map: out } as const;
   }, [bundles, selectedBundleSystemNames, testSelection]);
+
+  const promptsByTest = useMemo(() => {
+    if (sampleSizeMode === 'all') {
+      return { map: undefined } as const;
+    }
+    try {
+      const perTestSampleSize = calculateSampleSize(
+        parseInt(confidenceLevel, 10),
+        parseInt(marginOfError, 10),
+        parseInt(populationMean, 10) / 100
+      );
+      if (perTestSampleSize < 1) {
+        return { error: 'Calculated sample size must be at least 1 prompt per test.' } as const;
+      }
+      const result = buildPromptsByTest(
+        bundles,
+        testSelection,
+        bundleSelection,
+        perTestSampleSize
+      );
+      if ('error' in result) {
+        return result;
+      }
+      return { map: result.map } as const;
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : 'Invalid sample size parameters.';
+      return { error: msg } as const;
+    }
+  }, [
+    sampleSizeMode,
+    populationMean,
+    confidenceLevel,
+    marginOfError,
+    bundles,
+    testSelection,
+    bundleSelection,
+  ]);
 
   const canStartLlmBenchmark =
     benchmarkLlmProviderId != null &&
@@ -108,11 +152,16 @@ export default function BenchmarkFooter({
       window.alert(testsByBundle.error);
       return;
     }
+    if ('error' in promptsByTest) {
+      window.alert(promptsByTest.error);
+      return;
+    }
 
     setIsStartingRun(true);
     try {
       const tests_by_bundle =
         Object.keys(testsByBundle.map).length > 0 ? testsByBundle.map : undefined;
+      const prompts_by_test = promptsByTest.map;
 
       if (canStartCustomAppBenchmark) {
         await startBenchmarkRun({
@@ -121,6 +170,7 @@ export default function BenchmarkFooter({
           custom_app_id: benchmarkCustomAppId!,
           custom_app_config_id: benchmarkCustomAppConfigId!,
           ...(tests_by_bundle ? { tests_by_bundle } : {}),
+          ...(prompts_by_test ? { prompts_by_test } : {}),
         });
       } else {
         await startBenchmarkRun({
@@ -130,6 +180,7 @@ export default function BenchmarkFooter({
           llm_provider_model_id: benchmarkLlmProviderModelId!,
           llm_provider_model_config_id: benchmarkLlmProviderModelConfigId!,
           ...(tests_by_bundle ? { tests_by_bundle } : {}),
+          ...(prompts_by_test ? { prompts_by_test } : {}),
         });
       }
       router.push('/history');

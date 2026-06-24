@@ -68,13 +68,16 @@ class BenchmarkRunTestSetupService:
         self,
         benchmark_run_id: int,
         benchmark_test_id: int,
+        max_prompts: Optional[int] = None,
     ) -> tuple[BenchmarkRunTestStatusEntity, List[BenchmarkRunTestPromptEntity]]:
         """
-        Create one run test status and all run test prompts for the given run and test.
+        Create one run test status and run test prompts for the given run and test.
 
         Args:
             benchmark_run_id: FK to benchmark_run.id.
             benchmark_test_id: FK to benchmark_test.id.
+            max_prompts: When set, only the first N dataset prompts (by id order) are
+                populated. When None, all dataset prompts are populated.
 
         Returns:
             Tuple of (saved run test status entity, list of saved run test prompt entities).
@@ -99,6 +102,16 @@ class BenchmarkRunTestSetupService:
 
         dataset_id = self._config.get_test_dataset_id(benchmark_test_id)
         dataset_prompts = self._dataset_repo.get_prompts_by_dataset_id(dataset_id)
+        if max_prompts is not None:
+            if max_prompts < len(dataset_prompts):
+                self.logger.info(
+                    "Limiting prompts for run_id=%s test_id=%s to first %s of %s",
+                    benchmark_run_id,
+                    benchmark_test_id,
+                    max_prompts,
+                    len(dataset_prompts),
+                )
+            dataset_prompts = dataset_prompts[:max_prompts]
 
         status_entity = BenchmarkRunTestStatusEntity(
             run_id=benchmark_run_id,

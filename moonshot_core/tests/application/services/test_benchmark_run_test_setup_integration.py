@@ -14,6 +14,7 @@ from sqlalchemy import text
 from adapters.driven.repository.sqlalchemy.llm_provider_models import (
     BenchmarkRunTestStatusModel,
     BenchmarkRunTestPromptModel,
+    BenchmarkTestDatasetPromptModel,
 )
 from adapters.driven.repository.sqlalchemy.session_manager import SessionManager
 from adapters.driven.repository.sqlalchemy.benchmark_test_config_adapter import (
@@ -278,3 +279,52 @@ class TestBenchmarkRunTestSetupIntegration:
         assert _count_run_test_prompts_by_run_test_id(
             session_manager, status_2.id
         ) == len(prompts_2)
+
+    def test_max_prompts_limits_to_first_n_in_dataset_order(
+        self,
+        shared_config_seed_service,
+        test_db_env,
+        config_path_two_tests,
+    ):
+        """max_prompts inserts only the first N dataset prompts by benchmark_test_dataset_prompt.id."""
+        assert config_path_two_tests.exists()
+        session_manager = SessionManager.get_instance()
+        run_id, test_ids = _seed_and_get_run_and_test_ids(
+            shared_config_seed_service,
+            config_path_two_tests,
+            session_manager,
+            "integration-setup-max-prompts",
+            min_tests=1,
+        )
+        test_id = test_ids[0]
+        config_adapter = BenchmarkTestConfigAdapter()
+        dataset_id = config_adapter.get_test_dataset_id(test_id)
+        with session_manager.get_session() as session:
+            dataset_rows = (
+                session.query(BenchmarkTestDatasetPromptModel)
+                .filter(
+                    BenchmarkTestDatasetPromptModel.benchmark_test_dataset_id
+                    == dataset_id
+                )
+                .order_by(BenchmarkTestDatasetPromptModel.id)
+                .all()
+            )
+            assert len(dataset_rows) >= 2
+            expected_prompt_ids = [row.id for row in dataset_rows[:2]]
+
+        setup_service = BenchmarkRunTestSetupService()
+        status, prompts = setup_service.create_run_test_with_prompts(
+            run_id, test_id, max_prompts=2
+        )
+
+        assert len(prompts) == 2
+        assert [p.prompt_id for p in prompts] == expected_prompt_ids
+        with session_manager.get_session() as session:
+            run_prompt_rows = (
+                session.query(BenchmarkRunTestPromptModel)
+                .filter(BenchmarkRunTestPromptModel.run_test_id == status.id)
+                .order_by(BenchmarkRunTestPromptModel.id)
+                .all()
+            )
+            assert len(run_prompt_rows) == 2
+            assert [r.prompt_id for r in run_prompt_rows] == expected_prompt_ids

@@ -1,4 +1,4 @@
-import type { BundleTest } from './api';
+import type { BundleTest, Bundle } from './api';
 
 /** Redux testSelection: bundle system_name → testKey → selected */
 export type TestSelectionState = Record<string, Record<string, boolean>>;
@@ -61,4 +61,29 @@ export function hasAnySelectedTestsInBundle(
   const bundleTests = state[bundleId];
   if (!bundleTests) return false;
   return Object.values(bundleTests).some(Boolean);
+}
+
+/** Build prompts_by_test for POST /api/start-benchmark-run when using calculated sample size. */
+export function buildPromptsByTest(
+  bundles: Bundle[],
+  testSelection: TestSelectionState,
+  bundleSelection: Record<string, boolean>,
+  perTestSampleSize: number
+): { map: Record<number, number> } | { error: string } {
+  const map: Record<number, number> = {};
+
+  for (const bundle of bundles) {
+    if (!bundleSelection[bundle.id]) continue;
+    const selectedTests = selectedTestsInBundle(testSelection, bundle.id, bundle.tests);
+    for (const test of selectedTests) {
+      if (test.benchmark_test_id == null) {
+        return {
+          error: `Missing benchmark id for test "${test.name}" in bundle "${bundle.name}".`,
+        };
+      }
+      map[test.benchmark_test_id] = perTestSampleSize;
+    }
+  }
+
+  return { map };
 }

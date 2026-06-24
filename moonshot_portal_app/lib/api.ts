@@ -122,6 +122,7 @@ export type StartBenchmarkRunRequest =
       llm_provider_model_id: number;
       llm_provider_model_config_id: number;
       tests_by_bundle?: Record<string, number[]>;
+      prompts_by_test?: Record<number, number>;
     }
   | {
       run_name: string;
@@ -129,6 +130,7 @@ export type StartBenchmarkRunRequest =
       custom_app_id: number;
       custom_app_config_id: number;
       tests_by_bundle?: Record<string, number[]>;
+      prompts_by_test?: Record<number, number>;
     };
 
 export interface StartBenchmarkRunResponse {

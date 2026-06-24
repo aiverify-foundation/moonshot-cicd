@@ -187,8 +187,8 @@ describe('SampleSizeCard', () => {
     Element.prototype.scrollIntoView = jest.fn();
   });
 
-  it('defaults to All prompts, hides Test Run, and disables Calculated', async () => {
-    render(<SampleSizeCard />, {
+  it('defaults to All prompts and allows selecting Calculated', async () => {
+    const { store } = render(<SampleSizeCard />, {
       preloadedState: {
         bundles: { data: mockBundles, loading: false, error: null },
         bundleSelection: { 'safety-bundle': true },
@@ -199,16 +199,18 @@ describe('SampleSizeCard', () => {
     expect(screen.queryByRole('button', { name: /Test Run/i })).not.toBeInTheDocument();
 
     const calculatedToggle = screen.getByRole('button', {
-      name: /Calculated — under development/i,
+      name: /Calculated/i,
     });
     const allPromptsToggle = screen.getByRole('button', { name: /All prompts/i });
 
-    expect(calculatedToggle).toBeDisabled();
+    expect(calculatedToggle).not.toBeDisabled();
     expect(allPromptsToggle).toHaveAttribute('data-state', 'on');
     expect(calculatedToggle).toHaveAttribute('data-state', 'off');
 
     await userEvent.click(calculatedToggle);
-    expect(allPromptsToggle).toHaveAttribute('data-state', 'on');
+    expect(calculatedToggle).toHaveAttribute('data-state', 'on');
+    expect(allPromptsToggle).toHaveAttribute('data-state', 'off');
+    expect(store.getState().sampleSizeSelection.mode).toBe('calculated');
   });
 
   it('shows default interpretation text for one selected test', () => {
@@ -227,10 +229,10 @@ describe('SampleSizeCard', () => {
     expect(screen.getByText(/Recommended sample size: 385 prompts/i)).toBeInTheDocument();
   });
 
-  it('updates interpretation when margin of error changes', async () => {
+  it('updates Redux when margin of error changes', async () => {
     const user = userEvent.setup();
 
-    render(<SampleSizeCard />, {
+    const { store } = render(<SampleSizeCard />, {
       preloadedState: {
         bundles: { data: mockBundles, loading: false, error: null },
         bundleSelection: { 'safety-bundle': true },
@@ -244,6 +246,7 @@ describe('SampleSizeCard', () => {
     const interpretation = screen.getByTestId('sample-size-interpretation');
     expect(interpretation).toHaveTextContent('that the real value is 85%-95%');
     expect(interpretation).not.toHaveTextContent('87%-93%');
+    expect(store.getState().sampleSizeSelection.marginOfError).toBe('5');
   });
 
   it('shows per-test wording and total recommended size for multiple tests', () => {
@@ -277,7 +280,7 @@ describe('SampleSizeCard', () => {
     );
     expect(screen.getByText(/Recommended sample size: 385 prompts/i)).toBeInTheDocument();
     expect(
-      screen.getByRole('button', { name: /Calculated — under development \(42\)/i })
+      screen.getByRole('button', { name: /Calculated \(42\)/i })
     ).toBeInTheDocument();
   });
 
@@ -292,7 +295,7 @@ describe('SampleSizeCard', () => {
 
     expect(screen.queryByTestId('sample-size-insufficient-prompts-warning')).not.toBeInTheDocument();
     expect(
-      screen.getByRole('button', { name: /Calculated — under development \(385\)/i })
+      screen.getByRole('button', { name: /Calculated \(385\)/i })
     ).toBeInTheDocument();
   });
 
@@ -310,7 +313,7 @@ describe('SampleSizeCard', () => {
     expect(screen.getByTestId('sample-size-insufficient-prompts-warning')).toBeInTheDocument();
     expect(screen.getByText(/Recommended sample size: 770 prompts/i)).toBeInTheDocument();
     expect(
-      screen.getByRole('button', { name: /Calculated — under development \(427\)/i })
+      screen.getByRole('button', { name: /Calculated \(427\)/i })
     ).toBeInTheDocument();
   });
 });

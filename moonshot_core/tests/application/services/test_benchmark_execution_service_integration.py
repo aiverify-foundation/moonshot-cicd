@@ -155,6 +155,7 @@ class TestStartBenchmarkRunIntegration:
                 custom_app_id,
                 custom_app_config_id,
                 passed_test_ids,
+                passed_prompts_by_test,
             ) = args
             assert passed_run_id == run_id
             assert skip_alembic is True
@@ -164,6 +165,7 @@ class TestStartBenchmarkRunIntegration:
             assert custom_app_id is None
             assert custom_app_config_id is None
             assert passed_test_ids == [101, 102]
+            assert passed_prompts_by_test is None
             started_bundles.append(bundle_name)
         assert started_bundles == bundle_names
 
@@ -247,7 +249,85 @@ class TestStartBenchmarkRunIntegration:
 
         (_, kwargs) = mock_process.call_args
         args = kwargs["args"]
-        assert args[-1] == [202, 203]
+        assert args[-2] == [202, 203]
+        assert args[-1] is None
+
+    def test_start_benchmark_run_prompts_by_test_passes_map_to_process(
+        self,
+        mock_process,
+        mock_save_run,
+        stub_connector_entity,
+    ):
+        """prompts_by_test is passed to Process and validated against resolved test ids."""
+        with patch(
+            "application.services.benchmark_execution_service.BenchmarkRunTestBundlePopulationService"
+        ) as mock_pop_class:
+            mock_pop = MagicMock()
+            mock_pop.populate_run_bundle.return_value = {
+                "run_id": 42,
+                "test_bundle_id": 1,
+                "inserted_count": 1,
+            }
+            mock_pop_class.return_value = mock_pop
+
+            with patch(
+                "application.services.benchmark_execution_service.BenchmarkTestConfigAdapter"
+            ) as mock_cfg_cls:
+                mock_cfg = MagicMock()
+                mock_cfg.get_bundle_id_by_system_name_latest.return_value = 7
+                mock_cfg.get_test_ids_by_bundle_id.return_value = [201, 202]
+                mock_cfg_cls.return_value = mock_cfg
+
+                with patch.object(
+                    DatabaseConnectorConfigService,
+                    "build_connector_entity",
+                    return_value=stub_connector_entity,
+                ):
+                    service = BenchmarkExecutionService()
+                    service.start_benchmark_run(
+                        run_name="limited-run",
+                        bundle_names=["bundle-x"],
+                        llm_provider_id=1,
+                        llm_provider_model_id=2,
+                        llm_provider_model_config_id=3,
+                        prompts_by_test={201: 5, 202: 10},
+                    )
+
+        (_, kwargs) = mock_process.call_args
+        args = kwargs["args"]
+        assert args[-1] == {201: 5, 202: 10}
+
+    def test_start_benchmark_run_prompts_by_test_unknown_test_id(
+        self,
+        mock_process,
+        mock_save_run,
+        stub_connector_entity,
+    ):
+        with patch(
+            "application.services.benchmark_execution_service.BenchmarkTestConfigAdapter"
+        ) as mock_cfg_cls:
+            mock_cfg = MagicMock()
+            mock_cfg.get_bundle_id_by_system_name_latest.return_value = 1
+            mock_cfg.get_test_ids_by_bundle_id.return_value = [10, 11]
+            mock_cfg_cls.return_value = mock_cfg
+
+            with patch.object(
+                DatabaseConnectorConfigService,
+                "build_connector_entity",
+                return_value=stub_connector_entity,
+            ):
+                service = BenchmarkExecutionService()
+                with pytest.raises(BenchmarkRunTestSelectionError, match="not in this run"):
+                    service.start_benchmark_run(
+                        run_name="bad",
+                        bundle_names=["b1"],
+                        llm_provider_id=1,
+                        llm_provider_model_id=2,
+                        llm_provider_model_config_id=3,
+                        prompts_by_test={99: 5},
+                    )
+
+        assert mock_save_run.call_count == 0
 
     def test_start_benchmark_run_tests_by_bundle_unknown_test_id(
         self,

@@ -135,6 +135,67 @@ class TestCreateRunTestWithPrompts:
         assert call2.run_test_id == 100 and call2.prompt_id == 2
         assert call2.target == "6" and call2.prompt_additional_info == "What is 3+3?"
 
+    def test_max_prompts_limits_inserted_prompts(
+        self,
+        service,
+        mock_status_service,
+        mock_prompt_repo,
+        mock_config,
+        mock_dataset_repo,
+    ):
+        """When max_prompts is set, only the first N dataset prompts are saved."""
+        mock_config.get_test_dataset_id.return_value = 7
+        mock_dataset_repo.get_prompts_by_dataset_id.return_value = [
+            BenchmarkTestDatasetPromptEntity(
+                id=1,
+                benchmark_test_dataset_id=7,
+                prompt="first",
+                target="a",
+            ),
+            BenchmarkTestDatasetPromptEntity(
+                id=2,
+                benchmark_test_dataset_id=7,
+                prompt="second",
+                target="b",
+            ),
+            BenchmarkTestDatasetPromptEntity(
+                id=3,
+                benchmark_test_dataset_id=7,
+                prompt="third",
+                target="c",
+            ),
+        ]
+        saved_status = BenchmarkRunTestStatusEntity(
+            id=100,
+            run_id=10,
+            test_id=20,
+            status="not_started",
+        )
+        mock_status_service.save_run_test_status.return_value = saved_status
+
+        def _save_echo(entity):
+            return BenchmarkRunTestPromptEntity(
+                id=entity.prompt_id,
+                run_test_id=entity.run_test_id,
+                prompt_id=entity.prompt_id,
+                status=entity.status,
+                target=entity.target,
+                prompt_additional_info=entity.prompt_additional_info,
+            )
+
+        mock_prompt_repo.save.side_effect = _save_echo
+
+        _, prompts_result = service.create_run_test_with_prompts(
+            benchmark_run_id=10,
+            benchmark_test_id=20,
+            max_prompts=2,
+        )
+
+        assert len(prompts_result) == 2
+        assert mock_prompt_repo.save.call_count == 2
+        assert prompts_result[0].prompt_id == 1
+        assert prompts_result[1].prompt_id == 2
+
     def test_creates_status_and_zero_prompts_when_dataset_empty(
         self,
         service,

@@ -374,3 +374,40 @@ def test_execute_bundle_yaml_connector_path(seed_shared_config, test_db_env, tmp
     assert "run_results" in result_data
     assert len(result_data["run_results"]) >= 1
     assert result_data["run_metadata"]["test_id"] == BUNDLE_NAME
+
+
+def test_start_benchmark_run_api_accepts_prompts_by_test(seed_shared_config, test_db_env):
+    """POST /api/start-benchmark-run forwards prompts_by_test to BenchmarkExecutionService."""
+    from fastapi.testclient import TestClient
+
+    from entrypoints import api as api_module
+
+    llm_provider_id, llm_provider_model_id, llm_provider_model_config_id = (
+        _ensure_relational_openai_benchmark_ids()
+    )
+    config_adapter = BenchmarkTestConfigAdapter()
+    bundle_db_id = config_adapter.get_bundle_id_by_system_name_latest(BUNDLE_NAME)
+    test_ids = config_adapter.get_test_ids_by_bundle_id(bundle_db_id)
+    assert len(test_ids) >= 1
+    test_id = test_ids[0]
+
+    with patch.object(
+        api_module.benchmark_execution_service,
+        "start_benchmark_run",
+    ) as mock_start:
+        client = TestClient(api_module.app)
+        response = client.post(
+            "/api/start-benchmark-run",
+            json={
+                "run_name": f"api-prompts-by-test-{uuid.uuid4().hex[:8]}",
+                "bundle_names": [BUNDLE_NAME],
+                "llm_provider_id": llm_provider_id,
+                "llm_provider_model_id": llm_provider_model_id,
+                "llm_provider_model_config_id": llm_provider_model_config_id,
+                "prompts_by_test": {str(test_id): 3},
+            },
+        )
+
+    assert response.status_code == 200
+    mock_start.assert_called_once()
+    assert mock_start.call_args.kwargs["prompts_by_test"] == {test_id: 3}

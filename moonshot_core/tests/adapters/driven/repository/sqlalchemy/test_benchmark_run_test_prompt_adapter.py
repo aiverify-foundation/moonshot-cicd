@@ -48,7 +48,7 @@ class TestSqlAlchemyBenchmarkRunTestPromptRepository:
 
     def test_get_all_by_run_test_id_empty(self, mock_sm_class):
         mock_session = MagicMock()
-        mock_session.query.return_value.filter.return_value.all.return_value = []
+        mock_session.query.return_value.filter.return_value.order_by.return_value.all.return_value = []
         mock_cm = MagicMock()
         mock_cm.__enter__ = MagicMock(return_value=mock_session)
         mock_cm.__exit__ = MagicMock(return_value=False)
@@ -59,7 +59,7 @@ class TestSqlAlchemyBenchmarkRunTestPromptRepository:
 
         assert result == []
         mock_session.query.assert_called_once_with(BenchmarkRunTestPromptModel)
-        mock_session.query.return_value.filter.return_value.all.assert_called_once()
+        mock_session.query.return_value.filter.return_value.order_by.return_value.all.assert_called_once()
 
     def test_get_all_by_run_test_id_returns_entities(self, mock_sm_class):
         mock_model = _make_mock_model(
@@ -71,7 +71,7 @@ class TestSqlAlchemyBenchmarkRunTestPromptRepository:
             prediction_result="out",
         )
         mock_session = MagicMock()
-        mock_session.query.return_value.filter.return_value.all.return_value = [
+        mock_session.query.return_value.filter.return_value.order_by.return_value.all.return_value = [
             mock_model
         ]
         mock_cm = MagicMock()
