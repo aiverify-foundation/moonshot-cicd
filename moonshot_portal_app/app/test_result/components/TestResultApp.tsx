@@ -106,6 +106,7 @@ export default function TestResultApp() {
   const [loading, setLoading] = useState(!!benchmarkRunId);
   const [error, setError] = useState<string | null>(null);
   const [downloading, setDownloading] = useState(false);
+  const [downloadingPdf, setDownloadingPdf] = useState(false);
   const [downloadError, setDownloadError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState(TAB_OVERVIEW);
   const [bundleTabScores, setBundleTabScores] = useState<
@@ -258,6 +259,39 @@ export default function TestResultApp() {
     }
   };
 
+  const handleDownloadPdf = async () => {
+    if (!run || !prompts.length) return;
+    setDownloadingPdf(true);
+    setDownloadError(null);
+    try {
+      const { downloadSafetyReportPdf } = await import(
+        "../pdf/downloadSafetyReportPdf"
+      );
+      await downloadSafetyReportPdf(
+        run,
+        resultBundles,
+        prompts,
+        testMargins
+      );
+    } catch (e) {
+      const detail =
+        e instanceof ApiError
+          ? e.message
+          : e instanceof Error
+            ? e.message
+            : "Failed to download safety report PDF";
+      setDownloadError(detail);
+    } finally {
+      setDownloadingPdf(false);
+    }
+  };
+
+  const downloadDisabled =
+    loading ||
+    !benchmarkRunId ||
+    !prompts.length ||
+    run?.status !== "completed";
+
   const runTabs = useMemo(() => {
     if (resultBundles.length === 0) {
       const pts = prompts
@@ -328,21 +362,41 @@ export default function TestResultApp() {
             )}
             <span className="text-sm text-slate-500">Run #{benchmarkRunId}</span>
           </div>
-          <Button
-            className="font-extrabold text-[14px] text-white"
-            style={{ backgroundColor: "#702F8A" }}
-            data-testid="download-results-button"
-            disabled={
-              loading ||
-              downloading ||
-              !benchmarkRunId ||
-              !prompts.length ||
-              run?.status !== "completed"
-            }
-            onClick={handleDownload}
-          >
-            {downloading ? "Downloading…" : "Download"}
-          </Button>
+          <div className="flex items-center gap-2">
+            {/* PDF_PREVIEW_FEATURE_START — remove with app/test_result/preview/ */}
+            <Button
+              asChild
+              variant="outline"
+              className="font-extrabold text-[14px]"
+              disabled={downloadDisabled}
+            >
+              <Link
+                href={`/test_result/preview/?runId=${benchmarkRunId}`}
+                data-testid="preview-pdf-button"
+              >
+                Preview PDF
+              </Link>
+            </Button>
+            {/* PDF_PREVIEW_FEATURE_END */}
+            <Button
+              variant="outline"
+              className="font-extrabold text-[14px]"
+              data-testid="download-pdf-button"
+              disabled={downloadDisabled || downloadingPdf}
+              onClick={handleDownloadPdf}
+            >
+              {downloadingPdf ? "Generating PDF…" : "Download PDF"}
+            </Button>
+            <Button
+              className="font-extrabold text-[14px] text-white"
+              style={{ backgroundColor: "#702F8A" }}
+              data-testid="download-results-button"
+              disabled={downloadDisabled || downloading}
+              onClick={handleDownload}
+            >
+              {downloading ? "Downloading…" : "Download JSON"}
+            </Button>
+          </div>
         </div>
 
         {downloadError && (

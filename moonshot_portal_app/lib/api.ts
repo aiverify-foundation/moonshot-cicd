@@ -728,10 +728,24 @@ function getSaveFilePicker(): SaveFilePickerFn | null {
   return typeof picker === 'function' ? picker : null;
 }
 
+export type BlobDownloadAccept = {
+  description: string;
+  mime: string;
+  extension: string;
+};
+
 /**
  * Save a blob via the native Save As dialog when supported, else trigger a direct download.
  */
-async function saveBlobAsFile(blob: Blob, filename: string): Promise<void> {
+export async function saveBlobAsFile(
+  blob: Blob,
+  filename: string,
+  accept: BlobDownloadAccept = {
+    description: 'JSON',
+    mime: 'application/json',
+    extension: '.json',
+  }
+): Promise<void> {
   const showSaveFilePicker = getSaveFilePicker();
   if (showSaveFilePicker) {
     try {
@@ -739,8 +753,8 @@ async function saveBlobAsFile(blob: Blob, filename: string): Promise<void> {
         suggestedName: filename,
         types: [
           {
-            description: 'JSON',
-            accept: { 'application/json': ['.json'] },
+            description: accept.description,
+            accept: { [accept.mime]: [accept.extension] },
           },
         ],
       });
