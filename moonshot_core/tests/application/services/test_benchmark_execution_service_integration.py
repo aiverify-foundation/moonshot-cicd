@@ -156,6 +156,7 @@ class TestStartBenchmarkRunIntegration:
                 custom_app_config_id,
                 passed_test_ids,
                 passed_prompts_by_test,
+                passed_continue_on_test_failure,
             ) = args
             assert passed_run_id == run_id
             assert skip_alembic is True
@@ -166,6 +167,7 @@ class TestStartBenchmarkRunIntegration:
             assert custom_app_config_id is None
             assert passed_test_ids == [101, 102]
             assert passed_prompts_by_test is None
+            assert passed_continue_on_test_failure is False
             started_bundles.append(bundle_name)
         assert started_bundles == bundle_names
 
@@ -249,8 +251,9 @@ class TestStartBenchmarkRunIntegration:
 
         (_, kwargs) = mock_process.call_args
         args = kwargs["args"]
-        assert args[-2] == [202, 203]
-        assert args[-1] is None
+        assert args[8] == [202, 203]
+        assert args[9] is None
+        assert args[10] is False
 
     def test_start_benchmark_run_prompts_by_test_passes_map_to_process(
         self,
@@ -295,7 +298,8 @@ class TestStartBenchmarkRunIntegration:
 
         (_, kwargs) = mock_process.call_args
         args = kwargs["args"]
-        assert args[-1] == {201: 5, 202: 10}
+        assert args[9] == {201: 5, 202: 10}
+        assert args[10] is False
 
     def test_start_benchmark_run_prompts_by_test_unknown_test_id(
         self,

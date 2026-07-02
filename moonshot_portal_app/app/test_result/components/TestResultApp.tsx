@@ -290,7 +290,7 @@ export default function TestResultApp() {
     loading ||
     !benchmarkRunId ||
     !prompts.length ||
-    run?.status !== "completed";
+    (run?.status !== "completed" && run?.status !== "failed");
 
   const runTabs = useMemo(() => {
     if (resultBundles.length === 0) {

@@ -9,7 +9,7 @@ class BenchmarkRunTestStatusEntity(BaseModel):
     Domain entity for the status of a single test within a benchmark run.
 
     Mirrors the benchmark_run_test_status table
-    (not_started, in_progress, completed, pause, skipped).
+    (not_started, in_progress, completed, completed with failures, pause, skipped).
     """
 
     model_config = ConfigDict(arbitrary_types_allowed=True)

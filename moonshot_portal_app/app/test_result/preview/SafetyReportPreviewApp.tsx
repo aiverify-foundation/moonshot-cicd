@@ -55,7 +55,7 @@ export default function SafetyReportPreviewApp() {
         if (cancelled) return;
 
         const status = res.run.status?.toLowerCase();
-        if (status !== "completed") {
+        if (status !== "completed" && status !== "failed") {
           setError("Preview is only available for completed runs.");
           setLoading(false);
           return;

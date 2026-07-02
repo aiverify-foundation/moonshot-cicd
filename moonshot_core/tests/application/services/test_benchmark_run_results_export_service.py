@@ -314,3 +314,111 @@ class TestExportRun:
         )
         with pytest.raises(BenchmarkRunResultsExportError, match="not completed"):
             service.export_run(1)
+
+    @patch(
+        "application.services.benchmark_run_results_export_service."
+        "DatabaseConnectorConfigService"
+    )
+    @patch(
+        "application.services.benchmark_run_results_export_service."
+        "BenchmarkRunService"
+    )
+    @patch(
+        "application.services.benchmark_run_results_export_service."
+        "SqlAlchemyBenchmarkRunTestStatusRepository"
+    )
+    @patch(
+        "application.services.benchmark_run_results_export_service."
+        "BenchmarkRunPromptService"
+    )
+    @patch(
+        "application.services.benchmark_run_results_export_service."
+        "BenchmarkTestConfigAdapter"
+    )
+    @patch(
+        "application.services.benchmark_run_results_export_service."
+        "BenchmarkRunResultsExportService._get_test_type",
+        return_value="benchmark",
+    )
+    @patch(
+        "application.services.benchmark_run_results_export_service."
+        "BenchmarkRunResultsExportService._compute_evaluation_summary",
+        new_callable=AsyncMock,
+    )
+    @patch(
+        "application.services.benchmark_run_results_export_service."
+        "categorise_prompt_dicts",
+        side_effect=lambda prompt_dicts, metric_name: {"all_results": prompt_dicts},
+    )
+    def test_failed_run_with_error_prompt_exports(
+        self,
+        _mock_categorise,
+        mock_compute_summary,
+        _mock_test_type,
+        mock_config_adapter_class,
+        mock_prompt_service_class,
+        mock_status_repo_class,
+        mock_run_service_class,
+        mock_connector_service_class,
+        service,
+    ):
+        run = _completed_run(status="failed")
+        mock_run_service_class.return_value.get_run_by_id.return_value = run
+
+        status = BenchmarkRunTestStatusEntity(
+            id=100,
+            run_id=1,
+            test_id=20,
+            status="completed_with_errors",
+            start_dt=run.start_time,
+            end_dt=run.end_time,
+        )
+        mock_status_repo_class.return_value.get_all_by_run_id.return_value = [status]
+
+        prompts = [
+            _prompt_row(
+                run_test_id=100,
+                prompt_id=1,
+                prompt="ok prompt",
+                response="ok response",
+            ),
+            BenchmarkRunTestPromptEntity(
+                id=2,
+                run_test_id=100,
+                prompt_id=2,
+                status="error",
+                target="t2",
+                prompt_additional_info="bad prompt",
+                prediction_result=None,
+                evaluation_prediction_result=str({"score": 0}),
+            ),
+        ]
+        mock_prompt_service_class.return_value.get_all_prompts_by_run_id.return_value = (
+            prompts
+        )
+
+        mock_config_adapter_class.return_value.get_test_info.return_value = (
+            "test-one",
+            "dataset-one",
+            "refusal_adapter",
+        )
+        mock_connector_service_class.return_value.build_connector_entity.return_value = (
+            ConnectorEntity(
+                connector_adapter="openai_adapter",
+                model="gpt-4o-mini",
+                model_endpoint="",
+                params={},
+            )
+        )
+        mock_compute_summary.return_value = {"refusal": {"attack_success_rate": 50.0}}
+
+        payload = service.export_run(1)
+
+        assert payload is not None
+        assert len(payload["run_results"]) == 1
+        all_results = payload["run_results"][0]["results"]["individual_results"][
+            "all_results"
+        ]
+        assert len(all_results) == 2
+        states = {row["state"] for row in all_results}
+        assert states == {"completed", "error"}

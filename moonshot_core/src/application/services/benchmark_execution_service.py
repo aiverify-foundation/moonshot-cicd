@@ -43,6 +43,10 @@ from domain.services.task_manager import TaskManager
 # Initialize logger for this module
 logger = configure_logger(__name__)
 
+_TERMINAL_TEST_STATUSES = frozenset(
+    {"completed", "completed_with_errors", "failed", "skipped"}
+)
+
 
 class BenchmarkRunTestSelectionError(ValueError):
     """Raised when ``tests_by_bundle`` references invalid or out-of-bundle test ids."""
@@ -105,6 +109,27 @@ def _validate_prompts_by_test(
         )
 
 
+def _mark_run_test_failed(run_id: int, test_id: int) -> None:
+    """Set benchmark_run_test_status to failed for a test that raised during execution."""
+    from application.services.benchmark_run_test_status_service import (
+        BenchmarkRunTestStatusService,
+    )
+
+    status_repo = SqlAlchemyBenchmarkRunTestStatusRepository()
+    existing = status_repo.get_by_run_and_test(run_id, test_id)
+    if existing is None:
+        logger.warning(
+            "[BenchmarkExecutionService] Cannot mark test failed: "
+            "no run_test_status for run_id=%s test_id=%s",
+            run_id,
+            test_id,
+        )
+        return
+    existing.status = "failed"
+    existing.end_dt = datetime.now(timezone.utc)
+    BenchmarkRunTestStatusService().update_run_test_status(existing)
+
+
 def _run_bundle_in_process(
     bundle_id: str,
     run_id: int,
@@ -116,6 +141,7 @@ def _run_bundle_in_process(
     custom_app_config_id: Optional[int],
     test_ids: Optional[List[int]] = None,
     prompts_by_test: Optional[Dict[int, int]] = None,
+    continue_on_test_failure: bool = False,
 ) -> None:
     """
     Wrapper to run a bundle in a separate process.
@@ -135,6 +161,7 @@ def _run_bundle_in_process(
         custom_app_id / custom_app_config_id: DB connector FKs (Custom_App path).
         test_ids: Optional list of benchmark_test.id to run for this bundle (subset or full).
         prompts_by_test: Optional map of benchmark_test.id to max prompts to populate per test.
+        continue_on_test_failure: When True, continue remaining tests after one test fails (API path).
     """
     if skip_alembic_upgrade:
         set_skip_alembic_upgrade(True)
@@ -154,6 +181,7 @@ def _run_bundle_in_process(
             custom_app_config_id=custom_app_config_id,
             test_ids=test_ids,
             prompts_by_test=prompts_by_test,
+            continue_on_test_failure=continue_on_test_failure,
         )
     finally:
         if skip_alembic_upgrade:
@@ -184,6 +212,7 @@ class BenchmarkExecutionService:
         custom_app_config_id: Optional[int] = None,
         test_ids: Optional[List[int]] = None,
         prompts_by_test: Optional[Dict[int, int]] = None,
+        continue_on_test_failure: bool = False,
     ) -> str:
         """
         Validate the bundle (DB only), start its execution in a daemon process, and return the bundle id.
@@ -198,6 +227,7 @@ class BenchmarkExecutionService:
             custom_app_id / custom_app_config_id: DB-backed connector FKs (Custom_App path).
             test_ids: When set, only these benchmark_test.id values are executed for the bundle.
             prompts_by_test: Optional map of benchmark_test.id to max prompts per test.
+            continue_on_test_failure: When True, continue remaining tests after one test fails (API path).
 
         Returns:
             The resolved bundle id (same as bundle_name).
@@ -225,6 +255,7 @@ class BenchmarkExecutionService:
                 custom_app_config_id,
                 test_ids,
                 prompts_by_test,
+                continue_on_test_failure,
             ),
         )
         process.daemon = True
@@ -246,6 +277,7 @@ class BenchmarkExecutionService:
         custom_app_config_id: Optional[int] = None,
         tests_by_bundle: Optional[Dict[str, List[int]]] = None,
         prompts_by_test: Optional[Dict[int, int]] = None,
+        continue_on_test_failure: bool = False,
     ) -> None:
         """
         Start a benchmark run: create a benchmark run entity, then execute multiple bundles
@@ -264,6 +296,7 @@ class BenchmarkExecutionService:
             custom_app_config_id: FK custom_app_config.id (Custom_App path).
             tests_by_bundle: Optional map bundle system_name -> benchmark_test.id list (subset per bundle).
             prompts_by_test: Optional map benchmark_test.id -> max prompts to populate per test.
+            continue_on_test_failure: When True, continue remaining tests after one test fails (API path).
 
         Raises:
             KeyError: If any bundle is not found.
@@ -360,6 +393,7 @@ class BenchmarkExecutionService:
                 custom_app_config_id=custom_app_config_id,
                 test_ids=ids_for_bundle,
                 prompts_by_test=prompts_by_test,
+                continue_on_test_failure=continue_on_test_failure,
             )
 
     def execute_bundle(
@@ -376,6 +410,7 @@ class BenchmarkExecutionService:
         write_combined_results_file: bool = True,
         test_ids: Optional[List[int]] = None,
         prompts_by_test: Optional[Dict[int, int]] = None,
+        continue_on_test_failure: bool = False,
     ) -> None:
         """
         Execute a bundle (multiple benchmark tests) synchronously and optionally write a combined results file.
@@ -405,6 +440,7 @@ class BenchmarkExecutionService:
                 Ignored for file-based bundles (a warning is logged if set).
             prompts_by_test: When set on the DB path, limits prompts populated per test (first N by dataset id order).
                 Ignored for file-based bundles.
+            continue_on_test_failure: When True, continue remaining tests after one test fails (API path).
         """
         try:
             logger.info(f"[BenchmarkExecutionService] Starting bundle execution for bundle: {bundle_id}")
@@ -505,20 +541,47 @@ class BenchmarkExecutionService:
                 async def _run_all_db() -> list[str]:
                     results = []
                     for tid, test_name, dataset_system_name, metric_dict in test_tuples:
-                        result = await task_manager.run_benchmark(
-                            run_id=effective_run_id_str,
-                            test_name=test_name,
-                            dataset=dataset_system_name,
-                            metric=metric_dict,
-                            connector=bench_connector,
-                            prompt_processor=prompt_processor,
-                            callback_fn=None,
-                            write_result=False,
-                            write_to_db=write_to_db,
-                            db_run_id=effective_run_id if write_to_db else None,
-                            test_id=tid,
-                            connector_entity=db_connector_entity,
-                        )
+                        if continue_on_test_failure:
+                            try:
+                                result = await task_manager.run_benchmark(
+                                    run_id=effective_run_id_str,
+                                    test_name=test_name,
+                                    dataset=dataset_system_name,
+                                    metric=metric_dict,
+                                    connector=bench_connector,
+                                    prompt_processor=prompt_processor,
+                                    callback_fn=None,
+                                    write_result=False,
+                                    write_to_db=write_to_db,
+                                    db_run_id=effective_run_id if write_to_db else None,
+                                    test_id=tid,
+                                    connector_entity=db_connector_entity,
+                                )
+                            except Exception as e:
+                                logger.error(
+                                    "[BenchmarkExecutionService] Test %s failed; continuing bundle: %s",
+                                    tid,
+                                    e,
+                                    exc_info=True,
+                                )
+                                if write_to_db and effective_run_id is not None:
+                                    _mark_run_test_failed(effective_run_id, tid)
+                                result = ""
+                        else:
+                            result = await task_manager.run_benchmark(
+                                run_id=effective_run_id_str,
+                                test_name=test_name,
+                                dataset=dataset_system_name,
+                                metric=metric_dict,
+                                connector=bench_connector,
+                                prompt_processor=prompt_processor,
+                                callback_fn=None,
+                                write_result=False,
+                                write_to_db=write_to_db,
+                                db_run_id=effective_run_id if write_to_db else None,
+                                test_id=tid,
+                                connector_entity=db_connector_entity,
+                            )
                         results.append(result)
                     return results
 
@@ -536,6 +599,37 @@ class BenchmarkExecutionService:
                 effective_run_id_str = str(run_id) if run_id is not None else bundle_id
 
                 async def _run_all_file() -> list[str]:
+                    if continue_on_test_failure:
+                        results = []
+                        for test in bundle.tests:
+                            try:
+                                result = await task_manager.run_benchmark(
+                                    run_id=effective_run_id_str,
+                                    test_name=test.id,
+                                    dataset=test.dataset.id if test.dataset else "",
+                                    metric=test.metric,
+                                    connector=bench_connector,
+                                    prompt_processor=prompt_processor,
+                                    callback_fn=None,
+                                    write_result=False,
+                                    write_to_db=write_to_db,
+                                    db_run_id=run_id if write_to_db else None,
+                                    test_id=1,
+                                    connector_entity=db_connector_entity,
+                                )
+                            except Exception as e:
+                                logger.error(
+                                    "[BenchmarkExecutionService] Test %s failed; continuing bundle: %s",
+                                    test.id,
+                                    e,
+                                    exc_info=True,
+                                )
+                                if write_to_db and run_id is not None:
+                                    _mark_run_test_failed(run_id, 1)
+                                result = ""
+                            results.append(result)
+                        return results
+
                     tasks = []
                     for test in bundle.tests:
                         tasks.append(
@@ -569,51 +663,73 @@ class BenchmarkExecutionService:
                     f"[BenchmarkExecutionService] Bundle completed but no results were returned "
                     f"for bundle: {bundle_id}"
                 )
-                return
+                if not (
+                    continue_on_test_failure
+                    and use_db_path
+                    and effective_run_id is not None
+                ):
+                    return
 
-            metadata_run_id = effective_run_id if use_db_path else (run_id if run_id is not None else bundle_id)
-            run_metadata = {
-                "run_metadata": {
-                    "run_id": metadata_run_id,
-                    "test_id": bundle_id,
-                    "start_time": start_time.strftime("%Y-%m-%d %H:%M:%S"),
-                    "end_time": end_time.strftime("%Y-%m-%d %H:%M:%S"),
-                    "duration": duration,
+            if json_results:
+                metadata_run_id = effective_run_id if use_db_path else (run_id if run_id is not None else bundle_id)
+                run_metadata = {
+                    "run_metadata": {
+                        "run_id": metadata_run_id,
+                        "test_id": bundle_id,
+                        "start_time": start_time.strftime("%Y-%m-%d %H:%M:%S"),
+                        "end_time": end_time.strftime("%Y-%m-%d %H:%M:%S"),
+                        "duration": duration,
+                    }
                 }
-            }
-            final_results = run_metadata | {"run_results": json_results}
-            final_results_str = json.dumps(final_results, indent=4)
+                final_results = run_metadata | {"run_results": json_results}
+                final_results_str = json.dumps(final_results, indent=4)
 
-            if write_combined_results_file:
-                result_path = task_manager._store_results_to_local_path(bundle_id, final_results_str)
-                if result_path:
+                if write_combined_results_file:
+                    result_path = task_manager._store_results_to_local_path(bundle_id, final_results_str)
+                    if result_path:
+                        logger.info(
+                            f"[BenchmarkExecutionService] Bundle completed successfully for bundle: {bundle_id}. "
+                            f"Results written to: {result_path}"
+                        )
+                    else:
+                        logger.error(
+                            f"[BenchmarkExecutionService] Failed to write results file for bundle: {bundle_id}"
+                        )
+                else:
                     logger.info(
                         f"[BenchmarkExecutionService] Bundle completed successfully for bundle: {bundle_id}. "
-                        f"Results written to: {result_path}"
+                        "Combined results file skipped (persisted via DB when write_to_db is enabled)."
                     )
-                else:
-                    logger.error(
-                        f"[BenchmarkExecutionService] Failed to write results file for bundle: {bundle_id}"
-                    )
-            else:
-                logger.info(
-                    f"[BenchmarkExecutionService] Bundle completed successfully for bundle: {bundle_id}. "
-                    "Combined results file skipped (persisted via DB when write_to_db is enabled)."
-                )
 
-            # When all run-test statuses for this run are completed, mark the benchmark run as completed.
+            # When all run-test statuses are terminal, mark the benchmark run finished.
             if use_db_path and effective_run_id is not None:
                 status_repo = SqlAlchemyBenchmarkRunTestStatusRepository()
                 run_statuses = status_repo.get_all_by_run_id(effective_run_id)
-                if run_statuses and all(s.status == "completed" for s in run_statuses):
+                success_terminal = frozenset({"completed", "completed_with_errors"})
+                all_tests_done = (
+                    all(s.status in _TERMINAL_TEST_STATUSES for s in run_statuses)
+                    if continue_on_test_failure
+                    else all(s.status in success_terminal for s in run_statuses)
+                )
+                if run_statuses and all_tests_done:
                     run_service = BenchmarkRunService()
                     run_entity = run_service.get_run_by_id(effective_run_id)
                     if run_entity is not None and run_entity.status == "running":
-                        run_entity.status = "completed"
+                        from application.services.benchmark_run_prompt_service import (  # noqa: WPS433
+                            BenchmarkRunPromptService,
+                        )
+
+                        run_prompts = BenchmarkRunPromptService().get_all_prompts_by_run_id(
+                            effective_run_id
+                        )
+                        has_prompt_errors = any(p.status == "error" for p in run_prompts)
+                        run_entity.status = "failed" if has_prompt_errors else "completed"
                         run_entity.end_time = datetime.now(timezone.utc)
                         run_service.update_run(run_entity)
                         logger.info(
-                            f"[BenchmarkExecutionService] Benchmark run {effective_run_id} marked as completed."
+                            "[BenchmarkExecutionService] Benchmark run %s marked as %s.",
+                            effective_run_id,
+                            run_entity.status,
                         )
 
         except Exception as e:

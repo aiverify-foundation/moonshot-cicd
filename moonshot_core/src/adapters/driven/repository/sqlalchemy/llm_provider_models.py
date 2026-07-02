@@ -581,9 +581,39 @@ class BenchmarkRunTestPromptModel(Base):
     # Relationships
     run_test_status = relationship("BenchmarkRunTestStatusModel", back_populates="run_test_prompts")
     prompt = relationship("BenchmarkTestDatasetPromptModel", back_populates="run_test_prompts")
+    errors = relationship(
+        "BenchmarkRunTestErrorModel",
+        back_populates="run_test_prompt",
+    )
 
     def __repr__(self) -> str:
         return f"<BenchmarkRunTestPromptModel(id={self.id}, run_test_id={self.run_test_id}, prompt_id={self.prompt_id})>"
+
+
+class BenchmarkRunTestErrorModel(Base):
+    """
+    SQLAlchemy model for the benchmark_run_test_error table.
+
+    Stores error messages linked to a benchmark run test prompt (many errors per prompt).
+    """
+    __tablename__ = "benchmark_run_test_error"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    benchmark_run_test_prompt_id = Column(
+        Integer, ForeignKey("benchmark_run_test_prompt.id"), nullable=False
+    )
+    error_message = Column(String, nullable=False)
+    error_source = Column(String, nullable=False)
+
+    run_test_prompt = relationship(
+        "BenchmarkRunTestPromptModel", back_populates="errors"
+    )
+
+    def __repr__(self) -> str:
+        return (
+            f"<BenchmarkRunTestErrorModel(id={self.id}, "
+            f"benchmark_run_test_prompt_id={self.benchmark_run_test_prompt_id})>"
+        )
 
 
 class BenchmarkRunTestBundleModel(Base):

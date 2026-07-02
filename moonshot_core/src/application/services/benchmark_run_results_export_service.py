@@ -112,7 +112,7 @@ class BenchmarkRunResultsExportService:
 
     @staticmethod
     def _validate_run_exportable(run_entity: BenchmarkRunEntity) -> None:
-        if run_entity.status != "completed":
+        if run_entity.status not in ("completed", "failed"):
             raise BenchmarkRunResultsExportError(
                 f"Benchmark run {run_entity.name!r} is not completed "
                 f"(status={run_entity.status!r})."
@@ -204,7 +204,9 @@ class BenchmarkRunResultsExportService:
             raise BenchmarkRunResultsExportError(
                 f"Run test status id={status.id} has no prompt results to export."
             )
-        if any(p.prediction_result is None for p in prompts):
+        if any(
+            p.prediction_result is None and p.status != "error" for p in prompts
+        ):
             raise BenchmarkRunResultsExportError(
                 f"Run test status id={status.id} has prompts without predictions."
             )

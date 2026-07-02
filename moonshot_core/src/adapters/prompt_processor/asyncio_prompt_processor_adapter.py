@@ -4,6 +4,9 @@ from typing import Callable
 from domain.entities.connector_entity import ConnectorEntity
 from domain.entities.metric_individual_entity import MetricIndividualEntity
 from domain.entities.prompt_entity import PromptEntity
+from domain.entities.benchmark_run_test_error_entity import (
+    BenchmarkRunTestErrorEntity,
+)
 from domain.ports.connector_port import ConnectorPort
 from domain.ports.metric_port import MetricPort
 from domain.ports.prompt_processor_port import PromptProcessorPort
@@ -12,6 +15,11 @@ from domain.services.enums.module_types import ModuleTypes
 from domain.services.enums.task_manager_status import TaskManagerStatus
 from domain.services.loader.module_loader import ModuleLoader
 from domain.services.logger import configure_logger
+from domain.services.prompt_error_evaluation import (
+    FAILED_EVALUATED_RESULT,
+    entities_for_aggregation,
+    synthetic_error_entity,
+)
 
 # Initialize a logger for this module
 logger = configure_logger(__name__)
@@ -71,9 +79,15 @@ class AsyncioPromptProcessor(PromptProcessorPort):
                 reference_context=reference_context,
             )
 
-            evaluated_result = await metric_instance.get_individual_result(
-                metric_entity
-            )
+            try:
+                evaluated_result = await metric_instance.get_individual_result(
+                    metric_entity
+                )
+            except Exception as e:
+                prompt_entity.state = TaskManagerStatus.ERROR
+                prompt_entity.additional_info["error_source"] = "metric"
+                logger.error(f"{self.ERROR_PROCESSING_PROMPT} {e}")
+                raise
 
             metric_entity.evaluated_result = evaluated_result
             prompt_entity.evaluation_result = metric_entity
@@ -81,10 +95,11 @@ class AsyncioPromptProcessor(PromptProcessorPort):
             # Set the prompt entity state to completed
             prompt_entity.state = TaskManagerStatus.COMPLETED
         except Exception as e:
-            # Set the prompt entity state to error and log the exception
-            prompt_entity.state = TaskManagerStatus.ERROR
+            if prompt_entity.state != TaskManagerStatus.ERROR:
+                prompt_entity.state = TaskManagerStatus.ERROR
+                prompt_entity.additional_info["error_source"] = "connector"
             logger.error(f"{self.ERROR_PROCESSING_PROMPT} {e}")
-            raise (e)
+            raise
 
         return prompt_entity
 
@@ -117,12 +132,17 @@ class AsyncioPromptProcessor(PromptProcessorPort):
         # Load existing run_test_prompts by run_test_id when write_to_db (for id-based update only)
         existing_run_test_prompts: list = []
         prompt_repo = None
+        error_repo = None
         if write_to_db and run_test_id is not None:
             try:
                 from adapters.driven.repository.sqlalchemy.benchmark_run_test_prompt_adapter import (
                     SqlAlchemyBenchmarkRunTestPromptRepository,
                 )
+                from adapters.driven.repository.sqlalchemy.benchmark_run_test_error_adapter import (
+                    SqlAlchemyBenchmarkRunTestErrorRepository,
+                )
                 prompt_repo = SqlAlchemyBenchmarkRunTestPromptRepository()
+                error_repo = SqlAlchemyBenchmarkRunTestErrorRepository()
                 existing_run_test_prompts = prompt_repo.get_all_by_run_test_id(run_test_id)
             except Exception as db_error:
                 logger.error(
@@ -200,11 +220,20 @@ class AsyncioPromptProcessor(PromptProcessorPort):
                         prompt.state.name.lower(), len(prompts), completed_count, index
                     )
 
-                result = await self.process_single_prompt(
-                    prompt,
-                    connector_instance,
-                    metric_instance,
-                )
+                error_message: str | None = None
+                error_source: str | None = None
+                try:
+                    result = await self.process_single_prompt(
+                        prompt,
+                        connector_instance,
+                        metric_instance,
+                    )
+                except Exception as e:
+                    error_message = str(e)
+                    error_source = prompt.additional_info.get("error_source", "unknown")
+                    result = prompt
+                    result.evaluation_result = synthetic_error_entity(prompt)
+
                 completed_count += 1
 
                 # Update existing benchmark_run_test_prompt row by id when set (no insert)
@@ -224,29 +253,46 @@ class AsyncioPromptProcessor(PromptProcessorPort):
                             None,
                         )
                         if entity is not None:
-                            if hasattr(result.model_prediction, "response"):
-                                entity.prediction_result = result.model_prediction.response
-                            else:
-                                entity.prediction_result = (
-                                    str(result.model_prediction)
-                                    if result.model_prediction is not None
+                            entity.status = result.state.name.lower()
+                            if error_message is None:
+                                if hasattr(result.model_prediction, "response"):
+                                    entity.prediction_result = (
+                                        result.model_prediction.response
+                                    )
+                                else:
+                                    entity.prediction_result = (
+                                        str(result.model_prediction)
+                                        if result.model_prediction is not None
+                                        else None
+                                    )
+                                metric_entity = result.evaluation_result
+                                evaluated = (
+                                    metric_entity.evaluated_result
+                                    if metric_entity
                                     else None
                                 )
-                            metric_entity = result.evaluation_result
-                            evaluated = (
-                                metric_entity.evaluated_result
-                                if metric_entity else None
-                            )
-                            entity.evaluation_prediction_result = (
-                                str(evaluated) if evaluated is not None else None
-                            )
-                            entity.evaluation_accuracy = (
-                                float(evaluated)
-                                if isinstance(evaluated, (int, float))
-                                else None
-                            )
-                            entity.status = result.state.name.lower()
+                                entity.evaluation_prediction_result = (
+                                    str(evaluated) if evaluated is not None else None
+                                )
+                                entity.evaluation_accuracy = (
+                                    float(evaluated)
+                                    if isinstance(evaluated, (int, float))
+                                    else None
+                                )
+                            else:
+                                entity.evaluation_prediction_result = str(
+                                    FAILED_EVALUATED_RESULT
+                                )
+                                entity.evaluation_accuracy = 0.0
                             prompt_repo.update(entity)
+                            if error_message is not None and error_repo is not None:
+                                error_repo.save(
+                                    BenchmarkRunTestErrorEntity(
+                                        benchmark_run_test_prompt_id=result.benchmark_run_test_prompt_id,
+                                        error_message=error_message,
+                                        error_source=error_source or "unknown",
+                                    )
+                                )
                     except Exception as db_error:
                         logger.error(
                             "[AsyncioPromptProcessor] Failed to update benchmark run test prompt id=%s: %s",
@@ -269,9 +315,7 @@ class AsyncioPromptProcessor(PromptProcessorPort):
             ]
         )
 
-        # Process prompts and return the results
-        evaluation_summary = await metric_instance.get_results(
-            [prompt.evaluation_result for prompt in processed_prompts]
-        )
+        aggregation_entities = entities_for_aggregation(processed_prompts)
+        evaluation_summary = await metric_instance.get_results(aggregation_entities)
 
         return processed_prompts, evaluation_summary

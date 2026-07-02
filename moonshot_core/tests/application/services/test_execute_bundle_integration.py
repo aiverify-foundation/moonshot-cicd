@@ -22,6 +22,7 @@ from adapters.driven.repository.sqlalchemy.dataset_adapter import (
     SqlAlchemyDatasetRepository,
 )
 from adapters.driven.repository.sqlalchemy.llm_provider_models import (
+    BenchmarkRunTestErrorModel,
     BenchmarkRunTestPromptModel,
     BenchmarkRunTestStatusModel,
     LLMProviderModel,
@@ -1241,3 +1242,243 @@ def test_get_benchmark_run_test_bundles_api_after_execute(
         assert row["test_bundle_id"] == bundle_id
         assert row["id"] is not None
         assert "test_id" in row
+
+
+@pytest.mark.integration
+def test_execute_bundle_fail_fast_without_continue_on_test_failure(
+    shared_config_seed_service,
+    test_db_env,
+    tmp_path,
+):
+    """
+    Default execute_bundle path must fail fast: first test exception stops the bundle loop.
+    """
+    assert CONFIG_PATH_TWO_TESTS.exists(), f"Fixture missing: {CONFIG_PATH_TWO_TESTS}"
+    shared_config_seed_service.seed_if_test_file_changed(
+        config_path=CONFIG_PATH_TWO_TESTS
+    )
+    config_adapter = BenchmarkTestConfigAdapter()
+    bundle_id = config_adapter.get_bundle_id_by_system_name_latest("minimal-bundle")
+    test_ids = sorted(config_adapter.get_test_ids_by_bundle_id(bundle_id))
+    assert len(test_ids) >= 2
+    second_test_id = test_ids[1]
+
+    session_manager = SessionManager.get_instance()
+    run_id = _insert_benchmark_run(session_manager, "execute-bundle-fail-fast-run")
+    BenchmarkRunTestBundlePopulationService().populate_run_bundle(
+        run_id, "minimal-bundle"
+    )
+
+    mock_connector = MagicMock()
+    mock_connector.get_response = AsyncMock(
+        return_value=ConnectorResponseEntity(response="fail-fast response", context=[])
+    )
+    mock_connector.configure = MagicMock()
+    mock_metric = MagicMock()
+    mock_metric.get_individual_result = AsyncMock(return_value=1.0)
+    mock_metric.get_results = AsyncMock(return_value={})
+    mock_metric.update_metric_params = MagicMock()
+    connector_entity = ConnectorEntity(
+        connector_adapter="mock_execute_bundle_connector",
+        model="test-model",
+        model_endpoint="",
+        params={"max_concurrency": 2},
+    )
+
+    from domain.services.loader.module_loader import ModuleLoader
+
+    real_module_loader_load = ModuleLoader.load
+    real_run_benchmark = TaskManager.run_benchmark
+    run_benchmark_calls = {"n": 0}
+
+    async def run_benchmark_fail_first(self, *args, **kwargs):
+        run_benchmark_calls["n"] += 1
+        if run_benchmark_calls["n"] == 1:
+            raise RuntimeError("simulated first test failure")
+        return await real_run_benchmark(self, *args, **kwargs)
+
+    def mock_load_module(module_name, module_type):
+        if (
+            module_type == ModuleTypes.CONNECTOR
+            and module_name == "mock_execute_bundle_connector"
+        ):
+            return (mock_connector, None)
+        if module_type == ModuleTypes.METRIC and module_name == "refusal_adapter":
+            return (mock_metric, "refusal_adapter")
+        return real_module_loader_load(module_name, module_type)
+
+    with (
+        patch.object(AppConfig, "DEFAULT_RESULTS_PATH", str(tmp_path)),
+        patch.object(
+            TaskManager, "_get_connector_config", return_value=connector_entity
+        ),
+        patch.object(TaskManager, "run_benchmark", run_benchmark_fail_first),
+        patch.object(
+            TaskManager, "_load_module", side_effect=_make_load_module_side_effect(2)
+        ),
+        patch.object(ModuleLoader, "load", side_effect=mock_load_module),
+        patch("domain.services.task_manager.AppConfig") as mock_app_config_cls,
+    ):
+        mock_app_config = MagicMock()
+        mock_app_config.DEFAULT_RESULTS_PATH = str(tmp_path)
+        mock_app_config.get_metric_config.return_value = MagicMock(
+            params={"categorise_result": False}
+        )
+        mock_app_config_cls.return_value = mock_app_config
+        mock_app_config_cls.DEFAULT_RESULTS_PATH = str(tmp_path)
+        service = BenchmarkExecutionService()
+        service.execute_bundle(
+            "minimal-bundle",
+            "mock_execute_bundle_connector",
+            run_id=run_id,
+            write_to_db=True,
+        )
+
+    assert run_benchmark_calls["n"] == 1, "Fail-fast must not attempt the second test"
+
+    _, second_status, _ = _get_run_test_status(session_manager, run_id, second_test_id)
+    assert second_status == "not_started"
+
+
+@pytest.mark.integration
+def test_execute_bundle_per_prompt_error_persists_score_zero(
+    shared_config_seed_service,
+    test_db_env,
+    tmp_path,
+):
+    """
+    One prompt fails during processing; siblings complete. Assert error row, score 0,
+    test completed_with_errors, run failed.
+    """
+    assert CONFIG_PATH.exists(), f"Fixture config missing: {CONFIG_PATH}"
+    BenchmarkDatasetSeedService(
+        source_dataset_repository=FileDatasetRepository(),
+        target_dataset_repository=SqlAlchemyDatasetRepository(),
+    ).seed_benchmark_dataset("test_sample_dataset")
+    shared_config_seed_service.seed_if_test_file_changed(config_path=CONFIG_PATH)
+
+    config_adapter = BenchmarkTestConfigAdapter()
+    bundle_id = config_adapter.get_bundle_id_by_system_name_latest("minimal-bundle")
+    test_ids = config_adapter.get_test_ids_by_bundle_id(bundle_id)
+    assert len(test_ids) >= 1
+    test_id = test_ids[0]
+
+    session_manager = SessionManager.get_instance()
+    run_id = _insert_benchmark_run(session_manager, "execute-bundle-prompt-error-run")
+    BenchmarkRunTestBundlePopulationService().populate_run_bundle(
+        run_id, "minimal-bundle"
+    )
+
+    connector_calls = {"n": 0}
+
+    async def get_response_side_effect(prompt_text):
+        connector_calls["n"] += 1
+        if connector_calls["n"] == 1:
+            raise RuntimeError("simulated per-prompt connector failure")
+        return ConnectorResponseEntity(
+            response="per-prompt-error ok response", context=[]
+        )
+
+    mock_connector = MagicMock()
+    mock_connector.get_response = AsyncMock(side_effect=get_response_side_effect)
+    mock_connector.configure = MagicMock()
+
+    mock_metric = MagicMock()
+    mock_metric.get_individual_result = AsyncMock(return_value={"score": 1.0})
+    mock_metric.get_results = AsyncMock(return_value={})
+    mock_metric.update_metric_params = MagicMock()
+
+    connector_entity = ConnectorEntity(
+        connector_adapter="mock_execute_bundle_connector",
+        model="test-model",
+        model_endpoint="",
+        params={"max_concurrency": 1},
+    )
+
+    from domain.services.loader.module_loader import ModuleLoader
+
+    real_module_loader_load = ModuleLoader.load
+
+    def mock_load_module(module_name, module_type):
+        if (
+            module_type == ModuleTypes.CONNECTOR
+            and module_name == "mock_execute_bundle_connector"
+        ):
+            return (mock_connector, None)
+        if module_type == ModuleTypes.METRIC and module_name == "refusal_adapter":
+            return (mock_metric, "refusal_adapter")
+        return real_module_loader_load(module_name, module_type)
+
+    from adapters.prompt_processor.asyncio_prompt_processor_adapter import (
+        AsyncioPromptProcessor,
+    )
+
+    prompt_processor = AsyncioPromptProcessor()
+
+    def load_module_side_effect(module_loader, module_name, module_type, *args, **kwargs):
+        from domain.services.enums.module_types import ModuleTypes as MT
+
+        if module_type == MT.PROMPT_PROCESSOR:
+            return (prompt_processor, "asyncio_pp")
+        return (MagicMock(), "dataset")
+
+    with (
+        patch.object(AppConfig, "DEFAULT_RESULTS_PATH", str(tmp_path)),
+        patch.object(
+            TaskManager, "_get_connector_config", return_value=connector_entity
+        ),
+        patch.object(TaskManager, "_load_module", side_effect=load_module_side_effect),
+        patch.object(ModuleLoader, "load", side_effect=mock_load_module),
+        patch("domain.services.task_manager.AppConfig") as mock_app_config_cls,
+    ):
+        mock_app_config = MagicMock()
+        mock_app_config.DEFAULT_RESULTS_PATH = str(tmp_path)
+        mock_app_config.get_metric_config.return_value = MagicMock(
+            params={"categorise_result": False}
+        )
+        mock_app_config_cls.return_value = mock_app_config
+        mock_app_config_cls.DEFAULT_RESULTS_PATH = str(tmp_path)
+
+        service = BenchmarkExecutionService()
+        service.execute_bundle(
+            "minimal-bundle",
+            "mock_execute_bundle_connector",
+            run_id=run_id,
+            write_to_db=True,
+            prompts_by_test={test_id: 2},
+        )
+
+    run_test_id, status, end_dt = _get_run_test_status(session_manager, run_id, test_id)
+    assert run_test_id is not None
+    assert status == "completed_with_errors"
+    assert end_dt is not None
+
+    with session_manager.get_session() as session:
+        prompt_rows = (
+            session.query(BenchmarkRunTestPromptModel)
+            .filter(BenchmarkRunTestPromptModel.run_test_id == run_test_id)
+            .order_by(BenchmarkRunTestPromptModel.id)
+            .all()
+        )
+        assert len(prompt_rows) == 2
+        error_prompts = [r for r in prompt_rows if r.status == "error"]
+        ok_prompts = [r for r in prompt_rows if r.status == "completed"]
+        assert len(error_prompts) == 1
+        assert len(ok_prompts) == 1
+        assert error_prompts[0].prediction_result is None
+        assert "score" in (error_prompts[0].evaluation_prediction_result or "")
+        error_rows = (
+            session.query(BenchmarkRunTestErrorModel)
+            .filter(
+                BenchmarkRunTestErrorModel.benchmark_run_test_prompt_id
+                == error_prompts[0].id
+            )
+            .all()
+        )
+        assert len(error_rows) == 1
+        assert "simulated per-prompt connector failure" in error_rows[0].error_message
+        assert error_rows[0].error_source == "connector"
+
+    run_entity = BenchmarkRunService().get_run_by_id(run_id)
+    assert run_entity is not None
+    assert run_entity.status == "failed"

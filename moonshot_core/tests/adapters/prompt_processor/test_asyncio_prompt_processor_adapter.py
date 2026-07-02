@@ -3,6 +3,9 @@ import pytest
 from unittest.mock import AsyncMock, patch, Mock, MagicMock
 
 from adapters.prompt_processor.asyncio_prompt_processor_adapter import AsyncioPromptProcessor
+from domain.entities.benchmark_run_test_prompt_entity import (
+    BenchmarkRunTestPromptEntity,
+)
 from domain.entities.connector_entity import ConnectorEntity
 from domain.entities.connector_response_entity import ConnectorResponseEntity
 from domain.entities.metric_individual_entity import MetricIndividualEntity
@@ -171,6 +174,7 @@ async def test_process_single_prompt_connector_error(asyncio_processor, prompt_e
         )
     
     assert prompt_entity.state == TaskManagerStatus.ERROR
+    assert prompt_entity.additional_info.get("error_source") == "connector"
 
 
 @pytest.mark.asyncio
@@ -192,6 +196,7 @@ async def test_process_single_prompt_metric_error(asyncio_processor, prompt_enti
         )
     
     assert prompt_entity.state == TaskManagerStatus.ERROR
+    assert prompt_entity.additional_info.get("error_source") == "metric"
 
 
 # ================================
@@ -449,3 +454,109 @@ def test_class_constants():
     assert AsyncioPromptProcessor.ERROR_LOADING_CONNECTOR == "[AsyncioPromptProcessor] Failed to load the connector module."
     assert AsyncioPromptProcessor.ERROR_LOADING_METRIC == "[AsyncioPromptProcessor] Failed to load the metric module."
     assert AsyncioPromptProcessor.ERROR_PROCESSING_PROMPT == "[AsyncioPromptProcessor] Failed to process prompt."
+
+
+@pytest.mark.asyncio
+async def test_process_prompts_partial_failure_write_to_db(
+    asyncio_processor, connector_entity, metric_config
+):
+    """One failing prompt does not stop siblings; error row and score 0 persisted."""
+    prompts = [
+        PromptEntity(
+            index=1,
+            prompt="ok",
+            target="t1",
+            benchmark_run_test_prompt_id=10,
+        ),
+        PromptEntity(
+            index=2,
+            prompt="fail",
+            target="t2",
+            benchmark_run_test_prompt_id=11,
+        ),
+    ]
+
+    mock_connector_instance = Mock(spec=ConnectorPort)
+    mock_connector_instance.configure = Mock()
+
+    async def get_response_side_effect(prompt_text):
+        if prompt_text == "fail":
+            raise RuntimeError("connector failed")
+        return ConnectorResponseEntity(response="ok-response", context=[])
+
+    mock_connector_instance.get_response = AsyncMock(side_effect=get_response_side_effect)
+
+    mock_metric_instance = Mock(spec=MetricPort)
+    mock_metric_instance.get_individual_result = AsyncMock(return_value={"score": 1.0})
+    mock_metric_instance.get_results = AsyncMock(return_value={"refusal": {"attack_success_rate": 0.0}})
+    mock_metric_instance.update_metric_params = Mock()
+
+    mock_metric_cfg = Mock()
+    mock_metric_cfg.params = {}
+
+    stored_prompts = {
+        10: BenchmarkRunTestPromptEntity(
+            id=10, run_test_id=1, prompt_id=1, status="pending", target="t1"
+        ),
+        11: BenchmarkRunTestPromptEntity(
+            id=11, run_test_id=1, prompt_id=2, status="pending", target="t2"
+        ),
+    }
+
+    mock_prompt_repo = MagicMock()
+    mock_prompt_repo.get_all_by_run_test_id.return_value = list(stored_prompts.values())
+
+    def update_prompt(entity):
+        stored_prompts[entity.id] = entity
+        return entity
+
+    mock_prompt_repo.update.side_effect = update_prompt
+
+    mock_error_repo = MagicMock()
+
+    with (
+        patch(
+            "adapters.prompt_processor.asyncio_prompt_processor_adapter.ModuleLoader.load"
+        ) as mock_load,
+        patch(
+            "adapters.prompt_processor.asyncio_prompt_processor_adapter.AppConfig"
+        ) as mock_app_config_class,
+        patch(
+            "adapters.driven.repository.sqlalchemy.benchmark_run_test_prompt_adapter."
+            "SqlAlchemyBenchmarkRunTestPromptRepository",
+            return_value=mock_prompt_repo,
+        ),
+        patch(
+            "adapters.driven.repository.sqlalchemy.benchmark_run_test_error_adapter."
+            "SqlAlchemyBenchmarkRunTestErrorRepository",
+            return_value=mock_error_repo,
+        ),
+    ):
+        mock_load.side_effect = [
+            (mock_connector_instance, "connector_id"),
+            (mock_metric_instance, "metric_id"),
+        ]
+        mock_app_config = Mock()
+        mock_app_config.get_metric_config.return_value = mock_metric_cfg
+        mock_app_config.get_common_config.return_value = 5
+        mock_app_config_class.return_value = mock_app_config
+        asyncio_processor.app_config = mock_app_config
+
+        processed, _summary = await asyncio_processor.process_prompts(
+            prompts,
+            connector_entity,
+            metric_config,
+            write_to_db=True,
+            run_test_id=1,
+        )
+
+    assert len(processed) == 2
+    assert processed[0].state == TaskManagerStatus.COMPLETED
+    assert processed[1].state == TaskManagerStatus.ERROR
+    assert stored_prompts[11].status == "error"
+    assert "score" in (stored_prompts[11].evaluation_prediction_result or "")
+    mock_error_repo.save.assert_called_once()
+    saved_error = mock_error_repo.save.call_args[0][0]
+    assert saved_error.benchmark_run_test_prompt_id == 11
+    assert "connector failed" in saved_error.error_message
+    assert saved_error.error_source == "connector"

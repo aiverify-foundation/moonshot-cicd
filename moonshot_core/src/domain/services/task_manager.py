@@ -14,6 +14,7 @@ from domain.services.app_config import AppConfig
 from domain.services.dataset_examples_converter import examples_to_prompts
 from domain.services.enums.file_types import FileTypes
 from domain.services.enums.module_types import ModuleTypes
+from domain.services.enums.task_manager_status import TaskManagerStatus
 from domain.services.enums.test_types import TestTypes
 from domain.services.ga_results_formatter import (
     convert_prompt_entities_to_dicts,
@@ -244,7 +245,12 @@ class TaskManager:
 
             if write_to_db and saved_benchmark_run_test_status is not None:
                 saved_benchmark_run_test_status.end_dt = end_time
-                saved_benchmark_run_test_status.status = "completed"
+                has_errors = any(
+                    p.state == TaskManagerStatus.ERROR for p in prompts_with_results
+                )
+                saved_benchmark_run_test_status.status = (
+                    "completed_with_errors" if has_errors else "completed"
+                )
                 from application.services.benchmark_run_test_status_service import (  # noqa: WPS433
                     BenchmarkRunTestStatusService,
                 )

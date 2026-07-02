@@ -770,6 +770,143 @@ def test_start_benchmark_run_tests_by_bundle_subset_one_of_two(
 
 
 @pytest.mark.integration
+def test_start_benchmark_run_continues_after_one_test_fails(
+    shared_config_seed_service,
+    test_db_env,
+    tmp_path,
+):
+    """
+    With continue_on_test_failure=True (API path), a failing test must not stop sibling tests.
+    """
+    assert CONFIG_PATH_TWO_TESTS.exists(), f"Fixture config missing: {CONFIG_PATH_TWO_TESTS}"
+    BenchmarkDatasetSeedService(
+        source_dataset_repository=FileDatasetRepository(),
+        target_dataset_repository=SqlAlchemyDatasetRepository(),
+    ).seed_benchmark_dataset("test_sample_dataset")
+    shared_config_seed_service.seed_from_config(config_path=CONFIG_PATH_TWO_TESTS, version=12)
+
+    config_adapter = BenchmarkTestConfigAdapter()
+    bundle_id = config_adapter.get_bundle_id_by_system_name_latest("minimal-bundle")
+    test_ids = sorted(config_adapter.get_test_ids_by_bundle_id(bundle_id))
+    assert len(test_ids) == 2
+    first_test_id, second_test_id = test_ids[0], test_ids[1]
+
+    run_name = f"continue-on-fail-run-{uuid.uuid4().hex[:12]}"
+    expected_prediction = "continue on fail response"
+
+    mock_connector = MagicMock()
+    mock_connector.get_response = AsyncMock(
+        return_value=ConnectorResponseEntity(response=expected_prediction, context=[])
+    )
+    mock_connector.configure = MagicMock()
+
+    mock_metric = MagicMock()
+    mock_metric.get_individual_result = AsyncMock(return_value=1.0)
+    mock_metric.get_results = AsyncMock(return_value={})
+    mock_metric.update_metric_params = MagicMock()
+
+    connector_entity = ConnectorEntity(
+        connector_adapter="mock_execute_bundle_connector",
+        model="test-model",
+        model_endpoint="",
+        params={"max_concurrency": 2},
+    )
+
+    from domain.services.loader.module_loader import ModuleLoader
+
+    real_load = ModuleLoader.load
+    real_run_benchmark = TaskManager.run_benchmark
+    run_benchmark_calls = {"n": 0}
+
+    async def run_benchmark_fail_first(self, *args, **kwargs):
+        run_benchmark_calls["n"] += 1
+        if run_benchmark_calls["n"] == 1:
+            raise RuntimeError("simulated first test failure")
+        return await real_run_benchmark(self, *args, **kwargs)
+
+    def mock_load_module_impl(module_name, module_type):
+        if module_type == ModuleTypes.CONNECTOR and module_name == "mock_execute_bundle_connector":
+            return (mock_connector, None)
+        if module_type == ModuleTypes.METRIC and module_name == "refusal_adapter":
+            return (mock_metric, "refusal_adapter")
+        return real_load(module_name, module_type)
+
+    def fake_process(*, target=None, args=(), **kwargs):
+        fake = MagicMock()
+
+        def start():
+            if target is not None:
+                target(*args)
+
+        fake.start = start
+        return fake
+
+    with (
+        patch.object(AppConfig, "DEFAULT_RESULTS_PATH", str(tmp_path)),
+        patch.object(
+            DatabaseConnectorConfigService,
+            "build_connector_entity",
+            return_value=connector_entity,
+        ),
+        patch.object(TaskManager, "run_benchmark", run_benchmark_fail_first),
+        patch.object(
+            TaskManager,
+            "_load_module",
+            side_effect=_make_load_module_side_effect(2),
+        ),
+        patch.object(ModuleLoader, "load", side_effect=mock_load_module_impl),
+        patch(
+            "application.services.benchmark_execution_service.multiprocessing.Process",
+            side_effect=fake_process,
+        ),
+        patch("domain.services.task_manager.AppConfig") as mock_app_config_cls,
+    ):
+        mock_app_config = MagicMock()
+        mock_app_config.DEFAULT_RESULTS_PATH = str(tmp_path)
+        mock_app_config.get_metric_config.return_value = MagicMock(
+            params={"categorise_result": False}
+        )
+        mock_app_config_cls.return_value = mock_app_config
+        mock_app_config_cls.DEFAULT_RESULTS_PATH = str(tmp_path)
+
+        service = BenchmarkExecutionService()
+        service.start_benchmark_run(
+            run_name=run_name,
+            bundle_names=["minimal-bundle"],
+            llm_provider_id=STUB_LLM_PROVIDER_ID,
+            llm_provider_model_id=STUB_LLM_PROVIDER_MODEL_ID,
+            llm_provider_model_config_id=STUB_LLM_PROVIDER_MODEL_CONFIG_ID,
+            continue_on_test_failure=True,
+        )
+
+    assert run_benchmark_calls["n"] == 2, "Both tests must be attempted"
+
+    run_entity = BenchmarkRunService().get_run_by_name(run_name)
+    assert run_entity is not None
+    assert run_entity.id is not None
+    assert run_entity.status == "completed"
+    assert run_entity.end_time is not None
+
+    session_manager = SessionManager.get_instance()
+    _, first_status, first_end_dt = _get_run_test_status(
+        session_manager, run_entity.id, first_test_id
+    )
+    assert first_status == "failed"
+    assert first_end_dt is not None
+
+    second_run_test_id, second_status, second_end_dt = _get_run_test_status(
+        session_manager, run_entity.id, second_test_id
+    )
+    assert second_status == "completed"
+    assert second_end_dt is not None
+    prompts = _get_run_test_prompts(session_manager, second_run_test_id)
+    assert len(prompts) >= 1
+    for prediction_result, evaluation_prediction_result, _ in prompts:
+        assert prediction_result == expected_prediction
+        assert evaluation_prediction_result is not None
+
+
+@pytest.mark.integration
 def test_start_benchmark_run_prompts_by_test_limits_prompt_count(
     shared_config_seed_service,
     test_db_env,
