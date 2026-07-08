@@ -4,6 +4,10 @@ import React, { useState } from "react"
 import { BarChart, Bar, XAxis, YAxis, ResponsiveContainer, Cell, LabelList, Tooltip, ErrorBar, Text, ReferenceLine } from "recharts"
 import { BenchmarkRunResultsBundleSummary, BenchmarkRunTestPrompt, BenchmarkRunTestStatusSummary } from "@/lib/api"
 import TestResultInProgress from "./TestResultInProgress"
+import TestResultCompletedWithErrors, {
+    groupErroredTestsByBundle,
+} from "./TestResultCompletedWithErrors"
+import { runHasPromptErrors } from "./testCompletion"
 
 function TestResultNote() {
     const [isVisible, setIsVisible] = useState(true)
@@ -331,9 +335,14 @@ export default function TestResultOverview({
         )
     }
 
+    const hasRunErrors = runHasPromptErrors(prompts)
+    const erroredTestGroups = hasRunErrors
+        ? groupErroredTestsByBundle(prompts, resultBundles, testRunStatus)
+        : []
+
     const chartsWithData = bundleCharts.filter((c) => c.data.length > 0)
 
-    if (chartsWithData.length === 0) {
+    if (!hasRunErrors && chartsWithData.length === 0) {
         return (
             <div className="flex flex-col gap-4 mt-2">
                 <TestResultNote />
@@ -346,17 +355,28 @@ export default function TestResultOverview({
 
     return (
         <div className="flex flex-col gap-4 mt-2">
-            <TestResultNote />
-            <div className={gridClassForChartCount(chartsWithData.length)}>
-                {chartsWithData.map((c, i) => (
-                    <ReportChartScrollAdjustableHeight
-                        key={`${c.bundleName}-${i}`}
-                        chartData={c.data}
-                        bundleName={c.bundleName}
-                        showMarginDebug={showMarginDebug}
-                    />
-                ))}
-            </div>
+            {hasRunErrors ? (
+                <TestResultCompletedWithErrors groups={erroredTestGroups} />
+            ) : null}
+            {chartsWithData.length > 0 ? (
+                <>
+                    <TestResultNote />
+                    <div className={gridClassForChartCount(chartsWithData.length)}>
+                        {chartsWithData.map((c, i) => (
+                            <ReportChartScrollAdjustableHeight
+                                key={`${c.bundleName}-${i}`}
+                                chartData={c.data}
+                                bundleName={c.bundleName}
+                                showMarginDebug={showMarginDebug}
+                            />
+                        ))}
+                    </div>
+                </>
+            ) : hasRunErrors ? (
+                <p className="text-sm text-slate-600">
+                    No fully completed tests to chart in this run.
+                </p>
+            ) : null}
         </div>
     )
 }

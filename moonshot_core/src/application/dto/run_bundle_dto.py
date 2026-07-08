@@ -241,6 +241,10 @@ class BenchmarkRunTestPromptResponseDTO(BaseModel):
     user_notes: Optional[str] = None
     #: benchmark_test.name (display name) for the run-test this prompt belongs to (API-enriched).
     test_name: str = ""
+    #: Latest per-prompt error message from benchmark_run_test_error (API-enriched).
+    error_message: Optional[str] = None
+    #: Latest per-prompt error source: "connector" or "metric" (API-enriched).
+    error_source: Optional[str] = None
 
     @computed_field
     @property
@@ -287,6 +291,7 @@ class BenchmarkRunTestStatusSummaryDTO(BaseModel):
 
     test_id: int
     start_dt: Optional[datetime] = None
+    status: str = ""
 
 
 class BenchmarkRunResultsBundleSummaryDTO(BaseModel):

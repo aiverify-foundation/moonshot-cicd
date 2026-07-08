@@ -12,6 +12,14 @@ import { Button } from "@/components/ui/button";
 import TestResultBundle from "./TestResultBundle";
 import { metricToPercentPoints } from "./metricToPercentPoints";
 import {
+  filterPromptsForFullyCompleteTests,
+  testStatusByTestId,
+} from "./testCompletion";
+import {
+  mapRunStatusLabel,
+  runStatusBadgeClassName,
+} from "./runStatusDisplay";
+import {
   ApiError,
   BenchmarkRun,
   BenchmarkRunResultsBundleSummary,
@@ -66,23 +74,17 @@ function chartItemsFromPrompts(
 
 function bundleMeanPercent(
   prompts: BenchmarkRunTestPrompt[],
-  testIds: number[]
+  testIds: number[],
+  testStatusById: Map<number, string>
 ): number | null {
+  const filtered = filterPromptsForFullyCompleteTests(prompts, testStatusById);
   const set = new Set(testIds);
-  const pts = prompts
+  const pts = filtered
     .filter((p) => p.test_id != null && set.has(p.test_id))
     .map((p) => accuracyToPercent(p.score))
     .filter((x): x is number => x != null);
   if (!pts.length) return null;
   return Math.round((pts.reduce((a, b) => a + b, 0) / pts.length) * 10) / 10;
-}
-
-function mapStatusLabel(status: string): string {
-  const s = status.toLowerCase();
-  if (s === "completed") return "Complete";
-  if (s === "running") return "In Progress";
-  if (s === "failed" || s === "error") return "Failed";
-  return status.charAt(0).toUpperCase() + status.slice(1);
 }
 
 export default function TestResultApp() {
@@ -220,29 +222,48 @@ export default function TestResultApp() {
     return o;
   }, [marginPercentByTestId]);
 
+  const testStatusMap = useMemo(
+    () => testStatusByTestId(testRunStatus),
+    [testRunStatus]
+  );
+
+  const chartablePrompts = useMemo(
+    () => filterPromptsForFullyCompleteTests(prompts, testStatusMap),
+    [prompts, testStatusMap]
+  );
+
   const bundleCharts: OverviewBundleChart[] = useMemo(() => {
     if (!benchmarkRunId || loading) return [];
     if (resultBundles.length === 0) {
       return [
         {
           bundleName: "All results",
-          data: chartItemsFromPrompts(prompts, marginPercentByTestId),
+          data: chartItemsFromPrompts(chartablePrompts, marginPercentByTestId),
         },
       ];
     }
     return resultBundles.map((b) => ({
       bundleName: b.name,
       data: chartItemsFromPrompts(
-        prompts.filter(
+        chartablePrompts.filter(
           (p) => p.test_id != null && b.test_ids.includes(p.test_id)
         ),
         marginPercentByTestId
       ),
     }));
-  }, [benchmarkRunId, loading, resultBundles, prompts, marginPercentByTestId]);
+  }, [
+    benchmarkRunId,
+    loading,
+    resultBundles,
+    chartablePrompts,
+    marginPercentByTestId,
+  ]);
 
   const displayTitle = run ? run.name : loading ? "Loading…" : "";
-  const statusLabel = run ? mapStatusLabel(run.status) : "";
+  const statusLabel = run ? mapRunStatusLabel(run.status, prompts) : "";
+  const statusBadgeClass = run
+    ? runStatusBadgeClassName(run.status, prompts)
+    : "";
 
   const handleDownload = async () => {
     if (!benchmarkRunId) return;
@@ -294,7 +315,7 @@ export default function TestResultApp() {
 
   const runTabs = useMemo(() => {
     if (resultBundles.length === 0) {
-      const pts = prompts
+      const pts = chartablePrompts
         .map((p) => accuracyToPercent(p.score))
         .filter((x): x is number => x != null);
       const meanAll =
@@ -322,11 +343,11 @@ export default function TestResultApp() {
       badge: (() => {
         const s = bundleTabScores[b.test_bundle_id];
         if (s !== null && s !== undefined) return `${Math.round(s * 10) / 10}%`;
-        const m = bundleMeanPercent(prompts, b.test_ids);
+        const m = bundleMeanPercent(prompts, b.test_ids, testStatusMap);
         return m !== null ? `${m}%` : prompts.length ? "—" : null;
       })(),
     }));
-  }, [resultBundles, prompts, bundleTabScores, allTabScore]);
+  }, [resultBundles, prompts, chartablePrompts, bundleTabScores, allTabScore, testStatusMap]);
 
   if (!benchmarkRunId) {
     return (
@@ -356,7 +377,7 @@ export default function TestResultApp() {
               {displayTitle}
             </h1>
             {statusLabel && (
-              <Badge variant="outline">
+              <Badge variant="outline" className={statusBadgeClass}>
                 <div className="text-left">{statusLabel}</div>
               </Badge>
             )}
@@ -557,6 +578,7 @@ export default function TestResultApp() {
             bundleDisplayName={null}
             marginHalfWidthPercentByTestId={marginPctRecord}
             showMarginDebug={showMarginDebug}
+            testRunStatus={testRunStatus}
             onAdjustedScoreChange={setAllTabScore}
           />
         </div>
@@ -576,6 +598,7 @@ export default function TestResultApp() {
             bundleDisplayName={b.name}
             marginHalfWidthPercentByTestId={marginPctRecord}
             showMarginDebug={showMarginDebug}
+            testRunStatus={testRunStatus}
             onAdjustedScoreChange={(score) =>
               setBundleTabScores((prev) => ({
                 ...prev,

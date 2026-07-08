@@ -6,9 +6,9 @@ import {
 
 export function isPromptCompleted(p: BenchmarkRunTestPrompt): boolean {
   const status = p.status?.toLowerCase() ?? "";
-  if (status === "completed" || status === "completed_with_errors") return true;
+  if (status === "error") return false;
+  if (status === "completed") return true;
   if (p.prediction_result != null && p.prediction_result !== "") return true;
-  if (p.score != null && !Number.isNaN(p.score)) return true;
   return false;
 }
 

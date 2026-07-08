@@ -20,6 +20,13 @@ export function extractEvaluatedResponse(raw: string | null | undefined): string
     }
 }
 
-export function evaluationDisplayLabel(evaluationBlob: string, score: number): string {
+export function evaluationDisplayLabel(
+    evaluationBlob: string,
+    score: number,
+    options?: { isPromptError?: boolean }
+): string {
+    if (options?.isPromptError || evaluationBlob === "error") {
+        return "Error"
+    }
     return extractEvaluatedResponse(evaluationBlob) ?? (score === 1 ? "Agree" : score === 0 ? "Disagree" : evaluationBlob)
 }

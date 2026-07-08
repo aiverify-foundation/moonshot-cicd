@@ -35,6 +35,14 @@ describe("isPromptCompleted", () => {
       false
     );
   });
+
+  it("returns false for error prompts even with score 0", () => {
+    expect(
+      isPromptCompleted(
+        prompt({ run_test_id: 1, prompt_id: 1, status: "error", score: 0 })
+      )
+    ).toBe(false);
+  });
 });
 
 describe("testStartDtMapFromRunStatus", () => {

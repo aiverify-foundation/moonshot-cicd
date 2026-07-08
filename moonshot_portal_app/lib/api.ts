@@ -265,6 +265,10 @@ export interface BenchmarkRunTestPrompt {
   user_notes?: string | null;
   /** Display name of the test this prompt belongs to (benchmark_test.name). */
   test_name?: string;
+  /** Latest per-prompt error message from benchmark_run_test_error. */
+  error_message?: string | null;
+  /** Latest per-prompt error source: "connector" or "metric". */
+  error_source?: string | null;
 }
 
 /** Per-test confidence half-width on GET .../results (same scale as `score`). */
@@ -277,6 +281,8 @@ export interface BenchmarkRunTestMarginOfError {
 export interface BenchmarkRunTestStatusSummary {
   test_id: number;
   start_dt?: string | null;
+  /** not_started | in_progress | completed | completed_with_errors | failed | ... */
+  status?: string;
 }
 
 /** GET /api/benchmark-runs/{run_id}/results */

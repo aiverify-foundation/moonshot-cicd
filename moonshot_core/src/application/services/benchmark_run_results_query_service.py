@@ -6,6 +6,9 @@ from __future__ import annotations
 
 from typing import Optional
 
+from adapters.driven.repository.sqlalchemy.benchmark_run_test_error_adapter import (
+    SqlAlchemyBenchmarkRunTestErrorRepository,
+)
 from adapters.driven.repository.sqlalchemy.benchmark_run_test_status_adapter import (
     SqlAlchemyBenchmarkRunTestStatusRepository,
 )
@@ -27,6 +30,9 @@ from application.services.benchmark_run_service import BenchmarkRunService
 from application.services.bundle_score_confidence import (
     margin_of_error_by_test,
 )
+from domain.entities.benchmark_run_test_error_entity import (
+    BenchmarkRunTestErrorEntity,
+)
 from domain.entities.benchmark_run_test_prompt_entity import (
     BenchmarkRunTestPromptEntity,
 )
@@ -47,13 +53,15 @@ class BenchmarkRunResultsQueryService:
         prompt_service = BenchmarkRunPromptService()
         entities = prompt_service.get_all_prompts_by_run_id(run_id)
         run_test_to_name, run_test_to_test_id = self._run_test_enrichment_maps(run_id)
+        errors_by_prompt_id = self._latest_errors_by_prompt_id(entities)
         return [
             BenchmarkRunTestPromptResponseDTO.model_validate(
-                {
-                    **e.model_dump(),
-                    "test_name": run_test_to_name.get(e.run_test_id, ""),
-                    "test_id": run_test_to_test_id.get(e.run_test_id),
-                }
+                self._prompt_dto_payload(
+                    e,
+                    run_test_to_name,
+                    run_test_to_test_id,
+                    errors_by_prompt_id,
+                )
             )
             for e in entities
         ]
@@ -83,7 +91,9 @@ class BenchmarkRunResultsQueryService:
         status_repo = SqlAlchemyBenchmarkRunTestStatusRepository()
         statuses = status_repo.get_all_by_run_id(run_id)
         test_run_status = [
-            BenchmarkRunTestStatusSummaryDTO(test_id=s.test_id, start_dt=s.start_dt)
+            BenchmarkRunTestStatusSummaryDTO(
+                test_id=s.test_id, start_dt=s.start_dt, status=s.status
+            )
             for s in statuses
         ]
 
@@ -126,13 +136,44 @@ class BenchmarkRunResultsQueryService:
     ) -> BenchmarkRunTestPromptResponseDTO:
         """Build a response DTO for one prompt row with test_name and test_id enrichment."""
         run_test_to_name, run_test_to_test_id = self._run_test_enrichment_maps(run_id)
+        errors_by_prompt_id = self._latest_errors_by_prompt_id([entity])
         return BenchmarkRunTestPromptResponseDTO.model_validate(
-            {
-                **entity.model_dump(),
-                "test_name": run_test_to_name.get(entity.run_test_id, ""),
-                "test_id": run_test_to_test_id.get(entity.run_test_id),
-            }
+            self._prompt_dto_payload(
+                entity,
+                run_test_to_name,
+                run_test_to_test_id,
+                errors_by_prompt_id,
+            )
         )
+
+    @staticmethod
+    def _latest_errors_by_prompt_id(
+        entities: list[BenchmarkRunTestPromptEntity],
+    ) -> dict[int, BenchmarkRunTestErrorEntity]:
+        prompt_ids = [e.id for e in entities if e.id is not None]
+        if not prompt_ids:
+            return {}
+        error_repo = SqlAlchemyBenchmarkRunTestErrorRepository()
+        return error_repo.get_latest_by_prompt_ids(prompt_ids)
+
+    @staticmethod
+    def _prompt_dto_payload(
+        entity: BenchmarkRunTestPromptEntity,
+        run_test_to_name: dict[int, str],
+        run_test_to_test_id: dict[int, int],
+        errors_by_prompt_id: dict[int, BenchmarkRunTestErrorEntity],
+    ) -> dict:
+        payload = {
+            **entity.model_dump(),
+            "test_name": run_test_to_name.get(entity.run_test_id, ""),
+            "test_id": run_test_to_test_id.get(entity.run_test_id),
+        }
+        if entity.id is not None:
+            error = errors_by_prompt_id.get(entity.id)
+            if error is not None:
+                payload["error_message"] = error.error_message
+                payload["error_source"] = error.error_source
+        return payload
 
     def _load_bundle_summaries(
         self, run_id: int

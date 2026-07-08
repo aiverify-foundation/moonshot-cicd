@@ -6,7 +6,13 @@ import TestResultTable, { TestResultTableRow } from "./TestResultTable"
 import {
     patchBenchmarkRunPromptUserFeedback,
     type BenchmarkRunTestPrompt,
+    type BenchmarkRunTestStatusSummary,
 } from "@/lib/api"
+import {
+    classifyTest,
+    promptsForTest,
+    testStatusByTestId,
+} from "./testCompletion"
 
 export { extractEvaluatedResponse, evaluationDisplayLabel } from "./evaluationDisplayHelpers"
 
@@ -35,18 +41,23 @@ export function adjustedAccuracyPercent(
     return ((totalScore - disagreeWithScore1 + disagreeWithScore0) / rowCount) * 100
 }
 
-function promptsToTableRows(
+export function promptsToTableRows(
     prompts: BenchmarkRunTestPrompt[],
     bundleDisplayName?: string | null
 ): TestResultTableRow[] {
     return prompts.map((p, idx) => {
-        const score = scoreFromApiScore(p.score ?? null)
+        const isPromptError = p.status === "error"
+        const score = isPromptError ? 0 : scoreFromApiScore(p.score ?? null)
         let yourVerdict: "agree" | "disagree" | null = null
         if (p.user_evaluation === 1) yourVerdict = "agree"
         else if (p.user_evaluation === 0) yourVerdict = "disagree"
 
         const promptText = p.prompt_additional_info ?? "—"
         const evalPrompt = p.evaluation_prompt ?? "—"
+        const response =
+            p.error_source === "connector" && p.error_message
+                ? p.error_message
+                : (p.prediction_result ?? "—")
 
         return {
             id: p.id != null ? `p-${p.id}` : `p-${p.run_test_id}-${p.prompt_id}-${idx}`,
@@ -55,9 +66,10 @@ function promptsToTableRows(
             test: p.test_name || "—",
             prompt: promptText.length > 2000 ? `${promptText.slice(0, 2000)}…` : promptText,
             target: p.target || "—",
-            response: p.prediction_result ?? "—",
-            evaluation: p.evaluation_prediction_result ?? "—",
+            response,
+            evaluation: isPromptError ? "error" : (p.evaluation_prediction_result ?? "—"),
             score,
+            isPromptError,
             yourVerdict,
             note: p.user_notes ?? "",
             bundle: bundleDisplayName?.trim() || p.test_name || "—",
@@ -307,72 +319,84 @@ function calculateVerdictStatistics(data: TestResultTableRow[]): VerdictStatisti
     }
 }
 
-function calculateChartDataFromTableData(
-    data: TestResultTableRow[],
-    marginHalfWidthPercentByTestId: Record<number, number> | null
-): BundleChartDataItem[] {
-    // Group data by test name (normalize by trimming whitespace)
-    const testGroups = new Map<string, TestResultTableRow[]>()
-    
-    data.forEach((row) => {
-        // Normalize test name by trimming whitespace to avoid duplicates from spacing variations
-        const testName = (row.test || "Unknown Test").trim()
-        if (!testGroups.has(testName)) {
-            testGroups.set(testName, [])
+export interface BundleChartResult {
+    chartBars: BundleChartDataItem[]
+    incompleteTests: string[]
+}
+
+function scoreRowsForTest(rows: TestResultTableRow[]): {
+    aiScore: number
+    adjustedScore: number
+    half: number
+} {
+    const totalCount = rows.length
+    const totalScore = rows.reduce((sum, row) => sum + row.score, 0)
+    let disagreeWithScore1 = 0
+    let disagreeWithScore0 = 0
+    rows.forEach((row) => {
+        if (row.yourVerdict === "disagree") {
+            if (row.score === 1) disagreeWithScore1++
+            else if (row.score === 0) disagreeWithScore0++
         }
+    })
+    const aiScore = totalCount > 0 ? (totalScore / totalCount) * 100 : 0
+    const adjustedScore = adjustedAccuracyPercent(
+        totalScore,
+        totalCount,
+        disagreeWithScore1,
+        disagreeWithScore0
+    )
+    return {
+        aiScore: Math.round(aiScore * 100) / 100,
+        adjustedScore: Math.round(adjustedScore * 100) / 100,
+        half: 0,
+    }
+}
+
+export function buildBundleChartResult(
+    prompts: BenchmarkRunTestPrompt[],
+    data: TestResultTableRow[],
+    testRunStatus: BenchmarkRunTestStatusSummary[],
+    marginHalfWidthPercentByTestId: Record<number, number> | null
+): BundleChartResult {
+    const statusByTestId = testStatusByTestId(testRunStatus)
+    const testGroups = new Map<string, TestResultTableRow[]>()
+
+    data.forEach((row) => {
+        const testName = (row.test || "Unknown Test").trim()
+        if (!testGroups.has(testName)) testGroups.set(testName, [])
         testGroups.get(testName)!.push(row)
     })
 
-    // Calculate scores for each test group
-    const chartData: BundleChartDataItem[] = []
-    
-    testGroups.forEach((rows, testName) => {
-        const totalCount = rows.length
-        const totalScore = rows.reduce((sum, row) => sum + row.score, 0)
-        
-        // Calculate disagree counts for this test group
-        let disagreeWithScore1 = 0
-        let disagreeWithScore0 = 0
-        
-        rows.forEach((row) => {
-            if (row.yourVerdict === "disagree") {
-                if (row.score === 1) {
-                    disagreeWithScore1++
-                } else if (row.score === 0) {
-                    disagreeWithScore0++
-                }
-            }
-        })
-        
-        // Calculate AI score as percentage (total score / total count * 100)
-        const aiScore = totalCount > 0 ? (totalScore / totalCount) * 100 : 0
-        
-        const adjustedScore = adjustedAccuracyPercent(
-            totalScore,
-            totalCount,
-            disagreeWithScore1,
-            disagreeWithScore0
-        )
-        
-        // Round scores to avoid floating point precision issues
-        const roundedAiScore = Math.round(aiScore * 100) / 100
-        const roundedAdjustedScore = Math.round(adjustedScore * 100) / 100
+    const chartBars: BundleChartDataItem[] = []
+    const incompleteTests: string[] = []
 
+    testGroups.forEach((rows, testName) => {
         const tid =
             rows.map((r) => r.test_id).find((x) => x != null && x !== undefined) ?? null
+        const testPrompts =
+            tid != null ? promptsForTest(prompts, tid) : []
+        const completion = classifyTest(
+            testPrompts,
+            tid != null ? statusByTestId.get(tid) : undefined
+        )
+
+        if (completion !== "fully_complete") {
+            incompleteTests.push(testName)
+            return
+        }
+
+        const scores = scoreRowsForTest(rows)
         const rawHalf =
             tid != null && marginHalfWidthPercentByTestId != null
                 ? marginHalfWidthPercentByTestId[tid]
                 : undefined
-        const half =
-            rawHalf != null && rawHalf > 0
-                ? rawHalf
-                : 0
+        const half = rawHalf != null && rawHalf > 0 ? rawHalf : 0
 
-        chartData.push({
+        chartBars.push({
             test_name: testName,
-            aiScore: roundedAiScore,
-            adjustedScore: roundedAdjustedScore,
+            aiScore: scores.aiScore,
+            adjustedScore: scores.adjustedScore,
             aiScoreLowerDifference: half,
             aiScoreUpperDifference: half,
             adjustedScoreLowerDifference: half,
@@ -380,22 +404,33 @@ function calculateChartDataFromTableData(
         })
     })
 
-    // Ensure uniqueness - since we group by test name, each test should only appear once
-    // But we'll add a final check to prevent any duplicates
-    const seenTestNames = new Set<string>()
-    const uniqueChartData: BundleChartDataItem[] = []
-    
-    chartData.forEach((item) => {
-        // If we somehow have a duplicate test name (shouldn't happen after grouping), skip it
-        if (seenTestNames.has(item.test_name)) {
-            console.warn(`Duplicate test name detected in chart data: ${item.test_name}. This should not happen after grouping.`)
-            return
-        }
-        seenTestNames.add(item.test_name)
-        uniqueChartData.push(item)
-    })
+    chartBars.sort((a, b) => a.test_name.localeCompare(b.test_name))
+    incompleteTests.sort((a, b) => a.localeCompare(b))
 
-    return uniqueChartData
+    return { chartBars, incompleteTests }
+}
+
+function rowsForFullyCompleteTests(
+    prompts: BenchmarkRunTestPrompt[],
+    data: TestResultTableRow[],
+    testRunStatus: BenchmarkRunTestStatusSummary[]
+): TestResultTableRow[] {
+    const statusByTestId = testStatusByTestId(testRunStatus)
+    const allowedTestIds = new Set<number>()
+    const byTest = new Map<number, BenchmarkRunTestPrompt[]>()
+    for (const p of prompts) {
+        if (p.test_id == null) continue
+        if (!byTest.has(p.test_id)) byTest.set(p.test_id, [])
+        byTest.get(p.test_id)!.push(p)
+    }
+    for (const [testId, testPrompts] of byTest) {
+        if (
+            classifyTest(testPrompts, statusByTestId.get(testId)) === "fully_complete"
+        ) {
+            allowedTestIds.add(testId)
+        }
+    }
+    return data.filter((row) => row.test_id != null && allowedTestIds.has(row.test_id))
 }
 
 interface TestResultBundleProps {
@@ -410,6 +445,7 @@ interface TestResultBundleProps {
     marginHalfWidthPercentByTestId?: Record<number, number> | null
     /** URL `debugMargin=1`: show margin / chart error diagnostics. */
     showMarginDebug?: boolean
+    testRunStatus?: BenchmarkRunTestStatusSummary[]
     onAdjustedScoreChange?: (score: number) => void
 }
 
@@ -421,6 +457,7 @@ export default function TestResultBundle({
     bundleDisplayName = null,
     marginHalfWidthPercentByTestId = null,
     showMarginDebug = false,
+    testRunStatus = [],
     onAdjustedScoreChange,
 }: TestResultBundleProps) {
     const [tableData, setTableData] = useState<TestResultTableRow[]>([])
@@ -494,8 +531,17 @@ export default function TestResultBundle({
         bundleDisplayName,
     ])
 
-    // Calculate verdict statistics
+    // Calculate verdict statistics (all rows; table shows everything)
     const verdictStats = calculateVerdictStatistics(tableData)
+
+    const scorecardRows = useMemo(
+        () => rowsForFullyCompleteTests(scopedApiPrompts, tableData, testRunStatus),
+        [scopedApiPrompts, tableData, testRunStatus]
+    )
+    const scorecardVerdictStats = useMemo(
+        () => calculateVerdictStatistics(scorecardRows),
+        [scorecardRows]
+    )
 
     // Calculate total number of prompts
     const totalPrompts = tableData.length
@@ -531,13 +577,18 @@ export default function TestResultBundle({
         return num.toLocaleString()
     }
 
-    // Calculate chart data from table data (memoized to prevent unnecessary recalculations)
-    const chartData = useMemo(() => {
-        return calculateChartDataFromTableData(
-            tableData,
-            marginHalfWidthPercentByTestId
-        )
-    }, [tableData, marginHalfWidthPercentByTestId])
+    const chartResult = useMemo(
+        () =>
+            buildBundleChartResult(
+                scopedApiPrompts,
+                tableData,
+                testRunStatus,
+                marginHalfWidthPercentByTestId
+            ),
+        [scopedApiPrompts, tableData, testRunStatus, marginHalfWidthPercentByTestId]
+    )
+    const chartData = chartResult.chartBars
+    const incompleteTests = chartResult.incompleteTests
 
     const marginDebugSummary =
         marginHalfWidthPercentByTestId == null
@@ -545,16 +596,15 @@ export default function TestResultBundle({
             : JSON.stringify(marginHalfWidthPercentByTestId)
     const firstRowDiffs = chartData[0]
 
-    // Calculate overall AI score and adjusted score
-    const totalPromptsForScore = tableData.length
-    const totalScore = tableData.reduce((sum, row) => sum + row.score, 0)
-    const overallAiScore = totalPromptsForScore > 0 
-        ? (totalScore / totalPromptsForScore) * 100 
+    // Calculate overall AI score and adjusted score (fully complete tests only)
+    const totalPromptsForScore = scorecardRows.length
+    const totalScore = scorecardRows.reduce((sum, row) => sum + row.score, 0)
+    const overallAiScore = totalPromptsForScore > 0
+        ? (totalScore / totalPromptsForScore) * 100
         : 0
-    
-    // Calculate overall disagree counts
-    const overallDisagreeWithScore1 = verdictStats.disagreeWithScore1
-    const overallDisagreeWithScore0 = verdictStats.disagreeWithScore0
+
+    const overallDisagreeWithScore1 = scorecardVerdictStats.disagreeWithScore1
+    const overallDisagreeWithScore0 = scorecardVerdictStats.disagreeWithScore0
     
     const overallAdjustedScore = adjustedAccuracyPercent(
         totalScore,
@@ -623,8 +673,9 @@ export default function TestResultBundle({
             ) : null}
             {/* Chart */}
             <BundleChart
-                title={`Tests (${chartData.length})`}
+                title={`Tests (${chartData.length + incompleteTests.length})`}
                 chartData={chartData}
+                incompleteTests={incompleteTests}
             />
             {/* Table */}
             {isLoading ? (

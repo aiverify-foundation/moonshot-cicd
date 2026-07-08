@@ -32,6 +32,30 @@ class SqlAlchemyBenchmarkRunTestErrorRepository(BenchmarkRunTestErrorRepository)
         )
 
     @override
+    def get_latest_by_prompt_ids(
+        self, prompt_ids: list[int]
+    ) -> dict[int, BenchmarkRunTestErrorEntity]:
+        if not prompt_ids:
+            return {}
+        with self.session_manager.get_session() as session:
+            models = (
+                session.query(BenchmarkRunTestErrorModel)
+                .filter(
+                    BenchmarkRunTestErrorModel.benchmark_run_test_prompt_id.in_(
+                        prompt_ids
+                    )
+                )
+                .order_by(BenchmarkRunTestErrorModel.id.desc())
+                .all()
+            )
+            latest: dict[int, BenchmarkRunTestErrorEntity] = {}
+            for model in models:
+                pid = model.benchmark_run_test_prompt_id
+                if pid not in latest:
+                    latest[pid] = self._model_to_entity(model)
+            return latest
+
+    @override
     def save(self, entity: BenchmarkRunTestErrorEntity) -> BenchmarkRunTestErrorEntity:
         if entity.id is not None and entity.id != 0:
             raise ValueError(

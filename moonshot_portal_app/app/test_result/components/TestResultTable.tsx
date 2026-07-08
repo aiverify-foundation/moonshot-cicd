@@ -32,6 +32,8 @@ export interface TestResultTableRow {
     yourVerdict: "agree" | "disagree" | null
     note: string
     bundle: string
+    /** True when benchmark_run_test_prompt.status is "error". */
+    isPromptError?: boolean
     evaluatorInfo?: {
         model?: string
         graderLogic?: string
@@ -57,7 +59,7 @@ export default function TestResultTable({ data, pageSize = 10, onDataChange }: T
     const evaluationDisplayLabelById = useMemo(() => {
         const m = new Map<string, string>()
         for (const row of data) {
-            m.set(row.id, evaluationDisplayLabel(row.evaluation, row.score))
+            m.set(row.id, evaluationDisplayLabel(row.evaluation, row.score, { isPromptError: row.isPromptError }))
         }
         return m
     }, [data])

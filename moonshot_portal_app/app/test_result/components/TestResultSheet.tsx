@@ -241,7 +241,9 @@ export default function TestResultSheet({
                             <p
                                 className={`font-semibold text-[12px] leading-normal whitespace-pre text-nowrap ${currentRow.score === 1 ? "text-green-800" : "text-red-800"}`}
                             >
-                                {evaluationDisplayLabel(currentRow.evaluation, currentRow.score)}
+                                {evaluationDisplayLabel(currentRow.evaluation, currentRow.score, {
+                                    isPromptError: currentRow.isPromptError,
+                                })}
                             </p>
                         </div>
                     </div>

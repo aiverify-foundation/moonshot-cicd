@@ -15,9 +15,10 @@ export interface BundleChartDataItem {
 interface BundleChartProps {
     title: string
     chartData: BundleChartDataItem[]
+    incompleteTests?: string[]
 }
 
-export default function BundleChart({ title, chartData }: BundleChartProps) {
+export default function BundleChart({ title, chartData, incompleteTests = [] }: BundleChartProps) {
     // Y-axis ticks to match design
     const yAxisTicks = [20, 40, 60, 80, 100]
 
@@ -186,7 +187,14 @@ export default function BundleChart({ title, chartData }: BundleChartProps) {
                 </p>
             </div>
 
+            {chartData.length === 0 && incompleteTests.length === 0 ? (
+                <p className="text-sm text-slate-600 py-4">
+                    No test has completed in this bundle.
+                </p>
+            ) : (
+                <>
             {/* Chart */}
+            {chartData.length > 0 ? (
             <div className="w-full">
                 <ResponsiveContainer width="100%" height={220}>
                     <BarChart
@@ -278,9 +286,30 @@ export default function BundleChart({ title, chartData }: BundleChartProps) {
                     </BarChart>
                 </ResponsiveContainer>
             </div>
+            ) : (
+                <p className="text-sm text-slate-600 py-2">
+                    No test has completed in this bundle.
+                </p>
+            )}
+
+            {incompleteTests.length > 0 ? (
+                <div className="flex flex-col gap-2 pt-2 border-t border-slate-100">
+                    {incompleteTests.map((testName) => (
+                        <p
+                            key={testName}
+                            className="font-medium text-[12px] text-slate-700"
+                        >
+                            {testName}{" "}
+                            <span className="text-red-700">(test incomplete)</span>
+                        </p>
+                    ))}
+                </div>
+            ) : null}
 
             {/* Legend */}
-            <CustomLegend />
+            {chartData.length > 0 ? <CustomLegend /> : null}
+                </>
+            )}
         </div>
     )
 }

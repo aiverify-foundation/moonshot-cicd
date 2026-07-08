@@ -169,3 +169,17 @@ def test_benchmark_run_test_prompt_score_from_json_number_string_not_accuracy_co
         evaluation_accuracy=0.25,
     )
     assert m.score == pytest.approx(1.0)
+
+
+def test_benchmark_run_test_prompt_response_dto_accepts_error_fields():
+    m = BenchmarkRunTestPromptResponseDTO(
+        run_test_id=1,
+        prompt_id=1,
+        status="error",
+        evaluation_prediction_result=str({"score": 0}),
+        error_message="connector timeout",
+        error_source="connector",
+    )
+    assert m.error_message == "connector timeout"
+    assert m.error_source == "connector"
+    assert m.score == pytest.approx(0.0)

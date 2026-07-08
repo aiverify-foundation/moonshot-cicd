@@ -62,3 +62,46 @@ class TestSqlAlchemyBenchmarkRunTestErrorRepository:
         )
         with pytest.raises(ValueError, match="Cannot save: entity has id set"):
             repo.save(entity)
+
+    def test_get_latest_by_prompt_ids_returns_latest_per_prompt(self, mock_sm_class):
+        mock_session = MagicMock()
+        mock_cm = MagicMock()
+        mock_cm.__enter__ = MagicMock(return_value=mock_session)
+        mock_cm.__exit__ = MagicMock(return_value=False)
+        mock_sm_class.get_instance.return_value.get_session.return_value = mock_cm
+
+        older = BenchmarkRunTestErrorModel(
+            id=1,
+            benchmark_run_test_prompt_id=10,
+            error_message="first",
+            error_source="connector",
+        )
+        newer = BenchmarkRunTestErrorModel(
+            id=2,
+            benchmark_run_test_prompt_id=10,
+            error_message="second",
+            error_source="metric",
+        )
+        other = BenchmarkRunTestErrorModel(
+            id=3,
+            benchmark_run_test_prompt_id=20,
+            error_message="other",
+            error_source="connector",
+        )
+        mock_session.query.return_value.filter.return_value.order_by.return_value.all.return_value = [
+            newer,
+            other,
+            older,
+        ]
+
+        repo = SqlAlchemyBenchmarkRunTestErrorRepository()
+        result = repo.get_latest_by_prompt_ids([10, 20, 99])
+
+        assert set(result.keys()) == {10, 20}
+        assert result[10].error_message == "second"
+        assert result[10].error_source == "metric"
+        assert result[20].error_message == "other"
+
+    def test_get_latest_by_prompt_ids_empty_input(self, mock_sm_class):
+        repo = SqlAlchemyBenchmarkRunTestErrorRepository()
+        assert repo.get_latest_by_prompt_ids([]) == {}
