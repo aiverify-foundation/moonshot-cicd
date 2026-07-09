@@ -485,7 +485,7 @@ export default function SampleSizeCard() {
                           <div className="space-y-2">
                             <p className="font-bold">How is it calculated:</p>
                             <ul className="list-disc list-inside space-y-1">
-                              <li>Sample size calculation assumes binomial distribution.</li>
+                              <li>The calculation assumes each response is assigned a binary classification, such as True/False or Safe/Unsafe.</li>
                               <li>If the benchmark dataset contains fewer prompts than the recommended size, the full size of the dataset will be used instead.</li>
                             </ul>
                             <p className="font-bold">Actual confidence interval of the test results may differ due to the following:</p>
