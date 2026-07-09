@@ -32,7 +32,7 @@ function mapRunStatusToDisplay(status: string): string {
   const s = status.toLowerCase();
   if (s === "completed") return "Complete";
   if (s === "running") return "In Progress";
-  if (s === "failed" || s === "error") return "Failed";
+  if (s === "failed" || s === "error") return "Completed with Errors";
   return status.charAt(0).toUpperCase() + status.slice(1);
 }
 
@@ -49,7 +49,7 @@ const createHistoryCard = ({
   const statusColors = {
     Complete: "bg-green-100 border-green-200 text-green-800",
     "In Progress": "bg-blue-100 border-blue-200 text-blue-800",
-    Failed: "bg-red-100 border-red-200 text-red-800",
+    "Completed with Errors": "bg-red-100 border-red-200 text-red-800",
   };
 
   const statusColorClass =
