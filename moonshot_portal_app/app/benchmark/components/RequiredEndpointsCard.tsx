@@ -328,7 +328,7 @@ export default function RequiredEndpointsCard() {
           <AccordionItem value="item-1">
             <AccordionTrigger className="flex flex-row items-center hover:no-underline px-6 py-4">
               <div className="flex-1">
-                <CardTitle data-testid="additional-card-title">Connect Required Endpoints</CardTitle>
+                <CardTitle data-testid="additional-card-title">Connect LLM-as-judge Models</CardTitle>
                 <CardDescription data-testid="additional-card-description">
                   Configure access to LLM-as-judge providers required by your selected tests.
                 </CardDescription>

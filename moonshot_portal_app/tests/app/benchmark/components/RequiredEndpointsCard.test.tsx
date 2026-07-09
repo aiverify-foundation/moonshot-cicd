@@ -113,7 +113,7 @@ describe('RequiredEndpointsCard', () => {
     renderCard();
 
     expect(screen.getByTestId('additional-card-title')).toHaveTextContent(
-      'Connect Required Endpoints',
+      'Connect LLM-as-judge Models',
     );
     expect(screen.getByTestId('additional-card-description')).toHaveTextContent(
       'Configure access to LLM-as-judge providers required by your selected tests.',
