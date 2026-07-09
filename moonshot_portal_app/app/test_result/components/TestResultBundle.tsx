@@ -237,7 +237,7 @@ function VerdictsAdjustedCard({
         <div className="bg-white border border-slate-200 rounded-[12px] flex items-start justify-between p-3 flex-1">
             <div className="flex flex-col gap-[6px] items-start w-[150px]">
                 <p className="font-medium text-[12px] text-slate-500">
-                    Verdicts adjusted
+                    Evaluation adjusted
                 </p>
                 <p className="font-semibold text-[16px] leading-[1.25] text-slate-700 whitespace-pre">
                     {totalAdjusted}
