@@ -226,8 +226,8 @@ export default function EditLlmAajProviderSheet({
                   />
                   {apiKeyConfigured ? (
                     <p className="text-sm text-gray-600">
-                      A key is already saved; leave blank to keep it, or enter a
-                      new one to replace it.
+                      Your token has already been saved. No further action is
+                      needed unless you would like to replace it with a new one.
                     </p>
                   ) : null}
                 </div>
