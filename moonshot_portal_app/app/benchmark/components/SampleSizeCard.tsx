@@ -340,7 +340,7 @@ export default function SampleSizeCard() {
               <CardContent>
                 <div className="grid grid-cols-3 gap-4">
                   <div className="space-y-2">
-                    <Label htmlFor="population-mean">Population Mean</Label>
+                    <Label htmlFor="population-mean">Expected Test Score</Label>
                     <Popover open={populationMeanOpen} onOpenChange={setPopulationMeanOpen}>
                       <PopoverTrigger asChild>
                         <Button
