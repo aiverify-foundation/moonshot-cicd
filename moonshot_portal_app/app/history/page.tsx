@@ -3,7 +3,6 @@
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { Badge } from "@/components/ui/badge";
-import { Progress } from "@/components/ui/progress";
 import {
   ApiError,
   BenchmarkRun,
@@ -17,12 +16,13 @@ import {
   parseApiUtcTimestamp,
 } from "@/lib/formatTimestamp";
 
+const HISTORY_REFRESH_INTERVAL_MS = 5000;
+
 interface HistoryCardProps {
   title: string;
   completedDate: string;
   bundleAndTestCount: string;
   status: string;
-  progressValue: number;
   footerLine: string;
   href?: string;
   runId?: number;
@@ -41,7 +41,6 @@ const createHistoryCard = ({
   completedDate,
   bundleAndTestCount,
   status,
-  progressValue,
   footerLine,
   href = "/test_result",
   runId,
@@ -56,23 +55,6 @@ const createHistoryCard = ({
     statusColors[status as keyof typeof statusColors] ||
     "bg-gray-100 border-gray-200 text-gray-800";
 
-  const getProgressClassName = () => {
-    if (status === "Complete") {
-      return "w-[100px] h-[16px] [&>div]:bg-green-600";
-    }
-    if (status === "In Progress") {
-      return "w-[100px] h-[16px] [&>div]:bg-blue-600";
-    }
-    return "w-[100px] h-[16px] [&>div]:bg-gray-600";
-  };
-
-  const progressTextColor =
-    status === "Complete"
-      ? "text-green-600"
-      : status === "In Progress"
-        ? "text-blue-600"
-        : "text-gray-600";
-
   return (
     <Link
       href={href}
@@ -82,7 +64,7 @@ const createHistoryCard = ({
         variant="outline"
         className="w-full p-4 bg-slate-50 border-slate-200 cursor-pointer hover:bg-slate-100 transition-colors"
       >
-        <div className="text-left min-h-[180px] w-full">
+        <div className="text-left w-full">
           <div className="mb-2">
             <div className="text-left font-semibold text-base text-gray-900 mb-1">{title}</div>
             <div className="font-normal text-sm text-slate-700 mb-1">{completedDate}</div>
@@ -91,10 +73,6 @@ const createHistoryCard = ({
           <Badge variant="outline" className={`w-fit mt-2 ${statusColorClass} h-[23px]`}>
             <div className="text-left text-[12px] font-semibold">{status}</div>
           </Badge>
-          <div className="flex items-center gap-2 mt-4">
-            <Progress value={progressValue} className={getProgressClassName()} />
-            <div className={`text-[14px] font-semibold ${progressTextColor}`}>{progressValue}%</div>
-          </div>
           <div className="font-normal text-[12px] text-slate-700 mt-4">{footerLine}</div>
         </div>
       </Badge>
@@ -112,9 +90,11 @@ export default function History() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  const load = useCallback(async () => {
-    setLoading(true);
-    setError(null);
+  const load = useCallback(async (silent = false) => {
+    if (!silent) {
+      setLoading(true);
+      setError(null);
+    }
     try {
       const list = await fetchBenchmarkRuns();
       const sorted = [...list].sort((a, b) => {
@@ -141,16 +121,25 @@ export default function History() {
       );
 
       setRuns(withCounts);
+      if (!silent) {
+        setError(null);
+      }
     } catch (e) {
-      setError(e instanceof ApiError ? e.message : "Failed to load history");
-      setRuns([]);
+      if (!silent) {
+        setError(e instanceof ApiError ? e.message : "Failed to load history");
+        setRuns([]);
+      }
     } finally {
-      setLoading(false);
+      if (!silent) {
+        setLoading(false);
+      }
     }
   }, []);
 
   useEffect(() => {
     load();
+    const interval = window.setInterval(() => load(true), HISTORY_REFRESH_INTERVAL_MS);
+    return () => window.clearInterval(interval);
   }, [load]);
 
   return (
@@ -190,7 +179,6 @@ export default function History() {
               const displayStatus = mapRunStatusToDisplay(run.status);
               const isComplete = run.status.toLowerCase() === "completed";
               const isRunning = run.status.toLowerCase() === "running";
-              const progressValue = isComplete ? 100 : isRunning ? 5 : 0;
 
               const completedDate = isComplete
                 ? formatRunTimestamp(run.end_time ?? run.start_time, "completed")
@@ -219,7 +207,6 @@ export default function History() {
                     completedDate,
                     bundleAndTestCount,
                     status: displayStatus,
-                    progressValue,
                     footerLine,
                     href: cardHref,
                     runId: run.id ?? undefined,
