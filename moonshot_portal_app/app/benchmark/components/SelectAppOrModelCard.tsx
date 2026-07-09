@@ -138,7 +138,7 @@ export default function SelectAppOrModelCard({
           <AccordionItem value="item-1">
             <AccordionTrigger className="flex flex-row items-center hover:no-underline px-6 py-4">
               <div className="flex-1">
-                <CardTitle data-testid="card-title">Select App or Model</CardTitle>
+                <CardTitle data-testid="card-title">Select App or Model Under Test</CardTitle>
                 <CardDescription data-testid="card-description">
                   Confirm the details of the app or model to be tested.
                 </CardDescription>

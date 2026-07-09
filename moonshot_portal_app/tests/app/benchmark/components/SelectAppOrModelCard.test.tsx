@@ -47,7 +47,7 @@ describe('SelectAppOrModelCard', () => {
   });
 
   describe('Initial Page Load Display', () => {
-    it('Scenario: GIVEN as a user WHEN load Standard Provider Side Sheet THEN display a card that displays the following. Display "Select App or Model" AND "confirm the details of the app or model to be tested." AND Display a Combobox', () => {
+    it('Scenario: GIVEN as a user WHEN load Standard Provider Side Sheet THEN display a card that displays the following. Display "Select App or Model Under Test" AND "confirm the details of the app or model to be tested." AND Display a Combobox', () => {
       // Create test store with initial state
       const store = createTestStore({
         modelSelection: {
@@ -79,10 +79,10 @@ describe('SelectAppOrModelCard', () => {
       );
 
       // THEN display a card that displays the following:
-      // Display "Select App or Model"
+      // Display "Select App or Model Under Test"
       const cardTitle = screen.getByTestId('card-title');
       expect(cardTitle).toBeInTheDocument();
-      expect(cardTitle).toHaveTextContent('Select App or Model');
+      expect(cardTitle).toHaveTextContent('Select App or Model Under Test');
 
       // AND "confirm the details of the app or model to be tested."
       const cardDescription = screen.getByTestId('card-description');

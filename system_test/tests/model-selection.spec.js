@@ -72,7 +72,7 @@ async function expandModelSelectionCard(page) {
   // Wait for the model selection card to be visible
   const cardTitle = page.locator('[data-testid="card-title"]');
   await expect(cardTitle).toBeVisible();
-  await expect(cardTitle).toContainText('Select App or Model');
+  await expect(cardTitle).toContainText('Select App or Model Under Test');
   
   // Check if accordion is collapsed and expand it if needed
   // The provider combobox is inside the AccordionContent, so if it's visible, the accordion is expanded
