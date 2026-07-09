@@ -160,7 +160,7 @@ function VerdictsRankedCard({
         <div className="bg-white border border-slate-200 rounded-[12px] flex items-start justify-between p-3 flex-1">
             <div className="flex flex-col gap-[6px] items-start w-[150px]">
                 <p className="font-medium text-[12px] text-slate-500 w-full">
-                    Verdicts ranked
+                    Evaluation reviewed
                 </p>
                 <div className="flex flex-col gap-[4px] items-start w-full">
                     <div className="flex gap-[2px] items-start w-full">
@@ -172,7 +172,7 @@ function VerdictsRankedCard({
                         </div>
                     </div>
                     <p className="font-normal text-[11px] text-slate-400 w-full">
-                        {notRanked} not ranked
+                        {notRanked} not reviewed
                     </p>
                 </div>
             </div>
