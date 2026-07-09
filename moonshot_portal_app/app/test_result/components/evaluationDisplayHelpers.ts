@@ -23,10 +23,10 @@ export function extractEvaluatedResponse(raw: string | null | undefined): string
 export function evaluationDisplayLabel(
     evaluationBlob: string,
     score: number,
-    options?: { isPromptError?: boolean }
+    options?: { isPromptError?: boolean; errorSource?: string | null }
 ): string {
     if (options?.isPromptError || evaluationBlob === "error") {
-        return "Error"
+        return options?.errorSource === "metric" ? "Error" : "Unknown"
     }
     return extractEvaluatedResponse(evaluationBlob) ?? (score === 1 ? "Agree" : score === 0 ? "Disagree" : evaluationBlob)
 }

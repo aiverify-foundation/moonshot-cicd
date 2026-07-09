@@ -243,6 +243,7 @@ export default function TestResultSheet({
                             >
                                 {evaluationDisplayLabel(currentRow.evaluation, currentRow.score, {
                                     isPromptError: currentRow.isPromptError,
+                                    errorSource: currentRow.errorSource,
                                 })}
                             </p>
                         </div>

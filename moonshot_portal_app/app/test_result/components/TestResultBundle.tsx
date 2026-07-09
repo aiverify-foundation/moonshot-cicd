@@ -70,6 +70,7 @@ export function promptsToTableRows(
             evaluation: isPromptError ? "error" : (p.evaluation_prediction_result ?? "—"),
             score,
             isPromptError,
+            errorSource: p.error_source ?? null,
             yourVerdict,
             note: p.user_notes ?? "",
             bundle: bundleDisplayName?.trim() || p.test_name || "—",

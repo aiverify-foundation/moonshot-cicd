@@ -34,6 +34,8 @@ export interface TestResultTableRow {
     bundle: string
     /** True when benchmark_run_test_prompt.status is "error". */
     isPromptError?: boolean
+    /** Latest per-prompt error source: "connector" or "metric". */
+    errorSource?: string | null
     evaluatorInfo?: {
         model?: string
         graderLogic?: string
@@ -59,7 +61,7 @@ export default function TestResultTable({ data, pageSize = 10, onDataChange }: T
     const evaluationDisplayLabelById = useMemo(() => {
         const m = new Map<string, string>()
         for (const row of data) {
-            m.set(row.id, evaluationDisplayLabel(row.evaluation, row.score, { isPromptError: row.isPromptError }))
+            m.set(row.id, evaluationDisplayLabel(row.evaluation, row.score, { isPromptError: row.isPromptError, errorSource: row.errorSource }))
         }
         return m
     }, [data])

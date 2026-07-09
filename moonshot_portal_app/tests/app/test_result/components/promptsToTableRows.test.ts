@@ -1,4 +1,7 @@
-import { promptsToTableRows } from '@/app/test_result/components/TestResultBundle';
+import {
+  evaluationDisplayLabel,
+  promptsToTableRows,
+} from '@/app/test_result/components/TestResultBundle';
 import type { BenchmarkRunTestPrompt } from '@/lib/api';
 
 function makePrompt(
@@ -11,7 +14,7 @@ function makePrompt(
 }
 
 describe('promptsToTableRows', () => {
-  it('maps connector errors to response error_message and Error evaluation', () => {
+  it('maps connector errors to response error_message and Unknown evaluation', () => {
     const rows = promptsToTableRows([
       makePrompt({
         id: 1,
@@ -28,8 +31,15 @@ describe('promptsToTableRows', () => {
     expect(rows).toHaveLength(1);
     expect(rows[0].response).toBe('API timeout');
     expect(rows[0].evaluation).toBe('error');
+    expect(rows[0].errorSource).toBe('connector');
     expect(rows[0].score).toBe(0);
     expect(rows[0].isPromptError).toBe(true);
+    expect(
+      evaluationDisplayLabel(rows[0].evaluation, rows[0].score, {
+        isPromptError: rows[0].isPromptError,
+        errorSource: rows[0].errorSource,
+      })
+    ).toBe('Unknown');
   });
 
   it('maps metric errors to Error evaluation without using error_message as response', () => {
@@ -47,8 +57,38 @@ describe('promptsToTableRows', () => {
 
     expect(rows[0].response).toBe('—');
     expect(rows[0].evaluation).toBe('error');
+    expect(rows[0].errorSource).toBe('metric');
     expect(rows[0].score).toBe(0);
     expect(rows[0].isPromptError).toBe(true);
+    expect(
+      evaluationDisplayLabel(rows[0].evaluation, rows[0].score, {
+        isPromptError: rows[0].isPromptError,
+        errorSource: rows[0].errorSource,
+      })
+    ).toBe('Error');
+  });
+
+  it('maps metric errors to prediction_result in response when present', () => {
+    const rows = promptsToTableRows([
+      makePrompt({
+        id: 4,
+        run_test_id: 10,
+        prompt_id: 103,
+        status: 'error',
+        error_source: 'metric',
+        error_message: 'metric failed',
+        prediction_result: 'model response text',
+      }),
+    ]);
+
+    expect(rows[0].response).toBe('model response text');
+    expect(rows[0].errorSource).toBe('metric');
+    expect(
+      evaluationDisplayLabel(rows[0].evaluation, rows[0].score, {
+        isPromptError: rows[0].isPromptError,
+        errorSource: rows[0].errorSource,
+      })
+    ).toBe('Error');
   });
 
   it('maps normal completed prompts unchanged', () => {
@@ -68,5 +108,6 @@ describe('promptsToTableRows', () => {
     expect(rows[0].evaluation).toBe('{"score": 1}');
     expect(rows[0].score).toBe(1);
     expect(rows[0].isPromptError).toBe(false);
+    expect(rows[0].errorSource).toBeNull();
   });
 });

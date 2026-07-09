@@ -13,14 +13,32 @@ describe('evaluationDisplayHelpers', () => {
   });
 
   describe('evaluationDisplayLabel', () => {
-    it('returns Error for prompt errors', () => {
+    it('returns Unknown for connector prompt errors', () => {
+      expect(
+        evaluationDisplayLabel('error', 0, {
+          isPromptError: true,
+          errorSource: 'connector',
+        })
+      ).toBe('Unknown');
+    });
+
+    it('returns Unknown for prompt errors without error source', () => {
       expect(
         evaluationDisplayLabel('error', 0, { isPromptError: true })
+      ).toBe('Unknown');
+    });
+
+    it('returns Error for metric prompt errors', () => {
+      expect(
+        evaluationDisplayLabel('error', 0, {
+          isPromptError: true,
+          errorSource: 'metric',
+        })
       ).toBe('Error');
     });
 
-    it('returns Error when evaluation blob is error', () => {
-      expect(evaluationDisplayLabel('error', 0)).toBe('Error');
+    it('returns Unknown when evaluation blob is error without metric source', () => {
+      expect(evaluationDisplayLabel('error', 0)).toBe('Unknown');
     });
 
     it('returns Disagree for score 0 without prompt error', () => {
