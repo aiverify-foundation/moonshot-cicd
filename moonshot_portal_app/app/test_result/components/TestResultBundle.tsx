@@ -103,31 +103,35 @@ function ScoreCard({ aiScore, adjustedScore, scoreChange }: ScoreCardProps) {
     return (
         <div className="bg-white border border-slate-200 rounded-[12px] flex gap-[24px] items-start justify-between p-3 flex-1">
             {/* AI Score */}
-            <div className="flex flex-col gap-[8px] items-start w-[100px]">
-                <div className="flex flex-col gap-[6px] items-start w-[70px]">
-                    <p className="font-medium text-[12px] text-slate-500">
-                        AI score
-                    </p>
-                    <p className="font-semibold text-[16px] leading-[1.25] text-slate-700 whitespace-pre">
-                        {aiScore}
-                    </p>
-                </div>
+            <div className="flex flex-col gap-[4px] items-start">
+                <p className="font-medium text-[12px] text-slate-500 whitespace-nowrap">
+                    Evaluator Score
+                </p>
+                <p className="font-semibold text-[16px] leading-[1.25] text-slate-700 whitespace-pre">
+                    {aiScore}
+                </p>
+                <p className="font-normal text-[11px] text-slate-400 whitespace-nowrap">
+                    Automated test result
+                </p>
             </div>
             {/* Adjusted Score */}
-            <div className="flex flex-col gap-[8px] items-start w-[100px]">
-                <div className="flex flex-col gap-[6px] items-start w-full">
-                    <p className="font-medium text-[12px] text-slate-500">
-                        Adjusted score
+            <div className="flex flex-col gap-[4px] items-start">
+                <p className="font-medium text-[12px] text-slate-500 whitespace-nowrap">
+                    Reviewed Score
+                </p>
+                <div className="flex gap-[4px] items-start w-full">
+                    <p className="font-semibold text-[16px] leading-[1.25] text-slate-700 whitespace-pre">
+                        {adjustedScore}
                     </p>
-                    <div className="flex flex-col gap-[4px] items-start w-full">
-                        <p className="font-semibold text-[16px] leading-[1.25] text-slate-700 whitespace-pre">
-                            {adjustedScore}
-                        </p>
-                        <p className={`font-medium text-[12px] ${scoreChangeColor}`}>
-                            {formatScoreChange(scoreChange)}
+                    <div className="flex flex-col justify-end leading-[0] self-stretch text-[12px]">
+                        <p className={`font-medium leading-[normal] ${scoreChangeColor}`}>
+                            ({formatScoreChange(scoreChange)})
                         </p>
                     </div>
                 </div>
+                <p className="font-normal text-[11px] text-slate-400 whitespace-nowrap">
+                    After human review
+                </p>
             </div>
         </div>
     )
@@ -167,7 +171,7 @@ function VerdictsRankedCard({
                             <p className="font-medium leading-[normal]">({rankedPercentage})</p>
                         </div>
                     </div>
-                    <p className="font-medium text-[12px] text-slate-500 w-full">
+                    <p className="font-normal text-[11px] text-slate-400 w-full">
                         {notRanked} not ranked
                     </p>
                 </div>

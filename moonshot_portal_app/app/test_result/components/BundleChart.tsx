@@ -136,13 +136,13 @@ export default function BundleChart({ title, chartData, incompleteTests = [] }: 
                 <div className="flex gap-1 items-center">
                     <div className="w-3 h-3 bg-orange-400 rounded-sm" />
                     <p className="font-medium text-[12px] text-slate-700 leading-none">
-                        AI score
+                        Test score by evaluator
                     </p>
                 </div>
                 <div className="flex gap-1 items-center">
                     <div className="w-3 h-3 bg-blue-400 rounded-sm" />
                     <p className="font-medium text-[12px] text-slate-700 leading-none">
-                        Adjusted score
+                        Test score adjusted with human review
                     </p>
                 </div>
             </div>
