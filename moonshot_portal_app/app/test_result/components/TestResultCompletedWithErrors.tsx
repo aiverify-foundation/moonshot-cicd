@@ -167,8 +167,7 @@ function ErroredTestCard({ test }: { test: ErroredTestSummary }) {
           {elapsed ? `Time elapsed: ${elapsed}` : "Not started"}
         </p>
         <p className="font-medium text-[14px] text-red-700">
-          {test.erroredPrompts.toLocaleString()} errored prompt
-          {test.erroredPrompts === 1 ? "" : "s"}
+          {test.erroredPrompts.toLocaleString()} prompt(s) Failed
         </p>
       </div>
     </div>
