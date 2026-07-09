@@ -167,7 +167,7 @@ export default function ViewTestApp() {
             Evaluator Information
           </div>
           <div className="text-left flex items-center gap-2 flex-wrap">
-            <span className="text-left text-sm text-slate-500">Model Name </span>
+            <span className="text-left text-sm text-slate-500">LLM-as-judge Model </span>
             <span className="text-left text-sm text-slate-700">{modelName}</span>
           </div>
         </Badge>
