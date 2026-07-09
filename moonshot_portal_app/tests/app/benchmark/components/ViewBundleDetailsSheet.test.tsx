@@ -92,7 +92,7 @@ describe('ViewBundleDetailsSheet', () => {
       expect(screen.getByText('Together AI')).toBeInTheDocument();
     });
 
-    expect(screen.getByText('Required Endpoint Connectors')).toBeInTheDocument();
+    expect(screen.getByText('Required Connectors for LLM-as-judge Models')).toBeInTheDocument();
     expect(screen.getByText('OpenAI')).toBeInTheDocument();
     expect(screen.queryByText('Llama-Guard-2-8B')).not.toBeInTheDocument();
   });
@@ -107,7 +107,7 @@ describe('ViewBundleDetailsSheet', () => {
     });
 
     expect(screen.queryByTestId('required-endpoint-connectors')).not.toBeInTheDocument();
-    expect(screen.queryByText('Required Endpoint Connectors')).not.toBeInTheDocument();
+    expect(screen.queryByText('Required Connectors for LLM-as-judge Models')).not.toBeInTheDocument();
   });
 
   it('does not fetch providers when sheet is closed', () => {

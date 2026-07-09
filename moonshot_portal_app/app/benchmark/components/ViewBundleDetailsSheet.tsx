@@ -214,7 +214,7 @@ export default function ViewBundleDetailsSheet({
           >
             <div className="flex items-center gap-2">
               <Info className="h-4 w-4 text-slate-600 flex-shrink-0" />
-              <span className="text-sm font-medium text-slate-700">Required Endpoint Connectors</span>
+              <span className="text-sm font-medium text-slate-700">Required Connectors for LLM-as-judge Models</span>
             </div>
             <ul className="text-sm text-slate-700 pl-6 list-disc space-y-1">
               {requiredProviderSystemNames.map((systemName) => (
