@@ -12,7 +12,7 @@ function QuickStartButton() {
     >
       <Link href="/benchmark">
         <h3 className="text-base font-semibold text-gray-900 leading-none break-words mb-0">Run a benchmark test</h3>
-        <p className="text-sm text-slate-700 leading-tight break-words mt-0">Test your LLM application for trust and safety risks</p>
+        <p className="text-sm text-slate-700 leading-tight break-words mt-0">Test LLM apps for safety and reliability</p>
       </Link>
     </Button>
   );
