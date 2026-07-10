@@ -327,9 +327,9 @@ export default function SampleSizeCard() {
           <AccordionItem value="item-1">
             <AccordionTrigger className="flex flex-row items-center hover:no-underline px-6 py-4">
               <div className="flex-1">
-                <CardTitle data-testid="sample-size-card-title">Configure Sample Size</CardTitle>
+                <CardTitle data-testid="sample-size-card-title">Determine Sample Size</CardTitle>
                 <CardDescription data-testid="sample-size-card-description">
-                  Review and adjust the sample size for each test to ensure reliable results.
+                  Set statistical parameters to calculate the recommended prompt count.
                 </CardDescription>
               </div>
               <div className="flex items-center">
