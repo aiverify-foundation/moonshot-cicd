@@ -25,7 +25,7 @@ function TestResultNote() {
                         Making sense of test results
                     </p>
                     <p className="font-medium text-[14px] text-slate-700">
-                        AI evaluations can be inaccurate at times. Review each verdict carefully before you make any decisions.
+                        Automated evaluators may not always be accurate. Please review individual evaluations carefully before relying on the overall test results.
                     </p>
                 </div>
                 <div className="flex gap-2 items-center">
