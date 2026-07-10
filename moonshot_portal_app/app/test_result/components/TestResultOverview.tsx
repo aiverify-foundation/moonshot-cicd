@@ -22,7 +22,7 @@ function TestResultNote() {
             <div className="flex flex-col gap-2 flex-1">
                 <div className="flex flex-col gap-1">
                     <p className="font-semibold text-[14px] text-slate-700">
-                        Making sense of test results
+                        Human review recommended
                     </p>
                     <p className="font-medium text-[14px] text-slate-700">
                         Automated evaluators may not always be accurate. Please review individual evaluations carefully before relying on the overall test results.
