@@ -28,11 +28,6 @@ function TestResultNote() {
                         Automated evaluators may not always be accurate. Please review individual evaluations carefully before relying on the overall test results.
                     </p>
                 </div>
-                <div className="flex gap-2 items-center">
-                    <button className="font-bold text-[14px] text-slate-700 hover:underline">
-                        Learn more
-                    </button>
-                </div>
             </div>
             <button 
                 onClick={() => setIsVisible(false)}
