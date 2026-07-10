@@ -226,7 +226,9 @@ describe('SampleSizeCard', () => {
     expect(interpretation).toHaveTextContent(
       'How to interpret: For a test score of 90%, 385 or more prompts are needed to have a confidence level of 95% that the real value is 87%-93%'
     );
-    expect(screen.getByText(/Recommended sample size: 385 prompts/i)).toBeInTheDocument();
+    expect(screen.getByTestId('recommended-sample-size')).toHaveTextContent(
+      'Recommended sample size: 385 prompts'
+    );
   });
 
   it('updates Redux when margin of error changes', async () => {
@@ -263,7 +265,9 @@ describe('SampleSizeCard', () => {
     expect(screen.getByTestId('sample-size-interpretation')).toHaveTextContent(
       '385 or more prompts per test'
     );
-    expect(screen.getByText(/Recommended sample size: 770 prompts/i)).toBeInTheDocument();
+    expect(screen.getByTestId('recommended-sample-size')).toHaveTextContent(
+      'Recommended sample size: 770 prompts'
+    );
   });
 
   it('shows warning and adjusted calculated count when a test has insufficient prompts', () => {
@@ -278,7 +282,9 @@ describe('SampleSizeCard', () => {
     expect(screen.getByTestId('sample-size-insufficient-prompts-warning')).toHaveTextContent(
       'Some test(s) contain fewer prompts than recommended. If you proceed, the full prompt dataset for the affected test(s) will be used.'
     );
-    expect(screen.getByText(/Recommended sample size: 385 prompts/i)).toBeInTheDocument();
+    expect(screen.getByTestId('recommended-sample-size')).toHaveTextContent(
+      'Recommended sample size: 385 prompts'
+    );
     expect(
       screen.getByRole('button', { name: /Calculated \(42\)/i })
     ).toBeInTheDocument();
@@ -311,7 +317,9 @@ describe('SampleSizeCard', () => {
     });
 
     expect(screen.getByTestId('sample-size-insufficient-prompts-warning')).toBeInTheDocument();
-    expect(screen.getByText(/Recommended sample size: 770 prompts/i)).toBeInTheDocument();
+    expect(screen.getByTestId('recommended-sample-size')).toHaveTextContent(
+      'Recommended sample size: 770 prompts'
+    );
     expect(
       screen.getByRole('button', { name: /Calculated \(427\)/i })
     ).toBeInTheDocument();

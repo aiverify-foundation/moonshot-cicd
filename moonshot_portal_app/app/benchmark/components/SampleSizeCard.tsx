@@ -3,7 +3,7 @@ import React from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { CircleCheckBig } from 'lucide-react';
+import { CircleCheckBig, Info, ChevronRight } from 'lucide-react';
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 import { Button } from "@/components/ui/button";
@@ -472,42 +472,56 @@ export default function SampleSizeCard() {
                   </div>
                 </div>
                 
-                {/* Recommended Sample Size Alert */}
-                <div className="mt-4 space-y-4">
-                  <Alert className="border-blue-200 bg-blue-50">
-                    <AlertDescription className="flex justify-between items-center">
-                      <span>Recommended sample size: {recommendedSampleSize} prompts</span>
-                      <Tooltip>
-                        <TooltipTrigger asChild>
-                          <span className="text-blue-600 hover:text-blue-800 cursor-pointer">How Is it Calculated?</span>
-                        </TooltipTrigger>
-                        <TooltipContent className="max-w-lg w-max px-3">
-                          <div className="space-y-2">
-                            <p className="font-bold">How is it calculated:</p>
-                            <ul className="list-disc list-inside space-y-1">
-                              <li>The calculation assumes each response is assigned a binary classification, such as True/False or Safe/Unsafe.</li>
-                              <li>If the benchmark dataset contains fewer prompts than the recommended size, the full size of the dataset will be used instead.</li>
-                            </ul>
-                            <p className="font-bold">Actual confidence interval of the test results may differ due to the following:</p>
-                            <ul className="list-disc list-inside space-y-1">
-                              <li>Actual test score can be different from the population mean assumed.</li>
-                              <li>Margin of error will include additional measurement error due to non-determinism in LLM output.</li>
-                            </ul>
-                          </div>
-                        </TooltipContent>
-                      </Tooltip>
-                    </AlertDescription>
-                  </Alert>
-
+                {/* Recommended Sample Size */}
+                <div className="mt-4">
                   <Alert
                     className="border-blue-200 bg-blue-50"
                     data-testid="sample-size-interpretation-alert"
                   >
-                    <AlertDescription
-                      className="text-sm text-slate-700"
-                      data-testid="sample-size-interpretation"
-                    >
-                      {interpretationText}
+                    <AlertDescription className="flex flex-col w-full gap-3">
+                      <div className="flex w-full justify-between items-center">
+                        <span className="flex items-center gap-2">
+                          <Info className="h-4 w-4 text-blue-600 shrink-0" />
+                          <span data-testid="recommended-sample-size">
+                            Recommended sample size:{" "}
+                            <span className="font-bold text-blue-700">
+                              {recommendedSampleSize} prompts
+                            </span>
+                          </span>
+                        </span>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <span className="flex items-center shrink-0 text-blue-600 hover:text-blue-800 cursor-pointer">
+                              How Is it Calculated?
+                              <ChevronRight className="h-4 w-4" />
+                            </span>
+                          </TooltipTrigger>
+                          <TooltipContent className="max-w-lg w-max px-3">
+                            <div className="space-y-2">
+                              <p className="font-bold">How is it calculated:</p>
+                              <ul className="list-disc list-inside space-y-1">
+                                <li>The calculation assumes each response is assigned a binary classification, such as True/False or Safe/Unsafe.</li>
+                                <li>If the benchmark dataset contains fewer prompts than the recommended size, the full size of the dataset will be used instead.</li>
+                              </ul>
+                              <p className="font-bold">Actual confidence interval of the test results may differ due to the following:</p>
+                              <ul className="list-disc list-inside space-y-1">
+                                <li>Actual test score can be different from the population mean assumed.</li>
+                                <li>Margin of error will include additional measurement error due to non-determinism in LLM output.</li>
+                              </ul>
+                            </div>
+                          </TooltipContent>
+                        </Tooltip>
+                      </div>
+
+                      <hr className="w-full border-blue-200" />
+
+                      <div
+                        className="text-sm text-slate-700"
+                        data-testid="sample-size-interpretation"
+                      >
+                        <p className="font-bold text-slate-900 mb-1">{"How to interpret: "}</p>
+                        <p>{interpretationText.replace(/^How to interpret:\s*/, "")}</p>
+                      </div>
                     </AlertDescription>
                   </Alert>
                 </div>
