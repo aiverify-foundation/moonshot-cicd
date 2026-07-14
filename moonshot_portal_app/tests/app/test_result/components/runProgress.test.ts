@@ -86,6 +86,7 @@ describe("groupTestProgressByBundle", () => {
     expect(groups[0].bundleName).toBe("Safety Bundle");
     expect(groups[0].tests.map((t) => t.testName)).toEqual(["Alpha", "Beta"]);
     expect(groups[0].tests[0].completedPrompts).toBe(1);
+    expect(groups[0].tests[0].erroredPrompts).toBe(0);
     expect(groups[0].tests[0].startDt).toBeNull();
     expect(groups[0].tests[1].completedPrompts).toBe(1);
     expect(groups[0].tests[1].startDt).toBe("2026-06-04T10:00:00");
@@ -102,5 +103,21 @@ describe("groupTestProgressByBundle", () => {
     expect(groups[0].bundleName).toBe("All results");
     expect(groups[0].tests[0].testName).toBe("Only Test");
     expect(groups[0].tests[0].startDt).toBeNull();
+  });
+
+  it("tracks errored prompts separately while including them in progress percent", () => {
+    const prompts = [
+      prompt({ run_test_id: 1, test_id: 10, prompt_id: 1, test_name: "T", status: "completed" }),
+      prompt({ run_test_id: 1, test_id: 10, prompt_id: 2, test_name: "T", status: "error" }),
+      prompt({ run_test_id: 1, test_id: 10, prompt_id: 3, test_name: "T", status: "pending" }),
+    ];
+
+    const groups = groupTestProgressByBundle(prompts, []);
+    const test = groups[0].tests[0];
+
+    expect(test.completedPrompts).toBe(1);
+    expect(test.erroredPrompts).toBe(1);
+    expect(test.totalPrompts).toBe(3);
+    expect(test.progressPercent).toBe(67);
   });
 });

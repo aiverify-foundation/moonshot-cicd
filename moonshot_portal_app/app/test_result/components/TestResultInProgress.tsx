@@ -21,6 +21,7 @@ import {
   testStartDtMapFromRunStatus,
   TestProgressItem,
 } from "./runProgress";
+import { SegmentedProgressBar } from "./SegmentedProgressBar";
 
 interface TestResultInProgressProps {
   prompts: BenchmarkRunTestPrompt[];
@@ -32,14 +33,22 @@ function bundleAccordionValue(group: BundleTestProgressGroup): string {
   return String(group.bundleId ?? group.bundleName);
 }
 
+function processedPrompts(test: TestProgressItem): number {
+  return test.completedPrompts + test.erroredPrompts;
+}
+
 function progressBarValue(test: TestProgressItem): number {
   if (test.totalPrompts === 0) return 0;
-  if (test.completedPrompts === 0) return 1;
+  if (processedPrompts(test) === 0) return 1;
   return test.progressPercent;
 }
 
 function isTestComplete(test: TestProgressItem): boolean {
-  return test.totalPrompts > 0 && test.completedPrompts === test.totalPrompts;
+  return (
+    test.totalPrompts > 0 &&
+    test.erroredPrompts === 0 &&
+    test.completedPrompts === test.totalPrompts
+  );
 }
 
 function promptLabel(test: TestProgressItem): string {
@@ -54,25 +63,40 @@ function elapsedLine(test: TestProgressItem): string {
 }
 
 function TestInProgressCard({ test }: { test: TestProgressItem }) {
+  const hasErrors = test.erroredPrompts > 0;
+
   return (
     <div className="bg-slate-50 border border-slate-200 flex items-start p-2 rounded-lg w-full">
       <div className="flex flex-1 flex-col gap-2 items-start min-w-0">
         <p className="font-semibold text-[14px] text-slate-700 w-full">{test.testName}</p>
 
         <div className="flex gap-4 items-center pb-1 pt-2 w-full">
-          <Progress
-            value={progressBarValue(test)}
-            className={cn(
-              "flex-1 h-4 bg-slate-200 rounded-full [&>div]:rounded-full",
-              isTestComplete(test) ? "[&>div]:bg-green-500" : "[&>div]:bg-blue-500"
-            )}
-          />
+          {hasErrors ? (
+            <SegmentedProgressBar
+              completed={test.completedPrompts}
+              errored={test.erroredPrompts}
+              total={test.totalPrompts}
+            />
+          ) : (
+            <Progress
+              value={progressBarValue(test)}
+              className={cn(
+                "flex-1 h-4 bg-slate-200 rounded-full [&>div]:rounded-full",
+                isTestComplete(test) ? "[&>div]:bg-green-500" : "[&>div]:bg-blue-500"
+              )}
+            />
+          )}
           <p className="font-medium text-[14px] text-slate-700 whitespace-nowrap shrink-0">
             {promptLabel(test)}
           </p>
         </div>
 
         <p className="font-medium text-[14px] text-slate-700">{elapsedLine(test)}</p>
+        {hasErrors ? (
+          <p className="font-medium text-[14px] text-red-700">
+            {test.erroredPrompts.toLocaleString()} prompt(s) Failed
+          </p>
+        ) : null}
       </div>
     </div>
   );

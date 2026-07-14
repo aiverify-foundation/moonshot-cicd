@@ -3,7 +3,9 @@ import {
   BenchmarkRunTestPrompt,
   BenchmarkRunTestStatusSummary,
 } from "@/lib/api";
+import { isPromptErrored } from "./testCompletion";
 
+/** True when a prompt succeeded (not errored) for success-only progress counts. */
 export function isPromptCompleted(p: BenchmarkRunTestPrompt): boolean {
   const status = p.status?.toLowerCase() ?? "";
   if (status === "error") return false;
@@ -30,6 +32,7 @@ export interface TestProgressItem {
   testId: number;
   testName: string;
   completedPrompts: number;
+  erroredPrompts: number;
   totalPrompts: number;
   progressPercent: number;
   startDt: string | null;
@@ -48,16 +51,19 @@ function computeTestProgressItem(
   startDt: string | null
 ): TestProgressItem {
   const completedPrompts = prompts.filter(isPromptCompleted).length;
+  const erroredPrompts = prompts.filter(isPromptErrored).length;
   const totalPrompts = prompts.length;
+  const processedPrompts = completedPrompts + erroredPrompts;
   const progressPercent =
     totalPrompts > 0
-      ? Math.min(100, Math.round((completedPrompts / totalPrompts) * 100))
+      ? Math.min(100, Math.round((processedPrompts / totalPrompts) * 100))
       : 0;
 
   return {
     testId,
     testName,
     completedPrompts,
+    erroredPrompts,
     totalPrompts,
     progressPercent,
     startDt,

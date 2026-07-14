@@ -254,17 +254,15 @@ class AsyncioPromptProcessor(PromptProcessorPort):
                         )
                         if entity is not None:
                             entity.status = result.state.name.lower()
+                            if hasattr(result.model_prediction, "response"):
+                                entity.prediction_result = (
+                                    result.model_prediction.response
+                                )
+                            elif result.model_prediction is not None:
+                                entity.prediction_result = str(
+                                    result.model_prediction
+                                )
                             if error_message is None:
-                                if hasattr(result.model_prediction, "response"):
-                                    entity.prediction_result = (
-                                        result.model_prediction.response
-                                    )
-                                else:
-                                    entity.prediction_result = (
-                                        str(result.model_prediction)
-                                        if result.model_prediction is not None
-                                        else None
-                                    )
                                 metric_entity = result.evaluation_result
                                 evaluated = (
                                     metric_entity.evaluated_result

@@ -554,9 +554,125 @@ async def test_process_prompts_partial_failure_write_to_db(
     assert processed[0].state == TaskManagerStatus.COMPLETED
     assert processed[1].state == TaskManagerStatus.ERROR
     assert stored_prompts[11].status == "error"
+    assert stored_prompts[11].prediction_result is None
     assert "score" in (stored_prompts[11].evaluation_prediction_result or "")
     mock_error_repo.save.assert_called_once()
     saved_error = mock_error_repo.save.call_args[0][0]
     assert saved_error.benchmark_run_test_prompt_id == 11
     assert "connector failed" in saved_error.error_message
     assert saved_error.error_source == "connector"
+
+
+@pytest.mark.asyncio
+async def test_process_prompts_metric_failure_persists_prediction_result(
+    asyncio_processor, connector_entity, metric_config
+):
+    """Metric failure after a successful connector response persists prediction_result."""
+    prompts = [
+        PromptEntity(
+            index=1,
+            prompt="ok",
+            target="t1",
+            benchmark_run_test_prompt_id=10,
+        ),
+        PromptEntity(
+            index=2,
+            prompt="fail-metric",
+            target="t2",
+            benchmark_run_test_prompt_id=11,
+        ),
+    ]
+
+    mock_connector_instance = Mock(spec=ConnectorPort)
+    mock_connector_instance.configure = Mock()
+    mock_connector_instance.get_response = AsyncMock(
+        return_value=ConnectorResponseEntity(
+            response="model response text", context=[]
+        )
+    )
+
+    mock_metric_instance = Mock(spec=MetricPort)
+
+    async def get_individual_result_side_effect(metric_entity):
+        if metric_entity.prompt == "fail-metric":
+            raise RuntimeError("metric failed")
+        return {"score": 1.0}
+
+    mock_metric_instance.get_individual_result = AsyncMock(
+        side_effect=get_individual_result_side_effect
+    )
+    mock_metric_instance.get_results = AsyncMock(
+        return_value={"refusal": {"attack_success_rate": 0.0}}
+    )
+    mock_metric_instance.update_metric_params = Mock()
+
+    mock_metric_cfg = Mock()
+    mock_metric_cfg.params = {}
+
+    stored_prompts = {
+        10: BenchmarkRunTestPromptEntity(
+            id=10, run_test_id=1, prompt_id=1, status="pending", target="t1"
+        ),
+        11: BenchmarkRunTestPromptEntity(
+            id=11, run_test_id=1, prompt_id=2, status="pending", target="t2"
+        ),
+    }
+
+    mock_prompt_repo = MagicMock()
+    mock_prompt_repo.get_all_by_run_test_id.return_value = list(stored_prompts.values())
+
+    def update_prompt(entity):
+        stored_prompts[entity.id] = entity
+        return entity
+
+    mock_prompt_repo.update.side_effect = update_prompt
+
+    mock_error_repo = MagicMock()
+
+    with (
+        patch(
+            "adapters.prompt_processor.asyncio_prompt_processor_adapter.ModuleLoader.load"
+        ) as mock_load,
+        patch(
+            "adapters.prompt_processor.asyncio_prompt_processor_adapter.AppConfig"
+        ) as mock_app_config_class,
+        patch(
+            "adapters.driven.repository.sqlalchemy.benchmark_run_test_prompt_adapter."
+            "SqlAlchemyBenchmarkRunTestPromptRepository",
+            return_value=mock_prompt_repo,
+        ),
+        patch(
+            "adapters.driven.repository.sqlalchemy.benchmark_run_test_error_adapter."
+            "SqlAlchemyBenchmarkRunTestErrorRepository",
+            return_value=mock_error_repo,
+        ),
+    ):
+        mock_load.side_effect = [
+            (mock_connector_instance, "connector_id"),
+            (mock_metric_instance, "metric_id"),
+        ]
+        mock_app_config = Mock()
+        mock_app_config.get_metric_config.return_value = mock_metric_cfg
+        mock_app_config.get_common_config.return_value = 5
+        mock_app_config_class.return_value = mock_app_config
+        asyncio_processor.app_config = mock_app_config
+
+        processed, _summary = await asyncio_processor.process_prompts(
+            prompts,
+            connector_entity,
+            metric_config,
+            write_to_db=True,
+            run_test_id=1,
+        )
+
+    assert len(processed) == 2
+    assert processed[0].state == TaskManagerStatus.COMPLETED
+    assert processed[1].state == TaskManagerStatus.ERROR
+    assert stored_prompts[11].status == "error"
+    assert stored_prompts[11].prediction_result == "model response text"
+    assert "score" in (stored_prompts[11].evaluation_prediction_result or "")
+    mock_error_repo.save.assert_called_once()
+    saved_error = mock_error_repo.save.call_args[0][0]
+    assert saved_error.benchmark_run_test_prompt_id == 11
+    assert "metric failed" in saved_error.error_message
+    assert saved_error.error_source == "metric"
