@@ -699,6 +699,53 @@ def test_test_custom_app_connection_endpoint(mock_service):
     assert data["response_leaves"] == [{"path": "ok", "value": "true"}]
 
 
+@patch("entrypoints.api.llm_provider_connection_test_service")
+def test_test_llm_provider_connection_endpoint(mock_service):
+    from application.dto.provider_dto import TestLlmProviderConnectionResponseDTO
+
+    mock_service.test_connection = AsyncMock(
+        return_value=TestLlmProviderConnectionResponseDTO(
+            success=True,
+            response_preview="OK",
+        )
+    )
+
+    response = client.post(
+        "/api/providers/test-connection",
+        json={
+            "llm_provider_id": 1,
+            "model_name": "gpt-4o-mini",
+            "savedConfigPairs": {"temperature": "0.2"},
+            "api_key": "sk-test",
+        },
+    )
+
+    assert response.status_code == 200
+    data = response.json()
+    assert data["success"] is True
+    assert data["response_preview"] == "OK"
+    assert data.get("error") is None
+    mock_service.test_connection.assert_awaited_once()
+
+
+@patch("entrypoints.api.llm_provider_connection_test_service")
+def test_test_llm_provider_connection_endpoint_maps_value_error(mock_service):
+    mock_service.test_connection = AsyncMock(
+        side_effect=ValueError("An API key is required to test the connection.")
+    )
+
+    response = client.post(
+        "/api/providers/test-connection",
+        json={
+            "llm_provider_id": 1,
+            "model_name": "gpt-4o-mini",
+        },
+    )
+
+    assert response.status_code == 400
+    assert "API key is required" in response.json()["detail"]
+
+
 def test_configure_cors_middleware_respects_ms_cors_origins_env(monkeypatch):
     monkeypatch.setenv("MS_CORS_ORIGINS", "http://custom.test:9000")
     from fastapi import FastAPI

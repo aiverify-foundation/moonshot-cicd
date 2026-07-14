@@ -1,11 +1,12 @@
-from typing import Dict
-from pydantic import BaseModel, ConfigDict
+from typing import Dict, Optional
+
+from pydantic import BaseModel, ConfigDict, Field
 
 
 class ProviderDTO(BaseModel):
     """
     ProviderDTO represents the data transfer object for provider information.
-    
+
     This DTO contains only the essential data fields for transferring provider
     information between different layers of the application, without complex logic.
 
@@ -45,3 +46,18 @@ class ProviderDTO(BaseModel):
 
     # Token or identifier used for model selection
     modelToken: str = ""
+
+
+class TestLlmProviderConnectionBody(BaseModel):
+    """Draft form values used to probe an LLM provider before save."""
+
+    llm_provider_id: int
+    model_name: str
+    savedConfigPairs: Dict[str, str] = Field(default_factory=dict)
+    api_key: Optional[str] = None
+
+
+class TestLlmProviderConnectionResponseDTO(BaseModel):
+    success: bool
+    error: Optional[str] = None
+    response_preview: Optional[str] = None

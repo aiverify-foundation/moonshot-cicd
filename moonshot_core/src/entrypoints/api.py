@@ -3,114 +3,88 @@ FastAPI application for Moonshot CI/CD.
 This module provides a REST API interface for the Moonshot benchmarking system.
 """
 
-from contextlib import asynccontextmanager
-import sys
-
-from fastapi import FastAPI, Request, Response, HTTPException
-from fastapi.responses import FileResponse, Response
 import os
+import sys
+from contextlib import asynccontextmanager
 from pathlib import Path
 from urllib.parse import urlparse
+
+from fastapi import FastAPI, HTTPException, Request, Response
+from fastapi.responses import FileResponse, Response
 
 from domain.services.logger import configure_logger
 
 logger = configure_logger(__name__)
 
-from domain.services.app_config import AppConfig
-from application.services.benchmark import BenchmarkService
-from adapters.driven.repository.sqlalchemy.dataset_adapter import SqlAlchemyDatasetRepository
-from adapters.driven.repository.sqlalchemy.sqlalchemy_benchmark_repository import (
-    SqlAlchemyBenchmarkRepository,
-)
 from typing import List
 
-# Provider/model-config service & DTOs
-from application.services.provider_service import ProviderService
-from application.dto.provider_dto import ProviderDTO
-from application.dto.model_config_dto import (
-    CreateDatabaseModelConfigBody,
-    ModelConfigDTO,
-    LLMProviderDetailsDTO,
-    ProviderDatabaseConfigsDTO,
-    UpdateDatabaseModelConfigBody,
-)
-from application.services.database_model_config_service import (
-    DatabaseModelConfigBadRequestError,
-    DatabaseModelConfigConflictError,
-    DatabaseModelConfigNotFoundError,
-    DatabaseModelConfigService,
-)
-from application.dto.run_bundle_dto import (
-    BenchmarkRunResponseDTO,
-    BenchmarkRunResultsResponseDTO,
-    BenchmarkRunTestBundleResponseDTO,
-    BenchmarkRunTestPromptResponseDTO,
-    CheckBenchmarkRunNameResponseDTO,
-    PatchBenchmarkRunTestPromptUserDTO,
-    StartBenchmarkRunRequestDTO,
-    StartBenchmarkRunResponseDTO,
-)
-from application.dto.seed_dto import SeedSharedConfigResponseDTO
+from adapters.driven.repository.sqlalchemy.benchmark_run_test_status_adapter import \
+    SqlAlchemyBenchmarkRunTestStatusRepository
+from adapters.driven.repository.sqlalchemy.dataset_adapter import \
+    SqlAlchemyDatasetRepository
+from adapters.driven.repository.sqlalchemy.sqlalchemy_benchmark_repository import \
+    SqlAlchemyBenchmarkRepository
+from application.dto.custom_app_config_dto import (
+    CreateCustomAppBody, CreateCustomAppConfigBody, CustomAppConfigResponseDTO,
+    CustomAppResponseDTO, SetCustomAppConfigSecretBody,
+    TestCustomAppConnectionBody, TestCustomAppConnectionResponseDTO,
+    UpdateCustomAppConfigBody)
 from application.dto.llm_provider_api_key_dto import (
-    SetLlmProviderApiKeyRequestDTO,
-    SetLlmProviderApiKeyResponseDTO,
-)
-from application.services.provider_seed_service import ProviderSeedService
-from application.services.custom_app_seed_service import CustomAppSeedService
-from application.services.llm_provider_api_key_service import (
-    LlmProviderApiKeyService,
-    LlmProviderApiKeyUnknownProviderError,
-)
+    SetLlmProviderApiKeyRequestDTO, SetLlmProviderApiKeyResponseDTO)
+from application.dto.model_config_dto import (CreateDatabaseModelConfigBody,
+                                              LLMProviderDetailsDTO,
+                                              ModelConfigDTO,
+                                              ProviderDatabaseConfigsDTO,
+                                              UpdateDatabaseModelConfigBody)
+from application.dto.provider_dto import (ProviderDTO,
+                                          TestLlmProviderConnectionBody,
+                                          TestLlmProviderConnectionResponseDTO)
+from application.dto.run_bundle_dto import (BenchmarkRunResponseDTO,
+                                            BenchmarkRunResultsResponseDTO,
+                                            BenchmarkRunTestBundleResponseDTO,
+                                            BenchmarkRunTestPromptResponseDTO,
+                                            CheckBenchmarkRunNameResponseDTO,
+                                            PatchBenchmarkRunTestPromptUserDTO,
+                                            StartBenchmarkRunRequestDTO,
+                                            StartBenchmarkRunResponseDTO)
+from application.dto.seed_dto import SeedSharedConfigResponseDTO
+from application.services.benchmark import BenchmarkService
 # Benchmark execution service
 from application.services.benchmark_execution_service import (
-    BenchmarkExecutionService,
-    BenchmarkRunTestSelectionError,
-)
-from application.services.database_connector_config_service import (
-    DatabaseConnectorConfigError,
-)
-from application.services.database_custom_app_connector_config_service import (
-    DatabaseCustomAppConnectorConfigError,
-)
-from application.dto.custom_app_config_dto import (
-    CreateCustomAppBody,
-    CreateCustomAppConfigBody,
-    CustomAppConfigResponseDTO,
-    CustomAppResponseDTO,
-    SetCustomAppConfigSecretBody,
-    TestCustomAppConnectionBody,
-    TestCustomAppConnectionResponseDTO,
-    UpdateCustomAppConfigBody,
-)
-from application.services.custom_app_connection_test_service import (
-    CustomAppConnectionTestService,
-)
+    BenchmarkExecutionService, BenchmarkRunTestSelectionError)
+from application.services.benchmark_run_prompt_service import \
+    BenchmarkRunPromptService
+from application.services.benchmark_run_results_export_service import (
+    BenchmarkRunResultsExportError, BenchmarkRunResultsExportService)
+from application.services.benchmark_run_results_query_service import \
+    BenchmarkRunResultsQueryService
+from application.services.benchmark_run_service import BenchmarkRunService
+from application.services.benchmark_run_test_bundle_query_service import \
+    BenchmarkRunTestBundleQueryService
+from application.services.custom_app_config_secret_service import (
+    CustomAppConfigSecretService, CustomAppConfigSecretUnknownConfigError)
+from application.services.custom_app_connection_test_service import \
+    CustomAppConnectionTestService
+from application.services.custom_app_seed_service import CustomAppSeedService
+from application.services.database_connector_config_service import \
+    DatabaseConnectorConfigError
 from application.services.database_custom_app_config_service import (
     DatabaseCustomAppConfigBadRequestError,
-    DatabaseCustomAppConfigConflictError,
-    DatabaseCustomAppConfigNotFoundError,
-    DatabaseCustomAppConfigService,
-    DatabaseCustomAppService,
-)
-from application.services.custom_app_config_secret_service import (
-    CustomAppConfigSecretService,
-    CustomAppConfigSecretUnknownConfigError,
-)
-from application.services.benchmark_run_service import BenchmarkRunService
-from application.services.benchmark_run_test_bundle_query_service import (
-    BenchmarkRunTestBundleQueryService,
-)
-from application.services.benchmark_run_prompt_service import BenchmarkRunPromptService
-from application.services.benchmark_run_results_query_service import (
-    BenchmarkRunResultsQueryService,
-)
-from application.services.benchmark_run_results_export_service import (
-    BenchmarkRunResultsExportError,
-    BenchmarkRunResultsExportService,
-)
-from adapters.driven.repository.sqlalchemy.benchmark_run_test_status_adapter import (
-    SqlAlchemyBenchmarkRunTestStatusRepository,
-)
+    DatabaseCustomAppConfigConflictError, DatabaseCustomAppConfigNotFoundError,
+    DatabaseCustomAppConfigService, DatabaseCustomAppService)
+from application.services.database_custom_app_connector_config_service import \
+    DatabaseCustomAppConnectorConfigError
+from application.services.database_model_config_service import (
+    DatabaseModelConfigBadRequestError, DatabaseModelConfigConflictError,
+    DatabaseModelConfigNotFoundError, DatabaseModelConfigService)
+from application.services.llm_provider_api_key_service import (
+    LlmProviderApiKeyService, LlmProviderApiKeyUnknownProviderError)
+from application.services.llm_provider_connection_test_service import \
+    LlmProviderConnectionTestService
+from application.services.provider_seed_service import ProviderSeedService
+# Provider/model-config service & DTOs
+from application.services.provider_service import ProviderService
+from domain.services.app_config import AppConfig
 # Comment out this import to disable CORS middleware ( This is used for local development only)
 from entrypoints.cors_middleware_setup import configure_cors_middleware
 
@@ -169,9 +143,7 @@ def is_valid_request(request: Request) -> bool:
     # Check if request has a referer header (indicates it came from a page)
     referer = request.headers.get("referer")
     if not referer:
-        logger.warning(
-            f"Direct access attempt to {request.url} - no referer header"
-        )
+        logger.warning(f"Direct access attempt to {request.url} - no referer header")
         return False
 
     # Parse the referer URL to get the host
@@ -188,8 +160,11 @@ def is_valid_request(request: Request) -> bool:
 
         # Check if referer is from the main application
         # (not a direct file access)
-        if (not referer_parsed.path or referer_parsed.path == "/" or
-                referer_parsed.path.startswith("/")):
+        if (
+            not referer_parsed.path
+            or referer_parsed.path == "/"
+            or referer_parsed.path.startswith("/")
+        ):
             return True
 
     except Exception as e:
@@ -229,6 +204,7 @@ custom_app_config_secret_service = CustomAppConfigSecretService()
 custom_app_connection_test_service = CustomAppConnectionTestService(
     secret_service=custom_app_config_secret_service,
 )
+llm_provider_connection_test_service = LlmProviderConnectionTestService()
 
 # Lazy-initialized SharedConfigSeedService for seed-if-testfile-changed
 _shared_config_seed_service = None
@@ -238,16 +214,19 @@ def get_shared_config_seed_service():
     """Get or create SharedConfigSeedService with full deps for seed_if_test_file_changed."""
     global _shared_config_seed_service
     if _shared_config_seed_service is None:
-        from application.services.shared_config_seed_service import SharedConfigSeedService
-        from application.services.file_shared_config_repository import FileSharedConfigRepository
-        from application.services.benchmark_dataset_seed_service import BenchmarkDatasetSeedService
-        from application.services.file_dataset_repository import FileDatasetRepository
-        from adapters.driven.repository.sqlalchemy.dataset_adapter import (
-            SqlAlchemyDatasetRepository,
-        )
-        from adapters.driven.repository.sqlalchemy.moonshot_config_adapter import (
-            MoonshotConfigAdapter,
-        )
+        from adapters.driven.repository.sqlalchemy.dataset_adapter import \
+            SqlAlchemyDatasetRepository
+        from adapters.driven.repository.sqlalchemy.moonshot_config_adapter import \
+            MoonshotConfigAdapter
+        from application.services.benchmark_dataset_seed_service import \
+            BenchmarkDatasetSeedService
+        from application.services.file_dataset_repository import \
+            FileDatasetRepository
+        from application.services.file_shared_config_repository import \
+            FileSharedConfigRepository
+        from application.services.shared_config_seed_service import \
+            SharedConfigSeedService
+
         moonshot_config = MoonshotConfigAdapter()
         shared_config_repo = FileSharedConfigRepository()
         dataset_seed = BenchmarkDatasetSeedService(
@@ -260,7 +239,6 @@ def get_shared_config_seed_service():
             benchmark_dataset_seed_service=dataset_seed,
         )
     return _shared_config_seed_service
-
 
 
 @app.get("/api/bundles")
@@ -366,7 +344,9 @@ async def get_latest_provider_details_by_system_name(
     Get the latest-version provider and its related models and endpoint configs for a system_name.
     """
     try:
-        details = provider_service.get_latest_provider_details_by_system_name(system_name)
+        details = provider_service.get_latest_provider_details_by_system_name(
+            system_name
+        )
         if details is None:
             raise HTTPException(
                 status_code=404,
@@ -385,7 +365,9 @@ async def get_latest_provider_details_by_system_name(
         )
 
 
-@app.get("/api/providers/{provider_id}/model-configs", response_model=List[ModelConfigDTO])
+@app.get(
+    "/api/providers/{provider_id}/model-configs", response_model=List[ModelConfigDTO]
+)
 async def get_model_configs_by_provider(provider_id: int):
     """Get all model configs for a provider ID, returned as DTOs."""
     try:
@@ -423,6 +405,25 @@ async def set_llm_provider_api_key(
         raise HTTPException(
             status_code=500,
             detail="Failed to store provider API key",
+        )
+
+
+@app.post(
+    "/api/providers/test-connection",
+    response_model=TestLlmProviderConnectionResponseDTO,
+)
+async def test_llm_provider_connection(
+    payload: TestLlmProviderConnectionBody,
+) -> TestLlmProviderConnectionResponseDTO:
+    """Probe an LLM provider configuration with a short live chat request."""
+    try:
+        return await llm_provider_connection_test_service.test_connection(payload)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        logger.error(f"Error testing LLM provider connection: {e}")
+        raise HTTPException(
+            status_code=500, detail="Failed to test LLM provider connection"
         )
 
 
@@ -468,7 +469,9 @@ async def delete_model_config(config_id: str):
 
 
 @app.post("/api/start-benchmark-run", response_model=StartBenchmarkRunResponseDTO)
-async def start_benchmark_run(request: StartBenchmarkRunRequestDTO) -> StartBenchmarkRunResponseDTO:
+async def start_benchmark_run(
+    request: StartBenchmarkRunRequestDTO,
+) -> StartBenchmarkRunResponseDTO:
     """
     Start a benchmark run (multiple bundles in separate daemon processes).
 
@@ -490,7 +493,9 @@ async def start_benchmark_run(request: StartBenchmarkRunRequestDTO) -> StartBenc
             prompts_by_test=request.prompts_by_test,
             continue_on_test_failure=True,
         )
-        return StartBenchmarkRunResponseDTO(message="Benchmark run started successfully.")
+        return StartBenchmarkRunResponseDTO(
+            message="Benchmark run started successfully."
+        )
     except KeyError as e:
         raise HTTPException(status_code=404, detail=str(e))
     except BenchmarkRunTestSelectionError as e:
@@ -501,7 +506,9 @@ async def start_benchmark_run(request: StartBenchmarkRunRequestDTO) -> StartBenc
         raise HTTPException(status_code=400, detail=str(e)) from e
     except Exception as e:
         logger.error(f"Error starting benchmark run: {e}")
-        raise HTTPException(status_code=500, detail=f"Failed to start benchmark run: {str(e)}")
+        raise HTTPException(
+            status_code=500, detail=f"Failed to start benchmark run: {str(e)}"
+        )
 
 
 @app.get("/api/custom-apps", response_model=List[CustomAppResponseDTO])
@@ -559,7 +566,9 @@ async def create_custom_app_config(
         raise HTTPException(status_code=409, detail=str(e))
     except Exception as e:
         logger.error(f"Error creating custom app config: {e}")
-        raise HTTPException(status_code=500, detail="Failed to create custom app config")
+        raise HTTPException(
+            status_code=500, detail="Failed to create custom app config"
+        )
 
 
 @app.put(
@@ -580,7 +589,9 @@ async def update_custom_app_config(
         raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
         logger.error(f"Error updating custom app config: {e}")
-        raise HTTPException(status_code=500, detail="Failed to update custom app config")
+        raise HTTPException(
+            status_code=500, detail="Failed to update custom app config"
+        )
 
 
 @app.post(
@@ -616,7 +627,9 @@ async def set_custom_app_config_secret(
         raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
         logger.error(f"Error setting custom app config secret: {e}")
-        raise HTTPException(status_code=500, detail="Failed to set custom app config secret")
+        raise HTTPException(
+            status_code=500, detail="Failed to set custom app config secret"
+        )
 
 
 @app.get(
@@ -633,8 +646,7 @@ async def list_benchmark_runs() -> List[BenchmarkRunResponseDTO]:
         service = BenchmarkRunService()
         entities = service.get_all_runs()
         return [
-            BenchmarkRunResponseDTO.model_validate(e.model_dump())
-            for e in entities
+            BenchmarkRunResponseDTO.model_validate(e.model_dump()) for e in entities
         ]
     except Exception as e:
         logger.error(f"Error listing benchmark runs: {e}")
@@ -707,7 +719,9 @@ async def get_benchmark_run(run_id: int) -> BenchmarkRunResponseDTO:
     "/api/benchmark-runs/{run_id}/prompts",
     response_model=List[BenchmarkRunTestPromptResponseDTO],
 )
-async def get_benchmark_run_prompts(run_id: int) -> List[BenchmarkRunTestPromptResponseDTO]:
+async def get_benchmark_run_prompts(
+    run_id: int,
+) -> List[BenchmarkRunTestPromptResponseDTO]:
     """
     Return all benchmark run test prompts for the given benchmark run id.
 
@@ -864,7 +878,9 @@ async def get_benchmark_run_test_bundles(
         )
 
 
-@app.post("/api/seed-shared-config-if-changed", response_model=SeedSharedConfigResponseDTO)
+@app.post(
+    "/api/seed-shared-config-if-changed", response_model=SeedSharedConfigResponseDTO
+)
 async def seed_shared_config_if_changed() -> SeedSharedConfigResponseDTO:
     """
     Seed benchmark datasets and bundles/tests/groupings from the shared config file
@@ -903,16 +919,13 @@ async def serve_static_files(file_path: str, request: Request):
     if not is_valid_request(request):
         logger.warning(f"Blocked direct access attempt to: {file_path}")
         raise HTTPException(
-            status_code=403,
-            detail="Direct access to static files is not allowed"
+            status_code=403, detail="Direct access to static files is not allowed"
         )
 
     # Security check: detect path traversal attempts in the raw URL path
     raw_path = request.url.path
     if ".." in raw_path or "//" in raw_path:
-        logger.warning(
-            f"Path traversal attempt blocked in raw path: {raw_path}"
-        )
+        logger.warning(f"Path traversal attempt blocked in raw path: {raw_path}")
         raise HTTPException(status_code=403, detail="Access denied")
 
     build_dir = get_build_directory()
@@ -930,17 +943,18 @@ async def serve_static_files(file_path: str, request: Request):
     if requested_file.exists() and requested_file.is_file():
         logger.info(f"Serving static file: {file_path}")
         return FileResponse(str(requested_file))
-    
+
     # Check if it's a directory and has an index.html file (Next.js static export structure)
     elif requested_file.exists() and requested_file.is_dir():
         index_file = requested_file / "index.html"
         if index_file.exists():
             logger.info(f"Serving directory index file: {file_path}/index.html")
             return FileResponse(str(index_file))
-    
+
     # If neither file nor directory with index.html exists, return 404
     logger.warning(f"Static file not found: {file_path}")
     raise HTTPException(status_code=404, detail="File not found")
+
 
 # -------------------------------------------------------------------------------------------------
 # This part assumes that the build directory is configured in moonshot_config.yaml
@@ -955,9 +969,7 @@ if build_dir.exists():
     # with access control to prevent direct URL access
     next_static_dir = build_dir / "_next"
     if next_static_dir.exists():
-        logger.info(
-            f"Next.js static files directory found at: {next_static_dir}"
-        )
+        logger.info(f"Next.js static files directory found at: {next_static_dir}")
         logger.info(
             "Next.js static files will be served via the catch-all route "
             "handler with access control"

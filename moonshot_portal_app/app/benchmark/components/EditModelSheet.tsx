@@ -6,12 +6,12 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Trash2, Plus } from "lucide-react";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import {
   ApiError,
   createDatabaseModelConfig,
   fetchProviderLatestDetails,
   setLlmProviderApiKey,
+  testLlmProviderConnection,
   updateDatabaseModelConfig,
   type DatabaseModelConfigDTO,
   type LlmProviderDetailsDTO,
@@ -24,7 +24,21 @@ import type { Provider, ModelConfig, ProviderListEntry } from '../types/modelSel
 // Constants — backend `/api/providers` defaultConfigPairs are the source of truth for new models
 const DEFAULT_ADVANCED_PARAMS: AdvancedParam[] = [];
 
-const TEST_POPOVER_TIMEOUT = 3000;
+/** Stable snapshot of form values used for a connection test (gates Save). */
+export function buildConnectionTestFingerprint(input: {
+  token: string;
+  modelName: string;
+  savedConfigPairs: Record<string, string>;
+}): string {
+  const sortedPairs = Object.keys(input.savedConfigPairs)
+    .sort()
+    .map((key) => [key, input.savedConfigPairs[key]]);
+  return JSON.stringify({
+    token: input.token.trim(),
+    modelName: input.modelName.trim(),
+    savedConfigPairs: sortedPairs,
+  });
+}
 
 const resolveExistingDatabaseConfigId = (
   editingDatabaseConfigId: string | null | undefined,
@@ -213,7 +227,9 @@ export default function EditModelSheet({
   const [tokenValue, setTokenValue] = React.useState('');
   const [modelName, setModelName] = React.useState(isNewModel ? '' : currentModelConfig?.modelname || '');
   const [testResult, setTestResult] = React.useState<boolean | null>(null);
-  const [popoverOpen, setPopoverOpen] = React.useState(false);
+  const [testError, setTestError] = React.useState<string | null>(null);
+  const [testedFingerprint, setTestedFingerprint] = React.useState<string | null>(null);
+  const [testing, setTesting] = React.useState(false);
   const [advancedParams, setAdvancedParams] = React.useState(() =>
     getAdvancedParamsFromProvider(
       isNewModel,
@@ -222,7 +238,43 @@ export default function EditModelSheet({
     )
   );
   const [apiKeyConfigured, setApiKeyConfigured] = React.useState(false);
-  const timeoutRef = React.useRef<NodeJS.Timeout | null>(null);
+
+  const buildSavedConfigPairs = (): Record<string, string> => {
+    const out: Record<string, string> = {};
+    for (const row of advancedParams) {
+      const k = row.parameter.trim();
+      if (k) out[k] = row.value;
+    }
+    return out;
+  };
+
+  const currentFingerprint = buildConnectionTestFingerprint({
+    token: tokenValue,
+    modelName,
+    savedConfigPairs: buildSavedConfigPairs(),
+  });
+
+  const canSave =
+    testedFingerprint !== null &&
+    testedFingerprint === currentFingerprint;
+
+  const clearConnectionTestSuccess = React.useCallback(() => {
+    setTestResult(null);
+    setTestError(null);
+    setTestedFingerprint(null);
+    const statusKey =
+      endpointStatusKey != null && String(endpointStatusKey).trim() !== ''
+        ? String(endpointStatusKey).trim()
+        : '';
+    if (statusKey) {
+      dispatch(
+        setEndpointStatus({
+          configId: statusKey,
+          status: ConnectionStatus.NOT_CONNECTED,
+        })
+      );
+    }
+  }, [dispatch, endpointStatusKey]);
 
   // Update state when editingModel changes
   React.useEffect(() => {
@@ -230,7 +282,8 @@ export default function EditModelSheet({
     setModelName(isNewModel ? '' : currentModelConfig?.modelname || '');
     setTokenValue('');
     setTestResult(null);
-    setPopoverOpen(false);
+    setTestError(null);
+    setTestedFingerprint(null);
     setAdvancedParams(
       getAdvancedParamsFromProvider(
         isNewModel,
@@ -243,8 +296,17 @@ export default function EditModelSheet({
   React.useEffect(() => {
     if (open) {
       setTestResult(null);
+      setTestError(null);
+      setTestedFingerprint(null);
     }
   }, [open]);
+
+  React.useEffect(() => {
+    if (testedFingerprint == null) return;
+    if (testedFingerprint !== currentFingerprint) {
+      clearConnectionTestSuccess();
+    }
+  }, [testedFingerprint, currentFingerprint, clearConnectionTestSuccess]);
 
   React.useEffect(() => {
     if (!open) {
@@ -304,21 +366,13 @@ export default function EditModelSheet({
     editingDatabaseConfigId,
   ]);
 
-  // Cleanup timeout on unmount
-  React.useEffect(() => {
-    return () => {
-      if (timeoutRef.current) {
-        clearTimeout(timeoutRef.current);
-      }
-    };
-  }, []);
-
   const resetForm = () => {
     setModelConfigName('New Model');
     setTokenValue('');
     setModelName('');
     setTestResult(null);
-    setPopoverOpen(false);
+    setTestError(null);
+    setTestedFingerprint(null);
     setAdvancedParams(
       getAdvancedParamsFromProvider(
         isNewModel,
@@ -326,15 +380,6 @@ export default function EditModelSheet({
         currentModelConfig?.savedConfigPairs
       )
     );
-  };
-
-  const buildSavedConfigPairs = (): Record<string, string> => {
-    const out: Record<string, string> = {};
-    for (const row of advancedParams) {
-      const k = row.parameter.trim();
-      if (k) out[k] = row.value;
-    }
-    return out;
   };
 
   const resolveProviderIdNumeric = (
@@ -348,7 +393,7 @@ export default function EditModelSheet({
   };
 
   const handleSave = async () => {
-    if (testResult !== true) return;
+    if (!canSave) return;
     if (!currentProvider) {
       window.alert('No provider context for this configuration.');
       return;
@@ -415,35 +460,78 @@ export default function EditModelSheet({
     }
   };
 
-  const handleTest = () => {
-    setTestResult(true);
+  const handleTest = async () => {
+    if (!currentProvider) {
+      window.alert('No provider context for this configuration.');
+      return;
+    }
+    if (!modelName.trim()) {
+      window.alert('Enter a model name before testing the connection.');
+      return;
+    }
+    const systemName = resolveSystemName(currentProvider);
+    if (!systemName.trim()) {
+      window.alert('Missing provider system name.');
+      return;
+    }
 
-    const explicitKey =
-      endpointStatusKey != null && String(endpointStatusKey).trim() !== ''
-        ? String(endpointStatusKey)
-        : '';
-    const statusConfigId = explicitKey;
-    if (statusConfigId) {
-      dispatch(
-        setEndpointStatus({
-          configId: statusConfigId,
-          status: ConnectionStatus.CONNECTED,
-        })
-      );
+    const trimmedToken = tokenValue.trim();
+    if (!apiKeyConfigured && !trimmedToken) {
+      window.alert('Enter a token before testing the connection.');
+      return;
     }
-    
-    // Show popover on click
-    setPopoverOpen(true);
-    
-    // Clear any existing timeout
-    if (timeoutRef.current) {
-      clearTimeout(timeoutRef.current);
+
+    setTesting(true);
+    setTestResult(null);
+    setTestError(null);
+    setTestedFingerprint(null);
+    const savedConfigPairs = buildSavedConfigPairs();
+    const fingerprint = buildConnectionTestFingerprint({
+      token: trimmedToken,
+      modelName: modelName.trim(),
+      savedConfigPairs,
+    });
+    try {
+      const details = await fetchProviderLatestDetails(systemName);
+      const providerId = resolveProviderIdNumeric(details, currentProvider);
+      const result = await testLlmProviderConnection({
+        llm_provider_id: providerId,
+        model_name: modelName.trim(),
+        savedConfigPairs,
+        api_key: trimmedToken || undefined,
+      });
+
+      setTestResult(result.success);
+      setTestError(result.success ? null : result.error || 'Connection test failed');
+      setTestedFingerprint(fingerprint);
+
+      if (result.success) {
+        const explicitKey =
+          endpointStatusKey != null && String(endpointStatusKey).trim() !== ''
+            ? String(endpointStatusKey)
+            : '';
+        if (explicitKey) {
+          dispatch(
+            setEndpointStatus({
+              configId: explicitKey,
+              status: ConnectionStatus.CONNECTED,
+            })
+          );
+        }
+      }
+    } catch (e) {
+      const msg =
+        e instanceof ApiError
+          ? e.message
+          : e instanceof Error
+            ? e.message
+            : 'Connection test failed';
+      setTestResult(false);
+      setTestError(msg);
+      setTestedFingerprint(fingerprint);
+    } finally {
+      setTesting(false);
     }
-    
-    // Clear the test result and close popover after 3 seconds
-    timeoutRef.current = setTimeout(() => {
-      setPopoverOpen(false);
-    }, TEST_POPOVER_TIMEOUT);
   };
 
   const addParameter = () => {
@@ -462,30 +550,33 @@ export default function EditModelSheet({
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent side="right" className="w-[1400px] sm:max-w-[700px] ml-4 overflow-y-auto pl-6 pr-6">
-        <SheetHeader>
-          <SheetTitle className="sr-only">Edit Model Configuration</SheetTitle>
-        </SheetHeader>
-        
-        <div className="flex items-center justify-between mb-6">
-          <h2 className="text-lg font-semibold">Edit Model Configuration</h2>
-        </div>
-        
-        <div className="space-y-2 mb-6">
-          <Label htmlFor="modelConfig" className="text-sm font-medium">
-            Model Configuration Name*
-          </Label>
-          <Input
-            id="modelConfig"
-            placeholder="Enter model configuration name"
-            value={modelConfigName}
-            onChange={(e) => setModelConfigName(e.target.value)}
-            tabIndex={-1}
-          />
-        </div>
+      <SheetContent
+        side="right"
+        className="w-[1400px] sm:max-w-[700px] ml-4 pl-6 pr-6 flex flex-col overflow-hidden"
+      >
+        <div className="flex flex-col flex-1 min-h-0">
+          <div className="flex-1 min-h-0 overflow-y-auto space-y-6 pb-6">
+            <SheetHeader className="p-0">
+              <SheetTitle className="sr-only">Edit Model Configuration</SheetTitle>
+            </SheetHeader>
 
-        <div className="flex flex-col h-full">
-          <div className="flex-1 space-y-6 pb-6">
+            <div className="flex items-center justify-between">
+              <h2 className="text-lg font-semibold">Edit Model Configuration</h2>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="modelConfig" className="text-sm font-medium">
+                Model Configuration Name*
+              </Label>
+              <Input
+                id="modelConfig"
+                placeholder="Enter model configuration name"
+                value={modelConfigName}
+                onChange={(e) => setModelConfigName(e.target.value)}
+                tabIndex={-1}
+              />
+            </div>
+
             {/* Model Provider and Token Card */}
             <Card className="py-0 gap-0">
               <CardContent className="p-4 space-y-4">
@@ -618,10 +709,26 @@ export default function EditModelSheet({
                 ))}
               </div>
             </div>
+
+            {testResult !== null && (
+              <div className="w-full max-h-[7.5rem] overflow-y-auto rounded-md border border-gray-200 bg-gray-50 p-3">
+                <p
+                  className={`text-sm whitespace-pre-wrap break-words ${
+                    testResult ? 'text-green-600' : 'text-red-600'
+                  }`}
+                >
+                  {testResult
+                    ? 'Test Passed'
+                    : testError
+                      ? `Test Failed: ${testError}`
+                      : 'Test Failed'}
+                </p>
+              </div>
+            )}
           </div>
 
           {/* Action Buttons - Fixed at bottom */}
-          <div className="mt-auto pt-6 pb-6 border-t">
+          <div className="shrink-0 pt-6 pb-6 border-t">
             <div className="flex justify-between items-center">
               <Button variant="outline" onClick={() => {
                 resetForm();
@@ -630,25 +737,18 @@ export default function EditModelSheet({
                 Back
               </Button>
               <div className="flex gap-3">
-                <Popover open={popoverOpen} onOpenChange={setPopoverOpen}>
-                  <PopoverTrigger asChild>
-                    <Button variant="outline" onClick={handleTest}>
-                      Test_Placeholder
-                    </Button>
-                  </PopoverTrigger>
-                  {testResult !== null && (
-                    <PopoverContent className="bg-background border-2 border-gray-300 text-foreground shadow-lg w-auto max-w-fit p-2">
-                      <p className={testResult ? 'text-green-600' : 'text-red-600'}>
-                        {testResult ? 'Test Passed' : 'Test Failed'}
-                      </p>
-                    </PopoverContent>
-                  )}
-                </Popover>
+                <Button
+                  variant="outline"
+                  disabled={testing}
+                  onClick={() => void handleTest()}
+                >
+                  {testing ? 'Testing…' : 'Test Connection'}
+                </Button>
                 <Button
                   onClick={() => void handleSave()}
-                  disabled={saving || testResult !== true}
+                  disabled={saving || testing || !canSave}
                   className={
-                    saving || testResult !== true
+                    saving || testing || !canSave
                       ? 'opacity-50 bg-gray-100 text-gray-400'
                       : ''
                   }

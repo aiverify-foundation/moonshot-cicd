@@ -17,6 +17,7 @@ _logger = configure_logger(__name__)
 # Also SDK client hook names we do not inject from merged operator params.
 DEFAULT_STRIP_KEYS_FROM_CHAT_COMPLETION: frozenset[str] = frozenset(
     {
+        "api_key",
         "api_type",
         "base_url",
         "extra_headers",

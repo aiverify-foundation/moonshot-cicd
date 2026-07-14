@@ -10,6 +10,7 @@ from adapters.connector.strip_connector_chat_kwargs import (
 
 def test_strip_removes_known_connector_and_sdk_hook_keys():
     params = {
+        "api_key": "sk-secret",
         "api_type": "openai",
         "base_url": "https://example.com",
         "extra_headers": {},
@@ -22,6 +23,7 @@ def test_strip_removes_known_connector_and_sdk_hook_keys():
     out = strip_connector_keys_for_chat_completion(params)
     assert out == {"temperature": 0.5, "model": "gpt-4o-mini"}
     assert params.keys() == {
+        "api_key",
         "api_type",
         "base_url",
         "extra_headers",

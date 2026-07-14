@@ -8,6 +8,7 @@ jest.mock('../../../../lib/api', () => ({
   createDatabaseModelConfig: jest.fn(),
   updateDatabaseModelConfig: jest.fn(),
   setLlmProviderApiKey: jest.fn(),
+  testLlmProviderConnection: jest.fn(),
   ApiError: class ApiError extends Error {},
 }));
 
@@ -35,6 +36,14 @@ function getCreateDatabaseModelConfigMock() {
   ).createDatabaseModelConfig;
 }
 
+function getTestLlmProviderConnectionMock() {
+  return (
+    jest.requireMock('../../../../lib/api') as {
+      testLlmProviderConnection: jest.Mock;
+    }
+  ).testLlmProviderConnection;
+}
+
 const highTempProvider: Provider = {
   id: '1',
   name: 'Test Provider',
@@ -55,6 +64,7 @@ const defaultLatestDetails = {
 
 describe('EditModelSheet', () => {
   beforeEach(() => {
+    jest.clearAllMocks();
     getFetchProviderLatestDetailsMock().mockResolvedValue({ ...defaultLatestDetails });
     getUpdateDatabaseModelConfigMock().mockResolvedValue({
       id: '20',
@@ -72,8 +82,22 @@ describe('EditModelSheet', () => {
       savedConfigPairs: {},
       lastUpdated: '2026-01-01T00:00:00Z',
     });
+    getTestLlmProviderConnectionMock().mockResolvedValue({
+      success: true,
+      response_preview: 'OK',
+    });
   });
 
+  async function clickTestConnectionAndWait(user: ReturnType<typeof userEvent.setup>) {
+    getTestLlmProviderConnectionMock().mockClear();
+    await user.click(screen.getByRole('button', { name: /Test Connection/i }));
+    await waitFor(() => {
+      expect(getTestLlmProviderConnectionMock()).toHaveBeenCalled();
+    });
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: /^Save$/ })).not.toBeDisabled();
+    });
+  }
   it('loads saved advanced parameters when editing an existing DB-backed model config', async () => {
     const models: ModelConfig[] = [
       {
@@ -285,7 +309,7 @@ describe('EditModelSheet', () => {
       { store }
     );
 
-    await user.click(screen.getByRole('button', { name: /Test/i }));
+    await clickTestConnectionAndWait(user);
     const nameInput = screen.getByPlaceholderText('Enter model configuration name');
     await user.clear(nameInput);
     await user.type(nameInput, 'Renamed Config');
@@ -357,10 +381,10 @@ describe('EditModelSheet', () => {
       { store }
     );
 
-    await user.click(screen.getByRole('button', { name: /Test/i }));
     const modelInput = screen.getByDisplayValue('gpt-4');
     await user.clear(modelInput);
     await user.type(modelInput, 'gpt-4.1');
+    await clickTestConnectionAndWait(user);
     await user.click(screen.getByRole('button', { name: /^Save$/ }));
 
     await waitFor(() => {
@@ -419,10 +443,10 @@ describe('EditModelSheet', () => {
       { store }
     );
 
-    await user.click(screen.getByRole('button', { name: /Test/i }));
     const modelInput = screen.getByDisplayValue('gpt-4');
     await user.clear(modelInput);
     await user.type(modelInput, 'gpt-4.1-new');
+    await clickTestConnectionAndWait(user);
     await user.click(screen.getByRole('button', { name: /^Save$/ }));
 
     await waitFor(() => {
@@ -498,7 +522,138 @@ describe('EditModelSheet', () => {
       { store }
     );
 
-    await user.click(screen.getByRole('button', { name: /Test/i }));
+    const modelInput = screen.getByPlaceholderText('gpt-4');
+    await user.type(modelInput, 'gpt-4');
+    await clickTestConnectionAndWait(user);
     expect(store.getState().endpointStatus['aaj:together_adapter']).toBe('connected');
+  });
+
+  it('enables save after a failed connection test and re-gates when the token changes', async () => {
+    const user = userEvent.setup();
+    getTestLlmProviderConnectionMock().mockResolvedValue({
+      success: false,
+      error: 'Invalid API key',
+    });
+
+    const models: ModelConfig[] = [
+      {
+        id: '10:20',
+        name: 'My Config',
+        modelname: 'gpt-4',
+        provider: '1',
+        modelConfigId: '20',
+        savedConfigPairs: { temperature: '0' },
+      },
+    ];
+
+    const store = createTestStore({
+      modelSelection: {
+        selectedProvider: '1',
+        selectedModel: '10:20',
+        selectedConfig: '',
+        isConfigValid: true,
+        isTestNameValid: true,
+        testName: 't',
+        benchmarkLlmProviderId: 1,
+        benchmarkLlmProviderModelId: 10,
+        benchmarkLlmProviderModelConfigId: 20,
+      },
+    });
+
+    render(
+      <EditModelSheet
+        open
+        onOpenChange={() => {}}
+        editingModel="10:20"
+        editingDatabaseConfigId="20"
+        providers={[highTempProvider]}
+        models={models}
+      />,
+      { store }
+    );
+
+    expect(screen.getByRole('button', { name: /^Save$/ })).toBeDisabled();
+
+    await user.click(screen.getByRole('button', { name: /Test Connection/i }));
+    await waitFor(() => {
+      expect(getTestLlmProviderConnectionMock()).toHaveBeenCalled();
+    });
+    await waitFor(() => {
+      expect(screen.getByText(/Test Failed/i)).toBeInTheDocument();
+    });
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: /^Save$/ })).not.toBeDisabled();
+    });
+
+    const tokenInput = screen.getByLabelText(/Token/i);
+    await user.type(tokenInput, 'sk-new-token');
+
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: /^Save$/ })).toBeDisabled();
+    });
+  });
+
+  it('disables save after token changes following a successful test', async () => {
+    const user = userEvent.setup();
+    const models: ModelConfig[] = [
+      {
+        id: '10:20',
+        name: 'My Config',
+        modelname: 'gpt-4',
+        provider: '1',
+        modelConfigId: '20',
+        savedConfigPairs: { temperature: '0' },
+      },
+    ];
+
+    const store = createTestStore({
+      modelSelection: {
+        selectedProvider: '1',
+        selectedModel: '10:20',
+        selectedConfig: '',
+        isConfigValid: true,
+        isTestNameValid: true,
+        testName: 't',
+        benchmarkLlmProviderId: 1,
+        benchmarkLlmProviderModelId: 10,
+        benchmarkLlmProviderModelConfigId: 20,
+      },
+    });
+
+    render(
+      <EditModelSheet
+        open
+        onOpenChange={() => {}}
+        editingModel="10:20"
+        editingDatabaseConfigId="20"
+        providers={[highTempProvider]}
+        models={models}
+        endpointStatusKey="aaj:together_adapter"
+      />,
+      { store }
+    );
+
+    await clickTestConnectionAndWait(user);
+    expect(store.getState().endpointStatus['aaj:together_adapter']).toBe('connected');
+    expect(screen.getByRole('button', { name: /^Save$/ })).not.toBeDisabled();
+
+    const tokenInput = screen.getByLabelText(/Token/i);
+    await user.type(tokenInput, 'sk-new-token');
+
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: /^Save$/ })).toBeDisabled();
+    });
+    expect(store.getState().endpointStatus['aaj:together_adapter']).toBe(
+      'not connected'
+    );
+
+    await clickTestConnectionAndWait(user);
+    expect(getTestLlmProviderConnectionMock()).toHaveBeenCalledWith(
+      expect.objectContaining({
+        api_key: 'sk-new-token',
+        model_name: 'gpt-4',
+      })
+    );
+    expect(screen.getByRole('button', { name: /^Save$/ })).not.toBeDisabled();
   });
 });

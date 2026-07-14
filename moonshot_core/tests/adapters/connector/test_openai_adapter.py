@@ -136,6 +136,28 @@ def test_configure_falls_back_to_env_when_db_key_missing(openai_adapter, connect
         )
 
 
+def test_configure_prefers_params_api_key_over_db_and_env(openai_adapter, connector_entity):
+    connector_entity.params = {**connector_entity.params, "api_key": "params-key"}
+    with (
+        patch("adapters.connector.openai_adapter.ProviderConnectorEnvKeyService") as mock_svc_class,
+        patch("adapters.connector.openai_adapter.os.getenv") as mock_getenv,
+        patch("adapters.connector.openai_adapter.AsyncOpenAI") as mock_openai_class,
+    ):
+        mock_getenv.return_value = "env-key"
+        mock_svc = MagicMock()
+        mock_svc.get_plain_api_key_for_provider_system_name.return_value = "db-key"
+        mock_svc_class.return_value = mock_svc
+        mock_openai_class.return_value = MagicMock()
+
+        openai_adapter.configure(connector_entity)
+
+        mock_svc.get_plain_api_key_for_provider_system_name.assert_not_called()
+        mock_openai_class.assert_called_once_with(
+            api_key="params-key",
+            base_url="https://api.openai.com/v1",
+        )
+
+
 def test_configure_raises_type_error_when_system_name_empty(openai_adapter, connector_entity):
     class BrokenOpenAI(OpenAIAdapter):
         SYSTEM_NAME = ""

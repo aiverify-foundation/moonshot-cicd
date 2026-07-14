@@ -3,11 +3,11 @@ from typing import Any
 
 from together import AsyncTogether
 
-from application.services.provider_connector_env_key_service import ProviderConnectorEnvKeyService
 from adapters.connector.strip_connector_chat_kwargs import (
     coerce_numeric_string_chat_params,
-    strip_connector_keys_for_chat_completion,
-)
+    strip_connector_keys_for_chat_completion)
+from application.services.provider_connector_env_key_service import \
+    ProviderConnectorEnvKeyService
 from domain.entities.connector_entity import ConnectorEntity
 from domain.entities.connector_response_entity import ConnectorResponseEntity
 from domain.ports.connector_port import ConnectorPort
@@ -26,7 +26,9 @@ def _coerce_max_attempts(value: Any) -> int:
         try:
             value = int(float(value.strip()))
         except ValueError as exc:
-            raise ValueError(f"max_attempts must be a valid integer, got {value!r}") from exc
+            raise ValueError(
+                f"max_attempts must be a valid integer, got {value!r}"
+            ) from exc
     if not isinstance(value, int):
         raise ValueError("max_attempts must be of type int.")
     if value < 1:
@@ -60,10 +62,16 @@ class TogetherAdapter(ConnectorPort):
     }
 
     ERROR_PROCESSING_PROMPT = "[TogetherAdapter] Failed to process prompt."
-    INFO_CONFIGURED = "[TogetherAdapter] Configured with model: {model}, endpoint: {endpoint}"
+    INFO_CONFIGURED = (
+        "[TogetherAdapter] Configured with model: {model}, endpoint: {endpoint}"
+    )
     WARNING_NO_API_KEY = "[TogetherAdapter] WARNING: TOGETHER_API_KEY environment variable is not set or is empty."
-    INFO_API_KEY_PRESENT = "[TogetherAdapter] API key is present (length: {length} characters)"
-    INFO_MAKING_REQUEST = "[TogetherAdapter] Making API request to model: {model}, endpoint: {endpoint}"
+    INFO_API_KEY_PRESENT = (
+        "[TogetherAdapter] API key is present (length: {length} characters)"
+    )
+    INFO_MAKING_REQUEST = (
+        "[TogetherAdapter] Making API request to model: {model}, endpoint: {endpoint}"
+    )
 
     """
     Adapter for interacting with the Together AI API.
@@ -86,36 +94,48 @@ class TogetherAdapter(ConnectorPort):
         """
         self.connector_entity = connector_entity
         system_name, version = type(self).require_system_name_and_version()
-        db_key = ProviderConnectorEnvKeyService().get_plain_api_key_for_provider_system_name(
-            provider_system_name=system_name,
-            version=version,
-        )
-        resolved_from_database = bool(db_key and db_key.strip())
-        if resolved_from_database:
-            api_key = db_key.strip()
-        else:
-            api_key = os.getenv("TOGETHER_API_KEY") or ""
-
-        if api_key:
-            if resolved_from_database:
-                logger.info(
-                    "[TogetherAdapter] API key resolved from database "
-                    "(llm_provider system_name=%s, version=%s)",
-                    system_name,
-                    version,
-                )
-            else:
-                logger.info("[TogetherAdapter] API key resolved from environment (TOGETHER_API_KEY)")
+        params_key = str(connector_entity.params.get("api_key") or "").strip()
+        if params_key:
+            api_key = params_key
+            logger.info(
+                "[TogetherAdapter] API key resolved from connector params "
+                "(e.g. connection test override)"
+            )
             logger.info(self.INFO_API_KEY_PRESENT.format(length=len(api_key)))
         else:
-            logger.warning(self.WARNING_NO_API_KEY)
-        
-        endpoint = self.connector_entity.model_endpoint or "default (api.together.xyz/v1)"
+            db_key = ProviderConnectorEnvKeyService().get_plain_api_key_for_provider_system_name(
+                provider_system_name=system_name,
+                version=version,
+            )
+            resolved_from_database = bool(db_key and db_key.strip())
+            if resolved_from_database:
+                api_key = db_key.strip()
+            else:
+                api_key = os.getenv("TOGETHER_API_KEY") or ""
+
+            if api_key:
+                if resolved_from_database:
+                    logger.info(
+                        "[TogetherAdapter] API key resolved from database "
+                        "(llm_provider system_name=%s, version=%s)",
+                        system_name,
+                        version,
+                    )
+                else:
+                    logger.info(
+                        "[TogetherAdapter] API key resolved from environment (TOGETHER_API_KEY)"
+                    )
+                logger.info(self.INFO_API_KEY_PRESENT.format(length=len(api_key)))
+            else:
+                logger.warning(self.WARNING_NO_API_KEY)
+
+        endpoint = (
+            self.connector_entity.model_endpoint or "default (api.together.xyz/v1)"
+        )
         max_retries = _resolve_max_retries(connector_entity)
         logger.info(
             self.INFO_CONFIGURED.format(
-                model=self.connector_entity.model,
-                endpoint=endpoint
+                model=self.connector_entity.model, endpoint=endpoint
             )
         )
         logger.info(
@@ -163,14 +183,15 @@ class TogetherAdapter(ConnectorPort):
             )
         )
 
-        endpoint = self.connector_entity.model_endpoint or "default (api.together.xyz/v1)"
+        endpoint = (
+            self.connector_entity.model_endpoint or "default (api.together.xyz/v1)"
+        )
         logger.info(
             self.INFO_MAKING_REQUEST.format(
-                model=self.connector_entity.model,
-                endpoint=endpoint
+                model=self.connector_entity.model, endpoint=endpoint
             )
         )
-        
+
         try:
             response = await self._client.chat.completions.create(**new_params)
             return ConnectorResponseEntity(
@@ -180,29 +201,38 @@ class TogetherAdapter(ConnectorPort):
             # Enhanced error logging with exception type and details
             error_type = type(e).__name__
             error_message = str(e)
-            
+
             logger.error(
                 f"{self.ERROR_PROCESSING_PROMPT} Exception type: {error_type}, "
                 f"Error: {error_message}"
             )
-            
+
             # Log additional context for common error types
-            if "api_key" in error_message.lower() or "authentication" in error_message.lower():
+            if (
+                "api_key" in error_message.lower()
+                or "authentication" in error_message.lower()
+            ):
                 logger.error(
                     "[TogetherAdapter] Authentication error detected. "
                     "Please verify that TOGETHER_API_KEY environment variable is set correctly."
                 )
-            elif "connection" in error_message.lower() or "network" in error_message.lower():
+            elif (
+                "connection" in error_message.lower()
+                or "network" in error_message.lower()
+            ):
                 logger.error(
                     "[TogetherAdapter] Connection error detected. "
                     "Please check your network connection and API endpoint configuration."
                 )
-            elif "rate_limit" in error_message.lower() or "quota" in error_message.lower():
+            elif (
+                "rate_limit" in error_message.lower()
+                or "quota" in error_message.lower()
+            ):
                 logger.error(
                     "[TogetherAdapter] Rate limit or quota error detected. "
                     "Please check your API usage limits."
                 )
-            
+
             raise
 
     async def _process_response(self, response: Any) -> str:

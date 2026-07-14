@@ -447,6 +447,45 @@ export async function setLlmProviderApiKey(
   }
 }
 
+/** POST /api/providers/test-connection */
+export interface TestLlmProviderConnectionPayload {
+  llm_provider_id: number;
+  model_name: string;
+  savedConfigPairs?: Record<string, string>;
+  api_key?: string;
+}
+
+export interface TestLlmProviderConnectionResponse {
+  success: boolean;
+  error?: string | null;
+  response_preview?: string | null;
+}
+
+export async function testLlmProviderConnection(
+  payload: TestLlmProviderConnectionPayload
+): Promise<TestLlmProviderConnectionResponse> {
+  try {
+    const response = await fetch(
+      `${API_BASE_URL}/api/providers/test-connection`,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      }
+    );
+    if (!response.ok) {
+      const errorText = await response.text().catch(() => 'Unknown error');
+      console.error(`API Error: ${response.status} - ${errorText}`);
+      const detail = parseErrorDetail(errorText);
+      throw new ApiError(detail, response.status, response.statusText);
+    }
+    return response.json() as Promise<TestLlmProviderConnectionResponse>;
+  } catch (error) {
+    console.error('Test LLM provider connection error:', error);
+    handleConnectError(error, 'Network error');
+  }
+}
+
 /** POST /api/database-model-configs */
 export interface CreateDatabaseModelConfigPayload {
   /** Use either `model_id` or both `llm_provider_id` and `model_name`. */

@@ -3,11 +3,11 @@ from typing import Any
 
 from openai import AsyncOpenAI, BadRequestError
 
-from application.services.provider_connector_env_key_service import ProviderConnectorEnvKeyService
 from adapters.connector.strip_connector_chat_kwargs import (
     coerce_numeric_string_chat_params,
-    strip_connector_keys_for_chat_completion,
-)
+    strip_connector_keys_for_chat_completion)
+from application.services.provider_connector_env_key_service import \
+    ProviderConnectorEnvKeyService
 from domain.entities.connector_entity import ConnectorEntity
 from domain.entities.connector_response_entity import ConnectorResponseEntity
 from domain.ports.connector_port import ConnectorPort
@@ -56,33 +56,43 @@ class OpenAIAdapter(ConnectorPort):
         """
         self.connector_entity = connector_entity
         system_name, version = type(self).require_system_name_and_version()
-        db_key = ProviderConnectorEnvKeyService().get_plain_api_key_for_provider_system_name(
-            provider_system_name=system_name,
-            version=version,
-        )
-        resolved_from_database = bool(db_key and db_key.strip())
-        if resolved_from_database:
-            api_key = db_key.strip()
+        params_key = str(connector_entity.params.get("api_key") or "").strip()
+        if params_key:
+            api_key = params_key
+            logger.info(
+                "[OpenAIAdapter] API key resolved from connector params "
+                "(e.g. connection test override)"
+            )
         else:
-            api_key = os.getenv("OPENAI_API_KEY") or ""
-
-        if api_key:
+            db_key = ProviderConnectorEnvKeyService().get_plain_api_key_for_provider_system_name(
+                provider_system_name=system_name,
+                version=version,
+            )
+            resolved_from_database = bool(db_key and db_key.strip())
             if resolved_from_database:
-                logger.info(
-                    "[OpenAIAdapter] API key resolved from database "
-                    "(llm_provider system_name=%s, version=%s)",
+                api_key = db_key.strip()
+            else:
+                api_key = os.getenv("OPENAI_API_KEY") or ""
+
+            if api_key:
+                if resolved_from_database:
+                    logger.info(
+                        "[OpenAIAdapter] API key resolved from database "
+                        "(llm_provider system_name=%s, version=%s)",
+                        system_name,
+                        version,
+                    )
+                else:
+                    logger.info(
+                        "[OpenAIAdapter] API key resolved from environment (OPENAI_API_KEY)"
+                    )
+            else:
+                logger.warning(
+                    "[OpenAIAdapter] No API key from database for system_name=%s version=%s and "
+                    "OPENAI_API_KEY is unset or empty.",
                     system_name,
                     version,
                 )
-            else:
-                logger.info("[OpenAIAdapter] API key resolved from environment (OPENAI_API_KEY)")
-        else:
-            logger.warning(
-                "[OpenAIAdapter] No API key from database for system_name=%s version=%s and "
-                "OPENAI_API_KEY is unset or empty.",
-                system_name,
-                version,
-            )
 
         self._client = AsyncOpenAI(
             api_key=api_key,

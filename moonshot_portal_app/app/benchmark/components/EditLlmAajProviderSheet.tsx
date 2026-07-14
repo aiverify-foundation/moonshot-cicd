@@ -11,11 +11,11 @@ import {
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import {
   ApiError,
   fetchProviderLatestDetails,
   setLlmProviderApiKey,
+  testLlmProviderConnection,
   type LlmProviderDetailsDTO,
 } from "../../../lib/api";
 import { useAppDispatch } from "../../../hooks/reduxHooks";
@@ -24,8 +24,12 @@ import type { Provider } from "../types/modelSelection";
 
 /** Matches `ConnectionStatus.CONNECTED` in Redux `endpointStatus` slice. */
 const ENDPOINT_STATUS_CONNECTED = "connected";
+/** Matches `ConnectionStatus.NOT_CONNECTED` in Redux `endpointStatus` slice. */
+const ENDPOINT_STATUS_NOT_CONNECTED = "not connected";
 
-const TEST_POPOVER_TIMEOUT_MS = 3000;
+export function buildAajConnectionTestFingerprint(token: string): string {
+  return JSON.stringify({ token: token.trim() });
+}
 
 const resolveSystemName = (provider: Provider | null): string => {
   if (!provider) return "";
@@ -67,17 +71,40 @@ export default function EditLlmAajProviderSheet({
   const [tokenValue, setTokenValue] = React.useState("");
   const [apiKeyConfigured, setApiKeyConfigured] = React.useState(false);
   const [saving, setSaving] = React.useState(false);
-  /** Test always succeeds when clicked (same pattern as {@link EditModelSheet}). */
+  const [testing, setTesting] = React.useState(false);
   const [testResult, setTestResult] = React.useState<boolean | null>(null);
-  const [popoverOpen, setPopoverOpen] = React.useState(false);
-  const testPopoverTimeoutRef = React.useRef<NodeJS.Timeout | null>(null);
+  const [testError, setTestError] = React.useState<string | null>(null);
+  const [testedFingerprint, setTestedFingerprint] = React.useState<string | null>(
+    null
+  );
+
+  const currentFingerprint = buildAajConnectionTestFingerprint(tokenValue);
+  const canSave =
+    testedFingerprint !== null &&
+    testedFingerprint === currentFingerprint;
+
+  const clearConnectionTestSuccess = React.useCallback(() => {
+    setTestResult(null);
+    setTestError(null);
+    setTestedFingerprint(null);
+    const statusKey = endpointStatusKey?.trim();
+    if (statusKey) {
+      dispatch(
+        setEndpointStatus({
+          configId: statusKey,
+          status: ENDPOINT_STATUS_NOT_CONNECTED,
+        })
+      );
+    }
+  }, [dispatch, endpointStatusKey]);
 
   React.useEffect(() => {
     if (!open) {
       setTokenValue("");
       setApiKeyConfigured(false);
       setTestResult(null);
-      setPopoverOpen(false);
+      setTestError(null);
+      setTestedFingerprint(null);
       return;
     }
     if (!provider) return;
@@ -101,16 +128,17 @@ export default function EditLlmAajProviderSheet({
   React.useEffect(() => {
     if (open) {
       setTestResult(null);
+      setTestError(null);
+      setTestedFingerprint(null);
     }
   }, [open]);
 
   React.useEffect(() => {
-    return () => {
-      if (testPopoverTimeoutRef.current) {
-        clearTimeout(testPopoverTimeoutRef.current);
-      }
-    };
-  }, []);
+    if (testedFingerprint == null) return;
+    if (testedFingerprint !== currentFingerprint) {
+      clearConnectionTestSuccess();
+    }
+  }, [testedFingerprint, currentFingerprint, clearConnectionTestSuccess]);
 
   const dispatchEndpointConnected = () => {
     const statusKey = endpointStatusKey?.trim();
@@ -124,21 +152,64 @@ export default function EditLlmAajProviderSheet({
     }
   };
 
-  const handleTest = () => {
-    setTestResult(true);
-    dispatchEndpointConnected();
-
-    setPopoverOpen(true);
-    if (testPopoverTimeoutRef.current) {
-      clearTimeout(testPopoverTimeoutRef.current);
+  const handleTest = async () => {
+    if (!provider) {
+      window.alert("No provider selected.");
+      return;
     }
-    testPopoverTimeoutRef.current = setTimeout(() => {
-      setPopoverOpen(false);
-    }, TEST_POPOVER_TIMEOUT_MS);
+    const systemName = resolveSystemName(provider);
+    if (!systemName) {
+      window.alert("Missing provider system name.");
+      return;
+    }
+    const modelName = (provider.defaultModel || "").trim();
+    if (!modelName) {
+      window.alert("Provider has no default model to test against.");
+      return;
+    }
+    const trimmedToken = tokenValue.trim();
+    if (!apiKeyConfigured && !trimmedToken) {
+      window.alert("Enter a token before testing the connection.");
+      return;
+    }
+
+    const fingerprint = buildAajConnectionTestFingerprint(trimmedToken);
+    setTesting(true);
+    setTestResult(null);
+    setTestError(null);
+    setTestedFingerprint(null);
+    try {
+      const details = await fetchProviderLatestDetails(systemName);
+      const providerId = resolveProviderIdNumeric(details, provider);
+      const result = await testLlmProviderConnection({
+        llm_provider_id: providerId,
+        model_name: modelName,
+        savedConfigPairs: {},
+        api_key: trimmedToken || undefined,
+      });
+      setTestResult(result.success);
+      setTestError(result.success ? null : result.error || "Connection test failed");
+      setTestedFingerprint(fingerprint);
+      if (result.success) {
+        dispatchEndpointConnected();
+      }
+    } catch (e) {
+      const msg =
+        e instanceof ApiError
+          ? e.message
+          : e instanceof Error
+            ? e.message
+            : "Connection test failed";
+      setTestResult(false);
+      setTestError(msg);
+      setTestedFingerprint(fingerprint);
+    } finally {
+      setTesting(false);
+    }
   };
 
   const handleSave = async () => {
-    if (testResult !== true) return;
+    if (!canSave) return;
     if (!provider) {
       window.alert("No provider selected.");
       return;
@@ -166,6 +237,7 @@ export default function EditLlmAajProviderSheet({
       dispatchEndpointConnected();
       await onSaved?.();
       setTokenValue("");
+      setTestedFingerprint(null);
       onOpenChange(false);
     } catch (e) {
       const msg =
@@ -184,19 +256,19 @@ export default function EditLlmAajProviderSheet({
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent
         side="right"
-        className="w-[1400px] sm:max-w-[700px] ml-4 overflow-y-auto pl-6 pr-6"
+        className="w-[1400px] sm:max-w-[700px] ml-4 pl-6 pr-6 flex flex-col overflow-hidden"
       >
-        <SheetHeader className="text-left space-y-1">
-          <SheetTitle className="text-lg font-semibold">
-            Add Provider Token
-          </SheetTitle>
-          <SheetDescription className="sr-only">
-            Store or update the API token for the LLM-as-judge provider.
-          </SheetDescription>
-        </SheetHeader>
+        <div className="flex flex-col flex-1 min-h-0">
+          <div className="flex-1 min-h-0 overflow-y-auto space-y-6 pb-6">
+            <SheetHeader className="text-left space-y-1 p-0">
+              <SheetTitle className="text-lg font-semibold">
+                Add Provider Token
+              </SheetTitle>
+              <SheetDescription className="sr-only">
+                Store or update the API token for the LLM-as-judge provider.
+              </SheetDescription>
+            </SheetHeader>
 
-        <div className="flex flex-col mt-6">
-          <div className="flex-1 space-y-6 pb-6">
             <Card className="py-0 gap-0">
               <CardContent className="p-4 space-y-4">
                 <div className="space-y-2">
@@ -233,40 +305,52 @@ export default function EditLlmAajProviderSheet({
                 </div>
               </CardContent>
             </Card>
+
+            {testResult !== null && (
+              <div className="w-full max-h-[7.5rem] overflow-y-auto rounded-md border border-gray-200 bg-gray-50 p-3">
+                <p
+                  className={`text-sm whitespace-pre-wrap break-words ${
+                    testResult ? "text-green-600" : "text-red-600"
+                  }`}
+                >
+                  {testResult
+                    ? "Test Passed"
+                    : testError
+                      ? `Test Failed: ${testError}`
+                      : "Test Failed"}
+                </p>
+              </div>
+            )}
           </div>
 
-          <div className="mt-auto pt-6 pb-6 border-t">
+          <div className="shrink-0 pt-6 pb-6 border-t">
             <div className="flex justify-between items-center">
               <Button
                 variant="outline"
                 onClick={() => {
                   setTokenValue("");
                   setTestResult(null);
+                  setTestError(null);
+                  setTestedFingerprint(null);
                   onOpenChange(false);
                 }}
               >
                 Back
               </Button>
               <div className="flex gap-3">
-                <Popover open={popoverOpen} onOpenChange={setPopoverOpen}>
-                  <PopoverTrigger asChild>
-                    <Button variant="outline" type="button" onClick={handleTest}>
-                      Test_Placeholder
-                    </Button>
-                  </PopoverTrigger>
-                  {testResult !== null && (
-                    <PopoverContent className="bg-background border-2 border-gray-300 text-foreground shadow-lg w-auto max-w-fit p-2">
-                      <p className={testResult ? "text-green-600" : "text-red-600"}>
-                        {testResult ? "Test Passed" : "Test Failed"}
-                      </p>
-                    </PopoverContent>
-                  )}
-                </Popover>
+                <Button
+                  variant="outline"
+                  type="button"
+                  disabled={testing}
+                  onClick={() => void handleTest()}
+                >
+                  {testing ? "Testing…" : "Test Connection"}
+                </Button>
                 <Button
                   onClick={() => void handleSave()}
-                  disabled={saving || testResult !== true}
+                  disabled={saving || testing || !canSave}
                   className={
-                    saving || testResult !== true
+                    saving || testing || !canSave
                       ? "opacity-50 bg-gray-100 text-gray-400"
                       : ""
                   }
