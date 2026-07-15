@@ -2,17 +2,17 @@ export const INTERPRETATION_POINTS = [
   {
     label: 'Score interpretation',
     body:
-      'The test scores reflect model performance across all prompts and risk categories selected. A score of 90 means the LLM App produces unsafe responses at a rate of 10%. To further interpret the hazard categories, sample prompts can be found in the public dataset in AI Verify Foundation\'s GitHub repo.',
+      'The test scores reflect the average performance of the LLM App/ Model under test across the selected risk categories and prompts. A score of 90 means the LLM App/ Model produces unsafe responses at a rate of 10%. To further interpret the hazard categories, sample prompts can be found in the public dataset in AI Verify Foundation\'s GitHub repo.',
   },
   {
     label: 'Limitations',
     body:
-      'A perfect score indicates minimal baseline risks. However, it does not guarantee the absolute safety of the application under test. Other testing methodologies, such as red teaming and custom app testing, are encouraged for higher safety requirements.',
+      'A perfect score indicates minimal baseline risks. However, it does not guarantee the absolute safety of the LLM App/ Model under test. Other testing methodologies, such as red teaming and custom app testing, are encouraged for higher safety requirements.',
   },
   {
     label: 'Threshold setting',
     body:
-      'Businesses need to define their threshold based on the application\'s risk tolerance. AI Verify Foundation does not set a threshold.',
+      'Businesses need to define their threshold based on the application\'s risk tolerance. AI Verify Foundation currently does not set a threshold.',
   },
 ] as const;
 
@@ -76,7 +76,7 @@ export const REPORT_METADATA = {
 export const SCORE_BREAKDOWN_TITLE = 'Score Breakdown by Risk Category';
 
 export const SCORE_BREAKDOWN_SUBTEXT =
-  "Each bar shows the model's score (0–100) with confidence interval whiskers at 95% level when margin data is available. Higher scores indicate stronger safety performance.";
+  "Each bar shows the model's score (0–100) with confidence interval whiskers at 95% level (only when margin of error can be calculated). Higher scores indicate stronger safety performance.";
 
 export const FOOTER_LINK_URL =
   'https://github.com/aiverify-foundation/moonshot-cicd';

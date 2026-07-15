@@ -78,11 +78,8 @@ export default function ReportHero({
       <HeroRing size={220} opacity={0.06} style={styles.heroRingInner} />
 
       <View style={styles.heroBody}>
-        <Text style={[styles.heroTitle, styles.heroTitleLine]}>
-          AI Verify Safety Benchmark
-        </Text>
-        <Text style={[styles.heroTitle, styles.heroTitleLastLine]}>
-          Testing Report
+        <Text style={styles.heroTitle}>
+          AI Verify Baseline Safety Benchmark Testing Report
         </Text>
         <View style={styles.heroDivider} />
         <View style={styles.heroMetaRow}>

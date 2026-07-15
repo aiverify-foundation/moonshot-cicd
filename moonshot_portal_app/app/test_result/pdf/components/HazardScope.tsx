@@ -6,10 +6,9 @@ import { styles } from '../styles';
 export default function HazardScope() {
   return (
     <View style={styles.card}>
-      <Text style={styles.sectionTitle}>Risk Scope Covered</Text>
+      <Text style={styles.sectionTitle}>Benchmarks Covered in Project Moonshot</Text>
       <Text style={styles.muted}>
-        The benchmark covers two test bundles: Singapore Undesirable Content and
-        AILuminate.
+        The benchmarks are selected from the following:
       </Text>
       {HAZARD_SECTIONS.map((section) => (
         <View key={section.tag} style={styles.hazardCard} wrap={false}>
