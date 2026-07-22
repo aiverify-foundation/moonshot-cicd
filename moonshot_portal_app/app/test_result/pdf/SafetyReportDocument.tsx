@@ -1,5 +1,6 @@
 import React from 'react';
 import { Document, Page } from '@react-pdf/renderer';
+import ReportHeader from './components/ReportHeader';
 import ReportHero from './components/ReportHero';
 import ScoreBreakdown from './components/ScoreBreakdown';
 import InterpretationGuide from './components/InterpretationGuide';
@@ -24,6 +25,8 @@ export default function SafetyReportDocument({
       author="AI Verify Foundation"
     >
       <Page size="A4" style={styles.page}>
+        <ReportHeader />
+
         <ReportHero
           companyName={companyName}
           testRunName={testRunName}
