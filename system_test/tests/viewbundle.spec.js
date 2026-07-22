@@ -275,13 +275,12 @@ test.describe('Moonshot Integration Tests', () => {
       await expect(selectCheckbox).toContainText('Select');
       // cannot explicitly verify if a checkbox exists
       
-      // "Learn more" text (to add hyperlink in View Tests for Bundle story)
-      const learnMoreText = card.locator('[data-testid="learn-more-link"]');
-      await expect(learnMoreText).toBeVisible();
-      await expect(learnMoreText).toContainText('Learn more');
-      
-      // Verify learn more is a clickable link
-      await expect(learnMoreText).toHaveAttribute('href');
+      // "Learn more" button opens the bundle details sheet
+      const learnMoreButton = card.locator('[data-testid="learn-more-link"]');
+      await expect(learnMoreButton).toBeVisible();
+      await expect(learnMoreButton).toContainText('Learn more');
+      await expect(learnMoreButton).toBeEnabled();
+      await expect(learnMoreButton).toHaveRole('button');
     }
   });
 

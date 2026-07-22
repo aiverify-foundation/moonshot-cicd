@@ -114,7 +114,7 @@ test.describe('Test Results download', () => {
 
     const downloadButton = page.locator('[data-testid="download-results-button"]');
     await expect(downloadButton).toBeEnabled();
-    await expect(downloadButton).toHaveText('Download');
+    await expect(downloadButton).toHaveText('Download JSON');
 
     const exportResponsePromise = page.waitForResponse(
       (response) =>
@@ -141,6 +141,6 @@ test.describe('Test Results download', () => {
     expect(countPromptsInExport(parsed)).toBe(manifest.expectedPromptCount);
 
     await expect(downloadButton).toBeEnabled();
-    await expect(downloadButton).toHaveText('Download');
+    await expect(downloadButton).toHaveText('Download JSON');
   });
 });
