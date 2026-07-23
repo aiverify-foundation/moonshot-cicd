@@ -1,6 +1,7 @@
 import React from 'react';
-import { saveBlobAsFile } from '@/lib/api';
+import { saveBlobAsFile, fetchBundles } from '@/lib/api';
 import { registerReportFonts } from './fonts';
+import { mapBundlesToHazardSections } from './mapBundlesToHazardSections';
 import { mapRunToReportData } from './mapRunToReportData';
 import type { SafetyReportPdfProps } from './types';
 import {
@@ -25,7 +26,11 @@ export async function downloadSafetyReportPdf(
   prompts: BenchmarkRunTestPrompt[],
   testMargins: BenchmarkRunTestMarginOfError[]
 ): Promise<void> {
-  const props = mapRunToReportData(run, bundles, prompts, testMargins);
+  const configBundles = await fetchBundles();
+  const props: SafetyReportPdfProps = {
+    ...mapRunToReportData(run, bundles, prompts, testMargins),
+    hazardSections: mapBundlesToHazardSections(configBundles),
+  };
   const blob = await generateSafetyReportBlob(props);
   const filename = run.name ? `${run.name}.pdf` : `benchmark-run-${run.id ?? 'report'}.pdf`;
   await saveBlobAsFile(blob, filename, {

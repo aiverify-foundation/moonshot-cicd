@@ -103,7 +103,7 @@ export function mapRunToReportData(
   bundles: BenchmarkRunResultsBundleSummary[],
   prompts: BenchmarkRunTestPrompt[],
   testMargins: BenchmarkRunTestMarginOfError[]
-): SafetyReportPdfProps {
+): Omit<SafetyReportPdfProps, 'hazardSections'> {
   const marginPercentByTestId = new Map<number, number>();
   for (const row of testMargins) {
     const c = metricToPercentPoints(row.margin_of_error);

@@ -7,7 +7,8 @@ import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import React, { useEffect, useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
-import { ApiError, fetchBenchmarkRunResults } from "@/lib/api";
+import { ApiError, fetchBenchmarkRunResults, fetchBundles } from "@/lib/api";
+import { mapBundlesToHazardSections } from "../pdf/mapBundlesToHazardSections";
 import { mapRunToReportData } from "../pdf/mapRunToReportData";
 import PdfFitWidthPreview from "./PdfFitWidthPreview";
 
@@ -66,12 +67,18 @@ export default function SafetyReportPreviewApp() {
           return;
         }
 
-        const props = mapRunToReportData(
-          res.run,
-          res.bundles,
-          res.prompts,
-          res.test_margin_of_error ?? []
-        );
+        const configBundles = await fetchBundles();
+        if (cancelled) return;
+
+        const props = {
+          ...mapRunToReportData(
+            res.run,
+            res.bundles,
+            res.prompts,
+            res.test_margin_of_error ?? []
+          ),
+          hazardSections: mapBundlesToHazardSections(configBundles),
+        };
         const { generateSafetyReportBlob } = await import(
           "../pdf/downloadSafetyReportPdf"
         );

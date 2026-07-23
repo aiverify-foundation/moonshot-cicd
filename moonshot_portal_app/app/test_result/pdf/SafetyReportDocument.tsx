@@ -7,6 +7,7 @@ import InterpretationGuide from './components/InterpretationGuide';
 import UseCaseSection from './components/UseCaseSection';
 import HazardScope from './components/HazardScope';
 import ReportFooter from './components/ReportFooter';
+import { paginateHazardSections } from './paginateHazardSections';
 import { paginateScoreBreakdown } from './paginateScoreBreakdown';
 import { styles } from './styles';
 import type { SafetyReportPdfProps } from './types';
@@ -16,8 +17,11 @@ export default function SafetyReportDocument({
   testRunName,
   reportDate,
   bundles,
+  hazardSections,
 }: SafetyReportPdfProps) {
   const chunks = paginateScoreBreakdown(bundles);
+  const hazardPages = paginateHazardSections(hazardSections);
+  const lastHazardPageIndex = hazardPages.length - 1;
 
   return (
     <Document
@@ -47,10 +51,15 @@ export default function SafetyReportDocument({
         <UseCaseSection />
       </Page>
 
-      <Page size="A4" style={styles.page}>
-        <HazardScope />
-        <ReportFooter />
-      </Page>
+      {hazardPages.map((pageSections, index) => (
+        <Page key={`hazard-${index}`} size="A4" style={styles.page}>
+          <HazardScope
+            hazardSections={pageSections}
+            showSectionHeader={index === 0}
+          />
+          {index === lastHazardPageIndex && <ReportFooter />}
+        </Page>
+      ))}
     </Document>
   );
 }

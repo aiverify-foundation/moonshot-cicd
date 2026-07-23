@@ -13,9 +13,15 @@ export type SafetyReportBundle = {
   items: SafetyReportScoreItem[];
 };
 
+export type HazardSection = {
+  tag: string;
+  items: { title: string; desc: string }[];
+};
+
 export type SafetyReportPdfProps = {
   companyName: string;
   testRunName: string;
   reportDate: string;
   bundles: SafetyReportBundle[];
+  hazardSections: HazardSection[];
 };
