@@ -14,7 +14,7 @@ module.exports = async function globalSetup() {
     PYTHONPATH: process.env.PYTHONPATH || path.join(__dirname, '..', 'moonshot_core'),
   };
 
-  for (const scriptName of ['seed_e2e_data.py', 'seed_completed_download_run.py']) {
+  for (const scriptName of ['seed_e2e_data.py', 'seed_completed_download_run.py', 'seed_running_progress_run.py']) {
     const script = path.join(scriptsDir, scriptName);
     const result = spawnSync(python, [script], { env, stdio: 'inherit' });
     if (result.status !== 0) {

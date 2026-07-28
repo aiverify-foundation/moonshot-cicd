@@ -15,7 +15,10 @@ function TestResultNote() {
     if (!isVisible) return null
 
     return (
-        <div className="bg-blue-50 border border-blue-200 rounded-lg flex gap-2 items-start p-2">
+        <div
+            className="bg-blue-50 border border-blue-200 rounded-lg flex gap-2 items-start p-2"
+            data-testid="test-result-overview-note"
+        >
             <div className="shrink-0 size-5 mt-0.5">
                 <InfoIcon className="size-5 text-slate-700" />
             </div>
@@ -356,7 +359,10 @@ export default function TestResultOverview({
             {chartsWithData.length > 0 ? (
                 <>
                     <TestResultNote />
-                    <div className={gridClassForChartCount(chartsWithData.length)}>
+                    <div
+                        className={gridClassForChartCount(chartsWithData.length)}
+                        data-testid="test-result-overview-charts"
+                    >
                         {chartsWithData.map((c, i) => (
                             <ReportChartScrollAdjustableHeight
                                 key={`${c.bundleName}-${i}`}

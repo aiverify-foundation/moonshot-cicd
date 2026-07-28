@@ -64,9 +64,13 @@ function elapsedLine(test: TestProgressItem): string {
 
 function TestInProgressCard({ test }: { test: TestProgressItem }) {
   const hasErrors = test.erroredPrompts > 0;
+  const complete = isTestComplete(test);
 
   return (
-    <div className="bg-slate-50 border border-slate-200 flex items-start p-2 rounded-lg w-full">
+    <div
+      className="bg-slate-50 border border-slate-200 flex items-start p-2 rounded-lg w-full"
+      data-testid={`test-progress-row-${test.testId}`}
+    >
       <div className="flex flex-1 flex-col gap-2 items-start min-w-0">
         <p className="font-semibold text-[14px] text-slate-700 w-full">{test.testName}</p>
 
@@ -80,18 +84,28 @@ function TestInProgressCard({ test }: { test: TestProgressItem }) {
           ) : (
             <Progress
               value={progressBarValue(test)}
+              data-testid={`test-progress-bar-${test.testId}`}
+              data-complete={complete ? "true" : "false"}
               className={cn(
                 "flex-1 h-4 bg-slate-200 rounded-full [&>div]:rounded-full",
-                isTestComplete(test) ? "[&>div]:bg-green-500" : "[&>div]:bg-blue-500"
+                complete ? "[&>div]:bg-green-500" : "[&>div]:bg-blue-500"
               )}
             />
           )}
-          <p className="font-medium text-[14px] text-slate-700 whitespace-nowrap shrink-0">
+          <p
+            className="font-medium text-[14px] text-slate-700 whitespace-nowrap shrink-0"
+            data-testid={`test-progress-count-${test.testId}`}
+          >
             {promptLabel(test)}
           </p>
         </div>
 
-        <p className="font-medium text-[14px] text-slate-700">{elapsedLine(test)}</p>
+        <p
+          className="font-medium text-[14px] text-slate-700"
+          data-testid={`test-progress-elapsed-${test.testId}`}
+        >
+          {elapsedLine(test)}
+        </p>
         {hasErrors ? (
           <p className="font-medium text-[14px] text-red-700">
             {test.erroredPrompts.toLocaleString()} prompt(s) Failed
@@ -104,10 +118,18 @@ function TestInProgressCard({ test }: { test: TestProgressItem }) {
 
 function BundleProgressCard({ group }: { group: BundleTestProgressGroup }) {
   return (
-    <div className="overflow-hidden rounded-lg border border-slate-200 bg-white">
+    <div
+      className="overflow-hidden rounded-lg border border-slate-200 bg-white"
+      data-testid={`test-progress-bundle-${bundleAccordionValue(group)}`}
+    >
       <AccordionItem value={bundleAccordionValue(group)} className="border-0 px-3">
         <AccordionTrigger className="py-3 hover:no-underline">
-          <span className="font-semibold text-[14px] text-slate-700">{group.bundleName}</span>
+          <span
+            className="font-semibold text-[14px] text-slate-700"
+            data-testid={`test-progress-bundle-name-${bundleAccordionValue(group)}`}
+          >
+            {group.bundleName}
+          </span>
         </AccordionTrigger>
         <AccordionContent className="pb-3">
           <div className="flex flex-col gap-4">

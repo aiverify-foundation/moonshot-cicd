@@ -373,11 +373,18 @@ export default function TestResultApp() {
         <p className="text-slate-700 text-[14px] font-medium w-[600px]">Report</p>
         <div className="flex items-center justify-between mt-3 mb-1">
           <div className="flex items-center gap-3 flex-wrap">
-            <h1 className="text-2xl font-semibold text-gray-900">
+            <h1
+              className="text-2xl font-semibold text-gray-900"
+              data-testid="test-result-report-name"
+            >
               {displayTitle}
             </h1>
             {statusLabel && (
-              <Badge variant="outline" className={statusBadgeClass}>
+              <Badge
+                variant="outline"
+                className={statusBadgeClass}
+                data-testid="test-result-status-badge"
+              >
                 <div className="text-left">{statusLabel}</div>
               </Badge>
             )}
@@ -427,7 +434,10 @@ export default function TestResultApp() {
         )}
 
         {error && (
-          <div className="mt-4 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-800">
+          <div
+            className="mt-4 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-800"
+            data-testid="test-result-load-error"
+          >
             <p>{error}</p>
             <Link
               href="/history"
@@ -442,7 +452,10 @@ export default function TestResultApp() {
           <div className="text-left font-medium text-[12px] text-slate-500">
             Endpoint
           </div>
-          <div className="text-left font-semibold text-[12px] text-slate-700">
+          <div
+            className="text-left font-semibold text-[12px] text-slate-700"
+            data-testid="test-result-endpoint-config-name"
+          >
             {run?.endpoint_config_name}
           </div>
           <div className="h-4 w-px bg-slate-300" />
@@ -459,6 +472,7 @@ export default function TestResultApp() {
         <button
           type="button"
           onClick={() => setActiveTab(TAB_OVERVIEW)}
+          data-testid="test-result-tab-overview"
           className={`flex gap-[10px] items-center px-3 py-1.5 rounded-[3px] transition-colors ${
             activeTab === TAB_OVERVIEW ? "bg-white" : "bg-transparent hover:bg-white/50"
           }`}
@@ -478,6 +492,11 @@ export default function TestResultApp() {
               key={t.id}
               type="button"
               onClick={() => setActiveTab(t.id)}
+              data-testid={
+                t.id === TAB_ALL
+                  ? "test-result-tab-all"
+                  : `test-result-tab-bundle-${t.id.replace("bundle:", "")}`
+              }
               className={`flex gap-[10px] items-center px-3 py-1.5 rounded-[3px] transition-colors max-w-[min(100%,280px)] ${
                 activeTab === t.id ? "bg-white" : "bg-transparent hover:bg-white/50"
               }`}
