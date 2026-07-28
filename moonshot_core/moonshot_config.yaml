@@ -52,7 +52,7 @@ connectors_configurations:
 
   - id: sample-anthropic-adapter
     connector_adapter: anthropic_adapter
-    model: claude-sonnet-4-20250514
+    model: claude-sonnet-5
     params:
       max_tokens: 1024
     # system_prompt: ""

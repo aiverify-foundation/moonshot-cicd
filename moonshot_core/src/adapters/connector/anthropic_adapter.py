@@ -87,7 +87,9 @@ class AnthropicAdapter(ConnectorPort):
 
             messages = await self._client.messages.create(**func_params)
 
-            return ConnectorResponseEntity(response=messages.content[0].text)
+            # Extended thinking returns ThinkingBlock before TextBlock; only collect text.
+            text_parts = [block.text for block in messages.content if block.type == "text"]
+            return ConnectorResponseEntity(response="\n\n".join(text_parts))
 
         except anthropic.APIConnectionError as e:
             logger.error("[AnthropicAdapter].[get_response] The server could not be reached, cause: \"%s\", "
