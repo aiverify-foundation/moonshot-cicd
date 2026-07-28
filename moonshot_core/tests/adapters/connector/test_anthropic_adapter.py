@@ -57,6 +57,7 @@ def mock_anthropic_client() -> MagicMock:
     mock_anthropic_client_response = MagicMock()
     mock_anthropic_client_response.content = [MagicMock]
     mock_anthropic_client_response.content[0].text = "Test response from Anthropic client."
+    mock_anthropic_client_response.content[0].type = "text"
 
     mock_anthropic_client = MagicMock()
     mock_anthropic_client.messages.create = AsyncMock(return_value=mock_anthropic_client_response)
