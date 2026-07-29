@@ -171,7 +171,7 @@ function mockBundleWithTest(overrides = {}) {
 }
 
 test.describe('MOON-543 View Test Details', () => {
-  test('bundle Learn more opens the bundle details sheet', async ({ page }) => {
+  test('bundle Learn more opens the bundle details sheet', { tag: '@happy-path' }, async ({ page }) => {
     await navigateToBenchmark(page);
     await openBundleSheet(page, UNDESIRABLE_BUNDLE);
 
@@ -194,7 +194,7 @@ test.describe('MOON-543 View Test Details', () => {
     ).toBeVisible();
   });
 
-  test('test Learn More opens Test Details in a new tab', async ({
+  test('test Learn More opens Test Details in a new tab', { tag: '@happy-path' }, async ({
     page,
     context,
     request,
@@ -222,7 +222,7 @@ test.describe('MOON-543 View Test Details', () => {
     );
   });
 
-  test('Violent Crimes page shows layout, Safe/Unsafe verdicts, and no download', async ({
+  test('Violent Crimes page shows layout, Safe/Unsafe verdicts, and no download', { tag: '@happy-path' }, async ({
     page,
     request,
   }) => {
@@ -310,7 +310,7 @@ test.describe('MOON-543 View Test Details', () => {
     ).toHaveCount(0);
   });
 
-  test('CyberSecEval sample shows real Target text and Safe/Unsafe verdicts', async ({
+  test('CyberSecEval sample shows real Target text and Safe/Unsafe verdicts', { tag: '@happy-path' }, async ({
     page,
     request,
   }) => {
@@ -474,7 +474,7 @@ test.describe('MOON-543 View Test Details', () => {
     );
   });
 
-  test('Adversarial Prompts sheet exposes CyberSecEval Learn More', async ({
+  test('Adversarial Prompts sheet exposes CyberSecEval Learn More', { tag: '@happy-path' }, async ({
     page,
     context,
   }) => {

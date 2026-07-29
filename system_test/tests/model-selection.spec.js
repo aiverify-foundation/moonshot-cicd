@@ -100,7 +100,7 @@ async function getToModelSelectionCard(page) {
 
 test.describe('Model Selection Page Integration Tests', () => {
 
-  test.describe('Standard Provider Selection', () => {
+  test.describe('Standard Provider Selection', { tag: '@happy-path' }, () => {
     
     test('GIVEN as a user WHEN a standard provider is selected THEN display "Model Configuration" AND display a combobox', async ({ page }) => {
       await getToModelSelectionCard(page);
@@ -206,7 +206,7 @@ test.describe('Model Selection Page Integration Tests', () => {
     });
   });
 
-  test.describe('Custom Application Selection', () => {
+  test.describe('Custom Application Selection', { tag: '@happy-path' }, () => {
     
     test('GIVEN as a user WHEN a Custom Application is selected THEN display "Application Configuration" AND display a combobox', async ({ page }) => {
       await getToModelSelectionCard(page);
@@ -347,7 +347,7 @@ test.describe('Model Selection Page Integration Tests', () => {
       await expect(redExclamation).toBeVisible();
     });
 
-    test('GIVEN as a user WHEN a Model or Config is Selected THEN display a green check button', async ({ page }) => {
+    test('GIVEN as a user WHEN a Model or Config is Selected THEN display a green check button', { tag: '@happy-path' }, async ({ page }) => {
       await getToModelSelectionCard(page);
       
       await selectStandardProviderWithModels(page);
@@ -362,7 +362,7 @@ test.describe('Model Selection Page Integration Tests', () => {
       await expect(greenCheck).toBeVisible();
     });
 
-    test('GIVEN as a user WHEN a Custom Application Configuration is Selected THEN display a green check button', async ({ page }) => {
+    test('GIVEN as a user WHEN a Custom Application Configuration is Selected THEN display a green check button', { tag: '@happy-path' }, async ({ page }) => {
       await getToModelSelectionCard(page);
       
       // Select a custom connector
@@ -385,7 +385,7 @@ test.describe('Model Selection Page Integration Tests', () => {
     });
   });
 
-  test.describe('Navigation and Page Elements', () => {
+  test.describe('Navigation and Page Elements', { tag: '@happy-path' }, () => {
     
     test('GIVEN as a user WHEN on model selection page THEN verify all page elements are displayed correctly', async ({ page }) => {
       await getToModelSelectionCard(page);
@@ -436,7 +436,7 @@ test.describe('Model Selection Page Integration Tests', () => {
     });
   });
 
-  test.describe('Provider Dropdown Functionality', () => {
+  test.describe('Provider Dropdown Functionality', { tag: '@happy-path' }, () => {
     
     test('GIVEN as a user WHEN opening provider dropdown THEN display both standard providers and custom applications', async ({ page }) => {
       await getToModelSelectionCard(page);
@@ -488,7 +488,7 @@ test.describe('Model Selection Page Integration Tests', () => {
     });
   });
 
-  test.describe('Test Name and Description Card', () => {
+  test.describe('Test Name and Description Card', { tag: '@happy-path' }, () => {
     
     test('GIVEN as a user WHEN filling in test name input THEN input accepts and stores the value', async ({ page }) => {
 

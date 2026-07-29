@@ -36,7 +36,7 @@ async function toggleAllButtons(page) {
 
 test.describe('Moonshot Integration Tests', () => {
 
-  test('navigate to benchmark page', async ({ page }) => {
+  test('navigate to benchmark page', { tag: '@happy-path' }, async ({ page }) => {
     await navigateToBenchmark(page);
     
     // Check that the configure button is disabled (no bundles selected)
@@ -48,7 +48,7 @@ test.describe('Moonshot Integration Tests', () => {
     await expect(page.locator('[data-testid="select-bundles-header"]')).toContainText('Select Test Bundles');
   });
 
-  test('configure button becomes enabled after selecting a bundle', async ({ page }) => {
+  test('configure button becomes enabled after selecting a bundle', { tag: '@happy-path' }, async ({ page }) => {
     await navigateToBenchmark(page);
     
     // Check that the configure button is initially disabled
@@ -166,7 +166,7 @@ test.describe('Moonshot Integration Tests', () => {
     
   });
 
-  test('Ensure Back to home page button is displayed on the Select Bundles page with the correct content', async ({ page }) => {
+  test('Ensure Back to home page button is displayed on the Select Bundles page with the correct content', { tag: '@happy-path' }, async ({ page }) => {
 
     await navigateToBenchmark(page);
     
@@ -182,7 +182,7 @@ test.describe('Moonshot Integration Tests', () => {
     
   });
 
-  test('Ensure all elements are displayed on the Select Bundles page with the correct content', async ({ page }) => {
+  test('Ensure all elements are displayed on the Select Bundles page with the correct content', { tag: '@happy-path' }, async ({ page }) => {
     // Navigate to the benchmark page
     await navigateToBenchmark(page);
     
@@ -284,7 +284,7 @@ test.describe('Moonshot Integration Tests', () => {
     }
   });
 
-  test('hover over bundle description shows full description in tooltip', async ({ page }) => {
+  test('hover over bundle description shows full description in tooltip', { tag: '@happy-path' }, async ({ page }) => {
     // Navigate to the benchmark page
     await navigateToBenchmark(page);
     

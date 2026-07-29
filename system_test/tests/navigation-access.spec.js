@@ -38,7 +38,7 @@ async function assertExternalLinkOpens(page, link, expectedUrl) {
   await popup.close();
 }
 
-test.describe('MOON-548 Navigation and Access', () => {
+test.describe('MOON-548 Navigation and Access', { tag: '@happy-path' }, () => {
   test('Header renders logo, product name, and version', async ({ page }) => {
     await goToLanding(page);
 

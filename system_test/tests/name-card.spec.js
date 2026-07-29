@@ -32,7 +32,7 @@ async function navigateToModelSelection(page) {
   await expect(page.locator('[data-testid="select-model-header"]')).toContainText('Configure And Run Tests');
 }
 
-test.describe('Test Name Card Initial State', () => {
+test.describe('Test Name Card Initial State', { tag: '@happy-path' }, () => {
   
   test('GIVEN as a user first load Test Configuration page WHEN Test Name Accordion Card rendered for the first time THEN card header displays title "Fill in Test Name" AND card header displays description "Provide a name for your benchmark test." AND card header displays Card Incomplete Indicator (red circle alert icon) AND card content is expanded by default AND card content displays text "Test Name (Required)" AND card content contain empty Test Name text input field with thick grey border', async ({ page }) => {
     

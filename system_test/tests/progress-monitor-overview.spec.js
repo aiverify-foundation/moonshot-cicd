@@ -168,7 +168,9 @@ test.describe('MOON-562 Progress Monitor Overview', () => {
     }
   );
 
-  test('AC1 GIVEN seeded running run WHEN opened from History THEN Overview chrome shows In Progress only', async ({
+  test('AC1 GIVEN seeded running run WHEN opened from History THEN Overview chrome shows In Progress only', {
+    tag: '@happy-path',
+  }, async ({
     page,
   }) => {
     const { runId, runName } = readProgressRunManifest();
@@ -196,7 +198,9 @@ test.describe('MOON-562 Progress Monitor Overview', () => {
     expect(countText).toMatch(/\d[\d,]*\s*\/\s*\d[\d,]*\s+prompts/);
   });
 
-  test('AC2 GIVEN in-progress Overview WHEN poll returns more completions THEN progress and elapsed update', async ({
+  test('AC2 GIVEN in-progress Overview WHEN poll returns more completions THEN progress and elapsed update', {
+    tag: '@happy-path',
+  }, async ({
     page,
   }) => {
     const { runId, runName } = readProgressRunManifest();
@@ -247,7 +251,9 @@ test.describe('MOON-562 Progress Monitor Overview', () => {
     await expect(elapsed).toHaveText('Time lapsed: 1min');
   });
 
-  test('AC3 GIVEN poll marks one test fully completed WHEN applied THEN green bar and Y/Y count', async ({
+  test('AC3 GIVEN poll marks one test fully completed WHEN applied THEN green bar and Y/Y count', {
+    tag: '@happy-path',
+  }, async ({
     page,
   }) => {
     const { runId, runName } = readProgressRunManifest();
@@ -293,7 +299,9 @@ test.describe('MOON-562 Progress Monitor Overview', () => {
     await expect(page.locator('[data-testid^="test-result-tab-bundle-"]')).toHaveCount(0);
   });
 
-  test('AC4 GIVEN all tests complete WHEN poll applied THEN Bundle tabs unlock and Download enabled', async ({
+  test('AC4 GIVEN all tests complete WHEN poll applied THEN Bundle tabs unlock and Download enabled', {
+    tag: '@happy-path',
+  }, async ({
     page,
   }) => {
     const { runId, runName } = readProgressRunManifest();
@@ -562,7 +570,9 @@ test.describe('MOON-562 Progress Monitor Overview', () => {
     await expect(downloadButton).toHaveText('Download JSON');
   });
 
-  test('GIVEN prompts completed via prediction_result alone WHEN applied THEN Y/Y and green bar', async ({
+  test('GIVEN prompts completed via prediction_result alone WHEN applied THEN Y/Y and green bar', {
+    tag: '@happy-path',
+  }, async ({
     page,
   }) => {
     const { runId, runName } = readProgressRunManifest();

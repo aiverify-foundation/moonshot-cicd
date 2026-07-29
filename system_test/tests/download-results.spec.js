@@ -101,7 +101,7 @@ async function openRunFromHistory(page, runId, runName) {
   await expect(page).toHaveURL(new RegExp(`/test_result.*runId=${runId}`));
 }
 
-test.describe('Test Results download', () => {
+test.describe('Test Results download', { tag: '@happy-path' }, () => {
   test('GIVEN completed run with prompts WHEN user opens run from History and clicks Download THEN JSON is saved via Save As flow', async ({
     page,
   }) => {
