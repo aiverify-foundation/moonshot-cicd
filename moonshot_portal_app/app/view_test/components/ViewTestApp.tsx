@@ -25,17 +25,29 @@ function cellValue(value: string | undefined): string {
 
 function DetailTableRow({ row, index }: { row: TestDetailRow; index: number }) {
   return (
-    <TableRow key={index} className="h-[180px]">
-      <TableCell className="whitespace-normal break-words max-w-[300px] align-top">
+    <TableRow key={index} className="h-[180px]" data-testid={`how-it-works-row-${index}`}>
+      <TableCell
+        className="whitespace-normal break-words max-w-[300px] align-top"
+        data-testid={`how-it-works-input-${index}`}
+      >
         {cellValue(row.input)}
       </TableCell>
-      <TableCell className="whitespace-normal break-words align-top">
+      <TableCell
+        className="whitespace-normal break-words align-top"
+        data-testid={`how-it-works-target-${index}`}
+      >
         {cellValue(row.target)}
       </TableCell>
-      <TableCell className="whitespace-normal break-words max-w-[400px] align-top">
+      <TableCell
+        className="whitespace-normal break-words max-w-[400px] align-top"
+        data-testid={`how-it-works-response-${index}`}
+      >
         {cellValue(row.response)}
       </TableCell>
-      <TableCell className="whitespace-normal break-words align-top">
+      <TableCell
+        className="whitespace-normal break-words align-top"
+        data-testid={`how-it-works-verdict-${index}`}
+      >
         {cellValue(row.evaluator_verdict)}
       </TableCell>
     </TableRow>
@@ -83,13 +95,17 @@ export default function ViewTestApp() {
 
   if (!testParam || !datasetParam) {
     return (
-      <main className="p-8 w-[1300px]">
-        <h1 className="text-2xl font-bold mb-2">Test not found</h1>
-        <p className="text-gray-600 mb-4">
+      <main className="p-8 w-[1300px]" data-testid="view-test-missing-params">
+        <h1 className="text-2xl font-bold mb-2" data-testid="view-test-heading">
+          Test not found
+        </h1>
+        <p className="text-gray-600 mb-4" data-testid="view-test-message">
           Missing test or dataset in the URL. Open this page from a bundle&apos;s Learn More link.
         </p>
         <Button variant="outline" asChild>
-          <Link href="/benchmark">Back to benchmark</Link>
+          <Link href="/benchmark" data-testid="view-test-back-to-benchmark">
+            Back to benchmark
+          </Link>
         </Button>
       </main>
     );
@@ -97,7 +113,7 @@ export default function ViewTestApp() {
 
   if (loading) {
     return (
-      <main className="p-8 w-[1300px]">
+      <main className="p-8 w-[1300px]" data-testid="view-test-loading">
         <p className="text-gray-600">Loading test details…</p>
       </main>
     );
@@ -105,15 +121,25 @@ export default function ViewTestApp() {
 
   if (error) {
     return (
-      <main className="p-8 w-[1300px]">
-        <h1 className="text-2xl font-bold mb-2">Could not load test</h1>
-        <p className="text-gray-600 mb-4">{error}</p>
+      <main className="p-8 w-[1300px]" data-testid="view-test-error">
+        <h1 className="text-2xl font-bold mb-2" data-testid="view-test-heading">
+          Could not load test
+        </h1>
+        <p className="text-gray-600 mb-4" data-testid="view-test-message">
+          {error}
+        </p>
         <div className="flex gap-2">
-          <Button variant="secondary" onClick={() => void loadTest()}>
+          <Button
+            variant="secondary"
+            onClick={() => void loadTest()}
+            data-testid="view-test-retry"
+          >
             Retry
           </Button>
           <Button variant="outline" asChild>
-            <Link href="/benchmark">Back to benchmark</Link>
+            <Link href="/benchmark" data-testid="view-test-back-to-benchmark">
+              Back to benchmark
+            </Link>
           </Button>
         </div>
       </main>
@@ -122,25 +148,33 @@ export default function ViewTestApp() {
 
   if (!test) {
     return (
-      <main className="p-8 w-[1300px]">
-        <h1 className="text-2xl font-bold mb-2">Test not found</h1>
-        <p className="text-gray-600 mb-4">
+      <main className="p-8 w-[1300px]" data-testid="view-test-not-found">
+        <h1 className="text-2xl font-bold mb-2" data-testid="view-test-heading">
+          Test not found
+        </h1>
+        <p className="text-gray-600 mb-4" data-testid="view-test-message">
           No test matches name &quot;{decodeURIComponent(testParam)}&quot; and dataset &quot;
           {decodeURIComponent(datasetParam)}&quot;.
         </p>
         <Button variant="outline" asChild>
-          <Link href="/benchmark">Back to benchmark</Link>
+          <Link href="/benchmark" data-testid="view-test-back-to-benchmark">
+            Back to benchmark
+          </Link>
         </Button>
       </main>
     );
   }
 
   return (
-    <main className="p-8 w-[1300px]">
-      <div className="min-h-[100px]">
-        <h1 className="text-2xl font-bold mb-2">{test.name}</h1>
+    <main className="p-8 w-[1300px]" data-testid="view-test-details">
+      <div className="min-h-[100px]" data-testid="view-test-header">
+        <h1 className="text-2xl font-bold mb-2" data-testid="view-test-name">
+          {test.name}
+        </h1>
         {test.description ? (
-          <p className="text-gray-600 w-[600px]">{test.description}</p>
+          <p className="text-gray-600 w-[600px]" data-testid="view-test-description">
+            {test.description}
+          </p>
         ) : null}
       </div>
 
@@ -148,13 +182,17 @@ export default function ViewTestApp() {
         <Badge
           variant="outline"
           className="h-[70px] w-1/2 flex flex-col items-start justify-start px-3 py-2 gap-3"
+          data-testid="view-test-dataset-info"
         >
           <div className="text-left text-sm text-slate-500 font-medium">
             Dataset Information
           </div>
           <div className="text-left">
             <span className="text-left text-sm text-slate-500">Prompts </span>
-            <span className="text-left text-sm text-slate-700">
+            <span
+              className="text-left text-sm text-slate-700"
+              data-testid="view-test-prompt-count"
+            >
               {test.dataset?.num_of_dataset_prompts ?? 0}
             </span>
           </div>
@@ -162,28 +200,39 @@ export default function ViewTestApp() {
         <Badge
           variant="outline"
           className="h-[70px] w-1/2 flex flex-col items-start justify-start px-3 py-2 gap-3"
+          data-testid="view-test-evaluator-info"
         >
           <div className="text-left text-sm text-slate-500 font-medium">
             Evaluator Information
           </div>
           <div className="text-left flex items-center gap-2 flex-wrap">
             <span className="text-left text-sm text-slate-500">LLM-as-judge Model </span>
-            <span className="text-left text-sm text-slate-700">{modelName}</span>
+            <span
+              className="text-left text-sm text-slate-700"
+              data-testid="view-test-grader-model"
+            >
+              {modelName}
+            </span>
           </div>
         </Badge>
       </div>
 
       <div className="flex items-center justify-between w-full mt-4">
-        <h2 className="text-lg font-bold">How It Works</h2>
+        <h2 className="text-lg font-bold" data-testid="how-it-works-heading">
+          How It Works
+        </h2>
       </div>
       <Separator orientation="horizontal" className="my-4" />
 
       {!hasDetails ? (
-        <p className="text-sm text-gray-600 py-4">
+        <p
+          className="text-sm text-gray-600 py-4"
+          data-testid="how-it-works-empty"
+        >
           No sample prompts available for this dataset.
         </p>
       ) : (
-        <Table>
+        <Table data-testid="how-it-works-table">
           <TableHeader className="bg-slate-100">
             <TableRow>
               <TableHead>Input</TableHead>

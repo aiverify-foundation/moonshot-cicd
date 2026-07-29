@@ -53,6 +53,13 @@ function CheckboxToggleButton({ checked, onCheckedChange, ...props }: { checked:
 /**
  * Component that displays the details of a test in the bundle
  */
+function sanitizeTestId(value: string): string {
+  return value
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-|-$/g, '');
+}
+
 function TestDetailCard({
   test,
   isSelected,
@@ -71,13 +78,14 @@ function TestDetailCard({
   isSelected: boolean;
   onSelectionChange: (selected: boolean) => void;
 }) {
+  const testSlug = sanitizeTestId(test.name);
 
   return (
-    <Card className="w-[320px] pt-3 pb-2">
+    <Card className="w-[320px] pt-3 pb-2" data-testid={`test-detail-card-${testSlug}`}>
       <CardHeader>
         <div className="flex items-center gap-2">
           <FileTerminal className="h-4 w-4 text-slate-600 flex-shrink-0" />
-          <CardTitle className="text-base font-semibold">{test.name}</CardTitle>
+          <CardTitle className="text-base font-semibold" data-testid="test-detail-card-name">{test.name}</CardTitle>
         </div>
         {test.description && (
           <TooltipProvider>
@@ -113,6 +121,7 @@ function TestDetailCard({
           variant="outline"
           size="sm"
           className="w-[110px] justify-center"
+          data-testid={`test-learn-more-${testSlug}`}
           onClick={() => {
             const testName = encodeURIComponent(test.name);
             const datasetId = encodeURIComponent(test.dataset.id);
@@ -185,26 +194,30 @@ export default function ViewBundleDetailsSheet({
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent side="right" className="w-[1100px] sm:max-w-[1100px] ml-4 overflow-y-auto pl-6 pr-6">
+      <SheetContent
+        side="right"
+        className="w-[1100px] sm:max-w-[1100px] ml-4 overflow-y-auto pl-6 pr-6"
+        data-testid="bundle-details-sheet"
+      >
         <SheetHeader className="p-2">
           <SheetTitle className="text-lg text-slate-500 pt-1 pb-0">Bundle</SheetTitle>
         </SheetHeader>
         <div className="flex items-center gap-3">
-          <h1 className="text-2xl font-bold">{bundle?.name}</h1>
+          <h1 className="text-2xl font-bold" data-testid="bundle-details-name">{bundle?.name}</h1>
           <Badge className="bg-white border border-slate-200 flex gap-1 items-center justify-center px-1 py-1 rounded-md" data-name="State" data-node-id="I692:28780;520:20724">
             <span className="text-sm text-gray-600">{bundle?.category}</span>
           </Badge>
         </div>
-        <p className="text-gray-600">{bundle?.description || 'Bundle Description'}</p>
+        <p className="text-gray-600" data-testid="bundle-details-description">{bundle?.description || 'Bundle Description'}</p>
         <div className="flex items-center gap-5 mb-0">
           <div className="flex items-center gap-2">
             <span className="text-sm text-gray-500">Prompts</span>
-            <span className="text-sm font-semibold">{bundle?.prompt_count || 0}</span>
+            <span className="text-sm font-semibold" data-testid="bundle-details-prompt-count">{bundle?.prompt_count || 0}</span>
           </div>
           <Separator orientation="vertical" className="h-6" />
           <div className="flex items-center gap-2">
             <span className="text-sm text-gray-500">Tests</span>
-            <span className="text-sm font-semibold">{bundle?.tests?.length || 0}</span>
+            <span className="text-sm font-semibold" data-testid="bundle-details-test-count">{bundle?.tests?.length || 0}</span>
           </div>
         </div>
         {requiredProviderSystemNames.length > 0 ? (
