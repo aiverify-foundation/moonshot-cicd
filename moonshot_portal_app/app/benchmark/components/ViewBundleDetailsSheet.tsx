@@ -24,7 +24,7 @@ import {
   resolveAajProviderDisplayName,
 } from '@/lib/aajProviderResolution';
 import type { Provider } from '../types/modelSelection';
-import { countSelectedTests, isTestSelected } from '@/lib/benchmarkTestSelection';
+import { getTestSelectionKey, hasAnySelectedTestsInBundle, isTestSelected } from '@/lib/benchmarkTestSelection';
 
 interface ViewBundleDetailsSheetProps {
   open: boolean;
@@ -145,6 +145,26 @@ export default function ViewBundleDetailsSheet({
   const testSelection = useAppSelector((state) => state.testSelection);
   const { setTest } = useTestSelectionActions();
   const [apiProviders, setApiProviders] = useState<Provider[]>([]);
+  const [draftSelection, setDraftSelection] = useState<Record<string, boolean>>({});
+
+  useEffect(() => {
+    if (!open) {
+      setDraftSelection({});
+      return;
+    }
+    if (!bundle) {
+      setDraftSelection({});
+      return;
+    }
+    const next: Record<string, boolean> = {};
+    for (const test of bundle.tests) {
+      const key = getTestSelectionKey(test);
+      next[key] = isTestSelected(testSelection, bundle.id, test);
+    }
+    setDraftSelection(next);
+    // Seed only when the sheet opens (or the bundle changes), not when global selection updates.
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- intentional: capture selection at open time
+  }, [open, bundle]);
 
   useEffect(() => {
     if (!open) return;
@@ -172,14 +192,26 @@ export default function ViewBundleDetailsSheet({
   );
 
   const selectedCount = bundle
-    ? countSelectedTests(testSelection, bundle.id, bundle.tests)
+    ? bundle.tests.filter((test) => Boolean(draftSelection[getTestSelectionKey(test)])).length
     : 0;
 
-  const handleAddTests = () => {
-    if (!bundle || selectedCount === 0) return;
+  const canCommit =
+    selectedCount > 0 ||
+    Boolean(bundle && hasAnySelectedTestsInBundle(testSelection, bundle.id));
 
-    const isBundleSelected = Boolean(bundleSelection[bundle.id]);
-    if (!isBundleSelected) {
+  const handleDraftSelectionChange = (testKey: string, selected: boolean) => {
+    setDraftSelection((prev) => ({ ...prev, [testKey]: selected }));
+  };
+
+  const handleAddTests = () => {
+    if (!bundle || !canCommit) return;
+
+    for (const test of bundle.tests) {
+      const key = getTestSelectionKey(test);
+      setTest(bundle.id, test, Boolean(draftSelection[key]));
+    }
+
+    if (selectedCount > 0 && !bundleSelection[bundle.id]) {
       dispatch(toggleBundleSelected(bundle.id));
     }
 
@@ -244,14 +276,17 @@ export default function ViewBundleDetailsSheet({
         <Separator orientation="horizontal" />
         <div className="mt-4 grid grid-cols-3 gap-4">
           {bundle?.tests && bundle.tests.length > 0 ? (
-            bundle.tests.map((test) => (
-              <TestDetailCard 
-                key={test.name} 
-                test={test} 
-                isSelected={isTestSelected(testSelection, bundle.id, test)}
-                onSelectionChange={(selected) => setTest(bundle.id, test, selected)}
-              />
-            ))
+            bundle.tests.map((test) => {
+              const testKey = getTestSelectionKey(test);
+              return (
+                <TestDetailCard
+                  key={test.name}
+                  test={test}
+                  isSelected={Boolean(draftSelection[testKey])}
+                  onSelectionChange={(selected) => handleDraftSelectionChange(testKey, selected)}
+                />
+              );
+            })
           ) : (
             <div className="text-sm text-gray-500 py-4">No tests available in this bundle.</div>
           )}
@@ -260,7 +295,7 @@ export default function ViewBundleDetailsSheet({
           <Button variant="outline" onClick={() => onOpenChange(false)}>
             Close
           </Button>
-          <Button disabled={selectedCount < 1} onClick={handleAddTests}>
+          <Button disabled={!canCommit} onClick={handleAddTests}>
             {buttonText}
           </Button>
         </SheetFooter>

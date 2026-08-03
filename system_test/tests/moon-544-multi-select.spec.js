@@ -57,9 +57,11 @@ async function openBundleSheet(page, bundleName) {
   await expect(page.locator('[data-testid="bundle-details-sheet"]')).toBeVisible();
 }
 
-async function closeBundleSheet(page) {
+async function saveBundleSheet(page) {
   const sheet = page.locator('[data-testid="bundle-details-sheet"]');
-  await sheet.getByRole('button', { name: 'Close' }).click();
+  const addButton = sheet.getByRole('button', { name: /^Add/ });
+  await expect(addButton).toBeEnabled();
+  await addButton.click();
   await expect(sheet).not.toBeVisible();
 }
 
@@ -222,7 +224,7 @@ test.describe('MOON-544 Multi-Bundle and Multi-Test Selection', () => {
     const before = await parseSidebarCount(page, bundle.name);
     await openBundleSheet(page, bundle.name);
     await deselectFirstTestInBundleSheet(page);
-    await closeBundleSheet(page);
+    await saveBundleSheet(page);
 
     const after = await parseSidebarCount(page, bundle.name);
     expect(before.selected).toBe(bundle.tests.length);
@@ -242,7 +244,7 @@ test.describe('MOON-544 Multi-Bundle and Multi-Test Selection', () => {
 
     await openBundleSheet(page, bundleA.name);
     await deselectFirstTestInBundleSheet(page);
-    await closeBundleSheet(page);
+    await saveBundleSheet(page);
 
     const countA = await parseSidebarCount(page, bundleA.name);
     const countB = await parseSidebarCount(page, bundleB.name);
@@ -260,16 +262,16 @@ test.describe('MOON-544 Multi-Bundle and Multi-Test Selection', () => {
 
     const sheet = page.locator('[data-testid="bundle-details-sheet"]');
     const addButton = sheet.getByRole('button', { name: /^Add/ });
-    await expect(addButton).toContainText(`Add ${bundle.tests.length} tests`);
-    await expect(addButton).toBeEnabled();
-
-    await clearAllTestsInBundleSheet(page);
     await expect(addButton).toContainText('Add tests');
     await expect(addButton).toBeDisabled();
 
     await selectOneTestInBundleSheet(page);
     await expect(addButton).toContainText('Add 1 test');
     await expect(addButton).toBeEnabled();
+
+    await clearAllTestsInBundleSheet(page);
+    await expect(addButton).toContainText('Add tests');
+    await expect(addButton).toBeDisabled();
   });
 
   test('run request with full selections across multiple bundles omits tests_by_bundle', { tag: '@happy-path' }, async ({ page, request }) => {
@@ -315,7 +317,7 @@ test.describe('MOON-544 Multi-Bundle and Multi-Test Selection', () => {
     await selectBundleById(page, bundleB.id);
     await openBundleSheet(page, bundleA.name);
     await deselectFirstTestInBundleSheet(page);
-    await closeBundleSheet(page);
+    await saveBundleSheet(page);
     await goToModelSelection(page);
     await configureRunPrerequisites(page);
 
@@ -353,7 +355,7 @@ test.describe('MOON-544 Multi-Bundle and Multi-Test Selection', () => {
     await selectBundleById(page, bundleB.id);
     await openBundleSheet(page, bundleA.name);
     await deselectFirstTestInBundleSheet(page);
-    await closeBundleSheet(page);
+    await saveBundleSheet(page);
 
     const beforeA = await parseSidebarCount(page, bundleA.name);
     const beforeB = await parseSidebarCount(page, bundleB.name);
