@@ -6,7 +6,7 @@ import {
   TEST_NAME_DUPLICATE_ERROR,
   TEST_NAME_REQUIRED_ERROR,
 } from '@/hooks/useTestNameValidation';
-import { createTestStore, RootState } from '@/store';
+import { createTestStore, DeepPartial, RootState } from '@/store';
 import { checkBenchmarkRunName } from '@/lib/api';
 
 jest.mock('@/lib/api', () => ({
@@ -27,10 +27,10 @@ const mockCheckBenchmarkRunName = checkBenchmarkRunName as jest.MockedFunction<
   typeof checkBenchmarkRunName
 >;
 
-function renderValidationHook(preloadedState?: Partial<RootState>) {
+function renderValidationHook(preloadedState?: DeepPartial<RootState>) {
   const store = createTestStore(preloadedState);
   const wrapper = ({ children }: { children: React.ReactNode }) =>
-    React.createElement(Provider, { store }, children);
+    React.createElement(Provider, { store, children });
   const view = renderHook(() => useTestNameValidation(), { wrapper });
   return { ...view, store };
 }

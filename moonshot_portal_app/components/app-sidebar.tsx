@@ -1,4 +1,6 @@
-import { Home, History, Network } from "lucide-react"
+"use client"
+
+import { Home, History } from "lucide-react"
 
 import {
   Sidebar,
@@ -24,14 +26,6 @@ const items = [
     icon: History,
     testId: "sidebar-history-button",
   },
-  /*
-  {
-    title: "Connectors",
-    url: "/",
-    icon: Network,
-    testId: "sidebar-connectors-button",
-  },
-  */
 ]
 
 export function AppSidebar() {
@@ -43,9 +37,10 @@ export function AppSidebar() {
             <SidebarMenu className="gap-3">
               {items.map((item) => (
                 <SidebarMenuItem key={item.title}>
-                  <SidebarMenuButton asChild tooltip={item.title}>
-                    <a href={item.url} data-testid={item.testId}>
+                  <SidebarMenuButton asChild>
+                    <a href={item.url} data-testid={item.testId} title={item.title}>
                       <item.icon />
+                      <span className="sr-only">{item.title}</span>
                     </a>
                   </SidebarMenuButton>
                 </SidebarMenuItem>

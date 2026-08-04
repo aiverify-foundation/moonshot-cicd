@@ -2,7 +2,7 @@ import React, { ReactElement } from 'react';
 import { render as rtlRender, RenderOptions, screen, waitFor } from '@testing-library/react';
 import { Provider } from 'react-redux';
 import { Store } from '@reduxjs/toolkit';
-import { createTestStore, RootState } from '@/store';
+import { createTestStore, DeepPartial, RootState } from '@/store';
 
 //React Testing Library's default render doesn't provide a Redux store. 
 // Without a Provider, useAppDispatch and useAppSelector will throw an error 
@@ -16,7 +16,7 @@ export { screen, waitFor };
 
 // Custom render function that wraps components with Redux Provider
 interface CustomRenderOptions extends Omit<RenderOptions, 'wrapper'> {
-  preloadedState?: Partial<RootState>;
+  preloadedState?: DeepPartial<RootState>;
   store?: Store;
 }
 

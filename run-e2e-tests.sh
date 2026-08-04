@@ -137,7 +137,8 @@ start_api() {
   echo "Starting FastAPI on port ${API_PORT}..."
   export PYTHONPATH="${ROOT}/moonshot_core"
   export MOONSHOT_DB_PATH="${E2E_DB_PATH}"
-  FASTAPI_LOG="$(mktemp "${TMPDIR:-/tmp}/moonshot-e2e-api.XXXXXX.log")"
+  # macOS mktemp requires the XXXXXX template at the end of the path (no suffix after it).
+  FASTAPI_LOG="$(mktemp "${TMPDIR:-/tmp}/moonshot-e2e-api.XXXXXX")"
   cd "${ROOT}/moonshot_core"
   python run_api.py >"${FASTAPI_LOG}" 2>&1 &
   FASTAPI_PID=$!

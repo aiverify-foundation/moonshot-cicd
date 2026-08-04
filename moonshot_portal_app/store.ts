@@ -312,8 +312,13 @@ const store = configureStore({
 export type RootState = ReturnType<typeof store.getState>;
 export type AppDispatch = typeof store.dispatch;
 
+/** Nested partial for test preloaded state (matches createTestStore merge behavior). */
+export type DeepPartial<T> = {
+  [K in keyof T]?: T[K] extends object ? DeepPartial<T[K]> : T[K];
+};
+
 // Export function to create a test store with optional preloaded state
-export function createTestStore(preloadedState?: Partial<RootState>) {
+export function createTestStore(preloadedState?: DeepPartial<RootState>) {
   const defaultState = store.getState();
   
   // Merge preloadedState with default state
