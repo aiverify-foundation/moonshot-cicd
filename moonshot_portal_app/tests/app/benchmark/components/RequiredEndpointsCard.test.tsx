@@ -10,6 +10,11 @@ import type { Bundle } from '@/lib/api';
 const mockFetchProviders = jest.fn();
 const mockFetchProviderLatestDetails = jest.fn();
 const mockSetLlmProviderApiKey = jest.fn().mockResolvedValue({ message: 'API key stored' });
+const mockTestLlmProviderConnection = jest.fn().mockResolvedValue({
+  success: true,
+  error: null,
+  response_preview: 'OK',
+});
 
 jest.mock('@/lib/api', () => {
   const actual = jest.requireActual('@/lib/api') as Record<string, unknown>;
@@ -19,6 +24,8 @@ jest.mock('@/lib/api', () => {
     fetchProviderLatestDetails: (...args: unknown[]) =>
       mockFetchProviderLatestDetails(...args),
     setLlmProviderApiKey: (...args: unknown[]) => mockSetLlmProviderApiKey(...args),
+    testLlmProviderConnection: (...args: unknown[]) =>
+      mockTestLlmProviderConnection(...args),
   };
 });
 
@@ -93,12 +100,19 @@ describe('RequiredEndpointsCard', () => {
   beforeEach(() => {
     mockSetLlmProviderApiKey.mockClear();
     mockFetchProviderLatestDetails.mockClear();
+    mockTestLlmProviderConnection.mockClear();
+    mockTestLlmProviderConnection.mockResolvedValue({
+      success: true,
+      error: null,
+      response_preview: 'OK',
+    });
     mockFetchProviders.mockResolvedValue([
       {
         id: '42',
         name: 'Together AI',
         system_name: 'together_adapter',
         version: 1,
+        defaultModel: 'meta-llama/Llama-3.3-70B-Instruct-Turbo',
       },
     ]);
     mockFetchProviderLatestDetails.mockResolvedValue({
@@ -112,10 +126,10 @@ describe('RequiredEndpointsCard', () => {
   it('shows updated required endpoints card copy', async () => {
     renderCard();
 
-    expect(screen.getByTestId('additional-card-title')).toHaveTextContent(
+    expect(screen.getByTestId('required-endpoints-card-title')).toHaveTextContent(
       'Connect LLM-as-judge Models',
     );
-    expect(screen.getByTestId('additional-card-description')).toHaveTextContent(
+    expect(screen.getByTestId('required-endpoints-card-description')).toHaveTextContent(
       'Configure access to LLM-as-judge providers required by your selected tests.',
     );
   });
@@ -288,6 +302,9 @@ describe('RequiredEndpointsCard', () => {
     expect(screen.getByRole('dialog')).toHaveTextContent('Model Provider*');
 
     await user.click(screen.getByRole('button', { name: /Test/i }));
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: /^Save$/ })).toBeEnabled();
+    });
     await user.click(screen.getByRole('button', { name: /^Save$/ }));
 
     await waitFor(() => {

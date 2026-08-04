@@ -271,13 +271,102 @@ async function setProviderApiKey(request, providerId, apiKey = 'sk-e2e-fake-key'
   expect(response.ok()).toBeTruthy();
 }
 
+/**
+ * Navigate landing → select a bundle by visible name → model selection page.
+ * @param {import('@playwright/test').Page} page
+ * @param {string|RegExp} bundleName
+ */
+async function navigateToModelSelectionWithBundle(page, bundleName) {
+  await page.goto('/');
+  await page.waitForLoadState('networkidle');
+  await page.click('[data-testid="benchmark-link"]');
+  await page.waitForLoadState('networkidle');
+  await page.waitForSelector('[data-testid^="bundle-card-"]', { timeout: 10000 });
+
+  const card = page
+    .locator('[data-testid^="bundle-card-"]')
+    .filter({
+      has: page.locator('[data-testid="bundle-name"]', { hasText: bundleName }),
+    })
+    .first();
+  await expect(card).toBeVisible({ timeout: 10000 });
+  await card.locator('[data-testid^="toggle-"]').click();
+  await page.waitForTimeout(500);
+
+  const configureButton = page.locator('[data-testid="configure-and-run-benchmark-tests"]');
+  await configureButton.click();
+  await page.waitForLoadState('networkidle');
+  await expect(page.locator('[data-testid="select-model-header"]')).toContainText(
+    'Configure And Run Tests'
+  );
+}
+
+/** Select the first seeded model configuration for the current provider. */
+async function selectFirstSeededModel(page) {
+  await openModelDropdownWithOptions(page);
+  const firstModel = page.locator('[data-testid^="model-option-"]').first();
+  await expect(firstModel).toBeVisible({ timeout: 10000 });
+  await firstModel.click();
+  await page.waitForTimeout(500);
+}
+
+/** Expand Connect LLM-as-judge Models if the Connect controls are collapsed. */
+async function expandRequiredEndpointsCard(page) {
+  const cardTitle = page.locator('[data-testid="required-endpoints-card-title"]');
+  await expect(cardTitle).toBeVisible({ timeout: 15000 });
+  const connectButton = page.locator('[data-testid^="required-endpoint-connect-"]').first();
+  const isConnectVisible = await connectButton.isVisible().catch(() => false);
+  if (!isConnectVisible) {
+    await cardTitle.click();
+  }
+  await expect(connectButton).toBeVisible({ timeout: 10000 });
+}
+
+/**
+ * Open Add Provider Token sheet for an LLM-as-judge endpoint row.
+ * @param {import('@playwright/test').Page} page
+ * @param {string} systemName e.g. together_adapter
+ */
+async function openAajProviderSheet(page, systemName = 'together_adapter') {
+  await expandRequiredEndpointsCard(page);
+  const connect = page.getByTestId(`required-endpoint-connect-${systemName}`);
+  await expect(connect).toBeVisible({ timeout: 10000 });
+  await expect(connect).toBeEnabled();
+  await connect.click();
+  await expect(editAajProviderSheet(page)).toBeVisible({ timeout: 10000 });
+}
+
+function editAajProviderSheet(page) {
+  return page.getByTestId('edit-aaj-provider-sheet');
+}
+
+/**
+ * Full path to open Together AI AAJ sheet (Sample Test Bundle → model selected → Connect).
+ * RequiredEndpointsCard only mounts after a valid test name and model selection.
+ * @param {import('@playwright/test').Page} page
+ * @param {{ bundleName?: string|RegExp, systemName?: string }} [opts]
+ */
+async function getToAajProviderSheet(
+  page,
+  { bundleName = 'Sample Test Bundle', systemName = 'together_adapter' } = {}
+) {
+  await navigateToModelSelectionWithBundle(page, bundleName);
+  await fillInTestName(page, 'My AAJ E2E Test');
+  await expandModelSelectionCard(page);
+  await selectProviderByName(page, /OpenAI/i);
+  await selectFirstSeededModel(page);
+  await openAajProviderSheet(page, systemName);
+}
+
 module.exports = {
   navigateToModelSelection,
+  navigateToModelSelectionWithBundle,
   fillInTestName,
   expandModelSelectionCard,
   getToModelSelectionCard,
   selectStandardProviderWithModels,
   selectProviderByName,
+  selectFirstSeededModel,
   selectFirstCustomConnector,
   openModelDropdownWithOptions,
   openConfigDropdownWithOptions,
@@ -293,4 +382,8 @@ module.exports = {
   mockTestConnection,
   fetchProviderBySystemName,
   setProviderApiKey,
+  expandRequiredEndpointsCard,
+  openAajProviderSheet,
+  editAajProviderSheet,
+  getToAajProviderSheet,
 };

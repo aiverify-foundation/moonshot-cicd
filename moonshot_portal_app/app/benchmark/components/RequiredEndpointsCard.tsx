@@ -60,7 +60,8 @@ function renderEndpointStatusCard(
   status: ConnectionStatus,
   tests: string[],
   onConnect: () => void,
-  connectDisabled: boolean
+  connectDisabled: boolean,
+  systemName: string
 ) {
   const getBadgeClasses = (status: ConnectionStatus) => {
     switch (status) {
@@ -91,7 +92,10 @@ function renderEndpointStatusCard(
   const firstTest = tests.length > 0 ? tests[0] : '—';
 
   return (
-    <Card className={`border ${getBorderClasses(status)} p-2 w-80`}>
+    <Card
+      className={`border ${getBorderClasses(status)} p-2 w-80`}
+      data-testid={`required-endpoint-row-${systemName}`}
+    >
       <CardContent className="px-1 py-1">
         <div>{modelName}</div>
         
@@ -114,7 +118,13 @@ function renderEndpointStatusCard(
         </div>
         
         <div className="mt-4 flex justify-start">
-          <Button size="sm" className="text-xs" onClick={onConnect} disabled={connectDisabled}>
+          <Button
+            size="sm"
+            className="text-xs"
+            onClick={onConnect}
+            disabled={connectDisabled}
+            data-testid={`required-endpoint-connect-${systemName}`}
+          >
             Connect
           </Button>
         </div>
@@ -137,7 +147,8 @@ function renderEndpointStatusCardsGrid(
               endpoint.status,
               endpoint.tests,
               () => onConnect(endpoint),
-              endpoint.connectDisabled
+              endpoint.connectDisabled,
+              endpoint.systemName
             )}
           </div>
         ))}
@@ -328,8 +339,8 @@ export default function RequiredEndpointsCard() {
           <AccordionItem value="item-1">
             <AccordionTrigger className="flex flex-row items-center hover:no-underline px-6 py-4">
               <div className="flex-1">
-                <CardTitle data-testid="additional-card-title">Connect LLM-as-judge Models</CardTitle>
-                <CardDescription data-testid="additional-card-description">
+                <CardTitle data-testid="required-endpoints-card-title">Connect LLM-as-judge Models</CardTitle>
+                <CardDescription data-testid="required-endpoints-card-description">
                   Configure access to LLM-as-judge providers required by your selected tests.
                 </CardDescription>
               </div>

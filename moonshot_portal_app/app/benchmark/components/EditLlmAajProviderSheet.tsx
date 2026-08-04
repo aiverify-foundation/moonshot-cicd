@@ -257,11 +257,15 @@ export default function EditLlmAajProviderSheet({
       <SheetContent
         side="right"
         className="w-[1400px] sm:max-w-[700px] ml-4 pl-6 pr-6 flex flex-col overflow-hidden"
+        data-testid="edit-aaj-provider-sheet"
       >
         <div className="flex flex-col flex-1 min-h-0">
           <div className="flex-1 min-h-0 overflow-y-auto space-y-6 pb-6">
             <SheetHeader className="text-left space-y-1 p-0">
-              <SheetTitle className="text-lg font-semibold">
+              <SheetTitle
+                className="text-lg font-semibold"
+                data-testid="edit-aaj-provider-sheet-title"
+              >
                 Add Provider Token
               </SheetTitle>
               <SheetDescription className="sr-only">
@@ -273,7 +277,10 @@ export default function EditLlmAajProviderSheet({
               <CardContent className="p-4 space-y-4">
                 <div className="space-y-2">
                   <Label className="text-sm font-medium">Model Provider*</Label>
-                  <div className="text-sm px-3 py-2 rounded-md border text-gray-700 bg-gray-50">
+                  <div
+                    className="text-sm px-3 py-2 rounded-md border text-gray-700 bg-gray-50"
+                    data-testid="edit-aaj-provider-display"
+                  >
                     {provider?.name || "No provider selected"}
                   </div>
                 </div>
@@ -307,7 +314,10 @@ export default function EditLlmAajProviderSheet({
             </Card>
 
             {testResult !== null && (
-              <div className="w-full max-h-[7.5rem] overflow-y-auto rounded-md border border-gray-200 bg-gray-50 p-3">
+              <div
+                className="w-full max-h-[7.5rem] overflow-y-auto rounded-md border border-gray-200 bg-gray-50 p-3"
+                data-testid="edit-aaj-test-result"
+              >
                 <p
                   className={`text-sm whitespace-pre-wrap break-words ${
                     testResult ? "text-green-600" : "text-red-600"
@@ -327,6 +337,7 @@ export default function EditLlmAajProviderSheet({
             <div className="flex justify-between items-center">
               <Button
                 variant="outline"
+                data-testid="edit-aaj-back"
                 onClick={() => {
                   setTokenValue("");
                   setTestResult(null);
@@ -341,12 +352,14 @@ export default function EditLlmAajProviderSheet({
                 <Button
                   variant="outline"
                   type="button"
+                  data-testid="edit-aaj-test-connection"
                   disabled={testing}
                   onClick={() => void handleTest()}
                 >
                   {testing ? "Testing…" : "Test Connection"}
                 </Button>
                 <Button
+                  data-testid="edit-aaj-save"
                   onClick={() => void handleSave()}
                   disabled={saving || testing || !canSave}
                   className={
