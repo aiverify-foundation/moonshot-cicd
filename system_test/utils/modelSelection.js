@@ -77,8 +77,93 @@ async function openModelDropdownWithOptions(page) {
   await page.waitForSelector('[data-testid^="model-option-"]', { timeout: 10000 });
 }
 
+async function selectFirstCustomConnector(page) {
+  await page.click('[data-testid="provider-combobox-trigger"]');
+  await page.waitForSelector('[data-testid^="custom-connector-option-"]', { timeout: 5000 });
+  await page.locator('[data-testid^="custom-connector-option-"]').first().click();
+  await page.waitForTimeout(500);
+}
+
+async function openConfigDropdownWithOptions(page) {
+  await page.click('[data-testid="model-combobox-trigger"]');
+  await page.waitForSelector('[data-testid^="config-option-"]', { timeout: 10000 });
+}
+
 function editModelSheet(page) {
   return page.getByTestId('edit-model-sheet');
+}
+
+/** Visible custom-app sheet title (SheetTitle is sr-only). */
+function customAppSheetTitle(page) {
+  return page
+    .locator('h2.text-lg.font-semibold')
+    .filter({ hasText: 'Edit Custom Application Configuration' });
+}
+
+async function waitForCustomAppSheetReady(page) {
+  const dialog = page.getByRole('dialog', { name: /Edit Custom Application/i });
+  await expect(dialog).toBeVisible({ timeout: 10000 });
+  await expect(customAppSheetTitle(page)).toBeVisible({ timeout: 10000 });
+  return dialog;
+}
+
+/**
+ * Route-mock GET /api/custom-apps with enough rows for View All Custom Connectors.
+ * Call before navigating to model selection so the page load uses the mock.
+ */
+async function mockCustomAppsForViewAll(page, count = 4) {
+  const apps = Array.from({ length: count }, (_, i) => ({
+    id: 9000 + i,
+    name: `E2E Mock Custom App ${i + 1}`,
+  }));
+  await page.route('**/api/custom-apps**', async (route) => {
+    const url = new URL(route.request().url());
+    const isList =
+      route.request().method() === 'GET' &&
+      /\/api\/custom-apps\/?$/.test(url.pathname);
+    if (!isList) {
+      await route.continue();
+      return;
+    }
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify(apps),
+    });
+  });
+  return apps;
+}
+
+/**
+ * Route-mock GET /api/providers with enough rows for View All Standard Providers.
+ * E2E seed only creates OpenAI + Together, so View All never appears without a mock.
+ * Call before navigating to model selection.
+ */
+async function mockProvidersForViewAll(page, count = 4) {
+  const providers = Array.from({ length: count }, (_, i) => ({
+    id: String(8000 + i),
+    name: `E2E Mock Provider ${i + 1}`,
+    system_name: `e2e_mock_provider_${i + 1}`,
+    version: 1,
+    defaultModel: '',
+    modelTextboxExplanation: '',
+    defaultConfigPairs: {},
+  }));
+  await page.route('**/api/providers**', async (route) => {
+    const url = new URL(route.request().url());
+    const isList =
+      route.request().method() === 'GET' && /\/api\/providers\/?$/.test(url.pathname);
+    if (!isList) {
+      await route.continue();
+      return;
+    }
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify(providers),
+    });
+  });
+  return providers;
 }
 
 /** Visible sheet title (avoids sr-only SheetTitle; works without title testid in stale builds). */
@@ -193,12 +278,18 @@ module.exports = {
   getToModelSelectionCard,
   selectStandardProviderWithModels,
   selectProviderByName,
+  selectFirstCustomConnector,
   openModelDropdownWithOptions,
+  openConfigDropdownWithOptions,
   openAddNewModelSheet,
   openEditFirstModelSheet,
   openEditModelSheetByName,
   editModelSheet,
   editModelSheetTitle,
+  customAppSheetTitle,
+  waitForCustomAppSheetReady,
+  mockCustomAppsForViewAll,
+  mockProvidersForViewAll,
   mockTestConnection,
   fetchProviderBySystemName,
   setProviderApiKey,

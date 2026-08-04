@@ -1,11 +1,20 @@
 const { test, expect } = require('@playwright/test');
-const { printPageDiagnostics } = require('../utils/pageDiagnostics');
 const {
   navigateToModelSelection,
   fillInTestName,
   getToModelSelectionCard,
   selectStandardProviderWithModels,
+  selectProviderByName,
+  selectFirstCustomConnector,
   openModelDropdownWithOptions,
+  openConfigDropdownWithOptions,
+  openAddNewModelSheet,
+  editModelSheet,
+  editModelSheetTitle,
+  customAppSheetTitle,
+  waitForCustomAppSheetReady,
+  mockCustomAppsForViewAll,
+  mockProvidersForViewAll,
 } = require('../utils/modelSelection');
 
 test.describe('Model Selection Page Integration Tests', () => {
@@ -121,18 +130,7 @@ test.describe('Model Selection Page Integration Tests', () => {
     test('GIVEN as a user WHEN a Custom Application is selected THEN display "Application Configuration" AND display a combobox', async ({ page }) => {
       await getToModelSelectionCard(page);
       
-      // Click on provider combobox to open it
-      await page.click('[data-testid="provider-combobox-trigger"]');
-      
-      // Wait for dropdown to open
-      await page.waitForSelector('[data-testid^="custom-connector-option-"]', { timeout: 5000 });
-      
-      // Select the first custom connector
-      const firstCustomConnector = page.locator('[data-testid^="custom-connector-option-"]').first();
-      await firstCustomConnector.click();
-      
-      // Wait for dropdown to close
-      await page.waitForTimeout(500);
+      await selectFirstCustomConnector(page);
       
       // Verify that "Application Configuration" label is displayed
       const configLabel = page.locator('[data-testid="configuration-label"]');
@@ -148,76 +146,37 @@ test.describe('Model Selection Page Integration Tests', () => {
     test('GIVEN as a user WHEN a Custom Application is selected THEN display configurations with edit buttons', async ({ page }) => {
       await getToModelSelectionCard(page);
       
-      // Select a custom connector
-      await page.click('[data-testid="provider-combobox-trigger"]');
-      await page.waitForSelector('[data-testid^="custom-connector-option-"]', { timeout: 5000 });
-      const firstCustomConnector = page.locator('[data-testid^="custom-connector-option-"]').first();
-      await firstCustomConnector.click();
-      await page.waitForTimeout(500);
+      await selectFirstCustomConnector(page);
+      await openConfigDropdownWithOptions(page);
       
-      // Open configuration dropdown
-      await page.click('[data-testid="model-combobox-trigger"]');
-      
-      // Wait for configurations to load
-      await page.waitForSelector('[data-testid^="config-option-"]', { timeout: 5000 });
-      
-      // Get all configuration options
       const configOptions = page.locator('[data-testid^="config-option-"]');
       const configCount = await configOptions.count();
-      
-      // Verify at least one configuration is displayed
       await expect(configCount).toBeGreaterThan(0);
       
-      // Check each configuration is displayed correctly
-      for (let i = 0; i < Math.min(configCount, 3); i++) { // Check first 3 configurations
+      for (let i = 0; i < Math.min(configCount, 3); i++) {
         const configOption = configOptions.nth(i);
-        
-        // Verify configuration option is visible
         await expect(configOption).toBeVisible();
-        
-        // Note: Based on the component code, configurations don't have edit buttons
-        // This test verifies the configuration options are displayed correctly
-        // Check that the configuration option contains some text content
         await expect(configOption).not.toBeEmpty();
-        
-        // Verify the configuration option contains text content
-        const configText = await configOption.textContent();
-        expect(configText).toBeTruthy();
-        expect(configText.trim().length).toBeGreaterThan(0);
+        const editButton = configOption.locator('[data-testid^="edit-config-"]');
+        await expect(editButton).toBeVisible();
+        await expect(editButton.locator('svg')).toBeVisible();
       }
     });
 
     test('GIVEN as a user WHEN a Custom Application is selected THEN display specific configuration labels', async ({ page }) => {
       await getToModelSelectionCard(page);
       
-      // Select a custom connector
-      await page.click('[data-testid="provider-combobox-trigger"]');
-      await page.waitForSelector('[data-testid^="custom-connector-option-"]', { timeout: 5000 });
-      const firstCustomConnector = page.locator('[data-testid^="custom-connector-option-"]').first();
-      await firstCustomConnector.click();
-      await page.waitForTimeout(500);
+      await selectFirstCustomConnector(page);
+      await openConfigDropdownWithOptions(page);
       
-      // Open configuration dropdown
-      await page.click('[data-testid="model-combobox-trigger"]');
-      
-      // Wait for configurations to load
-      await page.waitForSelector('[data-testid^="config-option-"]', { timeout: 5000 });
-      
-      // Check for specific configuration labels from custom-application fixtures (MockData.ts)
       const basicConfig = page.locator('[data-testid^="config-option-"]').first();
       await expect(basicConfig).toBeVisible();
-
     });
 
     test('GIVEN as a user WHEN a Custom Application is selected THEN display "Add New App Configuration" command', async ({ page }) => {
       await getToModelSelectionCard(page);
       
-      // Select a custom connector
-      await page.click('[data-testid="provider-combobox-trigger"]');
-      await page.waitForSelector('[data-testid^="custom-connector-option-"]', { timeout: 5000 });
-      const firstCustomConnector = page.locator('[data-testid^="custom-connector-option-"]').first();
-      await firstCustomConnector.click();
-      await page.waitForTimeout(500);
+      await selectFirstCustomConnector(page);
       
       // Open configuration dropdown
       await page.click('[data-testid="model-combobox-trigger"]');
@@ -275,16 +234,8 @@ test.describe('Model Selection Page Integration Tests', () => {
     test('GIVEN as a user WHEN a Custom Application Configuration is Selected THEN display a green check button', { tag: '@happy-path' }, async ({ page }) => {
       await getToModelSelectionCard(page);
       
-      // Select a custom connector
-      await page.click('[data-testid="provider-combobox-trigger"]');
-      await page.waitForSelector('[data-testid^="custom-connector-option-"]', { timeout: 5000 });
-      const firstCustomConnector = page.locator('[data-testid^="custom-connector-option-"]').first();
-      await firstCustomConnector.click();
-      await page.waitForTimeout(500);
-      
-      // Select a configuration
-      await page.click('[data-testid="model-combobox-trigger"]');
-      await page.waitForSelector('[data-testid^="config-option-"]', { timeout: 5000 });
+      await selectFirstCustomConnector(page);
+      await openConfigDropdownWithOptions(page);
       const firstConfig = page.locator('[data-testid^="config-option-"]').first();
       await firstConfig.click();
       await page.waitForTimeout(500);
@@ -398,6 +349,179 @@ test.describe('Model Selection Page Integration Tests', () => {
     });
   });
 
+  // ---------------------------------------------------------------------
+  // SelectAppOrModelCard gaps (see temp/select-app-or-model-card-implemented)
+  // ---------------------------------------------------------------------
+  test.describe('SelectAppOrModelCard gaps', { tag: '@happy-path' }, () => {
+    test('View All / Show Less for standard providers (mocked list)', async ({ page }) => {
+      await mockProvidersForViewAll(page, 4);
+      try {
+        await getToModelSelectionCard(page);
+        await page.click('[data-testid="provider-combobox-trigger"]');
+        await page.waitForSelector('[data-testid^="provider-option-"]', { timeout: 5000 });
+
+        const viewAll = page.locator('[data-testid="view-all-standard-providers"]');
+        await expect(viewAll).toBeVisible({ timeout: 10000 });
+
+        const providerOptions = page.locator('[data-testid^="provider-option-"]');
+        await expect(providerOptions).toHaveCount(3);
+
+        await viewAll.click();
+        await expect(page.locator('[data-testid="show-less-standard-providers"]')).toBeVisible();
+        await expect(providerOptions).toHaveCount(4);
+
+        await page.locator('[data-testid="show-less-standard-providers"]').click();
+        await expect(page.locator('[data-testid="view-all-standard-providers"]')).toBeVisible();
+        await expect(providerOptions).toHaveCount(3);
+      } finally {
+        await page.unroute('**/api/providers**');
+      }
+    });
+
+    test('View All / Show Less for custom connectors (mocked list)', async ({ page }) => {
+      await mockCustomAppsForViewAll(page, 4);
+      try {
+        await getToModelSelectionCard(page);
+        await page.click('[data-testid="provider-combobox-trigger"]');
+        await page.waitForSelector('[data-testid^="custom-connector-option-"]', { timeout: 5000 });
+
+        const viewAll = page.locator('[data-testid="view-all-custom-connectors"]');
+        await expect(viewAll).toBeVisible({ timeout: 10000 });
+
+        const customOptions = page.locator('[data-testid^="custom-connector-option-"]');
+        await expect(customOptions).toHaveCount(3);
+
+        await viewAll.click();
+        await expect(page.locator('[data-testid="show-less-custom-connectors"]')).toBeVisible();
+        await expect(customOptions).toHaveCount(4);
+
+        await page.locator('[data-testid="show-less-custom-connectors"]').click();
+        await expect(page.locator('[data-testid="view-all-custom-connectors"]')).toBeVisible();
+        await expect(customOptions).toHaveCount(3);
+      } finally {
+        await page.unroute('**/api/custom-apps**');
+      }
+    });
+
+    test('edit-config opens Edit Custom Application sheet', async ({ page }) => {
+      await getToModelSelectionCard(page);
+      await selectFirstCustomConnector(page);
+      await openConfigDropdownWithOptions(page);
+
+      const firstEdit = page.locator('[data-testid^="edit-config-"]').first();
+      await expect(firstEdit).toBeVisible();
+      await firstEdit.click();
+      await waitForCustomAppSheetReady(page);
+    });
+
+    test('Add New App Configuration opens Edit Custom Application sheet', async ({ page }) => {
+      await getToModelSelectionCard(page);
+      await selectFirstCustomConnector(page);
+      await page.click('[data-testid="model-combobox-trigger"]');
+      const addNew = page.locator('[data-testid="add-new-config-from-dropdown"]');
+      await expect(addNew).toBeVisible({ timeout: 10000 });
+      await addNew.click();
+      await waitForCustomAppSheetReady(page);
+      await expect(customAppSheetTitle(page)).toBeVisible();
+    });
+
+    test('Add New Model Configuration opens Edit Model sheet', async ({ page }) => {
+      await getToModelSelectionCard(page);
+      await selectProviderByName(page, /OpenAI/i);
+      await openAddNewModelSheet(page);
+      const sheet = editModelSheet(page);
+      await expect(sheet).toBeVisible();
+      await expect(editModelSheetTitle(sheet)).toBeVisible();
+    });
+
+    test('Selecting the same provider again clears selection', async ({ page }) => {
+      await getToModelSelectionCard(page);
+      await selectProviderByName(page, /OpenAI/i);
+
+      const providerTrigger = page.locator('[data-testid="provider-combobox-trigger"]');
+      await expect(providerTrigger).toContainText(/OpenAI/i);
+      await expect(page.locator('[data-testid="model-combobox-trigger"]')).toBeVisible();
+
+      await page.click('[data-testid="provider-combobox-trigger"]');
+      const openaiOption = page
+        .locator('[data-testid^="provider-option-"]')
+        .filter({ hasText: /OpenAI/i })
+        .first();
+      await expect(openaiOption).toBeVisible();
+      await openaiOption.click();
+      await page.waitForTimeout(500);
+
+      await expect(providerTrigger).toContainText('Select provider...');
+      await expect(page.locator('[data-testid="model-combobox-trigger"]')).not.toBeVisible();
+      await expect(page.locator('[data-testid="status-indicator"]')).toBeVisible();
+    });
+
+    test('Selecting the same model again clears model selection', async ({ page }) => {
+      await getToModelSelectionCard(page);
+      await selectProviderByName(page, /OpenAI/i);
+      await openModelDropdownWithOptions(page);
+
+      const firstModel = page.locator('[data-testid^="model-option-"]').first();
+      const modelLabel = (await firstModel.textContent()) || '';
+      await firstModel.click();
+      await page.waitForTimeout(500);
+
+      const modelCombobox = page.locator('[data-testid="model-combobox-trigger"]');
+      await expect(modelCombobox).not.toContainText('Select model configuration');
+
+      await page.click('[data-testid="model-combobox-trigger"]');
+      await page.waitForSelector('[data-testid^="model-option-"]', { timeout: 10000 });
+      const sameModel = page
+        .locator('[data-testid^="model-option-"]')
+        .filter({ hasText: modelLabel.trim().slice(0, 20) })
+        .first();
+      await sameModel.click();
+      await page.waitForTimeout(500);
+
+      await expect(modelCombobox).toContainText('Select model configuration');
+      await expect(page.locator('[data-testid="status-indicator"]')).toBeVisible();
+    });
+
+    test('Selecting the same custom config again clears config selection', async ({ page }) => {
+      await getToModelSelectionCard(page);
+      await selectFirstCustomConnector(page);
+      await openConfigDropdownWithOptions(page);
+
+      const firstConfig = page.locator('[data-testid^="config-option-"]').first();
+      const configLabel = (await firstConfig.textContent()) || '';
+      await firstConfig.click();
+      await page.waitForTimeout(500);
+
+      const configCombobox = page.locator('[data-testid="model-combobox-trigger"]');
+      await expect(configCombobox).not.toContainText('Select application configuration');
+
+      await page.click('[data-testid="model-combobox-trigger"]');
+      await page.waitForSelector('[data-testid^="config-option-"]', { timeout: 10000 });
+      const sameConfig = page
+        .locator('[data-testid^="config-option-"]')
+        .filter({ hasText: configLabel.trim().slice(0, 20) })
+        .first();
+      await sameConfig.click();
+      await page.waitForTimeout(500);
+
+      await expect(configCombobox).toContainText('Select application configuration');
+      await expect(page.locator('[data-testid="status-indicator"]')).toBeVisible();
+    });
+
+    test('Accordion collapse and expand hides and shows provider combobox', async ({ page }) => {
+      await getToModelSelectionCard(page);
+      const cardTitle = page.locator('[data-testid="card-title"]');
+      const providerCombobox = page.locator('[data-testid="provider-combobox-trigger"]');
+      await expect(providerCombobox).toBeVisible();
+
+      await cardTitle.click();
+      await expect(providerCombobox).not.toBeVisible();
+
+      await cardTitle.click();
+      await expect(providerCombobox).toBeVisible();
+    });
+  });
+
   test.describe('Test Name and Description Card', { tag: '@happy-path' }, () => {
     
     test('GIVEN as a user WHEN filling in test name input THEN input accepts and stores the value', async ({ page }) => {
@@ -416,14 +540,6 @@ test.describe('Model Selection Page Integration Tests', () => {
       // Verify the status indicator changes to green check (test name is valid)
       const greenCheck = page.locator('[data-testid="test-name-status-indicator"]');
       await expect(greenCheck).toBeVisible();
-    });
-  });
-
-  test.describe('Diagnostic Tests', () => {
-    
-    test('DIAGNOSTIC: Print all page elements in formatted manner', async ({ page }) => {
-      await navigateToModelSelection(page);
-      await printPageDiagnostics(page, 'MODEL SELECTION PAGE DIAGNOSTIC REPORT');
     });
   });
 });
