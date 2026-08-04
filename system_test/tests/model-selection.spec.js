@@ -1,102 +1,12 @@
 const { test, expect } = require('@playwright/test');
 const { printPageDiagnostics } = require('../utils/pageDiagnostics');
-
-// Helper function for navigating to model selection page
-async function navigateToModelSelection(page) {
-  await page.goto('/');
-  
-  // Wait for the page to load
-  await page.waitForLoadState('networkidle');
-  
-  // Click on the "Benchmark" link using data-testid
-  await page.click('[data-testid="benchmark-link"]');
-  
-  // Wait for navigation to complete
-  await page.waitForLoadState('networkidle');
-  
-  // Wait for bundles to load and select the first bundle
-  await page.waitForSelector('[data-testid^="toggle-"]', { timeout: 10000 });
-  const toggleButtons = page.locator('[data-testid^="toggle-"]');
-  await toggleButtons.first().click();
-  
-  // Wait a moment for the state to update
-  await page.waitForTimeout(500);
-  
-  // Click the configure button to navigate to model selection
-  const configureButton = page.locator('[data-testid="configure-and-run-benchmark-tests"]');
-  await configureButton.click();
-  
-  // Wait for navigation to model selection page
-  await page.waitForLoadState('networkidle');
-  
-  // Verify we're on the model selection page by checking for the page content
-  await expect(page.locator('[data-testid="select-model-header"]')).toContainText('Configure And Run Tests');
-}
-
-async function fillInTestName(page, testName) {
-  // Wait for the test name card to be visible
-  const testNameCard = page.locator('[data-testid="additional-card-title"]');
-  await expect(testNameCard).toBeVisible();
-  
-  // Check if accordion is collapsed and expand it if needed
-  const testNameInput = page.locator('[data-testid="test-name-input"]');
-  const isInputVisible = await testNameInput.isVisible().catch(() => false);
-  
-  // this is to make the test a little more robust
-  if (!isInputVisible) {
-    // Click the accordion trigger - the card title is inside the AccordionTrigger button
-    // Click on the card title area which should trigger the accordion
-    await testNameCard.click();
-  }
-  
-  // Verify the input is now visible
-  await expect(testNameInput).toBeVisible();
-  
-  // Fill in the test name input with testName
-  await testNameInput.fill(testName);
-}
-
-async function selectStandardProviderWithModels(page) {
-  await page.click('[data-testid="provider-combobox-trigger"]');
-  await page.waitForSelector('[data-testid^="provider-option-"]', { timeout: 5000 });
-  await page.locator('[data-testid^="provider-option-"]').first().click();
-  await page.waitForTimeout(500);
-}
-
-async function openModelDropdownWithOptions(page) {
-  await page.click('[data-testid="model-combobox-trigger"]');
-  await page.waitForSelector('[data-testid^="model-option-"]', { timeout: 10000 });
-}
-
-async function expandModelSelectionCard(page) {
-  // Wait for the model selection card to be visible
-  const cardTitle = page.locator('[data-testid="card-title"]');
-  await expect(cardTitle).toBeVisible();
-  await expect(cardTitle).toContainText('Select App or Model Under Test');
-  
-  // Check if accordion is collapsed and expand it if needed
-  // The provider combobox is inside the AccordionContent, so if it's visible, the accordion is expanded
-  const providerCombobox = page.locator('[data-testid="provider-combobox-trigger"]');
-  const isComboboxVisible = await providerCombobox.isVisible().catch(() => false);
-  
-  // If the combobox is not visible, the accordion is collapsed - click the card title to expand it
-  if (!isComboboxVisible) {
-    // Click on the card title which should trigger the accordion to expand
-    await cardTitle.click();
-  }
-  
-  // Verify the provider combobox is now visible (accordion is expanded)
-  await expect(providerCombobox).toBeVisible();
-}
-
-async function getToModelSelectionCard(page) {
-  await navigateToModelSelection(page);
-
-  // Fill in the test name input with testName
-  const testName = 'My Test Benchmark';
-  await fillInTestName(page, testName);
-  await expandModelSelectionCard(page);
-}
+const {
+  navigateToModelSelection,
+  fillInTestName,
+  getToModelSelectionCard,
+  selectStandardProviderWithModels,
+  openModelDropdownWithOptions,
+} = require('../utils/modelSelection');
 
 test.describe('Model Selection Page Integration Tests', () => {
 

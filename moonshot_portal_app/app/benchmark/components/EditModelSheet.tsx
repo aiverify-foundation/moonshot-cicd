@@ -553,6 +553,7 @@ export default function EditModelSheet({
       <SheetContent
         side="right"
         className="w-[1400px] sm:max-w-[700px] ml-4 pl-6 pr-6 flex flex-col overflow-hidden"
+        data-testid="edit-model-sheet"
       >
         <div className="flex flex-col flex-1 min-h-0">
           <div className="flex-1 min-h-0 overflow-y-auto space-y-6 pb-6">
@@ -561,7 +562,12 @@ export default function EditModelSheet({
             </SheetHeader>
 
             <div className="flex items-center justify-between">
-              <h2 className="text-lg font-semibold">Edit Model Configuration</h2>
+              <h2
+                className="text-lg font-semibold"
+                data-testid="edit-model-sheet-title"
+              >
+                Edit Model Configuration
+              </h2>
             </div>
 
             <div className="space-y-2">
@@ -585,7 +591,10 @@ export default function EditModelSheet({
                   <Label className="text-sm font-medium">
                     Model Provider*
                   </Label>
-                  <div className="text-sm px-3 py-2 rounded-md border text-gray-700 bg-gray-50">
+                  <div
+                    className="text-sm px-3 py-2 rounded-md border text-gray-700 bg-gray-50"
+                    data-testid="edit-model-provider-display"
+                  >
                     {currentProvider?.name || 'No provider selected'}
                   </div>
                 </div>
@@ -665,12 +674,17 @@ export default function EditModelSheet({
                 
                 {/* Parameter rows */}
                 {advancedParams.map((param: AdvancedParam, index: number) => (
-                  <div key={index} className="flex items-center gap-3">
+                  <div
+                    key={index}
+                    className="flex items-center gap-3"
+                    data-testid={`edit-model-param-row-${index}`}
+                  >
                     <div className="flex-1">
                       <Input
                         value={param.parameter}
                         onChange={(e) => updateParameter(index, 'parameter', e.target.value)}
                         tabIndex={-1}
+                        data-testid={`edit-model-param-key-${index}`}
                       />
                     </div>
                     <div className="flex-1">
@@ -678,6 +692,7 @@ export default function EditModelSheet({
                         value={param.value}
                         onChange={(e) => updateParameter(index, 'value', e.target.value)}
                         tabIndex={-1}
+                        data-testid={`edit-model-param-value-${index}`}
                       />
                     </div>
                     <div className="flex items-center gap-1 w-16">
@@ -689,6 +704,7 @@ export default function EditModelSheet({
                           size="sm"
                           onClick={() => removeParameter(index)}
                           className="h-8 w-8 p-0"
+                          data-testid={`edit-model-param-delete-${index}`}
                         >
                           <Trash2 className="h-4 w-4" />
                         </Button>
@@ -700,6 +716,7 @@ export default function EditModelSheet({
                           size="sm"
                           onClick={addParameter}
                           className="h-8 w-8 p-0"
+                          data-testid="edit-model-param-add"
                         >
                           <Plus className="h-4 w-4" />
                         </Button>
@@ -711,7 +728,10 @@ export default function EditModelSheet({
             </div>
 
             {testResult !== null && (
-              <div className="w-full max-h-[7.5rem] overflow-y-auto rounded-md border border-gray-200 bg-gray-50 p-3">
+              <div
+                className="w-full max-h-[7.5rem] overflow-y-auto rounded-md border border-gray-200 bg-gray-50 p-3"
+                data-testid="edit-model-test-result"
+              >
                 <p
                   className={`text-sm whitespace-pre-wrap break-words ${
                     testResult ? 'text-green-600' : 'text-red-600'
@@ -730,16 +750,21 @@ export default function EditModelSheet({
           {/* Action Buttons - Fixed at bottom */}
           <div className="shrink-0 pt-6 pb-6 border-t">
             <div className="flex justify-between items-center">
-              <Button variant="outline" onClick={() => {
-                resetForm();
-                onOpenChange(false);
-              }}>
+              <Button
+                variant="outline"
+                data-testid="edit-model-back"
+                onClick={() => {
+                  resetForm();
+                  onOpenChange(false);
+                }}
+              >
                 Back
               </Button>
               <div className="flex gap-3">
                 <Button
                   variant="outline"
                   disabled={testing}
+                  data-testid="edit-model-test-connection"
                   onClick={() => void handleTest()}
                 >
                   {testing ? 'Testing…' : 'Test Connection'}
@@ -747,6 +772,7 @@ export default function EditModelSheet({
                 <Button
                   onClick={() => void handleSave()}
                   disabled={saving || testing || !canSave}
+                  data-testid="edit-model-save"
                   className={
                     saving || testing || !canSave
                       ? 'opacity-50 bg-gray-100 text-gray-400'
