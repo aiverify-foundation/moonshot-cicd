@@ -102,8 +102,8 @@ def test_llamaguard_test_has_aaj_fields_in_dto(listing_db):
     dto = lg.tests[0]
     assert dto.metric.get("name") == "llamaguardannotator_adapter"
     assert dto.requires_llm_aaj is True
-    assert dto.metric_provider_system_name == "together_adapter"
-    assert dto.metric_grader_model_name == "meta-llama/Llama-Guard-4-12B"
+    assert dto.metric_provider_system_name == "openai_adapter"
+    assert dto.metric_grader_model_name == "gpt-5-mini"
     assert "Eval line one" in (dto.description or "")
 
 
