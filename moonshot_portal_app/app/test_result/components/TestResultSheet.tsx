@@ -4,6 +4,7 @@ import { ThumbsUp, ThumbsDown, Info } from "lucide-react"
 import {
     Sheet,
     SheetContent,
+    SheetDescription,
     SheetHeader,
     SheetTitle,
 } from "@/components/ui/sheet"
@@ -105,6 +106,9 @@ export default function TestResultSheet({
                             Prompt {currentItemNumber}/{totalItems}
                         </SheetTitle>
                     </div>
+                    <SheetDescription className="sr-only">
+                        Detailed results for the selected prompt.
+                    </SheetDescription>
                 </SheetHeader>
 
                 <div className="flex flex-col gap-[12px] mt-0">

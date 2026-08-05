@@ -1,6 +1,6 @@
 "use client"
 import React from 'react';
-import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetFooter } from "@/components/ui/sheet";
+import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle, SheetFooter } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
 
 interface PromptTemplateSheetProps {
@@ -22,6 +22,9 @@ export default function PromptTemplateSheet({
         </div>
         <SheetHeader className="pt-6">
           <SheetTitle className="sr-only">Evaluator prompt</SheetTitle>
+          <SheetDescription className="sr-only">
+            View the evaluator prompt template.
+          </SheetDescription>
         </SheetHeader>
         <div className="flex flex-col gap-3 flex-1 mt-4 px-6">
           <p className="text-sm text-slate-500 leading-normal">Evaluator prompt</p>
