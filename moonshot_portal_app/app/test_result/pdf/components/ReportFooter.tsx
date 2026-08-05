@@ -7,6 +7,7 @@ import logoWhite from '../assets/AIVerifyLogo_White_Cropped.png';
 export default function ReportFooter() {
   return (
     <View style={styles.footer} wrap={false}>
+      {/* eslint-disable-next-line jsx-a11y/alt-text -- @react-pdf/renderer Image has no alt prop */}
       <Image src={logoWhite.src} style={styles.footerLogo} />
 
       <View style={styles.footerLinksRow}>

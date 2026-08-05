@@ -288,7 +288,6 @@ export default function TestResultTable({ data, pageSize = 10, onDataChange }: T
     }) => {
         const [open, setOpen] = useState(false)
         const selectedCount = selected.size
-        const totalCount = options.length
 
         return (
             <Popover open={open} onOpenChange={setOpen}>

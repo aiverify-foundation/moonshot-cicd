@@ -24,7 +24,7 @@ export default function BenchmarkApp() {
 
   return (
     <Provider store={store}>
-        <BenchmarkSidebar currentPage={currentPage} />
+        <BenchmarkSidebar />
         {renderCurrentPage()}
         <BenchmarkFooter 
           currentPage={currentPage}

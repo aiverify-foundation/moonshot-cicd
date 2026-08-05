@@ -1,6 +1,6 @@
 "use client"
 import React from 'react';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardDescription, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { CircleCheckBig, Info, ChevronRight } from 'lucide-react';
@@ -30,14 +30,6 @@ import {
   type TestSelectionState,
 } from '@/lib/benchmarkTestSelection';
 import type { Bundle } from '@/lib/api';
-
-const CONSTANTS = {
-  MINIMUM_SAMPLE_SIZE: 5,
-  DEFAULT_TOTAL_PROMPTS: 2952,
-  DEFAULT_CONFIDENCE_LEVEL: 95,
-  DEFAULT_MARGIN_OF_ERROR: 3,
-  DEFAULT_EXPECTED_PROPORTION: 90
-} as const;
 
 /**
  * Calculate the required sample size for a proportion.

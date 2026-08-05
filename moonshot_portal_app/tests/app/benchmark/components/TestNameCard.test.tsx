@@ -197,7 +197,7 @@ describe('TestNameCard', () => {
 
     it.skip('Scenario: Test Name validation - Clearing a previously valid test name displays error message and Card Incomplete Icon', async () => {
       const user = userEvent.setup();
-      const { store } = render(<TestNameCard />, {
+      render(<TestNameCard />, {
         preloadedState: {
           modelSelection: {
             selectedProvider: '',
