@@ -1,7 +1,7 @@
 "use client"
 import React from 'react';
 import { Button } from "@/components/ui/button"
-import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
+import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Card, CardContent } from '@/components/ui/card';
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -502,6 +502,9 @@ export default function EditCustomApplicationSheet({
           <div className="flex-1 min-h-0 overflow-y-auto space-y-6 pb-6">
             <SheetHeader className="p-0">
               <SheetTitle className="sr-only">Edit Custom Application Configuration</SheetTitle>
+              <SheetDescription className="sr-only">
+                Configure the custom application endpoints and settings.
+              </SheetDescription>
             </SheetHeader>
 
             <div className="flex items-center justify-between">

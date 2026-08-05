@@ -1,6 +1,6 @@
 "use client"
 import React, { useEffect, useMemo, useState } from 'react';
-import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetFooter } from "@/components/ui/sheet";
+import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle, SheetFooter } from "@/components/ui/sheet";
 import { Info, FileTerminal, Square, CheckSquare } from 'lucide-react'
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -233,6 +233,9 @@ export default function ViewBundleDetailsSheet({
       >
         <SheetHeader className="p-2">
           <SheetTitle className="text-lg text-slate-500 pt-1 pb-0">Bundle</SheetTitle>
+          <SheetDescription className="sr-only">
+            Details for the selected benchmark bundle.
+          </SheetDescription>
         </SheetHeader>
         <div className="flex items-center gap-3">
           <h1 className="text-2xl font-bold" data-testid="bundle-details-name">{bundle?.name}</h1>
