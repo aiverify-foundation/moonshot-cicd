@@ -12,7 +12,7 @@ LLAMAGUARD_ANNOTATOR_METRIC = "llamaguardannotator_adapter"
 REFUSAL_METRIC = "refusal_adapter"
 CYBERSEC_REFUSAL_METRIC = "cybersecevalannotator2_adapter"
 # Connector system names used by moonshot_config for each metric's evaluator.
-LLAMAGUARD_JUDGE_CONNECTOR_SYSTEM_NAME = "together_adapter"
+LLAMAGUARD_JUDGE_CONNECTOR_SYSTEM_NAME = "openai_adapter"
 REFUSAL_JUDGE_CONNECTOR_SYSTEM_NAME = "openai_adapter"
 
 _METRIC_AAJ_PROVIDER_BY_NAME: dict[str, str] = {
