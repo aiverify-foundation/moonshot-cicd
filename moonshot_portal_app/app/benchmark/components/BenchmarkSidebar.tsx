@@ -20,10 +20,6 @@ import {
   selectedTestsInBundle,
 } from '@/lib/benchmarkTestSelection';
 
-interface BenchmarkSidebarProps {
-  currentPage: 'bundle-selection' | 'model-selection';
-}
-
 interface AccordionTestData {
   bundleId: string;
   test: BundleTest;
@@ -42,8 +38,8 @@ interface BundleAccordionData {
   selectedCount: number;
 }
 
-export default function BenchmarkSidebar({ currentPage }: BenchmarkSidebarProps) {
-  const { bundles } = useBundlesRedux();
+export default function BenchmarkSidebar() {
+  useBundlesRedux();
   const selectedBundles = useSelectedBundles();
   const { toggleTest, setMultipleTests, clearBundleTests } = useTestSelectionActions();
   const testSelection = useAppSelector((state) => state.testSelection);

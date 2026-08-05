@@ -102,6 +102,7 @@ export default function PdfFitWidthPreview({ url }: PdfFitWidthPreviewProps) {
         style={{ width: PREVIEW_WIDTH_PX, maxWidth: "100%" }}
       >
         {pages.map((page) => (
+          // eslint-disable-next-line @next/next/no-img-element -- blob/data URLs from PDF canvas rendering
           <img
             key={page.pageNumber}
             src={page.src}

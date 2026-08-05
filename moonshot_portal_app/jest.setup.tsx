@@ -1,5 +1,6 @@
 // Learn more: https://github.com/testing-library/jest-dom
 import '@testing-library/jest-dom';
+import React from 'react';
 
 // Mock Next.js router
 jest.mock('next/navigation', () => ({
@@ -25,7 +26,7 @@ jest.mock('next/navigation', () => ({
 // Mock Next.js Image component
 jest.mock('next/image', () => ({
   __esModule: true,
-  default: (props: any) => {
+  default: (props: React.ImgHTMLAttributes<HTMLImageElement>) => {
     // eslint-disable-next-line @next/next/no-img-element, jsx-a11y/alt-text
     return <img {...props} />;
   },
@@ -34,7 +35,11 @@ jest.mock('next/image', () => ({
 // Mock Next.js Link component
 jest.mock('next/link', () => ({
   __esModule: true,
-  default: ({ children, href, ...props }: any) => {
+  default: ({
+    children,
+    href,
+    ...props
+  }: { children: React.ReactNode; href: string } & React.AnchorHTMLAttributes<HTMLAnchorElement>) => {
     return (
       <a href={href} {...props}>
         {children}
@@ -54,4 +59,3 @@ jest.mock('next/font/google', () => ({
     style: {},
   })),
 }));
-

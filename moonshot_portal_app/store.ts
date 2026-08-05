@@ -242,7 +242,7 @@ const endpointStatusSlice = createSlice({
       const configId = action.payload;
       delete state[configId];
     },
-    clearAllEndpointStatuses: (state) => {
+    clearAllEndpointStatuses: () => {
       return {};
     },
   },
@@ -338,7 +338,7 @@ export function createTestStore(preloadedState?: DeepPartial<RootState>) {
   
   return configureStore({
     reducer: rootReducer,
-    preloadedState: mergedState as any,
+    preloadedState: mergedState as RootState,
   });
 }
 

@@ -1,9 +1,10 @@
 import { useEffect } from 'react';
 import { useAppSelector, useAppDispatch } from './reduxHooks';
-import { fetchBundlesAsync, clearBundlesError } from '../store';
+import { fetchBundlesAsync } from '../store';
+import type { Bundle } from '@/lib/api';
 
 export interface UseBundlesReduxReturn {
-  bundles: any[];
+  bundles: Bundle[];
   loading: boolean;
   error: string | null;
   refetch: () => void;

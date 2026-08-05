@@ -29,8 +29,9 @@ const mockCheckBenchmarkRunName = checkBenchmarkRunName as jest.MockedFunction<
 
 function renderValidationHook(preloadedState?: DeepPartial<RootState>) {
   const store = createTestStore(preloadedState);
-  const wrapper = ({ children }: { children: React.ReactNode }) =>
-    React.createElement(Provider, { store, children });
+  const wrapper = ({ children }: { children: React.ReactNode }) => (
+    <Provider store={store}>{children}</Provider>
+  );
   const view = renderHook(() => useTestNameValidation(), { wrapper });
   return { ...view, store };
 }

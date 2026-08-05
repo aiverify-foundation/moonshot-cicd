@@ -162,13 +162,8 @@ describe('useBundles', () => {
     });
 
     // Start refetch
-    let loadingDuringRefetch = false;
-    
     await act(async () => {
-      const refetchPromise = result.current.refetch();
-      // Check loading state during refetch
-      loadingDuringRefetch = result.current.loading;
-      await refetchPromise;
+      await result.current.refetch();
     });
 
     // The loading should be set to true during refetch

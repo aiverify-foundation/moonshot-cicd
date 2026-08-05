@@ -22,8 +22,8 @@ export function useSelectedBundleNames(): string[] {
 
   return useMemo(() => {
     return Object.entries(bundleSelection)
-      .filter(([_, isSelected]) => isSelected)
-      .map(([bundleSystemName, _]) => bundleSystemName);
+      .filter(([, isSelected]) => isSelected)
+      .map(([bundleSystemName]) => bundleSystemName);
   }, [bundleSelection]);
 }
 

@@ -19,17 +19,23 @@ jest.mock('@/lib/api', () => {
   };
 });
 
-jest.mock('@/app/benchmark/components/TestNameCard', () => () => (
-  <div data-testid="test-name-card" />
-));
+jest.mock('@/app/benchmark/components/TestNameCard', () => {
+  return function MockTestNameCard() {
+    return <div data-testid="test-name-card" />;
+  };
+});
 
-jest.mock('@/app/benchmark/components/RequiredEndpointsCard', () => () => (
-  <div data-testid="required-endpoints-card" />
-));
+jest.mock('@/app/benchmark/components/RequiredEndpointsCard', () => {
+  return function MockRequiredEndpointsCard() {
+    return <div data-testid="required-endpoints-card" />;
+  };
+});
 
-jest.mock('@/app/benchmark/components/SampleSizeCard', () => () => (
-  <div data-testid="sample-size-card" />
-));
+jest.mock('@/app/benchmark/components/SampleSizeCard', () => {
+  return function MockSampleSizeCard() {
+    return <div data-testid="sample-size-card" />;
+  };
+});
 
 jest.mock('@/app/benchmark/components/SelectAppOrModelCard', () => {
   return function MockSelectAppOrModelCard(props: {
