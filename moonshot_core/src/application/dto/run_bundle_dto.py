@@ -285,12 +285,14 @@ class BenchmarkRunTestStatusSummaryDTO(BaseModel):
     Per-test execution timing from ``benchmark_run_test_status`` for the in-progress results UI.
 
     ``start_dt`` is set when the test transitions to ``in_progress``; null while ``not_started``.
+    ``end_dt`` is set when the test finishes; null while still running or not started.
     """
 
     model_config = ConfigDict(arbitrary_types_allowed=True)
 
     test_id: int
     start_dt: Optional[datetime] = None
+    end_dt: Optional[datetime] = None
     status: str = ""
 
 

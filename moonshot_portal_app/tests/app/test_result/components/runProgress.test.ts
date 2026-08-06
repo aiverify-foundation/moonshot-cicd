@@ -1,7 +1,7 @@
 import {
   groupTestProgressByBundle,
   isPromptCompleted,
-  testStartDtMapFromRunStatus,
+  testTimingMapFromRunStatus,
 } from "@/app/test_result/components/runProgress";
 import { BenchmarkRunTestPrompt } from "@/lib/api";
 
@@ -45,14 +45,19 @@ describe("isPromptCompleted", () => {
   });
 });
 
-describe("testStartDtMapFromRunStatus", () => {
-  it("maps test_id to start_dt", () => {
-    const map = testStartDtMapFromRunStatus([
-      { test_id: 10, start_dt: "2026-06-04T10:00:00" },
-      { test_id: 20, start_dt: null },
+describe("testTimingMapFromRunStatus", () => {
+  it("maps test_id to start_dt and end_dt", () => {
+    const map = testTimingMapFromRunStatus([
+      { test_id: 10, start_dt: "2026-06-04T10:00:00", end_dt: "2026-06-04T10:20:00" },
+      { test_id: 20, start_dt: null, end_dt: null },
+      { test_id: 30, start_dt: "2026-06-04T11:00:00" },
     ]);
-    expect(map.get(10)).toBe("2026-06-04T10:00:00");
-    expect(map.get(20)).toBeNull();
+    expect(map.get(10)).toEqual({
+      startDt: "2026-06-04T10:00:00",
+      endDt: "2026-06-04T10:20:00",
+    });
+    expect(map.get(20)).toEqual({ startDt: null, endDt: null });
+    expect(map.get(30)).toEqual({ startDt: "2026-06-04T11:00:00", endDt: null });
   });
 });
 
@@ -64,8 +69,8 @@ describe("groupTestProgressByBundle", () => {
       prompt({ run_test_id: 2, test_id: 20, prompt_id: 3, test_name: "Alpha", status: "completed" }),
     ];
 
-    const testStartDtByTestId = testStartDtMapFromRunStatus([
-      { test_id: 10, start_dt: "2026-06-04T10:00:00" },
+    const testTimingByTestId = testTimingMapFromRunStatus([
+      { test_id: 10, start_dt: "2026-06-04T10:00:00", end_dt: "2026-06-04T10:15:00" },
       { test_id: 20, start_dt: null },
     ]);
 
@@ -79,7 +84,7 @@ describe("groupTestProgressByBundle", () => {
           test_ids: [10, 20],
         },
       ],
-      testStartDtByTestId
+      testTimingByTestId
     );
 
     expect(groups).toHaveLength(1);
@@ -88,8 +93,10 @@ describe("groupTestProgressByBundle", () => {
     expect(groups[0].tests[0].completedPrompts).toBe(1);
     expect(groups[0].tests[0].erroredPrompts).toBe(0);
     expect(groups[0].tests[0].startDt).toBeNull();
+    expect(groups[0].tests[0].endDt).toBeNull();
     expect(groups[0].tests[1].completedPrompts).toBe(1);
     expect(groups[0].tests[1].startDt).toBe("2026-06-04T10:00:00");
+    expect(groups[0].tests[1].endDt).toBe("2026-06-04T10:15:00");
   });
 
   it("falls back to All results when there are no bundles", () => {
@@ -103,6 +110,7 @@ describe("groupTestProgressByBundle", () => {
     expect(groups[0].bundleName).toBe("All results");
     expect(groups[0].tests[0].testName).toBe("Only Test");
     expect(groups[0].tests[0].startDt).toBeNull();
+    expect(groups[0].tests[0].endDt).toBeNull();
   });
 
   it("tracks errored prompts separately while including them in progress percent", () => {

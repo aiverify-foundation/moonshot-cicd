@@ -18,12 +18,20 @@ function testKeyForPrompt(prompt: BenchmarkRunTestPrompt): number {
   return prompt.test_id ?? prompt.run_test_id;
 }
 
-export function testStartDtMapFromRunStatus(
+export interface TestTiming {
+  startDt: string | null;
+  endDt: string | null;
+}
+
+export function testTimingMapFromRunStatus(
   rows: BenchmarkRunTestStatusSummary[]
-): Map<number, string | null> {
-  const map = new Map<number, string | null>();
+): Map<number, TestTiming> {
+  const map = new Map<number, TestTiming>();
   for (const row of rows) {
-    map.set(row.test_id, row.start_dt ?? null);
+    map.set(row.test_id, {
+      startDt: row.start_dt ?? null,
+      endDt: row.end_dt ?? null,
+    });
   }
   return map;
 }
@@ -36,6 +44,7 @@ export interface TestProgressItem {
   totalPrompts: number;
   progressPercent: number;
   startDt: string | null;
+  endDt: string | null;
 }
 
 export interface BundleTestProgressGroup {
@@ -48,7 +57,7 @@ function computeTestProgressItem(
   testId: number,
   testName: string,
   prompts: BenchmarkRunTestPrompt[],
-  startDt: string | null
+  timing: TestTiming
 ): TestProgressItem {
   const completedPrompts = prompts.filter(isPromptCompleted).length;
   const erroredPrompts = prompts.filter(isPromptErrored).length;
@@ -66,14 +75,15 @@ function computeTestProgressItem(
     erroredPrompts,
     totalPrompts,
     progressPercent,
-    startDt,
+    startDt: timing.startDt,
+    endDt: timing.endDt,
   };
 }
 
 export function groupTestProgressByBundle(
   prompts: BenchmarkRunTestPrompt[],
   bundles: BenchmarkRunResultsBundleSummary[],
-  testStartDtByTestId: Map<number, string | null> = new Map()
+  testTimingByTestId: Map<number, TestTiming> = new Map()
 ): BundleTestProgressGroup[] {
   const promptsByTestId = new Map<number, BenchmarkRunTestPrompt[]>();
   const testNames = new Map<number, string>();
@@ -91,7 +101,7 @@ export function groupTestProgressByBundle(
       testId,
       testNames.get(testId) ?? "Unknown",
       promptsByTestId.get(testId) ?? [],
-      testStartDtByTestId.get(testId) ?? null
+      testTimingByTestId.get(testId) ?? { startDt: null, endDt: null }
     );
 
   const sortTests = (tests: TestProgressItem[]) =>
