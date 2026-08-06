@@ -40,8 +40,7 @@ htmlcov/
 moonshot_core/data/results/
 **/*.log
 moonshot_pytest_*.db
-moonshot_core/data/database/moonshot_e2e.db
-moonshot_core/data/database/moonshot_install_test.db
+moonshot_core/data/database/*.db
 
 # Docs and misc not needed for install
 *.md

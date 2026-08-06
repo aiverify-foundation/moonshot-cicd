@@ -123,9 +123,11 @@ configure_cors_middleware(app)
 
 
 def get_build_directory() -> Path:
-    """Get the build directory path from configuration."""
+    """Get the build directory path from env override or configuration."""
     app_config = AppConfig()
-    build_dir_config = app_config.config.common.get("frontend_build_directory")
+    build_dir_config = os.getenv("MOONSHOT_FRONTEND_BUILD_DIRECTORY") or (
+        app_config.config.common.get("frontend_build_directory")
+    )
 
     # If the path is relative, make it relative to the API file's location
     if not os.path.isabs(build_dir_config):

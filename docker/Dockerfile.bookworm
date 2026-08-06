@@ -16,24 +16,31 @@ COPY --from=node_base /usr/local/lib/node_modules /usr/local/lib/node_modules
 RUN ln -sf /usr/local/lib/node_modules/npm/bin/npm-cli.js /usr/local/bin/npm && \
     ln -sf /usr/local/lib/node_modules/npm/bin/npx-cli.js /usr/local/bin/npx
 
-# Copy all code into /app
-COPY ../moonshot_core /app/moonshot_core
-COPY ../moonshot_portal_app /app/moonshot_portal_app
-
-WORKDIR /app/moonshot_core
+# Moonshot core contents live at /app (build from repo root)
+COPY moonshot_core/ /app/
 
 # Install Poetry and dependencies
-RUN chown -R appuser:appgroup /app && \
-    mkdir -p /app/moonshot_core/data/database && \
+RUN mkdir -p /app/data/database && \
     pip install poetry==2.1.2 --no-cache-dir && \
     poetry config virtualenvs.create false && \
     poetry install
 
-# Portal: deps + static export for E2E (API serves moonshot_portal_app/out on :8000)
-WORKDIR /app/moonshot_portal_app
-RUN npm install && npm run build
+# Build portal static export, then place it under /app/data/web
+COPY moonshot_portal_app/ /tmp/moonshot_portal_app/
+WORKDIR /tmp/moonshot_portal_app
+RUN npm install && npm run build \
+    && mkdir -p /app/data/web \
+    && cp -a out/. /app/data/web/ \
+    && rm -rf /tmp/moonshot_portal_app
 
 WORKDIR /app
 
+# Override moonshot_config.yaml frontend_build_directory for this image layout
+ENV MOONSHOT_FRONTEND_BUILD_DIRECTORY=/app/data/web
+
+RUN chown -R appuser:appgroup /app
+
 # Switch to the non-root user
 USER appuser
+EXPOSE 8000
+

@@ -3,6 +3,7 @@ common:
   max_concurrency: 5
   max_calls_per_minute: 60
   max_attempts: 3
+  # Override with MOONSHOT_FRONTEND_BUILD_DIRECTORY (e.g. /app/data/web in Docker)
   frontend_build_directory: "../moonshot_portal_app/out"
 
 # These are the configurations for your endpoints
