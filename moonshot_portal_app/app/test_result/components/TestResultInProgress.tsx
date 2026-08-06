@@ -13,12 +13,12 @@ import {
   BenchmarkRunTestPrompt,
   BenchmarkRunTestStatusSummary,
 } from "@/lib/api";
-import { formatElapsedSinceStart } from "@/lib/formatTimestamp";
+import { formatDurationMinutes, formatElapsedSinceStart } from "@/lib/formatTimestamp";
 import { cn } from "@/lib/utils";
 import {
   BundleTestProgressGroup,
   groupTestProgressByBundle,
-  testStartDtMapFromRunStatus,
+  testTimingMapFromRunStatus,
   TestProgressItem,
 } from "./runProgress";
 import { SegmentedProgressBar } from "./SegmentedProgressBar";
@@ -58,7 +58,9 @@ function promptLabel(test: TestProgressItem): string {
 
 function elapsedLine(test: TestProgressItem): string {
   if (!test.startDt) return "Not started";
-  const elapsed = formatElapsedSinceStart(test.startDt, Date.now());
+  const elapsed = test.endDt
+    ? formatDurationMinutes(test.startDt, test.endDt)
+    : formatElapsedSinceStart(test.startDt, Date.now());
   return elapsed ? `Time lapsed: ${elapsed}` : "Not started";
 }
 
@@ -155,17 +157,17 @@ export default function TestResultInProgress({
     return () => window.clearInterval(interval);
   }, []);
 
-  const testStartDtByTestId = useMemo(
-    () => testStartDtMapFromRunStatus(testRunStatus),
+  const testTimingByTestId = useMemo(
+    () => testTimingMapFromRunStatus(testRunStatus),
     [testRunStatus]
   );
 
   const groups = useMemo(
     () =>
-      groupTestProgressByBundle(prompts, bundles, testStartDtByTestId).filter(
+      groupTestProgressByBundle(prompts, bundles, testTimingByTestId).filter(
         (g) => g.tests.length > 0
       ),
-    [prompts, bundles, testStartDtByTestId]
+    [prompts, bundles, testTimingByTestId]
   );
 
   const defaultOpenBundles = useMemo(

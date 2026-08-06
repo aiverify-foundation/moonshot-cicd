@@ -92,7 +92,10 @@ class BenchmarkRunResultsQueryService:
         statuses = status_repo.get_all_by_run_id(run_id)
         test_run_status = [
             BenchmarkRunTestStatusSummaryDTO(
-                test_id=s.test_id, start_dt=s.start_dt, status=s.status
+                test_id=s.test_id,
+                start_dt=s.start_dt,
+                end_dt=s.end_dt,
+                status=s.status,
             )
             for s in statuses
         ]

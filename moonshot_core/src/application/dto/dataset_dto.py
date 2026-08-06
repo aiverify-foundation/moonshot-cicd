@@ -4,7 +4,7 @@ from pydantic import BaseModel, ConfigDict
 class DatasetDTO(BaseModel):
     """
     DatasetDTO represents the data transfer object for dataset information.
-    
+
     This DTO contains only the essential data fields for transferring dataset
     information between different layers of the application, without complex
     logic or generators.
@@ -33,5 +33,3 @@ class DatasetDTO(BaseModel):
 
     # The number of dataset prompts
     num_of_dataset_prompts: int = 0
-
-

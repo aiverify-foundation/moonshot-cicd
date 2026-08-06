@@ -18,7 +18,9 @@ from adapters.driven.repository.sqlalchemy.benchmark_run_test_status_adapter imp
 from adapters.driven.repository.sqlalchemy.benchmark_test_config_adapter import (
     BenchmarkTestConfigAdapter,
 )
-from adapters.driven.repository.sqlalchemy.session_manager import set_skip_alembic_upgrade
+from adapters.driven.repository.sqlalchemy.session_manager import (
+    set_skip_alembic_upgrade,
+)
 from application.services.benchmark import BenchmarkService
 from application.services.benchmark_run_service import BenchmarkRunService
 from application.services.benchmark_run_test_bundle_population_service import (
@@ -72,7 +74,9 @@ def _bundle_names_to_resolved_test_ids(
             raise KeyError(f"Bundle with ID '{name}' not found") from e
         all_ids = config_adapter.get_test_ids_by_bundle_id(bundle_db_id)
         if not all_ids:
-            raise BenchmarkRunTestSelectionError(f"Bundle {name!r} has no tests in the database.")
+            raise BenchmarkRunTestSelectionError(
+                f"Bundle {name!r} has no tests in the database."
+            )
         if tests_by_bundle is None or name not in tests_by_bundle:
             resolved[name] = list(all_ids)
             continue
@@ -191,15 +195,17 @@ def _run_bundle_in_process(
 class BenchmarkExecutionService:
     """
     Service class for executing benchmark tasks.
-    
+
     This service provides methods to execute benchmarks in the background,
     handling TaskManager initialization, parameter conversion, and error handling.
     """
-    
+
     # This is where we should pass in references to the repositories
     def __init__(self):
         """Initialize the BenchmarkExecutionService."""
-        logger.info("[BenchmarkExecutionService] Initializing BenchmarkExecutionService")
+        logger.info(
+            "[BenchmarkExecutionService] Initializing BenchmarkExecutionService"
+        )
 
     def start_bundle_in_background(
         self,
@@ -239,7 +245,9 @@ class BenchmarkExecutionService:
         try:
             config_adapter.get_bundle_id_by_system_name_latest(bundle_name)
         except ValueError:
-            logger.error("Bundle with ID %r not found in DB. Seed bundles first.", bundle_name)
+            logger.error(
+                "Bundle with ID %r not found in DB. Seed bundles first.", bundle_name
+            )
             raise KeyError(f"Bundle with ID '{bundle_name}' not found") from None
 
         process = multiprocessing.Process(
@@ -309,9 +317,7 @@ class BenchmarkExecutionService:
             and llm_provider_model_id is not None
             and llm_provider_model_config_id is not None
         )
-        use_custom_app = (
-            custom_app_id is not None and custom_app_config_id is not None
-        )
+        use_custom_app = custom_app_id is not None and custom_app_config_id is not None
 
         if use_llm:
             DatabaseConnectorConfigService().build_connector_entity(
@@ -368,7 +374,9 @@ class BenchmarkExecutionService:
         saved_run = BenchmarkRunService().save_run(run_entity)
         run_id = saved_run.id
         if run_id is None:
-            raise RuntimeError("BenchmarkRunService.save_run did not return a persisted run id")
+            raise RuntimeError(
+                "BenchmarkRunService.save_run did not return a persisted run id"
+            )
 
         pop_service = BenchmarkRunTestBundlePopulationService()
 
@@ -443,7 +451,9 @@ class BenchmarkExecutionService:
             continue_on_test_failure: When True, continue remaining tests after one test fails (API path).
         """
         try:
-            logger.info(f"[BenchmarkExecutionService] Starting bundle execution for bundle: {bundle_id}")
+            logger.info(
+                f"[BenchmarkExecutionService] Starting bundle execution for bundle: {bundle_id}"
+            )
 
             use_llm_connector = (
                 llm_provider_id is not None
@@ -455,16 +465,20 @@ class BenchmarkExecutionService:
             )
             db_connector_entity = None
             if use_llm_connector:
-                db_connector_entity = DatabaseConnectorConfigService().build_connector_entity(
-                    llm_provider_id=llm_provider_id,
-                    llm_provider_model_id=llm_provider_model_id,
-                    llm_provider_model_config_id=llm_provider_model_config_id,
+                db_connector_entity = (
+                    DatabaseConnectorConfigService().build_connector_entity(
+                        llm_provider_id=llm_provider_id,
+                        llm_provider_model_id=llm_provider_model_id,
+                        llm_provider_model_config_id=llm_provider_model_config_id,
+                    )
                 )
                 bench_connector = ""
             elif use_custom_app_connector:
-                db_connector_entity = DatabaseCustomAppConnectorConfigService().build_connector_entity(
-                    custom_app_id=custom_app_id,
-                    custom_app_config_id=custom_app_config_id,
+                db_connector_entity = (
+                    DatabaseCustomAppConnectorConfigService().build_connector_entity(
+                        custom_app_id=custom_app_id,
+                        custom_app_config_id=custom_app_config_id,
+                    )
                 )
                 bench_connector = ""
             elif connector is not None:
@@ -485,11 +499,17 @@ class BenchmarkExecutionService:
 
             # Prefer DB path: bundle and tests from database, create run_test + prompts, pass real test_id.
             use_db_path = False
-            test_tuples: list[tuple[int, str, str, dict]] = []  # (test_id, test_name, dataset_system_name, metric_dict)
+            test_tuples: list[tuple[int, str, str, dict]] = (
+                []
+            )  # (test_id, test_name, dataset_system_name, metric_dict)
 
             try:
-                bundle_db_id = config_adapter.get_bundle_id_by_system_name_latest(bundle_id)
-                all_bundle_test_ids = config_adapter.get_test_ids_by_bundle_id(bundle_db_id)
+                bundle_db_id = config_adapter.get_bundle_id_by_system_name_latest(
+                    bundle_id
+                )
+                all_bundle_test_ids = config_adapter.get_test_ids_by_bundle_id(
+                    bundle_db_id
+                )
                 if not all_bundle_test_ids:
                     raise ValueError(f"Bundle has no tests: {bundle_id!r}")
                 if test_ids is not None:
@@ -501,7 +521,9 @@ class BenchmarkExecutionService:
                         )
                     test_ids_to_run = sorted(set(test_ids))
                     if not test_ids_to_run:
-                        raise ValueError(f"test_ids is empty after filtering for bundle {bundle_id!r}")
+                        raise ValueError(
+                            f"test_ids is empty after filtering for bundle {bundle_id!r}"
+                        )
                 else:
                     test_ids_to_run = list(all_bundle_test_ids)
                 if write_to_db:
@@ -528,15 +550,21 @@ class BenchmarkExecutionService:
                             effective_run_id, tid, max_prompts=max_prompts
                         )
                 for tid in test_ids_to_run:
-                    test_name, dataset_system_name, metric_name = config_adapter.get_test_info(tid)
-                    test_tuples.append((tid, test_name, dataset_system_name, {"name": metric_name}))
+                    test_name, dataset_system_name, metric_name = (
+                        config_adapter.get_test_info(tid)
+                    )
+                    test_tuples.append(
+                        (tid, test_name, dataset_system_name, {"name": metric_name})
+                    )
                 use_db_path = True
             except ValueError:
                 # Bundle not in DB or has no tests: will look in file below (get_bundle_by_id) and use file-based bundle if found.
                 pass
 
             if use_db_path:
-                effective_run_id_str = str(effective_run_id) if effective_run_id is not None else bundle_id
+                effective_run_id_str = (
+                    str(effective_run_id) if effective_run_id is not None else bundle_id
+                )
 
                 async def _run_all_db() -> list[str]:
                     results = []
@@ -671,7 +699,11 @@ class BenchmarkExecutionService:
                     return
 
             if json_results:
-                metadata_run_id = effective_run_id if use_db_path else (run_id if run_id is not None else bundle_id)
+                metadata_run_id = (
+                    effective_run_id
+                    if use_db_path
+                    else (run_id if run_id is not None else bundle_id)
+                )
                 run_metadata = {
                     "run_metadata": {
                         "run_id": metadata_run_id,
@@ -685,7 +717,9 @@ class BenchmarkExecutionService:
                 final_results_str = json.dumps(final_results, indent=4)
 
                 if write_combined_results_file:
-                    result_path = task_manager._store_results_to_local_path(bundle_id, final_results_str)
+                    result_path = task_manager._store_results_to_local_path(
+                        bundle_id, final_results_str
+                    )
                     if result_path:
                         logger.info(
                             f"[BenchmarkExecutionService] Bundle completed successfully for bundle: {bundle_id}. "
@@ -719,11 +753,17 @@ class BenchmarkExecutionService:
                             BenchmarkRunPromptService,
                         )
 
-                        run_prompts = BenchmarkRunPromptService().get_all_prompts_by_run_id(
-                            effective_run_id
+                        run_prompts = (
+                            BenchmarkRunPromptService().get_all_prompts_by_run_id(
+                                effective_run_id
+                            )
                         )
-                        has_prompt_errors = any(p.status == "error" for p in run_prompts)
-                        run_entity.status = "failed" if has_prompt_errors else "completed"
+                        has_prompt_errors = any(
+                            p.status == "error" for p in run_prompts
+                        )
+                        run_entity.status = (
+                            "failed" if has_prompt_errors else "completed"
+                        )
                         run_entity.end_time = datetime.now(timezone.utc)
                         run_service.update_run(run_entity)
                         logger.info(

@@ -281,6 +281,7 @@ export interface BenchmarkRunTestMarginOfError {
 export interface BenchmarkRunTestStatusSummary {
   test_id: number;
   start_dt?: string | null;
+  end_dt?: string | null;
   /** not_started | in_progress | completed | completed_with_errors | failed | ... */
   status?: string;
 }

@@ -6,8 +6,8 @@ import {
   BenchmarkRunTestPrompt,
   BenchmarkRunTestStatusSummary,
 } from "@/lib/api";
-import { formatElapsedSinceStart } from "@/lib/formatTimestamp";
-import { testStartDtMapFromRunStatus } from "./runProgress";
+import { formatDurationMinutes, formatElapsedSinceStart } from "@/lib/formatTimestamp";
+import { testTimingMapFromRunStatus, TestTiming } from "./runProgress";
 import { SegmentedProgressBar } from "./SegmentedProgressBar";
 import {
   classifyTest,
@@ -22,6 +22,7 @@ export interface ErroredTestSummary {
   totalPrompts: number;
   erroredPrompts: number;
   startDt: string | null;
+  endDt: string | null;
 }
 
 export interface BundleErroredTestsGroup {
@@ -33,7 +34,7 @@ function buildErroredTestSummary(
   testId: number,
   testName: string,
   testPrompts: BenchmarkRunTestPrompt[],
-  startDt: string | null
+  timing: TestTiming
 ): ErroredTestSummary {
   const erroredPrompts = testPrompts.filter(isPromptErrored).length;
   const completedPrompts = testPrompts.filter(
@@ -45,7 +46,8 @@ function buildErroredTestSummary(
     completedPrompts,
     totalPrompts: testPrompts.length,
     erroredPrompts,
-    startDt,
+    startDt: timing.startDt,
+    endDt: timing.endDt,
   };
 }
 
@@ -55,7 +57,7 @@ export function groupErroredTestsByBundle(
   testRunStatus: BenchmarkRunTestStatusSummary[]
 ): BundleErroredTestsGroup[] {
   const statusByTestId = testStatusByTestId(testRunStatus);
-  const startDtByTestId = testStartDtMapFromRunStatus(testRunStatus);
+  const timingByTestId = testTimingMapFromRunStatus(testRunStatus);
 
   const testNames = new Map<number, string>();
   const promptsByTestId = new Map<number, BenchmarkRunTestPrompt[]>();
@@ -87,7 +89,7 @@ export function groupErroredTestsByBundle(
           testId,
           testNames.get(testId) ?? "Unknown",
           promptsByTestId.get(testId) ?? [],
-          startDtByTestId.get(testId) ?? null
+          timingByTestId.get(testId) ?? { startDt: null, endDt: null }
         )
       )
       .sort((a, b) => a.testName.localeCompare(b.testName));
@@ -120,9 +122,11 @@ export function groupErroredTestsByBundle(
 }
 
 function ErroredTestCard({ test }: { test: ErroredTestSummary }) {
-  const elapsed = test.startDt
-    ? formatElapsedSinceStart(test.startDt, Date.now())
-    : null;
+  const elapsed = !test.startDt
+    ? null
+    : test.endDt
+      ? formatDurationMinutes(test.startDt, test.endDt)
+      : formatElapsedSinceStart(test.startDt, Date.now());
 
   return (
     <div className="bg-slate-50 border border-slate-200 flex items-start p-2 rounded-lg w-full">

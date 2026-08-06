@@ -9,6 +9,7 @@ from typing import Optional, Dict, Any, List
 from contextlib import contextmanager
 from datetime import datetime
 from domain.entities.model_config_entity import ModelConfigEntity
+
 # from alembic import command
 # from alembic.config import Config
 # from alembic import script
@@ -18,11 +19,11 @@ from domain.entities.model_config_entity import ModelConfigEntity
 
 class SQLiteAdapter:
     """SQLite database adapter for managing LLM providers, models, and configurations."""
-    
+
     def __init__(self, db_path: Optional[str] = None):
         """
         Initialize SQLite adapter.
-        
+
         Args:
             db_path: Path to SQLite database file. If None, uses default path in data directory.
         """
@@ -32,14 +33,14 @@ class SQLiteAdapter:
             data_dir = Path(__file__).parent.parent.parent.parent / "data/database"
             data_dir.mkdir(exist_ok=True)
             db_path = str(data_dir / "moonshot.db")
-        
+
         self.db_path = db_path
         self._initialize_database()
-    
+
     def _initialize_database(self) -> None:
         """Initialize the database schema using Alembic migrations."""
         # self._run_alembic_migrations()
-    
+
     @contextmanager
     def get_connection(self):
         """Get a database connection with proper cleanup."""
@@ -50,26 +51,26 @@ class SQLiteAdapter:
             yield conn
         finally:
             conn.close()
-    
+
     # def _run_alembic_migrations(self) -> None:
     #     """Run Alembic migrations to initialize and update database schema."""
     #     # Get the path to alembic.ini (should be in moonshot_core/)
     #     moonshot_core_dir = Path(__file__).parent.parent.parent.parent
     #     alembic_ini_path = moonshot_core_dir / "alembic.ini"
-        
+
     #     if not alembic_ini_path.exists():
     #         raise FileNotFoundError(f"Alembic config file not found at {alembic_ini_path}")
-        
+
     #     # Create Alembic config
     #     alembic_cfg = Config(str(alembic_ini_path))
-        
+
     #     # Update the database URL to use the actual database path
     #     # For SQLite absolute paths, use sqlite:/// (3 slashes)
     #     # Convert to absolute path if relative
     #     abs_db_path = os.path.abspath(self.db_path)
     #     db_url = f"sqlite:///{abs_db_path}"
     #     alembic_cfg.set_main_option("sqlalchemy.url", db_url)
-        
+
     #     # Run migrations to head (latest version)
     #     try:
     #         command.upgrade(alembic_cfg, "head")
@@ -79,27 +80,31 @@ class SQLiteAdapter:
     #         # The application can still work if tables exist
     #         print(f"Warning: Alembic migration failed: {e}")
     #         print("Database may already be initialized. Continuing...")
-    
+
     def _get_config_parameters(self, config_id: str) -> Dict[str, str]:
         """Get all parameters for a model config."""
         with self.get_connection() as conn:
             cursor = conn.execute(
                 "SELECT key, value FROM config_parameters WHERE config_id = ?",
-                (config_id,)
+                (config_id,),
             )
             return {row[0]: row[1] for row in cursor.fetchall()}
-    
-    def _save_config_parameters(self, config_id: str, parameters: Dict[str, str]) -> None:
+
+    def _save_config_parameters(
+        self, config_id: str, parameters: Dict[str, str]
+    ) -> None:
         """Save parameters for a model config."""
         with self.get_connection() as conn:
             # Delete existing parameters
-            conn.execute("DELETE FROM config_parameters WHERE config_id = ?", (config_id,))
-            
+            conn.execute(
+                "DELETE FROM config_parameters WHERE config_id = ?", (config_id,)
+            )
+
             # Insert new parameters
             for key, value in parameters.items():
                 conn.execute(
                     "INSERT INTO config_parameters (config_id, key, value) VALUES (?, ?, ?)",
-                    (config_id, key, value)
+                    (config_id, key, value),
                 )
             conn.commit()
 
@@ -118,7 +123,7 @@ class SQLiteAdapter:
         with self.get_connection() as conn:
             cursor = conn.execute(
                 """
-                SELECT 
+                SELECT
                     c.id AS config_id,
                     c.name AS config_name,
                     c.last_update_dt AS last_update_dt,
@@ -133,43 +138,59 @@ class SQLiteAdapter:
                 ORDER BY mc.last_run_dt DESC NULLS LAST
                 LIMIT 1
                 """,
-                (name,)
+                (name,),
             )
             row = cursor.fetchone()
             if not row:
                 return None
 
             config_id = str(row["config_id"]) if row["config_id"] is not None else None
-            saved_params = self._get_config_parameters(config_id) if config_id is not None else {}
+            saved_params = (
+                self._get_config_parameters(config_id) if config_id is not None else {}
+            )
 
             last_updated_raw = row["last_update_dt"]
             # SQLite returns DATE as string YYYY-MM-DD; keep as date string or parse to datetime
             try:
-                parsed_last_updated = datetime.strptime(last_updated_raw, "%Y-%m-%d") if isinstance(last_updated_raw, str) else last_updated_raw
+                parsed_last_updated = (
+                    datetime.strptime(last_updated_raw, "%Y-%m-%d")
+                    if isinstance(last_updated_raw, str)
+                    else last_updated_raw
+                )
             except Exception:
-                parsed_last_updated = datetime.fromisoformat(last_updated_raw) if isinstance(last_updated_raw, str) else datetime.now()
+                parsed_last_updated = (
+                    datetime.fromisoformat(last_updated_raw)
+                    if isinstance(last_updated_raw, str)
+                    else datetime.now()
+                )
 
             return ModelConfigEntity(
                 id=row["config_name"],
                 name=row["config_name"],
                 modelname=row["model_name"] if row["model_name"] is not None else "",
-                providerID=row["provider_system_name"] if row["provider_system_name"] is not None else "",
+                providerID=(
+                    row["provider_system_name"]
+                    if row["provider_system_name"] is not None
+                    else ""
+                ),
                 provider_version=int(row["provider_version"] or 0),
                 savedConfigPairs=saved_params,
                 lastUpdated=parsed_last_updated,
             )
 
-    def add_model_config_entity(self, model_config: ModelConfigEntity) -> ModelConfigEntity:
+    def add_model_config_entity(
+        self, model_config: ModelConfigEntity
+    ) -> ModelConfigEntity:
         """
         Create or update a model configuration entity.
-        
+
         This method:
         1. Creates or updates the config entry
         2. Saves the config parameters
-        
+
         Args:
             model_config (ModelConfigEntity): The model configuration entity to add/update.
-            
+
         Returns:
             ModelConfigEntity: The added/updated model configuration entity.
         """
@@ -179,30 +200,36 @@ class SQLiteAdapter:
                 conn.execute(
                     "INSERT INTO config (name, last_update_dt) VALUES (?, ?) "
                     "ON CONFLICT(name) DO UPDATE SET last_update_dt = excluded.last_update_dt",
-                    (model_config.name, model_config.lastUpdated.strftime("%Y-%m-%d"))
+                    (model_config.name, model_config.lastUpdated.strftime("%Y-%m-%d")),
                 )
-                cursor = conn.execute("SELECT id FROM config WHERE name = ?", (model_config.name,))
+                cursor = conn.execute(
+                    "SELECT id FROM config WHERE name = ?", (model_config.name,)
+                )
                 row = cursor.fetchone()
                 if not row:
-                    raise ValueError(f"Failed to create config with name: {model_config.name}")
+                    raise ValueError(
+                        f"Failed to create config with name: {model_config.name}"
+                    )
                 config_id = row["id"]
-                
+
                 # 2. Save config parameters
                 # Always delete existing parameters first
-                conn.execute("DELETE FROM config_parameters WHERE config_id = ?", (config_id,))
-                
+                conn.execute(
+                    "DELETE FROM config_parameters WHERE config_id = ?", (config_id,)
+                )
+
                 # Then insert new parameters if any exist
                 if model_config.savedConfigPairs:
                     for key, value in model_config.savedConfigPairs.items():
                         conn.execute(
                             "INSERT INTO config_parameters (config_id, key, value) VALUES (?, ?, ?) "
                             "ON CONFLICT(config_id, key) DO UPDATE SET value = excluded.value",
-                            (config_id, key, value)
+                            (config_id, key, value),
                         )
-                
+
                 conn.commit()
                 return model_config
-                
+
             except Exception as e:
                 conn.rollback()
                 raise e
@@ -210,19 +237,21 @@ class SQLiteAdapter:
     def delete_model_config_entity(self, config_id: str) -> bool:
         """
         Delete a model configuration entity by config ID or name.
-        
+
         Args:
             config_id (str): The config ID or name to delete.
-            
+
         Returns:
             bool: True if the model configuration was deleted, False otherwise.
         """
         with self.get_connection() as conn:
             try:
                 # First try to find the config by name (if config_id is actually a name)
-                cursor = conn.execute("SELECT id FROM config WHERE name = ?", (config_id,))
+                cursor = conn.execute(
+                    "SELECT id FROM config WHERE name = ?", (config_id,)
+                )
                 row = cursor.fetchone()
-                
+
                 if row:
                     actual_config_id = row["id"]
                 else:
@@ -231,15 +260,22 @@ class SQLiteAdapter:
                         actual_config_id = int(config_id)
                     except ValueError:
                         return False
-                
+
                 # Delete from all related tables (in correct order due to foreign keys)
-                conn.execute("DELETE FROM config_parameters WHERE config_id = ?", (actual_config_id,))
-                conn.execute("DELETE FROM model_config WHERE config_id = ?", (actual_config_id,))
-                cursor = conn.execute("DELETE FROM config WHERE id = ?", (actual_config_id,))
-                
+                conn.execute(
+                    "DELETE FROM config_parameters WHERE config_id = ?",
+                    (actual_config_id,),
+                )
+                conn.execute(
+                    "DELETE FROM model_config WHERE config_id = ?", (actual_config_id,)
+                )
+                cursor = conn.execute(
+                    "DELETE FROM config WHERE id = ?", (actual_config_id,)
+                )
+
                 conn.commit()
                 return cursor.rowcount > 0
-                
+
             except Exception:
                 conn.rollback()
                 return False
@@ -247,17 +283,17 @@ class SQLiteAdapter:
     def get_all_model_config_entity(self, provider_id: int) -> List[ModelConfigEntity]:
         """
         Get all model configurations for a specific provider.
-        
+
         Args:
             provider_id (int): The provider ID.
-            
+
         Returns:
             List[ModelConfigEntity]: List of model configuration entities.
         """
         with self.get_connection() as conn:
             cursor = conn.execute(
                 """
-                SELECT 
+                SELECT
                     c.id AS config_id,
                     c.name AS config_name,
                     c.last_update_dt AS last_update_dt,
@@ -271,33 +307,57 @@ class SQLiteAdapter:
                 WHERE p.id = ?
                 ORDER BY c.name
                 """,
-                (provider_id,)
+                (provider_id,),
             )
-            
+
             configs = []
             for row in cursor.fetchall():
-                config_id = str(row["config_id"]) if row["config_id"] is not None else None
-                saved_params = self._get_config_parameters(config_id) if config_id is not None else {}
-                
+                config_id = (
+                    str(row["config_id"]) if row["config_id"] is not None else None
+                )
+                saved_params = (
+                    self._get_config_parameters(config_id)
+                    if config_id is not None
+                    else {}
+                )
+
                 last_updated_raw = row["last_update_dt"]
                 try:
-                    parsed_last_updated = datetime.strptime(last_updated_raw, "%Y-%m-%d") if isinstance(last_updated_raw, str) else last_updated_raw
+                    parsed_last_updated = (
+                        datetime.strptime(last_updated_raw, "%Y-%m-%d")
+                        if isinstance(last_updated_raw, str)
+                        else last_updated_raw
+                    )
                 except Exception:
-                    parsed_last_updated = datetime.fromisoformat(last_updated_raw) if isinstance(last_updated_raw, str) else datetime.now()
-                
-                configs.append(ModelConfigEntity(
-                    id=row["config_name"],
-                    name=row["config_name"],
-                    modelname=row["model_name"] if row["model_name"] is not None else "",
-                    providerID=row["provider_system_name"] if row["provider_system_name"] is not None else "",
-                    provider_version=int(row["provider_version"] or 0),
-                    savedConfigPairs=saved_params,
-                    lastUpdated=parsed_last_updated,
-                ))
-            
+                    parsed_last_updated = (
+                        datetime.fromisoformat(last_updated_raw)
+                        if isinstance(last_updated_raw, str)
+                        else datetime.now()
+                    )
+
+                configs.append(
+                    ModelConfigEntity(
+                        id=row["config_name"],
+                        name=row["config_name"],
+                        modelname=(
+                            row["model_name"] if row["model_name"] is not None else ""
+                        ),
+                        providerID=(
+                            row["provider_system_name"]
+                            if row["provider_system_name"] is not None
+                            else ""
+                        ),
+                        provider_version=int(row["provider_version"] or 0),
+                        savedConfigPairs=saved_params,
+                        lastUpdated=parsed_last_updated,
+                    )
+                )
+
             return configs
-    
-    def update_model_config_entity(self, model_config: ModelConfigEntity) -> ModelConfigEntity:
+
+    def update_model_config_entity(
+        self, model_config: ModelConfigEntity
+    ) -> ModelConfigEntity:
         """
         Update a model configuration identified by its name. Provider association is preserved.
 
@@ -311,7 +371,9 @@ class SQLiteAdapter:
         with self.get_connection() as conn:
             try:
                 # Find config by name
-                cursor = conn.execute("SELECT id FROM config WHERE name = ?", (model_config.name,))
+                cursor = conn.execute(
+                    "SELECT id FROM config WHERE name = ?", (model_config.name,)
+                )
                 row = cursor.fetchone()
                 if not row:
                     raise ValueError(f"Config not found by name: {model_config.name}")
@@ -320,7 +382,7 @@ class SQLiteAdapter:
                 # Update last_update_dt
                 conn.execute(
                     "UPDATE config SET last_update_dt = ? WHERE id = ?",
-                    (model_config.lastUpdated.strftime("%Y-%m-%d"), config_id)
+                    (model_config.lastUpdated.strftime("%Y-%m-%d"), config_id),
                 )
 
                 # Determine existing provider association via current model_config
@@ -333,7 +395,7 @@ class SQLiteAdapter:
                     WHERE mc.config_id = ?
                     LIMIT 1
                     """,
-                    (config_id,)
+                    (config_id,),
                 )
                 assoc = cursor.fetchone()
 
@@ -362,7 +424,7 @@ class SQLiteAdapter:
                     if target_provider_id is not None:
                         mcur = conn.execute(
                             "SELECT id FROM model WHERE name = ? AND llm_provider_id = ?",
-                            (model_config.modelname, target_provider_id)
+                            (model_config.modelname, target_provider_id),
                         )
                         mrow = mcur.fetchone()
                         if not mrow:
@@ -379,15 +441,21 @@ class SQLiteAdapter:
                         VALUES (?, ?, ?)
                         ON CONFLICT(model_id, config_id) DO UPDATE SET last_run_dt=excluded.last_run_dt
                         """,
-                        (target_model_id, config_id, model_config.lastUpdated.strftime("%Y-%m-%d"))
+                        (
+                            target_model_id,
+                            config_id,
+                            model_config.lastUpdated.strftime("%Y-%m-%d"),
+                        ),
                     )
 
                 # Refresh parameters
-                conn.execute("DELETE FROM config_parameters WHERE config_id = ?", (config_id,))
+                conn.execute(
+                    "DELETE FROM config_parameters WHERE config_id = ?", (config_id,)
+                )
                 for key, value in (model_config.savedConfigPairs or {}).items():
                     conn.execute(
                         "INSERT INTO config_parameters (config_id, key, value) VALUES (?, ?, ?)",
-                        (config_id, key, value)
+                        (config_id, key, value),
                     )
 
                 conn.commit()
@@ -395,42 +463,43 @@ class SQLiteAdapter:
             except Exception as e:
                 conn.rollback()
                 raise e
-    
+
     def add_model(self, llm_provider_id: int, name: str) -> int:
         """
         Add a new model.
-        
+
         Args:
             llm_provider_id: ID of the LLM provider
             name: Name of the model
-            
+
         Returns:
             ID of the created model
         """
         with self.get_connection() as conn:
             cursor = conn.execute(
                 "INSERT INTO model (llm_provider_id, name) VALUES (?, ?)",
-                (llm_provider_id, name)
+                (llm_provider_id, name),
             )
             conn.commit()
             return cursor.lastrowid
-    
+
     def get_model(self, model_id: int) -> Optional[Dict[str, Any]]:
         """Get model by ID."""
         with self.get_connection() as conn:
             cursor = conn.execute("SELECT * FROM model WHERE id = ?", (model_id,))
             row = cursor.fetchone()
             return dict(row) if row else None
-    
-    def list_models(self, llm_provider_id: Optional[int] = None) -> List[Dict[str, Any]]:
+
+    def list_models(
+        self, llm_provider_id: Optional[int] = None
+    ) -> List[Dict[str, Any]]:
         """List all models, optionally filtered by provider."""
         with self.get_connection() as conn:
             if llm_provider_id:
                 cursor = conn.execute(
                     "SELECT * FROM model WHERE llm_provider_id = ? ORDER BY name",
-                    (llm_provider_id,)
+                    (llm_provider_id,),
                 )
             else:
                 cursor = conn.execute("SELECT * FROM model ORDER BY name")
             return [dict(row) for row in cursor.fetchall()]
-    
