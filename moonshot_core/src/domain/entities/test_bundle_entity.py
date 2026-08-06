@@ -5,6 +5,7 @@ from pydantic import BaseModel, ConfigDict
 
 from domain.entities.benchmark_test_entity import BenchmarkTestEntity
 
+
 class TestBundleEntity(BaseModel):
     """
     TestBundleEntity represents the configuration for a bundle of benchmark tests.

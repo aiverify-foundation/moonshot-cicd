@@ -13,21 +13,21 @@ class LLMProviderAdapter(ProviderRepository):
     """
     SQLAlchemy-based SQLite DB repository adapter implementing the ProviderRepository interface.
     """
-    
+
     def __init__(self):
         """
         Initialize the SQLAlchemy repository adapter with the SessionManager.
         """
         self.session_manager = SessionManager.get_instance()
         self.logger = get_logger(__name__)
-    
+
     def _model_to_entity(self, model: LLMProviderModel) -> ProviderEntity:
         """
         Convert a SQLAlchemy model to a ProviderEntity.
-        
+
         Args:
             model (LLMProviderModel): The SQLAlchemy model.
-            
+
         Returns:
             ProviderEntity: The converted provider entity.
         """
@@ -41,15 +41,15 @@ class LLMProviderAdapter(ProviderRepository):
             defaultConfigPairs={},
             modelToken="",
         )
-    
+
     @override
     def get_provider_by_id(self, provider_id: str) -> Optional[ProviderEntity]:
         """
         Get a LLM Provider entity by its ID.
-        
+
         Args:
             provider_id (str): The unique identifier of the provider.
-            
+
         Returns:
             Optional[ProviderEntity]: The provider entity if found, None otherwise.
         """
@@ -58,14 +58,16 @@ class LLMProviderAdapter(ProviderRepository):
             if not provider_id.isdigit():
                 self.logger.error(f"Invalid provider ID format: {provider_id}")
                 return None
-                
+
             db_id = int(provider_id)
-            
+
             with self.session_manager.get_session() as session:
-                model = session.query(LLMProviderModel).filter(
-                    LLMProviderModel.id == db_id
-                ).first()
-                
+                model = (
+                    session.query(LLMProviderModel)
+                    .filter(LLMProviderModel.id == db_id)
+                    .first()
+                )
+
                 if model:
                     return self._model_to_entity(model)
                 return None
@@ -75,29 +77,34 @@ class LLMProviderAdapter(ProviderRepository):
         except Exception as e:
             self.logger.error(f"Error getting provider by ID {provider_id}: {e}")
             return None
-    
+
     @override
     def list_providers(self) -> List[ProviderEntity]:
         """
         List all available providers.
-        
+
         Returns:
             List[ProviderEntity]: A list of all provider entities.
         """
         try:
             with self.session_manager.get_session() as session:
-                models: List[LLMProviderModel] = session \
-                    .query(LLMProviderModel) \
-                    .order_by(LLMProviderModel.name) \
+                models: List[LLMProviderModel] = (
+                    session.query(LLMProviderModel)
+                    .order_by(LLMProviderModel.name)
                     .all()
-                    
+                )
+
                 return [self._model_to_entity(model) for model in models]
         except Exception as e:
-            self.logger.error(f"LLMProviderAdapter.list_providers()::Error listing providers: {e}")
+            self.logger.error(
+                f"LLMProviderAdapter.list_providers()::Error listing providers: {e}"
+            )
             raise e
-    
+
     @override
-    def add_provider(self, name: str, system_name: str, version: int = 0) -> ProviderEntity:
+    def add_provider(
+        self, name: str, system_name: str, version: int = 0
+    ) -> ProviderEntity:
         """
         Add a new provider.
 
@@ -139,4 +146,3 @@ class LLMProviderAdapter(ProviderRepository):
         except Exception as e:
             self.logger.error(f"Error adding provider: {e}")
             raise
-        

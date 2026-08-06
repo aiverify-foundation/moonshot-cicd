@@ -1,4 +1,5 @@
 from domain.services.logger import get_logger
+
 ##TODO: Remove this service and use the SQLAlchemy implementation instead
 ## THIS IS MARKED FOR DELETION
 
@@ -7,7 +8,9 @@ from datetime import datetime
 
 from adapters.connector.openai_adapter import OpenAIAdapter
 from adapters.connector.together_adapter import TogetherAdapter
-from adapters.driven.repository.sqlalchemy.llm_provider_adapter import LLMProviderAdapter
+from adapters.driven.repository.sqlalchemy.llm_provider_adapter import (
+    LLMProviderAdapter,
+)
 from adapters.driven.repository.sqlalchemy.llm_provider_models import (
     LLMProviderModel,
     LLMProviderModelModel,
@@ -39,22 +42,22 @@ _ADAPTER_BY_SYSTEM_NAME: Dict[str, Type[ConnectorPort]] = {
 class ProviderService:
     """
     Service class for managing provider operations.
-    
+
     This service provides high-level operations for managing providers,
     converting between database representations and domain entities.
     """
-    
+
     def __init__(self):
         """
         Initialize the provider service.
-        
+
         Args:
             provider_repository (ProviderRepository): The repository for provider data access.
         """
         self.provider_repository = LLMProviderAdapter()
         self.logger = get_logger(__name__)
         self._session_manager = SessionManager.get_instance()
-    
+
     def _provider_entity_to_dto(self, entity: ProviderEntity) -> ProviderDTO:
         """Convert ProviderEntity to ProviderDTO."""
         return ProviderDTO(
@@ -101,7 +104,7 @@ class ProviderService:
             savedConfigPairs=entity.savedConfigPairs,
             lastUpdated=entity.lastUpdated,
         )
-    
+
     def _dto_to_provider_entity(self, dto: ProviderDTO) -> ProviderEntity:
         """Convert ProviderDTO to ProviderEntity."""
         return ProviderEntity(
@@ -114,7 +117,7 @@ class ProviderService:
             defaultConfigPairs=dto.defaultConfigPairs,
             modelToken=dto.modelToken,
         )
-    
+
     def _dto_to_model_config_entity(self, dto: ModelConfigDTO) -> ModelConfigEntity:
         """Convert ModelConfigDTO to ModelConfigEntity."""
         # Ensure lastUpdated is present; if missing, use now
@@ -187,7 +190,7 @@ class ProviderService:
     def list_providers(self) -> List[ProviderDTO]:
         """
         List all available providers.
-        
+
         Returns:
             List[ProviderDTO]: A list of all provider DTOs.
         """
@@ -197,14 +200,14 @@ class ProviderService:
             self._enrich_dto_with_adapter_defaults(self._provider_entity_to_dto(entity))
             for entity in entities
         ]
-    
+
     def add_provider(self, provider: ProviderDTO) -> ProviderDTO:
         """
         Add a new provider.
-        
+
         Args:
             provider (ProviderDTO): The provider DTO to add.
-            
+
         Returns:
             ProviderDTO: The added provider DTO with any generated fields.
         """
@@ -218,8 +221,9 @@ class ProviderService:
         )
         return self._provider_entity_to_dto(added_entity)
 
-
-    def get_model_configs_by_provider_id(self, provider_id: int) -> List[ModelConfigDTO]:
+    def get_model_configs_by_provider_id(
+        self, provider_id: int
+    ) -> List[ModelConfigDTO]:
         """
         Get all model configurations associated with a provider ID.
 
@@ -320,9 +324,7 @@ class ProviderService:
 
                 models: list[LLMProviderModelModel] = (
                     session.query(LLMProviderModelModel)
-                    .filter(
-                        LLMProviderModelModel.llm_provider_id == provider_model.id
-                    )
+                    .filter(LLMProviderModelModel.llm_provider_id == provider_model.id)
                     .all()
                 )
                 endpoint_configs: list[LLMProviderEndpointConfigModel] = (
@@ -356,9 +358,7 @@ class ProviderService:
 
                 api_key_configured = (
                     session.query(LLMProviderApiKeyModel)
-                    .filter(
-                        LLMProviderApiKeyModel.llm_provider_id == provider_model.id
-                    )
+                    .filter(LLMProviderApiKeyModel.llm_provider_id == provider_model.id)
                     .count()
                     > 0
                 )
@@ -379,7 +379,9 @@ class ProviderService:
             )
             return None
 
-    def list_providers_with_database_model_configs(self) -> List[ProviderDatabaseConfigsDTO]:
+    def list_providers_with_database_model_configs(
+        self,
+    ) -> List[ProviderDatabaseConfigsDTO]:
         """
         List every llm_provider row (ordered by id) with model configs from the relational schema only.
 
@@ -397,7 +399,9 @@ class ProviderService:
                 session.query(LLMProviderModel).order_by(LLMProviderModel.id).all()
             )
             for provider in providers:
-                config_dtos = self._database_model_config_dtos_for_provider(session, provider)
+                config_dtos = self._database_model_config_dtos_for_provider(
+                    session, provider
+                )
                 out.append(
                     ProviderDatabaseConfigsDTO(
                         providerName=provider.name,

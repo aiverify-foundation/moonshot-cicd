@@ -8,7 +8,7 @@ from application.dto.dataset_dto import DatasetDTO
 class BenchmarkTestDTO(BaseModel):
     """
     BenchmarkTestDTO represents the data transfer object for benchmark test configuration.
-    
+
     This DTO contains only the essential data fields for transferring benchmark test
     information between different layers of the application, without complex logic.
 
@@ -48,5 +48,3 @@ class BenchmarkTestDTO(BaseModel):
 
     #: Prompt-level rows from test_details.csv for this test's dataset (no row_id).
     details: Optional[list[dict[str, str]]] = None
-
-

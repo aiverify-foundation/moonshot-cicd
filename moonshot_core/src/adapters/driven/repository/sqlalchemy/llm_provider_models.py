@@ -1,23 +1,39 @@
 """SQLAlchemy ORM models for database tables."""
 
-from sqlalchemy import Boolean, Column, DateTime, Float, ForeignKey, Integer, String, Text, UniqueConstraint, func, text
+from sqlalchemy import (
+    Boolean,
+    Column,
+    DateTime,
+    Float,
+    ForeignKey,
+    Integer,
+    String,
+    Text,
+    UniqueConstraint,
+    func,
+    text,
+)
 from sqlalchemy.orm import DeclarativeBase, relationship
 
 
 class Base(DeclarativeBase):
     """Base class for all SQLAlchemy models."""
+
     pass
 
 
 class LLMProviderModel(Base):
     """
     SQLAlchemy model for the llm_provider table.
-    
+
     This model represents an LLM provider in the database.
     """
+
     __tablename__ = "llm_provider"
     __table_args__ = (
-        UniqueConstraint("system_name", "version", name="uq_llm_provider_system_name_version"),
+        UniqueConstraint(
+            "system_name", "version", name="uq_llm_provider_system_name_version"
+        ),
     )
 
     id = Column(Integer, primary_key=True, autoincrement=True)
@@ -38,6 +54,7 @@ class LLMProviderModelModel(Base):
 
     Stores model names under an LLM provider (referenced by benchmark_run.llm_provider_model_id).
     """
+
     __tablename__ = "llm_provider_model"
 
     id = Column(Integer, primary_key=True, autoincrement=True)
@@ -59,7 +76,9 @@ class LLMProviderModelConfigModel(Base):
 
     __tablename__ = "llm_provider_model_config"
     __table_args__ = (
-        UniqueConstraint("model_id", "name", name="uq_llm_provider_model_config_model_name"),
+        UniqueConstraint(
+            "model_id", "name", name="uq_llm_provider_model_config_model_name"
+        ),
     )
 
     id = Column(Integer, primary_key=True, autoincrement=True)
@@ -94,7 +113,9 @@ class LLMProviderModelConfigParametersModel(Base):
     )
 
     id = Column(Integer, primary_key=True, autoincrement=True)
-    config_id = Column(Integer, ForeignKey("llm_provider_model_config.id"), nullable=False)
+    config_id = Column(
+        Integer, ForeignKey("llm_provider_model_config.id"), nullable=False
+    )
     key = Column(String, nullable=False)
     value = Column(String, nullable=False)
 
@@ -125,7 +146,9 @@ class LLMProviderApiKeyModel(Base):
     nonce = Column(String, nullable=False)
     authentication_tag = Column(String, nullable=False)
     # DB column is created_dt (2bf4af1172bc); cd225c9 create_dt only applies if that revision completes.
-    create_dt = Column("created_dt", DateTime, nullable=False, server_default=func.now())
+    create_dt = Column(
+        "created_dt", DateTime, nullable=False, server_default=func.now()
+    )
     last_used_dt = Column(DateTime, nullable=True)
 
     def __repr__(self) -> str:
@@ -143,6 +166,7 @@ class BenchmarkTestDatasetModel(Base):
 
     Stores information about datasets used for benchmarking.
     """
+
     __tablename__ = "benchmark_test_dataset"
 
     id = Column(Integer, primary_key=True, autoincrement=True)
@@ -154,7 +178,8 @@ class BenchmarkTestDatasetModel(Base):
 
     __table_args__ = (
         UniqueConstraint(
-            "system_name", "version",
+            "system_name",
+            "version",
             name="uq_benchmark_test_dataset_system_name_version",
         ),
     )
@@ -173,6 +198,7 @@ class BenchmarkTestDatasetPromptModel(Base):
 
     Stores individual prompts and target outputs for a benchmark dataset.
     """
+
     __tablename__ = "benchmark_test_dataset_prompt"
 
     id = Column(Integer, primary_key=True, autoincrement=True)
@@ -201,6 +227,7 @@ class BenchmarkTestMetricModel(Base):
 
     Represents a metric used to evaluate benchmark test results.
     """
+
     __tablename__ = "benchmark_test_metric"
 
     id = Column(Integer, primary_key=True, autoincrement=True)
@@ -219,6 +246,7 @@ class BenchmarkTestModel(Base):
 
     Represents an individual benchmark test or scan.
     """
+
     __tablename__ = "benchmark_test"
 
     id = Column(Integer, primary_key=True, autoincrement=True)
@@ -240,11 +268,15 @@ class BenchmarkTestModel(Base):
     create_dt = Column(DateTime, nullable=False, server_default=func.now())
 
     __table_args__ = (
-        UniqueConstraint("version", "system_name", name="uq_benchmark_test_version_system_name"),
+        UniqueConstraint(
+            "version", "system_name", name="uq_benchmark_test_version_system_name"
+        ),
     )
 
     # Relationships
-    dataset = relationship("BenchmarkTestDatasetModel", back_populates="benchmark_tests")
+    dataset = relationship(
+        "BenchmarkTestDatasetModel", back_populates="benchmark_tests"
+    )
     metric = relationship("BenchmarkTestMetricModel", back_populates="benchmark_tests")
     bundle_groupings = relationship(
         "BenchmarkTestBundleGroupingModel",
@@ -269,6 +301,7 @@ class BenchmarkTestBundleModel(Base):
 
     Represents a collection or bundle of benchmark tests.
     """
+
     __tablename__ = "benchmark_test_bundle"
 
     id = Column(Integer, primary_key=True, autoincrement=True)
@@ -308,6 +341,7 @@ class BenchmarkTestBundleGroupingModel(Base):
 
     Junction table linking benchmark_test_bundle and benchmark_test (many-to-many).
     """
+
     __tablename__ = "benchmark_test_bundle_grouping"
 
     id = Column(Integer, primary_key=True, autoincrement=True)
@@ -331,7 +365,9 @@ class BenchmarkTestBundleGroupingModel(Base):
     )
 
     # Relationships
-    test_bundle = relationship("BenchmarkTestBundleModel", back_populates="test_groupings")
+    test_bundle = relationship(
+        "BenchmarkTestBundleModel", back_populates="test_groupings"
+    )
     test = relationship("BenchmarkTestModel", back_populates="bundle_groupings")
 
     def __repr__(self) -> str:
@@ -378,7 +414,9 @@ class CustomAppConfigModel(Base):
     custom_app = relationship("CustomAppModel", back_populates="configs")
     parameters = relationship("CustomAppConfigParametersModel", back_populates="config")
     secrets = relationship("CustomAppConfigSecretsModel", back_populates="config")
-    benchmark_runs = relationship("BenchmarkRunModel", back_populates="custom_app_config")
+    benchmark_runs = relationship(
+        "BenchmarkRunModel", back_populates="custom_app_config"
+    )
 
     def __repr__(self) -> str:
         return (
@@ -453,6 +491,7 @@ class LLMProviderEndpointConfigModel(Base):
 
     Endpoint configuration for an LLM provider (referenced by benchmark_run).
     """
+
     __tablename__ = "llm_provider_endpoint_config"
 
     id = Column(Integer, primary_key=True, autoincrement=True)
@@ -472,6 +511,7 @@ class BenchmarkRunModel(Base):
 
     A single benchmark run (LLM provider endpoint).
     """
+
     __tablename__ = "benchmark_run"
 
     id = Column(Integer, primary_key=True, autoincrement=True)
@@ -481,14 +521,18 @@ class BenchmarkRunModel(Base):
     status = Column(String, nullable=False)
     endpoint_type = Column(String, nullable=False)  # LLM_Provider, Custom_App
     llm_provider_id = Column(Integer, ForeignKey("llm_provider.id"), nullable=True)
-    llm_provider_model_id = Column(Integer, ForeignKey("llm_provider_model.id"), nullable=True)
+    llm_provider_model_id = Column(
+        Integer, ForeignKey("llm_provider_model.id"), nullable=True
+    )
     llm_provider_model_config_id = Column(
         Integer,
         ForeignKey("llm_provider_model_config.id"),
         nullable=True,
     )
     custom_app_id = Column(Integer, ForeignKey("custom_app.id"), nullable=True)
-    custom_app_config_id = Column(Integer, ForeignKey("custom_app_config.id"), nullable=True)
+    custom_app_config_id = Column(
+        Integer, ForeignKey("custom_app_config.id"), nullable=True
+    )
 
     # Relationships
     llm_provider = relationship("LLMProviderModel", backref="benchmark_runs")
@@ -520,6 +564,7 @@ class BenchmarkRunTestStatusModel(Base):
 
     Status of a single test within a benchmark run (not_started, in_progress, completed, pause, skipped).
     """
+
     __tablename__ = "benchmark_run_test_status"
 
     id = Column(Integer, primary_key=True, autoincrement=True)
@@ -533,7 +578,9 @@ class BenchmarkRunTestStatusModel(Base):
     system_prompt = Column(String, nullable=True)
 
     __table_args__ = (
-        UniqueConstraint("run_id", "test_id", name="uq_benchmark_run_test_status_run_test"),
+        UniqueConstraint(
+            "run_id", "test_id", name="uq_benchmark_run_test_status_run_test"
+        ),
     )
 
     # Relationships
@@ -554,11 +601,16 @@ class BenchmarkRunTestPromptModel(Base):
 
     Per-prompt result within a run-test (target, prediction, evaluation, user_notes).
     """
+
     __tablename__ = "benchmark_run_test_prompt"
 
     id = Column(Integer, primary_key=True, autoincrement=True)
-    run_test_id = Column(Integer, ForeignKey("benchmark_run_test_status.id"), nullable=False)
-    prompt_id = Column(Integer, ForeignKey("benchmark_test_dataset_prompt.id"), nullable=False)
+    run_test_id = Column(
+        Integer, ForeignKey("benchmark_run_test_status.id"), nullable=False
+    )
+    prompt_id = Column(
+        Integer, ForeignKey("benchmark_test_dataset_prompt.id"), nullable=False
+    )
     status = Column(String, nullable=False)
     prompt_additional_info = Column(String, nullable=True)
     target = Column(String, nullable=False)
@@ -579,8 +631,12 @@ class BenchmarkRunTestPromptModel(Base):
     )
 
     # Relationships
-    run_test_status = relationship("BenchmarkRunTestStatusModel", back_populates="run_test_prompts")
-    prompt = relationship("BenchmarkTestDatasetPromptModel", back_populates="run_test_prompts")
+    run_test_status = relationship(
+        "BenchmarkRunTestStatusModel", back_populates="run_test_prompts"
+    )
+    prompt = relationship(
+        "BenchmarkTestDatasetPromptModel", back_populates="run_test_prompts"
+    )
     errors = relationship(
         "BenchmarkRunTestErrorModel",
         back_populates="run_test_prompt",
@@ -596,6 +652,7 @@ class BenchmarkRunTestErrorModel(Base):
 
     Stores error messages linked to a benchmark run test prompt (many errors per prompt).
     """
+
     __tablename__ = "benchmark_run_test_error"
 
     id = Column(Integer, primary_key=True, autoincrement=True)
@@ -622,11 +679,14 @@ class BenchmarkRunTestBundleModel(Base):
 
     Links a benchmark run to (test_bundle_id, test_id) for which tests/bundles are in the run.
     """
+
     __tablename__ = "benchmark_run_test_bundle"
 
     id = Column(Integer, primary_key=True, autoincrement=True)
     run_id = Column(Integer, ForeignKey("benchmark_run.id"), nullable=False)
-    test_bundle_id = Column(Integer, ForeignKey("benchmark_test_bundle.id"), nullable=False)
+    test_bundle_id = Column(
+        Integer, ForeignKey("benchmark_test_bundle.id"), nullable=False
+    )
     test_id = Column(Integer, ForeignKey("benchmark_test.id"), nullable=False)
 
     __table_args__ = (
@@ -640,7 +700,9 @@ class BenchmarkRunTestBundleModel(Base):
 
     # Relationships
     run = relationship("BenchmarkRunModel", back_populates="run_test_bundles")
-    test_bundle = relationship("BenchmarkTestBundleModel", back_populates="run_test_bundles")
+    test_bundle = relationship(
+        "BenchmarkTestBundleModel", back_populates="run_test_bundles"
+    )
     test = relationship("BenchmarkTestModel", back_populates="run_test_bundles")
 
     def __repr__(self) -> str:
@@ -653,6 +715,7 @@ class MoonshotConfigModel(Base):
 
     Stores application configuration as key-value pairs.
     """
+
     __tablename__ = "moonshot_config"
 
     id = Column(Integer, primary_key=True, autoincrement=True)

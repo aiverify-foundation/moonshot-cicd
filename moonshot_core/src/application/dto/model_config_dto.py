@@ -70,7 +70,7 @@ class UpdateDatabaseModelConfigBody(BaseModel):
 class ModelConfigDTO(BaseModel):
     """
     ModelConfigDTO represents the data transfer object for model configuration information.
-    
+
     This DTO contains only the essential data fields for transferring model configuration
     information between different layers of the application, without complex logic.
 

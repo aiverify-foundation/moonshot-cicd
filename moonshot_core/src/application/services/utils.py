@@ -4,7 +4,10 @@ from domain.services.logger import configure_logger
 # Initialize a logger for this module
 logger = configure_logger(__name__)
 
-def load_module(loader, module_name: str, module_type, success_msg: str, error_msg: str):
+
+def load_module(
+    loader, module_name: str, module_type, success_msg: str, error_msg: str
+):
     """
     Load a module using the specified loader.
     Args:

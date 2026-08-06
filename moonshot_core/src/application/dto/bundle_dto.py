@@ -8,7 +8,7 @@ from application.dto.benchmark_test_dto import BenchmarkTestDTO
 class BundleDTO(BaseModel):
     """
     BundleDTO represents the data transfer object for a bundle of tests.
-    
+
     This DTO contains only the essential data fields for transferring bundle
     information between different layers of the application, without complex logic.
 

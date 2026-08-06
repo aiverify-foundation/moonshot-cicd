@@ -10,7 +10,9 @@ from domain.entities.test_config_entity import TestConfigEntity
 from domain.entities.benchmark_test_entity import BenchmarkTestEntity
 from domain.entities.test_bundle_entity import TestBundleEntity
 from application.services.wrappers.bundle_entity_wrapper import TestBundleEntityWrapper
-from application.services.wrappers.benchmark_test_entity_wrapper import BenchmarkTestEntityWrapper
+from application.services.wrappers.benchmark_test_entity_wrapper import (
+    BenchmarkTestEntityWrapper,
+)
 
 # Initialize a logger for this module
 logger = configure_logger(__name__)
@@ -28,9 +30,7 @@ class DataLoader(Loader):
     FILE_PATH_PREFIX = ""
 
     INFO_LOADING_DATA = "[DataLoader] Loading data configuration module from {file_name} using {adapter_name}"  # noqa: E501
-    ERROR_READING_FILE = (
-        "[DataLoader] Error reading file from {file_name}: {error}"
-    )
+    ERROR_READING_FILE = "[DataLoader] Error reading file from {file_name}: {error}"
     ERROR_DESERIALIZING_CONTENT = (
         "[DataLoader] Error deserializing content from {file_name}: {error}"
     )
@@ -51,7 +51,10 @@ class DataLoader(Loader):
         self.storage_adapter = storage_adapter
         self._set_data_prefix()
 
-    def load(self, loader_name: str) -> tuple[Dict[str, List[TestBundleEntityWrapper]], Dict[str, List[BenchmarkTestEntityWrapper]]]:
+    def load(self, loader_name: str) -> tuple[
+        Dict[str, List[TestBundleEntityWrapper]],
+        Dict[str, List[BenchmarkTestEntityWrapper]],
+    ]:
         """
         Load a data configuration module from the specified file name.
 
@@ -75,7 +78,7 @@ class DataLoader(Loader):
                     adapter_name=self.storage_adapter.__class__.__name__,
                 )
             )
-            
+
             file_content, complete_path = self._read_file_content_and_path(loader_name)
             yaml_data = self._deserialize_content(complete_path, file_content)
             benchmark_test_wrapper_entities = {}
@@ -85,7 +88,9 @@ class DataLoader(Loader):
                 tests = config_data["tests"]
                 description = config_data.get("description", "")
                 category = config_data.get("category", "")
-                name = config_data.get("name", key)  # Use the key as default name if name is not provided
+                name = config_data.get(
+                    "name", key
+                )  # Use the key as default name if name is not provided
 
                 # Create BenchmarkTestEntity objects for individual tests
                 for test in tests:
@@ -94,7 +99,7 @@ class DataLoader(Loader):
                         id=test.get("name"),  # test id will be name for now
                         dataset=None,  # Will be resolved later
                         metric=test.get("metric"),
-                        description=test.get("description", "")
+                        description=test.get("description", ""),
                     )
                     wrapper = BenchmarkTestEntityWrapper(benchmark_test_entity)
                     wrapper.dataset_id = test.get("dataset", "")
@@ -108,17 +113,17 @@ class DataLoader(Loader):
                         id=test.get("name"),  # test id will be name for now
                         dataset=None,  # Will be resolved later
                         metric=test.get("metric"),
-                        description=test.get("description", "")
+                        description=test.get("description", ""),
                     )
                     bundle_tests.append(benchmark_test_entity)
-                
+
                 # Create bundle wrapper entity
                 bundle_wrapper = TestBundleEntityWrapper(
                     name=name,
                     tests=bundle_tests,
                     description=description,
                     category=category,
-                    id=key
+                    id=key,
                 )
                 bundle_wrapper_entities[key] = bundle_wrapper
             return (benchmark_test_wrapper_entities, bundle_wrapper_entities)
