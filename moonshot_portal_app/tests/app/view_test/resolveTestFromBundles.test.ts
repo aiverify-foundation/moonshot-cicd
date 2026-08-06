@@ -16,7 +16,7 @@ const sampleBundles: Bundle[] = [
           description: '',
           num_of_dataset_prompts: 100,
         },
-        metric: { name: 'llamaguardannotator_adapter' },
+        metric: { name: 'ailuminate_safety_classifier_adapter' },
         details: [
           {
             category_name: 'Cat',

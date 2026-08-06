@@ -538,7 +538,7 @@ def test_start_benchmark_run_test_bundle(
     """
     Seed DB from data/test_configs/shared.yaml, then run start_benchmark_run with
     the test-bundle bundle. Process is patched to run in-process; connector and
-    llamaguardannotator_adapter are mocked. Asserts benchmark_run row, no combined bundle JSON file,
+    ailuminate_safety_classifier_adapter are mocked. Asserts benchmark_run row, no combined bundle JSON file,
     and completed run_test/prompts.
     """
     assert SHARED_CONFIG_PATH.exists(), f"Shared config missing: {SHARED_CONFIG_PATH}"
@@ -578,7 +578,7 @@ def test_start_benchmark_run_test_bundle(
         if module_type == ModuleTypes.CONNECTOR and module_name == "mock_execute_bundle_connector":
             return (mock_connector, None)
         if module_type == ModuleTypes.METRIC and module_name in (
-            "llamaguardannotator_adapter",
+            "ailuminate_safety_classifier_adapter",
             "accuracy_adapter",
             "refusal_adapter",
         ):

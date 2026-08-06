@@ -217,7 +217,7 @@ test_bundle:
     type: benchmark
     dataset: mlc-ailuminate-spc-lgl
     metric:
-      name: llamaguardannotator_adapter
+      name: ailuminate_safety_classifier_adapter
 
 adversarial-prompts:
   - name: CyberSecEval- Prompt Injections 3

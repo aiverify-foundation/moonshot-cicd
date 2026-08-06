@@ -152,7 +152,7 @@ class TestExportRun:
         mock_config_adapter_class.return_value.get_test_info.return_value = (
             "MLCommons AILuminate - Legal Advice",
             "mlc-ailuminate-spc-lgl",
-            "llamaguardannotator_adapter",
+            "ailuminate_safety_classifier_adapter",
         )
 
         mock_connector_service_class.return_value.build_connector_entity.return_value = (
@@ -268,8 +268,8 @@ class TestExportRun:
         )
 
         mock_config_adapter_class.return_value.get_test_info.side_effect = [
-            ("MLCommons AILuminate - Violent Crimes", "mlc-ailuminate-vcr", "llamaguardannotator_adapter"),
-            ("MLCommons AILuminate - Non Violent Crimes", "mlc-ailuminate-ncr", "llamaguardannotator_adapter"),
+            ("MLCommons AILuminate - Violent Crimes", "mlc-ailuminate-vcr", "ailuminate_safety_classifier_adapter"),
+            ("MLCommons AILuminate - Non Violent Crimes", "mlc-ailuminate-ncr", "ailuminate_safety_classifier_adapter"),
         ]
 
         mock_connector_service_class.return_value.build_connector_entity.return_value = (

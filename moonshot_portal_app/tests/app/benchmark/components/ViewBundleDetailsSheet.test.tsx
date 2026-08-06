@@ -22,7 +22,7 @@ const bundleWithAaj: Bundle = {
   prompt_count: 10,
   tests: [
     {
-      name: 'Llama Guard Test',
+      name: 'AILuminate Safety Classifier Test',
       requires_llm_aaj: true,
       metric_provider_system_name: 'together_adapter',
       dataset: {

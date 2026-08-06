@@ -162,14 +162,14 @@ class TestBenchmarkService:
         assert result.metric_provider_system_name is None
         assert result.metric_grader_model_name is None
 
-    def test_get_benchmark_test_by_id_llamaguard_sets_aaj_fields(
+    def test_get_benchmark_test_by_id_ailuminate_sets_aaj_fields(
         self, benchmark_service, mock_benchmark_repository, mock_dataset_repository, sample_dataset_entity
     ):
         entity = BenchmarkTestEntity(
             id="lg",
             name="lg",
             dataset=sample_dataset_entity,
-            metric={"name": "llamaguardannotator_adapter"},
+            metric={"name": "ailuminate_safety_classifier_adapter"},
             description="",
         )
         mock_benchmark_repository.get_benchmark_test_by_id.return_value = entity
@@ -1018,7 +1018,7 @@ class TestBenchmarkService:
                 examples=[],
                 num_of_dataset_prompts=100,
             ),
-            metric={"name": "llamaguardannotator_adapter"},
+            metric={"name": "ailuminate_safety_classifier_adapter"},
             description="desc",
         )
         dto = benchmark_service._convert_benchmark_test_entity_to_dto(entity)

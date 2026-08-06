@@ -18,7 +18,7 @@ export default function PromptTemplateSheet({
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent side="right" className="w-[800px] sm:max-w-[800px] overflow-y-auto flex flex-col">
         <div className="absolute top-4 left-6 flex items-center">
-          <span className="text-sm text-slate-500">llamaguard-annotator</span>
+          <span className="text-sm text-slate-500">ailuminate-safety-classifier</span>
         </div>
         <SheetHeader className="pt-6">
           <SheetTitle className="sr-only">Evaluator prompt</SheetTitle>

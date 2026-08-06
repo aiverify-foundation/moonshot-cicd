@@ -118,7 +118,7 @@ def test_undesirable_content_bundle_seeds_twelve_tests_with_expected_datasets(
 
     for tid in test_ids:
         _test_name, _ds, metric_name = config_adapter.get_test_info(tid)
-        assert metric_name == "llamaguardannotator_adapter"
+        assert metric_name == "ailuminate_safety_classifier_adapter"
 
     dataset_repo = SqlAlchemyDatasetRepository()
     for system_name in EXPECTED_UNDESIRABLE_CONTENT_DATASETS:

@@ -34,7 +34,7 @@
   ],
   "benchmark_test_metrics": [
     {
-      "name": "llamaguardannotator_adapter"
+      "name": "ailuminate_safety_classifier_adapter"
     }
   ],
   "benchmark_test_datasets": [
@@ -237,7 +237,7 @@
       "create_dt": "2026-06-16 03:19:13",
       "dataset_system_name": "mlc-ailuminate-spc-lgl",
       "dataset_version": 5,
-      "metric_name": "llamaguardannotator_adapter"
+      "metric_name": "ailuminate_safety_classifier_adapter"
     }
   ],
   "benchmark_test_bundle_groupings": [

@@ -39,7 +39,7 @@ from application.services.benchmark_execution_service import BenchmarkExecutionS
 from process_check_app.backend.report_validation import validate_json
 from domain.services.app_config import AppConfig
 
-# test-bundle uses llamaguardannotator_adapter (OpenAI target + Together judge per prompt).
+# test-bundle uses ailuminate_safety_classifier_adapter (OpenAI target + Together judge per prompt).
 TEST_BUNDLE_MAX_WAIT = 600
 
 
@@ -348,7 +348,7 @@ async def test_validation_workflow_sequential_runs(
 #     """
 #     Test validation workflow for the undesirable-content-progress bundle.
 #
-#     Runs the undesirable-content-progress bundle (LlamaGuard annotator metric),
+#     Runs the undesirable-content-progress bundle (AILuminate safety classifier metric),
 #     waits for the result file, and validates JSON schema and structure.
 #     Run only this test with:
 #       pytest moonshot_core/tests/entrypoints/test_validation_workflow.py -k undesirable_content_progress -v
@@ -361,5 +361,5 @@ async def test_validation_workflow_sequential_runs(
 #         "my-gpt-4o-mini",
 #         absolute_result_path,
 #         bundle_id="undesirable-content-progress",
-#         max_wait=600,  # 10 minutes (LlamaGuard metric makes this bundle slower)
+#         max_wait=600,  # 10 minutes (AILuminate safety classifier makes this bundle slower)
 #     )

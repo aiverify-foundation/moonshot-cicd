@@ -1,8 +1,8 @@
 import pytest
 from pathlib import Path
 
-from adapters.metric.llamaguardannotator_adapter import (
-    LlamaGuardAnnotatorAdapter,
+from adapters.metric.ailuminate_safety_classifier_adapter import (
+    AILuminateSafetyClassifierAdapter,
 )
 from domain.entities.metric_config_entity import MetricConfigEntity
 from domain.entities.metric_individual_entity import MetricIndividualEntity
@@ -10,8 +10,8 @@ from domain.entities.connector_response_entity import ConnectorResponseEntity
 from domain.entities.connector_entity import ConnectorEntity
 
 
-class TestLlamaGuardAnnotatorAdapter:
-    """Test suite for LlamaGuardAnnotatorAdapter class."""
+class TestAILuminateSafetyClassifierAdapter:
+    """Test suite for AILuminateSafetyClassifierAdapter class."""
 
     @pytest.fixture
     def mock_metric_config(self):
@@ -21,7 +21,7 @@ class TestLlamaGuardAnnotatorAdapter:
             model="test-model",
         )
         return MetricConfigEntity(
-            name="llamaguardannotator_adapter",
+            name="ailuminate_safety_classifier_adapter",
             connector_configurations=connector_config,
         )
 
@@ -64,7 +64,7 @@ class TestLlamaGuardAnnotatorAdapter:
     def test_init_success(
         self, monkeypatch, mock_metric_config, mock_connector_instance
     ):
-        """Test successful initialization of LlamaGuardAnnotatorAdapter."""
+        """Test successful initialization of AILuminateSafetyClassifierAdapter."""
         def mock_get_metric_config(self, metric_id):
             return mock_metric_config
 
@@ -72,19 +72,19 @@ class TestLlamaGuardAnnotatorAdapter:
             return mock_connector_instance, None
 
         monkeypatch.setattr(
-            Path, "stem", "llamaguardannotator_adapter"
+            Path, "stem", "ailuminate_safety_classifier_adapter"
         )
         monkeypatch.setattr(
-            LlamaGuardAnnotatorAdapter,
+            AILuminateSafetyClassifierAdapter,
             "get_metric_config",
             mock_get_metric_config,
         )
         monkeypatch.setattr(
-            "adapters.metric.llamaguardannotator_adapter.ModuleLoader.load",
+            "adapters.metric.ailuminate_safety_classifier_adapter.ModuleLoader.load",
             mock_module_loader_load,
         )
 
-        adapter = LlamaGuardAnnotatorAdapter()
+        adapter = AILuminateSafetyClassifierAdapter()
 
         assert adapter.metric_config == mock_metric_config
         assert "a" in adapter.metric_connectors
@@ -96,15 +96,15 @@ class TestLlamaGuardAnnotatorAdapter:
             return None
 
         monkeypatch.setattr(
-            Path, "stem", "llamaguardannotator_adapter"
+            Path, "stem", "ailuminate_safety_classifier_adapter"
         )
         monkeypatch.setattr(
-            LlamaGuardAnnotatorAdapter,
+            AILuminateSafetyClassifierAdapter,
             "get_metric_config",
             mock_get_metric_config,
         )
 
-        adapter = LlamaGuardAnnotatorAdapter()
+        adapter = AILuminateSafetyClassifierAdapter()
 
         assert not hasattr(adapter, "metric_connectors")
 
@@ -114,16 +114,16 @@ class TestLlamaGuardAnnotatorAdapter:
             raise Exception("Test exception")
 
         monkeypatch.setattr(
-            Path, "stem", "llamaguardannotator_adapter"
+            Path, "stem", "ailuminate_safety_classifier_adapter"
         )
         monkeypatch.setattr(
-            LlamaGuardAnnotatorAdapter,
+            AILuminateSafetyClassifierAdapter,
             "get_metric_config",
             mock_get_metric_config,
         )
 
         with pytest.raises(Exception, match=r".*Test exception.*"):
-            LlamaGuardAnnotatorAdapter()
+            AILuminateSafetyClassifierAdapter()
 
     def test_get_metric_connectors_success(
         self, monkeypatch, mock_metric_config, mock_connector_instance
@@ -133,11 +133,11 @@ class TestLlamaGuardAnnotatorAdapter:
             return mock_connector_instance, None
 
         monkeypatch.setattr(
-            "adapters.metric.llamaguardannotator_adapter.ModuleLoader.load",
+            "adapters.metric.ailuminate_safety_classifier_adapter.ModuleLoader.load",
             mock_module_loader_load,
         )
 
-        adapter = LlamaGuardAnnotatorAdapter.__new__(LlamaGuardAnnotatorAdapter)
+        adapter = AILuminateSafetyClassifierAdapter.__new__(AILuminateSafetyClassifierAdapter)
         result = adapter.get_metric_connectors(mock_metric_config)
 
         assert "a" in result
@@ -152,19 +152,19 @@ class TestLlamaGuardAnnotatorAdapter:
             raise Exception("Connector load failed")
 
         monkeypatch.setattr(
-            "adapters.metric.llamaguardannotator_adapter.ModuleLoader.load",
+            "adapters.metric.ailuminate_safety_classifier_adapter.ModuleLoader.load",
             mock_module_loader_load,
         )
 
-        adapter = LlamaGuardAnnotatorAdapter.__new__(LlamaGuardAnnotatorAdapter)
+        adapter = AILuminateSafetyClassifierAdapter.__new__(AILuminateSafetyClassifierAdapter)
 
         with pytest.raises(Exception, match="Connector load failed"):
             adapter.get_metric_connectors(mock_metric_config)
 
     def test_update_metric_params_with_params(self):
         """Test updating metric parameters when params are provided."""
-        adapter = LlamaGuardAnnotatorAdapter.__new__(
-            LlamaGuardAnnotatorAdapter
+        adapter = AILuminateSafetyClassifierAdapter.__new__(
+            AILuminateSafetyClassifierAdapter
         )
         params = {"test_param": "test_value"}
 
@@ -174,8 +174,8 @@ class TestLlamaGuardAnnotatorAdapter:
 
     def test_update_metric_params_without_params(self):
         """Test updating metric parameters when no params are provided."""
-        adapter = LlamaGuardAnnotatorAdapter.__new__(
-            LlamaGuardAnnotatorAdapter
+        adapter = AILuminateSafetyClassifierAdapter.__new__(
+            AILuminateSafetyClassifierAdapter
         )
 
         adapter.update_metric_params({})
@@ -183,22 +183,22 @@ class TestLlamaGuardAnnotatorAdapter:
 
     def test_normalise_guard_response(self):
         """Test _normalise_guard_response static method."""
-        assert LlamaGuardAnnotatorAdapter._normalise_guard_response("safe") == "safe"
-        assert LlamaGuardAnnotatorAdapter._normalise_guard_response("Safe") == "safe"
-        assert LlamaGuardAnnotatorAdapter._normalise_guard_response("unsafe") == "unsafe"
-        assert LlamaGuardAnnotatorAdapter._normalise_guard_response("Unsafe content") == "unsafe"
-        assert LlamaGuardAnnotatorAdapter._normalise_guard_response("unknown") == "unknown"
-        assert LlamaGuardAnnotatorAdapter._normalise_guard_response("other") == "unknown"
-        assert LlamaGuardAnnotatorAdapter._normalise_guard_response("") == "unknown"
-        assert LlamaGuardAnnotatorAdapter._normalise_guard_response("  ") == "unknown"
+        assert AILuminateSafetyClassifierAdapter._normalise_guard_response("safe") == "safe"
+        assert AILuminateSafetyClassifierAdapter._normalise_guard_response("Safe") == "safe"
+        assert AILuminateSafetyClassifierAdapter._normalise_guard_response("unsafe") == "unsafe"
+        assert AILuminateSafetyClassifierAdapter._normalise_guard_response("Unsafe content") == "unsafe"
+        assert AILuminateSafetyClassifierAdapter._normalise_guard_response("unknown") == "unknown"
+        assert AILuminateSafetyClassifierAdapter._normalise_guard_response("other") == "unknown"
+        assert AILuminateSafetyClassifierAdapter._normalise_guard_response("") == "unknown"
+        assert AILuminateSafetyClassifierAdapter._normalise_guard_response("  ") == "unknown"
 
     @pytest.mark.asyncio
     async def test_get_individual_result_safe(
         self, mock_metric_individual_entity, mock_connector_instance
     ):
         """Test individual result when guard returns safe."""
-        adapter = LlamaGuardAnnotatorAdapter.__new__(
-            LlamaGuardAnnotatorAdapter
+        adapter = AILuminateSafetyClassifierAdapter.__new__(
+            AILuminateSafetyClassifierAdapter
         )
         mock_connector_instance.response_value = "safe"
         adapter.selected_metric_connector = mock_connector_instance
@@ -219,8 +219,8 @@ class TestLlamaGuardAnnotatorAdapter:
         self, mock_metric_individual_entity, mock_connector_instance
     ):
         """Test individual result when guard returns unsafe."""
-        adapter = LlamaGuardAnnotatorAdapter.__new__(
-            LlamaGuardAnnotatorAdapter
+        adapter = AILuminateSafetyClassifierAdapter.__new__(
+            AILuminateSafetyClassifierAdapter
         )
         mock_connector_instance.response_value = "unsafe"
         adapter.selected_metric_connector = mock_connector_instance
@@ -237,8 +237,8 @@ class TestLlamaGuardAnnotatorAdapter:
         self, mock_metric_individual_entity, mock_connector_instance
     ):
         """Test individual result when guard returns unknown."""
-        adapter = LlamaGuardAnnotatorAdapter.__new__(
-            LlamaGuardAnnotatorAdapter
+        adapter = AILuminateSafetyClassifierAdapter.__new__(
+            AILuminateSafetyClassifierAdapter
         )
         mock_connector_instance.response_value = "unclear"
         adapter.selected_metric_connector = mock_connector_instance
@@ -256,8 +256,8 @@ class TestLlamaGuardAnnotatorAdapter:
         self, mock_metric_individual_entity
     ):
         """Test individual result when no connector is available."""
-        adapter = LlamaGuardAnnotatorAdapter.__new__(
-            LlamaGuardAnnotatorAdapter
+        adapter = AILuminateSafetyClassifierAdapter.__new__(
+            AILuminateSafetyClassifierAdapter
         )
         adapter.selected_metric_connector = None
 
@@ -274,8 +274,8 @@ class TestLlamaGuardAnnotatorAdapter:
         self, mock_metric_individual_entity, mock_connector_instance
     ):
         """Test individual result when model returns None."""
-        adapter = LlamaGuardAnnotatorAdapter.__new__(
-            LlamaGuardAnnotatorAdapter
+        adapter = AILuminateSafetyClassifierAdapter.__new__(
+            AILuminateSafetyClassifierAdapter
         )
         mock_connector_instance.should_return_none = True
         adapter.selected_metric_connector = mock_connector_instance
@@ -293,8 +293,8 @@ class TestLlamaGuardAnnotatorAdapter:
         self, mock_metric_individual_entity, mock_connector_instance
     ):
         """Test individual result when connector raises."""
-        adapter = LlamaGuardAnnotatorAdapter.__new__(
-            LlamaGuardAnnotatorAdapter
+        adapter = AILuminateSafetyClassifierAdapter.__new__(
+            AILuminateSafetyClassifierAdapter
         )
         mock_connector_instance.should_raise_exception = True
         adapter.selected_metric_connector = mock_connector_instance
@@ -307,8 +307,8 @@ class TestLlamaGuardAnnotatorAdapter:
     @pytest.mark.asyncio
     async def test_get_results_success(self):
         """Test aggregated results with mixed safe/unsafe/unknown."""
-        adapter = LlamaGuardAnnotatorAdapter.__new__(
-            LlamaGuardAnnotatorAdapter
+        adapter = AILuminateSafetyClassifierAdapter.__new__(
+            AILuminateSafetyClassifierAdapter
         )
 
         entities = []
@@ -328,8 +328,8 @@ class TestLlamaGuardAnnotatorAdapter:
     @pytest.mark.asyncio
     async def test_get_results_all_safe(self):
         """Test aggregated results when all are safe."""
-        adapter = LlamaGuardAnnotatorAdapter.__new__(
-            LlamaGuardAnnotatorAdapter
+        adapter = AILuminateSafetyClassifierAdapter.__new__(
+            AILuminateSafetyClassifierAdapter
         )
 
         entities = [
@@ -349,8 +349,8 @@ class TestLlamaGuardAnnotatorAdapter:
     @pytest.mark.asyncio
     async def test_get_results_all_unsafe(self):
         """Test aggregated results when all are unsafe."""
-        adapter = LlamaGuardAnnotatorAdapter.__new__(
-            LlamaGuardAnnotatorAdapter
+        adapter = AILuminateSafetyClassifierAdapter.__new__(
+            AILuminateSafetyClassifierAdapter
         )
 
         entities = [
@@ -370,8 +370,8 @@ class TestLlamaGuardAnnotatorAdapter:
     @pytest.mark.asyncio
     async def test_get_results_empty_list(self):
         """Test aggregated results with empty entity list (refusal_rate 0)."""
-        adapter = LlamaGuardAnnotatorAdapter.__new__(
-            LlamaGuardAnnotatorAdapter
+        adapter = AILuminateSafetyClassifierAdapter.__new__(
+            AILuminateSafetyClassifierAdapter
         )
 
         result = await adapter.get_results([])
@@ -381,8 +381,8 @@ class TestLlamaGuardAnnotatorAdapter:
     @pytest.mark.asyncio
     async def test_get_results_missing_evaluated_response(self):
         """Test aggregation when evaluated_result lacks evaluated_response."""
-        adapter = LlamaGuardAnnotatorAdapter.__new__(
-            LlamaGuardAnnotatorAdapter
+        adapter = AILuminateSafetyClassifierAdapter.__new__(
+            AILuminateSafetyClassifierAdapter
         )
 
         entity = MetricIndividualEntity(

@@ -12,48 +12,48 @@ from domain.services.logger import configure_logger
 logger = configure_logger(__name__)
 
 
-class LlamaGuardAnnotatorAdapter(MetricPort):
+class AILuminateSafetyClassifierAdapter(MetricPort):
     """
-    Adapter for LlamaGuard-based safety annotation.
+    Adapter for AILuminate safety classification.
 
-    Evaluates model responses using a LlamaGuard-style model to categorize
+    Evaluates model responses using a safety classifier to categorize
     each response as safe, unsafe, or unknown. Compatible with task_manager
     categorisation via evaluated_response.
     """
 
     ERROR_INIT_MSG = (
-        "[LlamaGuardAnnotatorAdapter] There was an error initializing the "
-        "LlamaGuardAnnotatorAdapter: {}"
+        "[AILuminateSafetyClassifierAdapter] There was an error initializing the "
+        "AILuminateSafetyClassifierAdapter: {}"
     )
     ERROR_RETRIEVING_CONNECTORS_MSG = (
-        "[LlamaGuardAnnotatorAdapter] There was an error retrieving metric "
+        "[AILuminateSafetyClassifierAdapter] There was an error retrieving metric "
         "connectors: {}"
     )
     ERROR_EVALUATING_RESULT_MSG = (
-        "[LlamaGuardAnnotatorAdapter] There was an error evaluating the "
+        "[AILuminateSafetyClassifierAdapter] There was an error evaluating the "
         "individual result: {}"
     )
     ERROR_RETRIEVING_RESULTS_MSG = (
-        "[LlamaGuardAnnotatorAdapter] There was an error retrieving results: {}"
+        "[AILuminateSafetyClassifierAdapter] There was an error retrieving results: {}"
     )
     NO_CONNECTOR_AVAILABLE_MSG = (
-        "[LlamaGuardAnnotatorAdapter] No metric connector available for evaluation."
+        "[AILuminateSafetyClassifierAdapter] No metric connector available for evaluation."
     )
     FAILED_MODEL_PREDICTIONS_MSG = (
-        "[LlamaGuardAnnotatorAdapter] Failed to get model predictions from "
+        "[AILuminateSafetyClassifierAdapter] Failed to get model predictions from "
         "the evaluation model."
     )
     LOADING_CONNECTOR_MSG = (
-        "[LlamaGuardAnnotatorAdapter] Loading connector with model '{model}' "
+        "[AILuminateSafetyClassifierAdapter] Loading connector with model '{model}' "
         "and adapter '{adapter}'"
     )
     SUCCESSFULLY_LOADED_CONNECTORS_MSG = (
-        "[LlamaGuardAnnotatorAdapter] Successfully loaded all metric connectors."
+        "[AILuminateSafetyClassifierAdapter] Successfully loaded all metric connectors."
     )
 
     def __init__(self):
         """
-        Initialize the LlamaGuardAnnotatorAdapter with metric configuration
+        Initialize the AILuminateSafetyClassifierAdapter with metric configuration
         and connector.
         """
         try:
@@ -123,7 +123,7 @@ class LlamaGuardAnnotatorAdapter(MetricPort):
     @staticmethod
     def _normalise_guard_response(response: str) -> str:
         """
-        Normalise LlamaGuard-style model output to safe, unsafe, or unknown.
+        Normalise safety classifier model output to safe, unsafe, or unknown.
 
         Args:
             response (str): Raw model response.
@@ -144,7 +144,7 @@ class LlamaGuardAnnotatorAdapter(MetricPort):
         self, entity: MetricIndividualEntity
     ) -> dict:
         """
-        Evaluate a single response using the LlamaGuard connector.
+        Evaluate a single response using the AILuminate safety classifier connector.
 
         Sends "Agent: <response>" to the guard model and maps the result
         to safe, unsafe, or unknown. Returns a dict that includes

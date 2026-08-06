@@ -20,7 +20,7 @@ export interface BundleTest {
   /** benchmark_test.id from the API; required for per-bundle test subset runs. */
   benchmark_test_id?: number | null;
   description?: string;
-  /** True when the metric uses an LLM-as-judge path (e.g. Llama Guard annotator). */
+  /** True when the metric uses an LLM-as-judge path (e.g. AILuminate safety classifier). */
   requires_llm_aaj?: boolean;
   /** Metric-side connector system_name when requires_llm_aaj (e.g. together_adapter). */
   metric_provider_system_name?: string | null;

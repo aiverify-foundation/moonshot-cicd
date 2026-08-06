@@ -8,15 +8,15 @@ if TYPE_CHECKING:
     from domain.services.app_config import AppConfig
 
 # Metric adapter module name (YAML metric.name / DB benchmark_test_metric.name).
-LLAMAGUARD_ANNOTATOR_METRIC = "llamaguardannotator_adapter"
+AILUMINATE_SAFETY_CLASSIFIER_METRIC = "ailuminate_safety_classifier_adapter"
 REFUSAL_METRIC = "refusal_adapter"
 CYBERSEC_REFUSAL_METRIC = "cybersecevalannotator2_adapter"
 # Connector system names used by moonshot_config for each metric's evaluator.
-LLAMAGUARD_JUDGE_CONNECTOR_SYSTEM_NAME = "openai_adapter"
+AILUMINATE_JUDGE_CONNECTOR_SYSTEM_NAME = "openai_adapter"
 REFUSAL_JUDGE_CONNECTOR_SYSTEM_NAME = "openai_adapter"
 
 _METRIC_AAJ_PROVIDER_BY_NAME: dict[str, str] = {
-    LLAMAGUARD_ANNOTATOR_METRIC: LLAMAGUARD_JUDGE_CONNECTOR_SYSTEM_NAME,
+    AILUMINATE_SAFETY_CLASSIFIER_METRIC: AILUMINATE_JUDGE_CONNECTOR_SYSTEM_NAME,
     REFUSAL_METRIC: REFUSAL_JUDGE_CONNECTOR_SYSTEM_NAME,
     CYBERSEC_REFUSAL_METRIC: REFUSAL_JUDGE_CONNECTOR_SYSTEM_NAME,
 }

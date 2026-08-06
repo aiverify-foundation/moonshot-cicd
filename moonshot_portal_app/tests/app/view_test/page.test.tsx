@@ -39,7 +39,7 @@ const bundleWithDetails: Bundle[] = [
           description: '',
           num_of_dataset_prompts: 42,
         },
-        metric: { name: 'llamaguardannotator_adapter' },
+        metric: { name: 'ailuminate_safety_classifier_adapter' },
         details: [
           {
             category_name: 'Cat',
@@ -80,7 +80,7 @@ describe('ViewTestApp', () => {
     expect(screen.getByText('Test description from API')).toBeInTheDocument();
     expect(screen.getByText('42')).toBeInTheDocument();
     expect(screen.getByText('meta-llama/Llama-Guard-4-12B')).toBeInTheDocument();
-    expect(screen.queryByText('llamaguardannotator_adapter')).not.toBeInTheDocument();
+    expect(screen.queryByText('ailuminate_safety_classifier_adapter')).not.toBeInTheDocument();
     expect(screen.queryByText('Together AI')).not.toBeInTheDocument();
     expect(screen.getByText('API input text')).toBeInTheDocument();
     expect(screen.getByText('API response text')).toBeInTheDocument();

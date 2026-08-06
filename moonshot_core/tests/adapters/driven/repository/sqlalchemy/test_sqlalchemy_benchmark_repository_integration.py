@@ -70,8 +70,8 @@ def test_get_all_bundles_returns_minimal_bundle_from_db(listing_db):
 
 
 @pytest.mark.integration
-def test_llamaguard_test_has_aaj_fields_in_dto(listing_db):
-    """Seed one test with llamaguardannotator_adapter via in-memory YAML fragment."""
+def test_ailuminate_test_has_aaj_fields_in_dto(listing_db):
+    """Seed one test with ailuminate_safety_classifier_adapter via in-memory YAML fragment."""
     dataset_seed = BenchmarkDatasetSeedService(
         source_dataset_repository=FileDatasetRepository(),
         target_dataset_repository=SqlAlchemyDatasetRepository(),
@@ -86,7 +86,7 @@ def test_llamaguard_test_has_aaj_fields_in_dto(listing_db):
                     "name": "LG Test",
                     "type": "benchmark",
                     "dataset": "test_sample_dataset",
-                    "metric": {"name": "llamaguardannotator_adapter"},
+                    "metric": {"name": "ailuminate_safety_classifier_adapter"},
                     "description": "Eval line one.\nEval line two.",
                 },
             ],
@@ -100,7 +100,7 @@ def test_llamaguard_test_has_aaj_fields_in_dto(listing_db):
     lg = next(b for b in bundles if b.id == "lg-bundle")
     assert len(lg.tests) == 1
     dto = lg.tests[0]
-    assert dto.metric.get("name") == "llamaguardannotator_adapter"
+    assert dto.metric.get("name") == "ailuminate_safety_classifier_adapter"
     assert dto.requires_llm_aaj is True
     assert dto.metric_provider_system_name == "openai_adapter"
     assert dto.metric_grader_model_name == "gpt-5-mini"
