@@ -37,6 +37,8 @@ COPY --chown=appuser:appgroup --from=frontend /portal/out/ /app/data/web/
 
 # Install Poetry + project (root install is required for moonshot / moonshot-web scripts)
 RUN mkdir -p /app/data/database && \
+    mkdir -p /var/lib/moonshot && \
+    chown -R appuser:appgroup /var/lib/moonshot && \
     pip install poetry==2.4.1 --no-cache-dir && \
     poetry install --only main
 
