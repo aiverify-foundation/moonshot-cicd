@@ -1,17 +1,25 @@
 # Git and IDE
 .git
-.gitignore
+**/.gitignore
+moonshot_core/.pre-commit-config.yaml
 .idea
 .vscode
 .cursor
+.cursorrules*
 
-# Other apps (web stack install-test only)
+# Other apps
 process_check_app/
 
-# E2E artifacts (sources are copied; deps installed in image)
-system_test/node_modules/
-system_test/test-results/
-system_test/playwright-report/
+# Test suites / Linters
+system_test/
+moonshot_core/tests/
+moonshot_core/test-results/
+moonshot_core/pytest.ini
+moonshot_core/.coveragerc
+moonshot_core/run_coverage.sh
+moonshot_core/htmlcov/
+moonshot_core/.flake8
+
 
 # Local envs and secrets
 .env
@@ -32,15 +40,13 @@ moonshot_portal_app/.next/
 **/__pycache__/
 **/*.py[cod]
 **/.pytest_cache/
-htmlcov/
-.coverage
-**/test-results/
+
 
 # Generated data and logs
 moonshot_core/data/results/
 **/*.log
-moonshot_pytest_*.db
-moonshot_core/data/database/*.db
+**/*.db
+
 
 # Docs and misc not needed for install
 *.md
@@ -48,5 +54,4 @@ moonshot_core/data/database/*.db
 !moonshot_portal_app/README.md
 .ci/
 .github/
-run-e2e-tests.sh
-.cursorrules*
+docker/
