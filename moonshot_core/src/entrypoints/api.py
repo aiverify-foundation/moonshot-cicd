@@ -13,6 +13,7 @@ from fastapi import FastAPI, HTTPException, Request, Response
 from fastapi.responses import FileResponse, Response
 
 from domain.services.logger import configure_logger
+import uvicorn
 
 logger = configure_logger(__name__)
 
@@ -987,3 +988,18 @@ else:
 
 # Export the FastAPI app for external use
 __all__ = ["app"]
+
+
+def serve():
+    """Serve the FastAPI application."""
+    uvicorn.run(
+        "src.entrypoints.api:app",
+        host="0.0.0.0",
+        port=8000,
+        reload=True,
+        log_level="info",
+        log_config=None,
+    )
+
+if __name__ == "__main__":
+    serve()

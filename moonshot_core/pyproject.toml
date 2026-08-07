@@ -42,6 +42,7 @@ jsonpath-ng = "^1.8.0"
 
 [tool.poetry.scripts]
 moonshot = "entrypoints.cli.cli:cli"
+moonshot-web = "entrypoints.api:serve"
 
 [tool.poetry.group.dev.dependencies]
 anybadge = "^1.14.0"
