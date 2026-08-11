@@ -226,7 +226,10 @@ test.describe('MOON-543 View Test Details', () => {
     page,
     request,
   }) => {
-    const { datasetId } = await findBundleTest(request, VIOLENT_CRIMES_TEST);
+    const { datasetId, test: bundleTest } = await findBundleTest(
+      request,
+      VIOLENT_CRIMES_TEST
+    );
 
     await gotoViewTest(page, {
       testName: VIOLENT_CRIMES_TEST,
@@ -269,7 +272,7 @@ test.describe('MOON-543 View Test Details', () => {
       page.locator('[data-testid="view-test-evaluator-info"]')
     ).toContainText('LLM-as-judge Model');
     await expect(page.locator('[data-testid="view-test-grader-model"]')).toHaveText(
-      LLAMA_GUARD_MODEL
+      bundleTest.metric_grader_model_name
     );
 
     await expect(page.locator('[data-testid="how-it-works-heading"]')).toHaveText(

@@ -244,8 +244,9 @@ async function mockTestConnection(page, { success = true, error = null, delayMs 
 }
 
 /**
- * Resolve OpenAI provider id from GET /api/providers.
+ * Resolve a provider row from GET /api/providers.
  * @param {import('@playwright/test').APIRequestContext} request
+ * @param {string} systemName
  */
 async function fetchProviderBySystemName(request, systemName) {
   const response = await request.get('/api/providers');
@@ -256,6 +257,50 @@ async function fetchProviderBySystemName(request, systemName) {
   );
   expect(row).toBeTruthy();
   return row;
+}
+
+/**
+ * First LLM-as-judge metric_provider_system_name for a bundle from GET /api/bundles.
+ * @param {import('@playwright/test').APIRequestContext} request
+ * @param {string|RegExp} [bundleName]
+ */
+async function resolveAajSystemNameFromBundle(
+  request,
+  bundleName = 'Sample Test Bundle'
+) {
+  const response = await request.get('/api/bundles');
+  expect(response.ok()).toBeTruthy();
+  const data = await response.json();
+  const bundle = (data.bundles || []).find((row) => {
+    if (bundleName instanceof RegExp) {
+      return bundleName.test(row.name);
+    }
+    return row.name === bundleName;
+  });
+  expect(bundle).toBeTruthy();
+  const aajTest = (bundle.tests || []).find(
+    (bundleTest) =>
+      bundleTest.requires_llm_aaj && bundleTest.metric_provider_system_name?.trim()
+  );
+  expect(aajTest).toBeTruthy();
+  return aajTest.metric_provider_system_name.trim();
+}
+
+/**
+ * Resolve AAJ system name plus provider display/defaultModel from APIs.
+ * @param {import('@playwright/test').Page|import('@playwright/test').APIRequestContext} pageOrRequest
+ * @param {string|RegExp} [bundleName]
+ */
+async function resolveAajProvider(pageOrRequest, bundleName = 'Sample Test Bundle') {
+  const request = pageOrRequest.request ?? pageOrRequest;
+  const systemName = await resolveAajSystemNameFromBundle(request, bundleName);
+  const provider = await fetchProviderBySystemName(request, systemName);
+  return {
+    systemName,
+    name: provider.name,
+    defaultModel: provider.defaultModel,
+    provider,
+  };
 }
 
 /**
@@ -324,16 +369,21 @@ async function expandRequiredEndpointsCard(page) {
 
 /**
  * Open Add Provider Token sheet for an LLM-as-judge endpoint row.
+ * When systemName is omitted, uses the first AAJ provider on Sample Test Bundle.
  * @param {import('@playwright/test').Page} page
- * @param {string} systemName e.g. together_adapter
+ * @param {string} [systemName]
+ * @returns {Promise<string>} resolved system name
  */
-async function openAajProviderSheet(page, systemName = 'together_adapter') {
+async function openAajProviderSheet(page, systemName) {
+  const resolved =
+    systemName || (await resolveAajSystemNameFromBundle(page.request));
   await expandRequiredEndpointsCard(page);
-  const connect = page.getByTestId(`required-endpoint-connect-${systemName}`);
+  const connect = page.getByTestId(`required-endpoint-connect-${resolved}`);
   await expect(connect).toBeVisible({ timeout: 10000 });
   await expect(connect).toBeEnabled();
   await connect.click();
   await expect(editAajProviderSheet(page)).toBeVisible({ timeout: 10000 });
+  return resolved;
 }
 
 function editAajProviderSheet(page) {
@@ -341,21 +391,33 @@ function editAajProviderSheet(page) {
 }
 
 /**
- * Full path to open Together AI AAJ sheet (Sample Test Bundle → model selected → Connect).
+ * Full path to open the AAJ token sheet (bundle → model selected → Connect).
  * RequiredEndpointsCard only mounts after a valid test name and model selection.
  * @param {import('@playwright/test').Page} page
  * @param {{ bundleName?: string|RegExp, systemName?: string }} [opts]
  */
 async function getToAajProviderSheet(
   page,
-  { bundleName = 'Sample Test Bundle', systemName = 'together_adapter' } = {}
+  { bundleName = 'Sample Test Bundle', systemName } = {}
 ) {
+  const aaj = await resolveAajProvider(page, bundleName);
+  const resolved = systemName || aaj.systemName;
   await navigateToModelSelectionWithBundle(page, bundleName);
   await fillInTestName(page, 'My AAJ E2E Test');
   await expandModelSelectionCard(page);
   await selectProviderByName(page, /OpenAI/i);
   await selectFirstSeededModel(page);
-  await openAajProviderSheet(page, systemName);
+  await openAajProviderSheet(page, resolved);
+  if (systemName && systemName !== aaj.systemName) {
+    const provider = await fetchProviderBySystemName(page.request, resolved);
+    return {
+      systemName: resolved,
+      name: provider.name,
+      defaultModel: provider.defaultModel,
+      provider,
+    };
+  }
+  return { ...aaj, systemName: resolved };
 }
 
 module.exports = {
@@ -381,6 +443,8 @@ module.exports = {
   mockProvidersForViewAll,
   mockTestConnection,
   fetchProviderBySystemName,
+  resolveAajSystemNameFromBundle,
+  resolveAajProvider,
   setProviderApiKey,
   expandRequiredEndpointsCard,
   openAajProviderSheet,

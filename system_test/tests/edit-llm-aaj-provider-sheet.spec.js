@@ -9,11 +9,8 @@ const {
 const SAVED_TOKEN_HELPER =
   'Your token has already been saved. No further action is needed unless you would like to replace it with a new one.';
 
-/** Together adapter DEFAULT_MODEL used by AAJ Test Connection. */
-const TOGETHER_DEFAULT_MODEL = 'meta-llama/Llama-3.3-70B-Instruct-Turbo';
-
 async function setupAajSheet(page) {
-  await getToAajProviderSheet(page);
+  return getToAajProviderSheet(page);
 }
 
 async function mockApiKeyConfigured(page, configured = true) {
@@ -42,13 +39,13 @@ test.describe('Add Provider Token Sheet (EditLlmAajProviderSheet)', () => {
   // ---------------------------------------------------------------------
   test.describe('AC1 Open sheet', { tag: '@happy-path' }, () => {
     test('Connect opens Add Provider Token sheet for the row provider', async ({ page }) => {
-      await setupAajSheet(page);
+      const aaj = await setupAajSheet(page);
       const sheet = editAajProviderSheet(page);
 
       await expect(sheet.getByTestId('edit-aaj-provider-sheet-title')).toHaveText(
         'Add Provider Token'
       );
-      await expect(sheet.getByTestId('edit-aaj-provider-display')).toHaveText(/Together/i);
+      await expect(sheet.getByTestId('edit-aaj-provider-display')).toHaveText(aaj.name);
       await expect(sheet.locator('#aaj-provider-token')).toHaveValue('');
     });
 
@@ -64,7 +61,7 @@ test.describe('Add Provider Token Sheet (EditLlmAajProviderSheet)', () => {
       await sheet.getByTestId('edit-aaj-back').click();
       await expect(sheet).not.toBeVisible();
 
-      await openAajProviderSheet(page, 'together_adapter');
+      await openAajProviderSheet(page);
       const reopened = editAajProviderSheet(page);
       await expect(reopened.locator('#aaj-provider-token')).toHaveValue('');
       await expect(reopened.getByTestId('edit-aaj-test-result')).toHaveCount(0);
@@ -90,10 +87,10 @@ test.describe('Add Provider Token Sheet (EditLlmAajProviderSheet)', () => {
     });
 
     test('Model Provider is display-only', async ({ page }) => {
-      await setupAajSheet(page);
+      const aaj = await setupAajSheet(page);
       const sheet = editAajProviderSheet(page);
       const provider = sheet.getByTestId('edit-aaj-provider-display');
-      await expect(provider).toHaveText(/Together/i);
+      await expect(provider).toHaveText(aaj.name);
       await expect(provider.locator('input')).toHaveCount(0);
     });
 
@@ -180,14 +177,14 @@ test.describe('Add Provider Token Sheet (EditLlmAajProviderSheet)', () => {
 
     test('Test Connection sends defaultModel, empty pairs, and api_key', async ({ page }) => {
       const mock = await mockTestConnection(page, { success: true });
-      await setupAajSheet(page);
+      const aaj = await setupAajSheet(page);
       const sheet = editAajProviderSheet(page);
       await sheet.locator('#aaj-provider-token').fill('sk-aaj-test');
       await clickAajTestAndWaitEnabled(sheet);
 
       const body = mock.getLastRequestBody();
       expect(body).toBeTruthy();
-      expect(body.model_name).toBe(TOGETHER_DEFAULT_MODEL);
+      expect(body.model_name).toBe(aaj.defaultModel);
       expect(body.api_key).toBe('sk-aaj-test');
       expect(body.savedConfigPairs).toEqual({});
       expect(body.llm_provider_id).toBeTruthy();
@@ -198,7 +195,7 @@ test.describe('Add Provider Token Sheet (EditLlmAajProviderSheet)', () => {
     }) => {
       await mockApiKeyConfigured(page, true);
       const mock = await mockTestConnection(page, { success: true });
-      await setupAajSheet(page);
+      const aaj = await setupAajSheet(page);
       const sheet = editAajProviderSheet(page);
 
       await expect(sheet.getByText('Token (optional)')).toBeVisible({ timeout: 10000 });
@@ -206,7 +203,7 @@ test.describe('Add Provider Token Sheet (EditLlmAajProviderSheet)', () => {
 
       const body = mock.getLastRequestBody();
       expect(body).toBeTruthy();
-      expect(body.model_name).toBe(TOGETHER_DEFAULT_MODEL);
+      expect(body.model_name).toBe(aaj.defaultModel);
       expect(body.api_key == null || body.api_key === '').toBe(true);
     });
   });
