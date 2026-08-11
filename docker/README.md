@@ -275,7 +275,7 @@ At **build** time (no manual steps inside the container):
 | [`install-test-entrypoint.sh`](install-test-entrypoint.sh) | `verify` / `serve` / `e2e` logic |
 | [`serve.sh`](serve.sh) | Persistent `serve` (default local hosting) |
 | [`docker-compose.install-test.yml`](../docker-compose.install-test.yml) | Same as `serve.sh`, via Compose |
-| [`run-e2e-tests.sh`](../run-e2e-tests.sh) | Host-native E2E (conda + npm, no Docker) |
+| [`run-e2e-tests.sh`](../scripts/run-e2e-tests.sh) | Host-native E2E (conda + npm, no Docker) |
 
 ## Comparison to manual install
 
@@ -286,4 +286,4 @@ At **build** time (no manual steps inside the container):
 | `cd moonshot_portal_app && npm install` | Done at build |
 | `python run_api.py` + `npm run dev` | `serve` or `verify` |
 | Open http://localhost:3000 | `./docker/serve.sh` or Compose |
-| `./run-e2e-tests.sh` | `docker run ... e2e` |
+| `./scripts/run-e2e-tests.sh` | `docker run ... e2e` |

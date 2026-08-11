@@ -2,15 +2,16 @@
 # Run Moonshot Playwright system tests (portal build + API on :8000 + system_test).
 #
 # Usage:
-#   ./run-e2e-tests.sh                    # full flow
-#   ./run-e2e-tests.sh --headed           # extra args passed to Playwright
-#   SKIP_PORTAL_BUILD=1 ./run-e2e-tests.sh
+#   ./scripts/run-e2e-tests.sh                    # full flow
+#   ./scripts/run-e2e-tests.sh --headed           # extra args passed to Playwright
+#   SKIP_PORTAL_BUILD=1 ./scripts/run-e2e-tests.sh
 #
 # Requires: conda env moonshotv1test (see .cursorrules), Node.js 18+, npm.
 
 set -euo pipefail
 
-ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# Script lives in scripts/; repo root is one level up.
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 CONDA_ENV="${MOONSHOT_CONDA_ENV:-moonshotv1test}"
 BASE_URL="${BASE_URL:-http://localhost:8000}"
 API_PORT="${API_PORT:-8000}"
