@@ -1,10 +1,20 @@
-[tool.poetry]
+[project]
 name = "moonshot-cicd"
 version = "1.1.0"
 description = "A simple and modular tool to evaluate and red-team any LLM application."
-authors = ["AI Verify Foundation <info@aiverify.sg>"]
+authors = [
+    { name = "AI Verify Foundation", email = "info@aiverify.sg" }
+]
 readme = "README.md"
 license = "Apache-2.0"
+requires-python = ">=3.12,<4.0"
+dynamic = ["dependencies"]
+
+[project.scripts]
+moonshot = "entrypoints.cli.cli:cli"
+moonshot-web = "entrypoints.api:serve"
+
+[tool.poetry]
 packages = [
     { include = "entrypoints", from = "src" },
     { include = "domain", from = "src" },
@@ -40,10 +50,6 @@ numpy = "^2.4.4"
 scipy = "^1.17.1"
 jsonpath-ng = "^1.8.0"
 
-[tool.poetry.scripts]
-moonshot = "entrypoints.cli.cli:cli"
-moonshot-web = "entrypoints.api:serve"
-
 [tool.poetry.group.dev.dependencies]
 anybadge = "^1.14.0"
 black = "^24.8.0"
@@ -62,6 +68,5 @@ pytest-mock = "^3.14.0"
 dirty-equals = "^0.11"
 
 [build-system]
-requires = ["poetry-core"]
+requires = ["poetry-core>=2.0"]
 build-backend = "poetry.core.masonry.api"
-

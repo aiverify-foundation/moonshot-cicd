@@ -4,11 +4,17 @@ import toml
 with open("pyproject.toml", "r") as f:
     pyproject = toml.load(f)
 
-app_name = pyproject["tool"]["poetry"]["name"]
-__version__ = pyproject["tool"]["poetry"]["version"]
-__author__ = pyproject["tool"]["poetry"]["authors"][0]
-__license__ = pyproject["tool"]["poetry"]["license"]
-__description__ = pyproject["tool"]["poetry"]["description"]
+_project = pyproject["project"]
+_author = _project["authors"][0]
+app_name = _project["name"]
+__version__ = _project["version"]
+__author__ = (
+    f"{_author['name']} <{_author['email']}>"
+    if _author.get("email")
+    else _author["name"]
+)
+__license__ = _project["license"]
+__description__ = _project["description"]
 
 
 def welcome() -> None:

@@ -41,7 +41,7 @@ class TestCli:
         self.runner = CliRunner()
 
     @patch('entrypoints.cli.cli.AppConfig')
-    @patch('builtins.open', mock_open(read_data='[tool.poetry]\nname="test-app"\nversion="1.0.0"\nauthors=["Test Author"]\nlicense="MIT"\ndescription="Test description"'))
+    @patch('builtins.open', mock_open(read_data='[project]\nname="test-app"\nversion="1.0.0"\nauthors=[{name="Test Author", email="test@example.com"}]\nlicense="MIT"\ndescription="Test description"'))
     @patch('entrypoints.cli.cli.welcome')
     @patch('builtins.print')
     def test_cli_no_subcommand_shows_welcome(self, mock_print, mock_welcome, mock_app_config):
@@ -54,7 +54,7 @@ class TestCli:
         mock_app_config.assert_called_once()
 
     @patch('entrypoints.cli.cli.AppConfig')
-    @patch('builtins.open', mock_open(read_data='[tool.poetry]\nname="test-app"\nversion="1.0.0"\nauthors=["Test Author"]\nlicense="MIT"\ndescription="Test description"'))
+    @patch('builtins.open', mock_open(read_data='[project]\nname="test-app"\nversion="1.0.0"\nauthors=[{name="Test Author", email="test@example.com"}]\nlicense="MIT"\ndescription="Test description"'))
     def test_cli_with_subcommand_no_welcome(self, mock_app_config):
         """Test that CLI doesn't show welcome page when subcommand is provided."""
         with patch('entrypoints.cli.cli.ApiAdapter') as mock_api_adapter:
@@ -415,10 +415,10 @@ class TestPyprojectLoading:
         self.runner = CliRunner()
 
     @patch('builtins.open', mock_open(read_data='''
-[tool.poetry]
+[project]
 name = "test-moonshot"
 version = "2.0.0"
-authors = ["Test Author <test@example.com>"]
+authors = [{ name = "Test Author", email = "test@example.com" }]
 license = "Apache-2.0"
 description = "Test moonshot application"
 '''))
@@ -459,7 +459,7 @@ class TestIntegration:
         self.runner = CliRunner()
 
     @patch('entrypoints.cli.cli.AppConfig')
-    @patch('builtins.open', mock_open(read_data='[tool.poetry]\nname="test-app"\nversion="1.0.0"\nauthors=["Test Author"]\nlicense="MIT"\ndescription="Test description"'))
+    @patch('builtins.open', mock_open(read_data='[project]\nname="test-app"\nversion="1.0.0"\nauthors=[{name="Test Author", email="test@example.com"}]\nlicense="MIT"\ndescription="Test description"'))
     def test_full_run_workflow(self, mock_app_config):
         """Test a complete workflow from CLI invocation to completion."""
         with patch('entrypoints.cli.cli.ApiAdapter') as mock_api_adapter:
