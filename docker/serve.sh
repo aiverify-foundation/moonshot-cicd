@@ -21,8 +21,8 @@ ensure_image() {
     echo "Docker image '${IMAGE}' found."
     return 0
   fi
-  echo "Docker image '${IMAGE}' not found. Building from Dockerfile.install-test (first time may take several minutes)..."
-  docker build -f "${ROOT}/Dockerfile.install-test" -t "${IMAGE}" "${ROOT}"
+  echo "Docker image '${IMAGE}' not found. Building from docker/moonshot.install-test.Dockerfile (first time may take several minutes)..."
+  docker build -f "${ROOT}/docker/moonshot.install-test.Dockerfile" -t "${IMAGE}" "${ROOT}"
   echo "Docker image '${IMAGE}' built."
 }
 

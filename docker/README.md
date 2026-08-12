@@ -2,7 +2,7 @@
 
 Docker image to validate **frontend + backend** installation and to **host** the Moonshot web UI locally. It mirrors the [Installation Guide](https://github.com/aiverify-foundation/moonshot-cicd/wiki) dev workflow (`poetry install`, `npm install`, `run_api.py`, `npm run dev`) and can run **Playwright system tests** inside the container.
 
-This image is **not** the production CLI image ([`moonshot_core/Dockerfile`](../moonshot_core/Dockerfile)) and does **not** test the `moonshot` CLI.
+This image is **not** the production CLI image ([`docker/moonshot.Dockerfile`](moonshot.Dockerfile)) and does **not** test the `moonshot` CLI.
 
 ## Quick start (bootstrap)
 
@@ -16,7 +16,7 @@ Build the image first if you have not run `serve` or `docker build` yet:
 
 ```bash
 cd /path/to/moonshot-cicd
-docker build -f Dockerfile.install-test -t moonshot-install-test .
+docker build -f docker/moonshot.install-test.Dockerfile -t moonshot-install-test .
 ```
 
 ```bash
@@ -44,7 +44,7 @@ First run may take several minutes while the image builds.
 ```bash
 cd /path/to/moonshot-cicd
 # Build the image (first time, or after code changes)
-docker build -f Dockerfile.install-test -t moonshot-install-test .
+docker build -f docker/moonshot.install-test.Dockerfile -t moonshot-install-test .
 # Create the persistent data volume (safe to re-run)
 docker volume create moonshot-install-test-data
 ```
@@ -65,7 +65,7 @@ docker run --rm \
 
 ```bash
 cd /path/to/moonshot-cicd
-docker compose -f docker-compose.install-test.yml up --build
+docker compose -f docker/moonshot.install-test.docker-compose.yml up --build
 ```
 
 Then open **http://localhost:3000** (API at **http://localhost:8000**). Press `Ctrl+C` to stop; run the same command again to resume with the same data.
@@ -93,7 +93,7 @@ docker run --rm moonshot-install-test e2e
 
 ```bash
 cd /path/to/moonshot-cicd
-docker build -f Dockerfile.install-test -t moonshot-install-test .
+docker build -f docker/moonshot.install-test.Dockerfile -t moonshot-install-test .
 docker run --rm moonshot-install-test          # verify or e2e
 ./docker/serve.sh                              # serve (rebuild required after code changes)
 ```
@@ -138,19 +138,19 @@ Build from the **repo root** (context must include `moonshot_core/`, `moonshot_p
 
 ```bash
 cd /path/to/moonshot-cicd
-docker build -f Dockerfile.install-test -t moonshot-install-test .
+docker build -f docker/moonshot.install-test.Dockerfile -t moonshot-install-test .
 ```
 
 First build may take several minutes (Poetry deps, `npm run build`, Playwright Chromium + OS libraries).
 
 ## Run modes
 
-Entrypoint: [`install-test-entrypoint.sh`](install-test-entrypoint.sh)
+Entrypoint: [`install-test-entrypoint.sh`](../scripts/install-test-entrypoint.sh)
 
 | Mode | Command | Purpose |
 |------|---------|---------|
 | **verify** (default) | `docker run --rm moonshot-install-test` | Automated install check: starts API + Next dev, HTTP smoke, exits |
-| **serve** | `./docker/serve.sh` or `docker compose -f docker-compose.install-test.yml up` | **Host** the app; **named volumes** for DB + results |
+| **serve** | `./docker/serve.sh` or `docker compose -f docker/moonshot.install-test.docker-compose.yml up` | **Host** the app; **named volumes** for DB + results |
 | **e2e** | `docker run --rm moonshot-install-test e2e` | Run Playwright system tests (built portal on :8000 only) |
 
 ### 1. Verify installation (`verify`)
@@ -270,11 +270,10 @@ At **build** time (no manual steps inside the container):
 
 | File | Role |
 |------|------|
-| [`Dockerfile.install-test`](../Dockerfile.install-test) | Image definition |
-| [`.dockerignore`](../.dockerignore) | Build context exclusions |
-| [`install-test-entrypoint.sh`](install-test-entrypoint.sh) | `verify` / `serve` / `e2e` logic |
+| [`moonshot.install-test.Dockerfile`](moonshot.install-test.Dockerfile) | Image definition |
+| [`install-test-entrypoint.sh`](../scripts/install-test-entrypoint.sh) | `verify` / `serve` / `e2e` logic |
 | [`serve.sh`](serve.sh) | Persistent `serve` (default local hosting) |
-| [`docker-compose.install-test.yml`](../docker-compose.install-test.yml) | Same as `serve.sh`, via Compose |
+| [`moonshot.install-test.docker-compose.yml`](moonshot.install-test.docker-compose.yml) | Same as `serve.sh`, via Compose |
 | [`run-e2e-tests.sh`](../scripts/run-e2e-tests.sh) | Host-native E2E (conda + npm, no Docker) |
 
 ## Comparison to manual install

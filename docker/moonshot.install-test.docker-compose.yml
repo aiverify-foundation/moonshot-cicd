@@ -1,6 +1,6 @@
 # Persistent local hosting for Moonshot (install-test image).
 # From repo root:
-#   docker compose -f docker-compose.install-test.yml up --build
+#   docker compose -f docker/moonshot.install-test.docker-compose.yml up --build
 #
 # All persistent data: Docker volume moonshot-data -> /var/lib/moonshot
 
@@ -8,8 +8,10 @@ services:
   moonshot:
     image: moonshot-install-test
     build:
-      context: .
-      dockerfile: Dockerfile.install-test
+      # Paths relative to this compose file's directory (docker/).
+      # Context must be the repo root so COPY moonshot_core/ etc. work.
+      context: ..
+      dockerfile: docker/moonshot.install-test.Dockerfile
     ports:
       - "8000:8000"
       - "3000:3000"

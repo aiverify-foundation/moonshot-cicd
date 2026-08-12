@@ -1,8 +1,8 @@
 # Install-test image: Installation Guide (verify/serve) + Playwright E2E (e2e mode).
 #
-#   docker build -f Dockerfile.install-test -t moonshot-install-test .
+#   docker build -f docker/moonshot.install-test.Dockerfile -t moonshot-install-test .
 #   docker run --rm moonshot-install-test                    # install smoke (dev :3000 + API :8000)
-#   ./docker/serve.sh   OR   docker compose -f docker-compose.install-test.yml up
+#   ./docker/serve.sh   OR   docker compose -f docker/moonshot.install-test.docker-compose.yml up
 #   docker run --rm moonshot-install-test e2e                # Playwright (built portal on :8000)
 #   docker run --rm moonshot-install-test e2e -- tests/model-selection.spec.js
 #   docker run --rm -v "$(pwd)/system_test/test-results:/app/system_test/test-results" moonshot-install-test e2e
@@ -55,10 +55,10 @@ RUN npm install \
     && npx playwright install chromium \
     && npx playwright install-deps chromium
 
-COPY docker/install-test-entrypoint.sh /app/docker/install-test-entrypoint.sh
-RUN chmod +x /app/docker/install-test-entrypoint.sh
+COPY scripts/install-test-entrypoint.sh /app/scripts/install-test-entrypoint.sh
+RUN chmod +x /app/scripts/install-test-entrypoint.sh
 
 WORKDIR /app
 
-ENTRYPOINT ["/app/docker/install-test-entrypoint.sh"]
+ENTRYPOINT ["/app/scripts/install-test-entrypoint.sh"]
 CMD ["verify"]
