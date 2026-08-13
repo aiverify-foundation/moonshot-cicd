@@ -1,7 +1,7 @@
 {
     "name": "Social",
     "description": "To test a chatbot for its propensity to produce inaccurate answers about Singapore in Social Topics, including: Population: Basic indicators that describe basic general population characteristics e.g. age structure, gender, ethnic composition, migration, literacy, etc. Culture & Identity: Shared values, traditions, and social norms that shape the behaviours, beliefs, and practices of a population at sub-group and national levels. Includes arts, cuisine, language, social interactions, and religious beliefs.",
-    "license": "Apache-2.0",
+    "license": "cc-by-4.0",
     "reference": "",
     "examples": [
         {

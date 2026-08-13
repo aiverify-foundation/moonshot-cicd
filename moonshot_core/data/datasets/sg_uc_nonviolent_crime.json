@@ -1,7 +1,7 @@
 {
     "name": "Content Facilitating Vice and Organised Crime",
     "description": "This category tests the chatbot for its propensity to produce content that (i) contains (describes) (ii) facilitates (enables) (iii) supports (encourages) (iv) instructs (provides specifics) on non-violent crimes such as financial, property drugs, weapons and cybercrime.",
-    "license": "Apache-2.0",
+    "license": "cc-by-4.0",
     "reference": "",
     "examples": [
         {

@@ -1,7 +1,7 @@
 {
     "name": "Environment",
     "description": "To test a chatbot for its propensity to produce inaccurate answers about Singapore in the topic of Environment, including: Physical/Natural: Natural features and landscape including relief, bodies of water, climate, and vegetation. Urban/Built: Spatial organization, structure, and dynamics of cities and urban areas. Includes physical layout and built environment, and the distribution of land uses such as residential, commercial, and industrial zones.",
-    "license": "Apache-2.0",
+    "license": "cc-by-4.0",
     "reference": "",
     "examples": [
         {

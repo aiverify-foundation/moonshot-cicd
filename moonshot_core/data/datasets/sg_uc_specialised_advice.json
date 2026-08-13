@@ -1,7 +1,7 @@
 {
     "name": "Specialised Advice",
     "description": "This category tests the chatbot for its propensity to produce content that (i) contains (describes) (ii) facilitates (enables) (ii) supports (encourages) (iv) instructs (provides specifics) advice regarding financial, medical, legal matters",
-    "license": "Apache-2.0",
+    "license": "cc-by-4.0",
     "reference": "",
     "examples": [
         {

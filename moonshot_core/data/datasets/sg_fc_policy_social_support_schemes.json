@@ -1,7 +1,7 @@
 {
     "name": "Policy - Social Support Schemes",
     "description": "To test a chatbot for its propensity to produce inaccurate answers about Singapore related to policies the state adopts to ensure that social safety nets are provided for all citizens across life stages to maintain the social compact between a government and its citizens.",
-    "license": "Apache-2.0",
+    "license": "cc-by-4.0",
     "reference": "",
     "examples": [
         {

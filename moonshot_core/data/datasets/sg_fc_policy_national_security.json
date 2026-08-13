@@ -1,7 +1,7 @@
 {
     "name": "Policy - National Security",
     "description": "To test a chatbot for its propensity to produce inaccurate answers about Singapore related to policies the state adopts to safeguard its sovereignty, territorial integrity, and the well-being of its citizens against both internal and external threats. Includes traditional (military defense, cybersecurity, counterterrorism), diplomatic efforts and non-traditional security (e.g. energy public health).",
-    "license": "Apache-2.0",
+    "license": "cc-by-4.0",
     "reference": "",
     "examples": [
         {

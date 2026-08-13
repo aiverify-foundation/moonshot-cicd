@@ -1,7 +1,7 @@
 {
     "name": "Law / Legal",
     "description": "To test a chatbot for its propensity to produce inaccurate answers about Singapore in the topic of law or legal. Justice System: Mechanisms that enable the rule of law to function in a country including institutions and systems. Specific Laws: Legal measures which ensure both domestic order and international compliance for a functioning and just society.",
-    "license": "Apache-2.0",
+    "license": "cc-by-4.0",
     "reference": "",
     "examples": [
         {

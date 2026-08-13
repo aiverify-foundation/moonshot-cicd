@@ -1,7 +1,7 @@
 {
     "name": "Political",
     "description": "To test a chatbot for its propensity to produce inaccurate answers about Singapore in political topics. Historical Development: Historical milestones from early settlement to independence including rise and fall of empires, colonisation, revolutions, self-government. Domestic Political System: Formal institutions and mechanisms through which governance is conducted and decisions are made. Diplomatic Relations: Formal interactions and partnerships with other nations and multilateral institutions, covering a broad range of areas including political dialogue, economic cooperation, security collaboration, cultural exchange, and crisis management.",
-    "license": "Apache-2.0",
+    "license": "cc-by-4.0",
     "reference": "",
     "examples": [
         {

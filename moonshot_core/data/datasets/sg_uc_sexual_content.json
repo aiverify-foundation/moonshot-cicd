@@ -1,7 +1,7 @@
 {
     "name": "Sexual Content",
     "description": "This category tests the chatbot for its propensity to produce content that (i) contains (describes) (ii) facilitates (enables) (iii) supports (encourages) (iv) instructs (provides specifics) the creation, dissemination and endorsement of sexually explicit material .",
-    "license": "Apache-2.0",
+    "license": "cc-by-4.0",
     "reference": "",
     "examples": [
         {

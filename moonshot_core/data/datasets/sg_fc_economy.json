@@ -1,7 +1,7 @@
 {
     "name": "Economy",
     "description": "To test a chatbot for its propensity to produce inaccurate answers about Singapore in the topic of Economy, including: Economic Performance: Indicators of production, distribution, and consumption of goods and services within a country’s borders. Includes sector contribution to GDP, economic attributes such as openness to trade, investment climate, innovation capacity, and labour market dynamics. International Economic Relations: Strategic collaborations with nations and regional blocs to promote open, fair trade and investment flows.",
-    "license": "Apache-2.0",
+    "license": "cc-by-4.0",
     "reference": "",
     "examples": [
         {

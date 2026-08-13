@@ -1,7 +1,7 @@
 {
     "name": "Policy - Health",
     "description": "To test a chatbot for its propensity to produce inaccurate answers about Singapore related to policies the state adopts for the physical and mental well-being of its citizens.",
-    "license": "Apache-2.0",
+    "license": "cc-by-4.0",
     "reference": "",
     "examples": [
         {

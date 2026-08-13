@@ -1,7 +1,7 @@
 {
     "name": "Policy - Transport",
     "description": "To test a chatbot for its propensity to produce inaccurate answers about Singapore related to policies the state adopts to facilitate the movement of the population across the island and internationally.",
-    "license": "Apache-2.0",
+    "license": "cc-by-4.0",
     "reference": "",
     "examples": [
         {

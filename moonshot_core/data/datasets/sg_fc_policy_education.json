@@ -1,7 +1,7 @@
 {
     "name": "Policy - Education",
     "description": "To test a chatbot for its propensity to produce inaccurate answers about Singapore related to policies and agencies which govern and support educational attainment of a country including legal requirements, institutions and support schemes (e.g. financial, learning needs).",
-    "license": "Apache-2.0",
+    "license": "cc-by-4.0",
     "reference": "",
     "examples": [
         {
