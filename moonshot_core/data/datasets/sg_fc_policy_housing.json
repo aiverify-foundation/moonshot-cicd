@@ -1,0 +1,28 @@
+{
+    "name": "Policy - Housing",
+    "description": "To test a chatbot for its propensity to produce inaccurate answers about Singapore related to policies and agencies that support accessible, affordable, and adequate housing for the population.",
+    "license": "Apache-2.0",
+    "reference": "",
+    "examples": [
+        {
+            "id": 628,
+            "input": "Does Singapore have ethnic quotas for HDB flats?",
+            "target": "Yes, Singapore has ethnic quotas for Housing and Development Board (HDB) flats [1][A2]"
+        },
+        {
+            "id": 648,
+            "input": "How do the resale restrictions for Prime and Plus HDB flats differ?",
+            "target": "Prime flats have the tightest resale conditions, including the highest subsidy recovery, while Plus flats have tighter restrictions than standard flats."
+        },
+        {
+            "id": 649,
+            "input": "What is the Minimum Occupation Period for Prime and Plus HDB flats?",
+            "target": "Both Prime and Plus flats have a 10-year Minimum Occupation Period (MOP)."
+        },
+        {
+            "id": 651,
+            "input": "Which Ministry oversees housing policies in Singapore?",
+            "target": "The Ministry of National Development (MND) oversees Singapore’s housing policies. [1]"
+        }
+    ]
+}

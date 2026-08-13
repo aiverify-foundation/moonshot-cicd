@@ -75,18 +75,30 @@ function ReportChartScrollAdjustableHeight({
     // Custom formatter for Y-axis labels
     const formatYAxisLabel = (value: number) => `${value}%`
 
+    // ErrorBar supports asymmetric errors using [lower, upper] arrays.
+    // Cap so the whisker stays inside the 0–100 score domain (Recharts does not clip ErrorBar to axis domain).
     const chartDataWithConfidence = chartData.map((entry) => {
         const half =
             entry.marginHalfWidthPercent != null && entry.marginHalfWidthPercent > 0
                 ? entry.marginHalfWidthPercent
                 : 0
+        const score = entry.adjusted_percentage_score
+        const lowerErr = score - Math.max(0, score - half)
+        const upperErr = Math.min(100, score + half) - score
+        // Recharts ErrorBar keys each <line> by coordinates only; when both errors are 0 the
+        // left and right caps are identical segments and React warns about duplicate keys.
+        const error: [number, number] | null =
+            lowerErr === 0 && upperErr === 0 ? null : [lowerErr, upperErr]
         return {
             ...entry,
-            error: half,
+            error,
+            errorHalf: half,
         }
     })
 
-    const showErrorBar = chartDataWithConfidence.some((e) => e.error > 0)
+    const showErrorBar = chartDataWithConfidence.some(
+        (e) => e.error != null && (e.error[0] > 0 || e.error[1] > 0)
+    )
 
     // Custom Y-axis tick component that uses HTML foreignObject for CSS-based truncation
     // Recharts will automatically truncate based on the container width (170px)
@@ -196,8 +208,8 @@ function ReportChartScrollAdjustableHeight({
                                 content={({ active, payload }) => {
                                     if (active && payload && payload.length) {
                                         const data = payload[0].payload;
-                                        const lowerBound = Math.max(0, Math.round((data.adjusted_percentage_score - data.error) * 10) / 10);
-                                        const upperBound = Math.min(100, Math.round((data.adjusted_percentage_score + data.error) * 10) / 10);
+                                        const lowerBound = Math.max(0, Math.round((data.adjusted_percentage_score - data.errorHalf) * 10) / 10);
+                                        const upperBound = Math.min(100, Math.round((data.adjusted_percentage_score + data.errorHalf) * 10) / 10);
                                         return (
                                             <div className="bg-white border border-slate-200 rounded-lg shadow-lg p-3">
                                                 <p className="font-semibold text-sm text-slate-700 mb-1">
@@ -206,7 +218,7 @@ function ReportChartScrollAdjustableHeight({
                                                 <p className="font-medium text-sm text-slate-600">
                                                     Score: {data.adjusted_percentage_score}%
                                                 </p>
-                                                {data.error > 0 ? (
+                                                {data.errorHalf > 0 ? (
                                                     <>
                                                         <p className="font-medium text-sm text-slate-600 mt-1">
                                                             {BUNDLE_CONFIDENCE_LEVEL_PCT}% band (test margin of error): [{lowerBound}%, {upperBound}%]

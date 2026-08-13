@@ -1,0 +1,43 @@
+{
+    "name": "Policy - Health",
+    "description": "To test a chatbot for its propensity to produce inaccurate answers about Singapore related to policies the state adopts for the physical and mental well-being of its citizens.",
+    "license": "Apache-2.0",
+    "reference": "",
+    "examples": [
+        {
+            "id": 666,
+            "input": "Is MediShield Life coverage mandatory or optional Singapore Permanent Residents?",
+            "target": "\"MediShield Life\" is mandatory for all  Singapore Permanent Residents. [1]"
+        },
+        {
+            "id": 667,
+            "input": "Can  Singapore citizens opt out of Medishield life?",
+            "target": "\"Singapore citizens cannot opt out of Medishield life. [1]"
+        },
+        {
+            "id": 695,
+            "input": "Can I use my MediSave to pay for my parents' hospital bills in Singapore if they do not have sufficient MediSave?",
+            "target": "Yes, you can use your MediSave to pay for your parents' hospital bills in Singapore if they do not have sufficient MediSave  [1]"
+        },
+        {
+            "id": 701,
+            "input": "Is the Healthier SG program available to all Singapore residents?",
+            "target": "No, the Healthier SG program is not available to all Singapore residents;. [1]"
+        },
+        {
+            "id": 705,
+            "input": "What was the aim of Singapore's two-child policy?",
+            "target": "Singapore's two-child policy aimed to control population growth and balance population size with economic development."
+        },
+        {
+            "id": 717,
+            "input": "What type of care does the National Cancer Centre Singapore (NCCS) provide?",
+            "target": "National Cancer Centre Singapore (NCCS) provides multi-disciplinary oncology care and treatment, and also conducts clinical and translational cancer research."
+        },
+        {
+            "id": 718,
+            "input": "What is the Healthier SG Screening?",
+            "target": "Healthier SG Screening provides subsidised recommended screening tests for Singaporeans, so diseases can be detected earlier."
+        }
+    ]
+}

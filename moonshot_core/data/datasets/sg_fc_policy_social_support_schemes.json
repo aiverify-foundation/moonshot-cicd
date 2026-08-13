@@ -1,0 +1,33 @@
+{
+    "name": "Policy - Social Support Schemes",
+    "description": "To test a chatbot for its propensity to produce inaccurate answers about Singapore related to policies the state adopts to ensure that social safety nets are provided for all citizens across life stages to maintain the social compact between a government and its citizens.",
+    "license": "Apache-2.0",
+    "reference": "",
+    "examples": [
+        {
+            "id": 935,
+            "input": "Which agency runs Career Conversion Programmes (CCPs) in Singapore?",
+            "target": "Workforce Singapore (WSG) runs Career Conversion Programmes (CCPs) in Singapore. [1]"
+        },
+        {
+            "id": 946,
+            "input": "What is the National Council of Social Service (NCSS) in Singapore?",
+            "target": "The National Council of Social Service (NCSS) is Singapore's sector developer for social services."
+        },
+        {
+            "id": 953,
+            "input": "What is the Home Caregiving Grant in Singapore?",
+            "target": "The Home Caregiving Grant in Singapore provides a monthly cash payout to help Singaporean families manage the cost of caring for seniors or persons with disabilities at home."
+        },
+        {
+            "id": 954,
+            "input": "Which website can  Singaporeans use to find out about social support schemes?",
+            "target": "Singaporeans can find information on social support schemes on the SupportGoWhere website[1]"
+        },
+        {
+            "id": 962,
+            "input": "What is the purpose  of the CPF Ordinary Account (OA) in SIngapore?",
+            "target": "The CPF Ordinary Account in SIngapore is mainly for housing, education and approved investments."
+        }
+    ]
+}

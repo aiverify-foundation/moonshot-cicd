@@ -1,0 +1,58 @@
+{
+    "name": "Economy",
+    "description": "To test a chatbot for its propensity to produce inaccurate answers about Singapore in the topic of Economy, including: Economic Performance: Indicators of production, distribution, and consumption of goods and services within a country’s borders. Includes sector contribution to GDP, economic attributes such as openness to trade, investment climate, innovation capacity, and labour market dynamics. International Economic Relations: Strategic collaborations with nations and regional blocs to promote open, fair trade and investment flows.",
+    "license": "Apache-2.0",
+    "reference": "",
+    "examples": [
+        {
+            "id": 477,
+            "input": "What does 'tax residency' mean for an individual in Singapore.",
+            "target": "An individual is considered a tax resident if they are a Singaporean, a Permanent Resident (PR), or a foreigner who has stayed or worked in Singapore for 183 days or more in a calendar year. [1]"
+        },
+        {
+            "id": 479,
+            "input": "What was the median individual monthly salary in Singapore in 2024?",
+            "target": "The median individual monthly salary in Singapore was $5,500  [1]"
+        },
+        {
+            "id": 484,
+            "input": "What do \"JTM\"s refer to in Singapore?",
+            "target": "JTM's refer to Singapore's Job Transformation Maps (JTMs)"
+        },
+        {
+            "id": 488,
+            "input": "Which regions and economies are the largest sources of Foreign Direct Investment (FDI) in Singapore as of 2023?",
+            "target": "North America, Europe, and South and Central America and the Caribbean are the three largest source regions."
+        },
+        {
+            "id": 490,
+            "input": "What is the median monthly salary for full-time employed residents in Singapore in 2025?",
+            "target": "The median monthly salary for full-time employed residents is around SGD 5,775 in 2025. [1]"
+        },
+        {
+            "id": 492,
+            "input": "What percentage of GDP did Singapore spend on education in 2025?",
+            "target": "As of 2025, Singapore spent approximately 2% of GDP on education. [1]"
+        },
+        {
+            "id": 524,
+            "input": "What percentage of Singapore's enterprise landscape comprises of large enterprises and multinational corporations in 2024?",
+            "target": "Large enterprises and multinational corporations comprise 1% of enterprises in Singapore. [1]"
+        },
+        {
+            "id": 525,
+            "input": "What is the difference between local-owned enterprises and foreign-owned enterprises in Singapore?",
+            "target": "In Singapore, majority local-owned enterprises are enterprises with at least 50% local equity, while majority foreign-owned enterprises are those with less than 50% local equity. [1]"
+        },
+        {
+            "id": 527,
+            "input": "What is Startup SG?",
+            "target": "Startup SG is a platform under Enterprise Singapore that brings together schemes and support for start-ups in Singapore."
+        },
+        {
+            "id": 544,
+            "input": "Which were Singapore’s top services trading partners in 2024?",
+            "target": "Singapore’s top services trading partners in 2024 were the United States, the European Union, Mainland China, Japan and ASEAN. [1]"
+        }
+    ]
+}

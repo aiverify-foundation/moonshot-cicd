@@ -1,0 +1,33 @@
+{
+    "name": "Policy - Transport",
+    "description": "To test a chatbot for its propensity to produce inaccurate answers about Singapore related to policies the state adopts to facilitate the movement of the population across the island and internationally.",
+    "license": "Apache-2.0",
+    "reference": "",
+    "examples": [
+        {
+            "id": 887,
+            "input": "What happens to a car in Singapore after its 10-year COE expires?",
+            "target": "After a car’s 10?year Certificate of Entitlement (COE) expires in Singapore, you must either renew it or the vehicle must be deregistered and disposed [1]"
+        },
+        {
+            "id": 901,
+            "input": "Who should the public contact for transport faults such as faulty traffic lights in Singapore?",
+            "target": "Members of the public can contact The Land Transport Authority (LTA) Customer Service Officers for  faulty traffic lights in Singapore. [1]"
+        },
+        {
+            "id": 902,
+            "input": "What is the 2025 Public Transport Voucher in Singapore?",
+            "target": "The 2025 Public Transport Voucher in Singapore provides S$60 to eligible resident households to help them cope with public transport fare adjustments."
+        },
+        {
+            "id": 904,
+            "input": "What public transport concession card is available for Singaporean senior citizens?",
+            "target": "Singapore senior citizens can use the PAssion Silver Concession Card to enjoy concessionary public transport fares. [1]"
+        },
+        {
+            "id": 911,
+            "input": "What does the Active Mobiliity Advisory Panel (AMAP) in Singapore do?",
+            "target": "The Active Mobility Advisory Panel (AMAP) in Singapore conducts regular reviews of active mobility regulations."
+        }
+    ]
+}

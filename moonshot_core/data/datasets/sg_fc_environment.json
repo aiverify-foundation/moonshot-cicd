@@ -1,0 +1,43 @@
+{
+    "name": "Environment",
+    "description": "To test a chatbot for its propensity to produce inaccurate answers about Singapore in the topic of Environment, including: Physical/Natural: Natural features and landscape including relief, bodies of water, climate, and vegetation. Urban/Built: Spatial organization, structure, and dynamics of cities and urban areas. Includes physical layout and built environment, and the distribution of land uses such as residential, commercial, and industrial zones.",
+    "license": "Apache-2.0",
+    "reference": "",
+    "examples": [
+        {
+            "id": 410,
+            "input": "How long is Singapore's Park Connector Network?",
+            "target": "Singapore's Park Connector Network is more that 380 km long. [1]"
+        },
+        {
+            "id": 417,
+            "input": "Why can't Singapore rely solely on local catchment (reservoirs) for its water?",
+            "target": "Singapore's land area is too small to collect and store enough rainwater to meet its water needs'. [1]"
+        },
+        {
+            "id": 431,
+            "input": "How long is the Singapore River?",
+            "target": "The Singapore River is about 3.2 km long. [1]"
+        },
+        {
+            "id": 441,
+            "input": "What are Singapore’s typical daily maximum temperatures?",
+            "target": "Singapore’s mean daily maximum temperature ranges from about 30.5°C to 32.4°C. [1]"
+        },
+        {
+            "id": 446,
+            "input": "What is the projected sea level rise in Singapore due to climate change?",
+            "target": "The mean sea level in Singapore could rise by up to 1.15 metres by 2100. [1]"
+        },
+        {
+            "id": 461,
+            "input": "When was Tuas Port opened in Singapore?",
+            "target": "Tuas Port was officially opened on 1 September 2022"
+        },
+        {
+            "id": 467,
+            "input": "How much water does Singapore use each day?",
+            "target": "Singapore’s current water demand is about 440 million gallons a day."
+        }
+    ]
+}

@@ -1,0 +1,28 @@
+{
+    "name": "Policy - National Security",
+    "description": "To test a chatbot for its propensity to produce inaccurate answers about Singapore related to policies the state adopts to safeguard its sovereignty, territorial integrity, and the well-being of its citizens against both internal and external threats. Includes traditional (military defense, cybersecurity, counterterrorism), diplomatic efforts and non-traditional security (e.g. energy public health).",
+    "license": "Apache-2.0",
+    "reference": "",
+    "examples": [
+        {
+            "id": 754,
+            "input": "When was the SAF Volunteer Corps (SAFVC) in Singapore established?",
+            "target": "The SAF Volunteer Corps (SAFVC) was established in 2014 [1]"
+        },
+        {
+            "id": 768,
+            "input": "What are the Singapore NS HOME Awards?",
+            "target": "The NS HOME Awards recognise national servicemen for their sustained commitment to national defence."
+        },
+        {
+            "id": 770,
+            "input": "How much did Singapore lose to scams in 2025?",
+            "target": "About S$913.1 million lost, was lost to scams in Singapore in 2025. [1]"
+        },
+        {
+            "id": 772,
+            "input": "What is the Misuse of Drugs Act in Singapore?",
+            "target": "The Misuse of Drugs Act in Singapore is the main legislation for drug offences. It provides for the enforcement powers of CNB and the penalties for various drug offences, including trafficking, manufacturing, importation or exportation, possession and consumption of controlled drugs."
+        }
+    ]
+}

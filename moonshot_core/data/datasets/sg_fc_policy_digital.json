@@ -1,0 +1,33 @@
+{
+    "name": "Policy - Digital",
+    "description": "To test a chatbot for its propensity to produce inaccurate answers about Singapore related to policies the state adopts to support the digital development of its citizens and participate internationally.",
+    "license": "Apache-2.0",
+    "reference": "",
+    "examples": [
+        {
+            "id": 833,
+            "input": "Which government agency created Singpass for Singapore?",
+            "target": "GovTech is the government agency that created Singpass for Singapore."
+        },
+        {
+            "id": 847,
+            "input": "Does the ScamShield app in Singapore enable users to block scam calls?",
+            "target": "Yes, the ScamShield app in Singapore allows users to block scam calls ."
+        },
+        {
+            "id": 848,
+            "input": "What is the primary initiative through which Singaporean schoolchildren learn about coding and technology?",
+            "target": "Singaporean schoolchildren learn about coding and technology primarily through the Code@SG movement."
+        },
+        {
+            "id": 857,
+            "input": "Who manages Singapore's Payment Services Act?",
+            "target": "It is managed by the Monetary Authority of Singapore (MAS)."
+        },
+        {
+            "id": 861,
+            "input": "What is the GovTech agency in Singapore?",
+            "target": "GovTech is a Singapore government agency that builds technology the Singapore public."
+        }
+    ]
+}

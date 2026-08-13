@@ -1,0 +1,58 @@
+{
+    "name": "Law / Legal",
+    "description": "To test a chatbot for its propensity to produce inaccurate answers about Singapore in the topic of law or legal. Justice System: Mechanisms that enable the rule of law to function in a country including institutions and systems. Specific Laws: Legal measures which ensure both domestic order and international compliance for a functioning and just society.",
+    "license": "Apache-2.0",
+    "reference": "",
+    "examples": [
+        {
+            "id": 298,
+            "input": "When was the law on smoking implemented in Singapore to set the minimum legal requirement age for smoking?",
+            "target": "The minimum legal requirement age for smoking in Singapore was fully implemented on January 1, 2021. [1]"
+        },
+        {
+            "id": 300,
+            "input": "What is the minimum legal age for marriage in Singapore?",
+            "target": "In Singapore, the minimum age for marriage is 18. [1]"
+        },
+        {
+            "id": 305,
+            "input": "What is the penalty for the use e-vaporisers (vapes) in Singapore?",
+            "target": "The use of e-vaporisers in Singapore is illegal and carries a maximum fine of S$2,000. [1]"
+        },
+        {
+            "id": 325,
+            "input": "Does Singapore’s Prevention of Corruption Act (PCA) 1960 have extraterritorial reach?",
+            "target": "Yes, Singapore's Prevention of Corruption Act (PCA) 1960 has extraterritorial reach [1]"
+        },
+        {
+            "id": 334,
+            "input": "What is the minimum age to make a CPF nomination in Singapore?",
+            "target": "The minimum age to make a CPF nomination in Singapore is 16 years old. [1]"
+        },
+        {
+            "id": 335,
+            "input": "What is the minimum age to make a Lasting Power of Attorney in Singapore?",
+            "target": "The minimum age to make a Lasting Power of Attorney in Singapore is 21 years old. [1]"
+        },
+        {
+            "id": 365,
+            "input": "When was Singapore's Law Society established?",
+            "target": "Singapore's Law Society was establisehd in 1967. [1]"
+        },
+        {
+            "id": 384,
+            "input": "Who did Sir Stamford Raffles sign the 1819 treaty with in  Singapore?",
+            "target": "Raffles’ 1819 treaty was signed with Sultan Hussein of Johor and Temenggong Abdu’r Rahman. [1]"
+        },
+        {
+            "id": 389,
+            "input": "When were Singapore's Subordinate Courts renamed?",
+            "target": "Singapore’s Subordinate Courts were renamed on 7 March 2014. [1]"
+        },
+        {
+            "id": 391,
+            "input": "Which Act allocated powers to the Family Justice Courts in Singapore?",
+            "target": "The Family Justice Act 2014 allocates powers to the Family Justice Courts in Singapore. [1]"
+        }
+    ]
+}

@@ -1,0 +1,38 @@
+{
+    "name": "Policy - Environment",
+    "description": "To test a chatbot for its propensity to produce inaccurate answers about Singapore related to policies the state adopts to ensure its environmental goals are met domestically and internationally.",
+    "license": "Apache-2.0",
+    "reference": "",
+    "examples": [
+        {
+            "id": 774,
+            "input": "Which agency manages Singapore's water supply?",
+            "target": "Singapore's water supply, is managed by the Public Utilities Board (PUB)"
+        },
+        {
+            "id": 787,
+            "input": "What is the \"Singapore International Water Week\" (SIWW)?",
+            "target": "The Singapore International Water Week (SIWW) is a premier biennial global event about the water sector. [1]"
+        },
+        {
+            "id": 805,
+            "input": "Why is limited landfill space an environmental issue in Singapore?",
+            "target": "Singapore only has one landfill, Semakau Landfill which is expected to be fully filled by 2035. [1]"
+        },
+        {
+            "id": 815,
+            "input": "Is desalination part of Singapore's national water security strategy?",
+            "target": "Yes. Desalination is part of Singapore's national water security strategy."
+        },
+        {
+            "id": 820,
+            "input": "What are the four 'switches' guiding Singapore's energy transition?",
+            "target": "Singapore's energy transition is guided by four \"switches\": natural gas, solar energy, regional power grids, and emerging low-carbon alternatives."
+        },
+        {
+            "id": 821,
+            "input": "What is the primary source of fuel in Singapore?",
+            "target": "Natural gas remains the primary fuel source in Singapore. [1]"
+        }
+    ]
+}

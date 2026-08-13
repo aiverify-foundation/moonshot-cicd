@@ -136,3 +136,186 @@ test-bundle:
     metric:
       name: ailuminate_safety_classifier_adapter
 
+sg-uc:
+  description: |
+    A set of Singapore-context tests that assess tendency to generate undesirable
+    content, meaning content that inflicts harm on individuals, communities, or
+    the public interest, such as socially harmful or legally prohibited content.
+  category: IMDA's Starter Kit
+  name: Singapore Undesirable Content
+  tests:
+  - name: SG UC - Violent Content
+    description: |
+      Measures ability to respond without enabling, encouraging, or endorsing violent content in a Singapore context. A high grade indicates that the system under test handles the response well.
+    type: benchmark
+    dataset: sg_uc_violent_content
+    metric:
+      name: sg_uc_classifier_adapter
+
+  - name: SG UC - Non-Violent Crime
+    description: |
+      Measures ability to respond without enabling, encouraging, or endorsing non-violent crime in a Singapore context. A high grade indicates that the system under test handles the response well.
+    type: benchmark
+    dataset: sg_uc_nonviolent_crime
+    metric:
+      name: sg_uc_classifier_adapter
+
+  - name: SG UC - Sex Crimes
+    description: |
+      Measures ability to respond without enabling, encouraging, or endorsing sex crimes in a Singapore context. A high grade indicates that the system under test handles the response well.
+    type: benchmark
+    dataset: sg_uc_sexual_crimes
+    metric:
+      name: sg_uc_classifier_adapter
+
+  - name: SG UC - Child Sexual Exploitation
+    description: |
+      Measures ability to respond without enabling, encouraging, or endorsing child sexual exploitation in a Singapore context. A high grade indicates that the system under test handles the response well.
+    type: benchmark
+    dataset: sg_uc_child_sexual_exploitation
+    metric:
+      name: sg_uc_classifier_adapter
+
+  - name: SG UC - Sexual Content
+    description: |
+      Measures ability to respond without containing pornography or engaging the user in direct, erotic chat in a Singapore context. A high grade indicates that the system under test handles the response well.
+    type: benchmark
+    dataset: sg_uc_sexual_content
+    metric:
+      name: sg_uc_classifier_adapter
+
+  - name: SG UC - Hate
+    description: |
+      Measures ability to respond without demeaning or dehumanizing people on the basis of their sensitive, personal characteristics in a Singapore context. A high grade indicates that the system under test handles the response well.
+    type: benchmark
+    dataset: sg_uc_hate
+    metric:
+      name: sg_uc_classifier_adapter
+
+  - name: SG UC - Self-Harm and Suicide
+    description: |
+      Measures ability to respond without enabling, encouraging, or endorsing acts of intentional self-harm like suicide and self-injury in a Singapore context. A high grade indicates that the system under test handles the response well.
+    type: benchmark
+    dataset: sg_uc_selfharm_suicide
+    metric:
+      name: sg_uc_classifier_adapter
+
+  - name: SG UC - Specialised Advice
+    description: |
+      Measures ability to respond without offering unqualified specialised advice (e.g. financial, medical, or legal) in a Singapore context. A high grade indicates that the system under test handles the response well.
+    type: benchmark
+    dataset: sg_uc_specialised_advice
+    metric:
+      name: sg_uc_classifier_adapter
+
+
+sg-fc:
+  description: |
+    To test a chatbot for its propensity to produce inaccurate answers about Singapore
+    across social, economic, political, legal, environment and policy dimensions
+  category: IMDA's Starter Kit
+  name: Facts in Singapore
+  tests:
+  - name: SG FC - Economy
+    description: |
+      To test a chatbot for its propensity to produce inaccurate answers about Singapore in the topic of Economy, including: Economic Performance: Indicators of production, distribution, and consumption of goods and services within a country’s borders. Includes sector contribution to GDP, economic attributes such as openness to trade, investment climate, innovation capacity, and labour market dynamics. International Economic Relations: Strategic collaborations with nations and regional blocs to promote open, fair trade and investment flows.
+    type: benchmark
+    dataset: sg_fc_economy
+    metric:
+      name: sg_fact_check_adapter
+
+  - name: SG FC - Environment
+    description: |
+      To test a chatbot for its propensity to produce inaccurate answers about Singapore in the topic of Environment, including: Physical/Natural: Natural features and landscape including relief, bodies of water, climate, and vegetation. Urban/Built: Spatial organization, structure, and dynamics of cities and urban areas. Includes physical layout and built environment, and the distribution of land uses such as residential, commercial, and industrial zones.
+    type: benchmark
+    dataset: sg_fc_environment
+    metric:
+      name: sg_fact_check_adapter
+
+  - name: SG FC - Law / Legal
+    description: |
+      To test a chatbot for its propensity to produce inaccurate answers about Singapore in the topic of law or legal. Justice System: Mechanisms that enable the rule of law to function in a country including institutions and systems. Specific Laws: Legal measures which ensure both domestic order and international compliance for a functioning and just society.
+    type: benchmark
+    dataset: sg_fc_law_legal
+    metric:
+      name: sg_fact_check_adapter
+
+  - name: SG FC - Policy - Digital
+    description: |
+      To test a chatbot for its propensity to produce inaccurate answers about Singapore related to policies the state adopts to support the digital development of its citizens and participate internationally.
+    type: benchmark
+    dataset: sg_fc_policy_digital
+    metric:
+      name: sg_fact_check_adapter
+
+  - name: SG FC - Policy - Education
+    description: |
+      To test a chatbot for its propensity to produce inaccurate answers about Singapore related to policies and agencies which govern and support educational attainment of a country including legal requirements, institutions and support schemes (e.g. financial, learning needs).
+    type: benchmark
+    dataset: sg_fc_policy_education
+    metric:
+      name: sg_fact_check_adapter
+
+  - name: SG FC - Policy - Environment
+    description: |
+      To test a chatbot for its propensity to produce inaccurate answers about Singapore related to policies the state adopts to ensure its environmental goals are met domestically and internationally.
+    type: benchmark
+    dataset: sg_fc_policy_environment
+    metric:
+      name: sg_fact_check_adapter
+
+  - name: SG FC - Policy - Health
+    description: |
+      To test a chatbot for its propensity to produce inaccurate answers about Singapore related to policies the state adopts for the physical and mental well-being of its citizens.
+    type: benchmark
+    dataset: sg_fc_policy_health
+    metric:
+      name: sg_fact_check_adapter
+
+  - name: SG FC - Policy - Housing
+    description: |
+      To test a chatbot for its propensity to produce inaccurate answers about Singapore related to policies and agencies that support accessible, affordable, and adequate housing for the population.
+    type: benchmark
+    dataset: sg_fc_policy_housing
+    metric:
+      name: sg_fact_check_adapter
+
+  - name: SG FC - Policy - National Security
+    description: |
+      To test a chatbot for its propensity to produce inaccurate answers about Singapore related to policies the state adopts to safeguard its sovereignty, territorial integrity, and the well-being of its citizens against both internal and external threats. Includes traditional (military defense, cybersecurity, counterterrorism), diplomatic efforts and non-traditional security (e.g. energy public health).
+    type: benchmark
+    dataset: sg_fc_policy_national_security
+    metric:
+      name: sg_fact_check_adapter
+
+  - name: SG FC - Policy - Social Support Schemes
+    description: |
+      To test a chatbot for its propensity to produce inaccurate answers about Singapore related to policies the state adopts to ensure that social safety nets are provided for all citizens across life stages to maintain the social compact between a government and its citizens.
+    type: benchmark
+    dataset: sg_fc_policy_social_support_schemes
+    metric:
+      name: sg_fact_check_adapter
+
+  - name: SG FC - Policy - Transport
+    description: |
+      To test a chatbot for its propensity to produce inaccurate answers about Singapore related to policies the state adopts to facilitate the movement of the population across the island and internationally.
+    type: benchmark
+    dataset: sg_fc_policy_transport
+    metric:
+      name: sg_fact_check_adapter
+
+  - name: SG FC - Political
+    description: |
+      To test a chatbot for its propensity to produce inaccurate answers about Singapore in political topics. Historical Development: Historical milestones from early settlement to independence including rise and fall of empires, colonisation, revolutions, self-government. Domestic Political System: Formal institutions and mechanisms through which governance is conducted and decisions are made. Diplomatic Relations: Formal interactions and partnerships with other nations and multilateral institutions, covering a broad range of areas including political dialogue, economic cooperation, security collaboration, cultural exchange, and crisis management.
+    type: benchmark
+    dataset: sg_fc_political
+    metric:
+      name: sg_fact_check_adapter
+
+  - name: SG FC - Social
+    description: |
+      To test a chatbot for its propensity to produce inaccurate answers about Singapore in Social Topics, including: Population: Basic indicators that describe basic general population characteristics e.g. age structure, gender, ethnic composition, migration, literacy, etc. Culture & Identity: Shared values, traditions, and social norms that shape the behaviours, beliefs, and practices of a population at sub-group and national levels. Includes arts, cuisine, language, social interactions, and religious beliefs.
+    type: benchmark
+    dataset: sg_fc_social
+    metric:
+      name: sg_fact_check_adapter
