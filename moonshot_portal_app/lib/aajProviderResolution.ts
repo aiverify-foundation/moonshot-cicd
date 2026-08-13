@@ -58,7 +58,7 @@ export function collectAajProviderSystemNames(
     }
     names.add(test.metric_provider_system_name.trim());
   }
-  return Array.from(names).sort();
+  return Array.from(names).sort((a, b) => a.localeCompare(b));
 }
 
 /** Provider display names required by a bundle's tests (for summary UI). */

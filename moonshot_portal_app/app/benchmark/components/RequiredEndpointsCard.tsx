@@ -227,7 +227,7 @@ export default function RequiredEndpointsCard() {
         names.push(systemName);
       }
     }
-    return names.sort();
+    return names.sort((a, b) => a.localeCompare(b));
   }, [bundles, selectedTestNames, apiProviders]);
 
   useEffect(() => {
@@ -285,7 +285,7 @@ export default function RequiredEndpointsCard() {
       const status = isAajEndpointAccepted(rawStatus, apiKeyConfigured)
         ? ConnectionStatus.CONNECTED
         : rawStatus;
-      const tests = Array.from(testSet).sort();
+      const tests = Array.from(testSet).sort((a, b) => a.localeCompare(b));
       const providerMissing = !provider;
       rows.push({
         rowKey: statusKey,

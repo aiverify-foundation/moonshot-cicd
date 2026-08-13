@@ -68,8 +68,8 @@ export default function TestResultTable({ data, pageSize = 10, onDataChange }: T
 
     // Extract unique filter values from data
     const filterOptions = useMemo(() => {
-        const tests = Array.from(new Set(data.map((row) => row.test).filter(Boolean))).sort()
-        const evaluations = Array.from(new Set(Array.from(evaluationDisplayLabelById.values()))).sort()
+        const tests = Array.from(new Set(data.map((row) => row.test).filter(Boolean))).sort((a, b) => a.localeCompare(b))
+        const evaluations = Array.from(new Set(Array.from(evaluationDisplayLabelById.values()))).sort((a, b) => a.localeCompare(b))
         const yourVerdicts: (string | null)[] = ["agree", "disagree", null]
         const adjustedOptions: string[] = ["adjusted", "not adjusted"]
 
@@ -88,8 +88,8 @@ export default function TestResultTable({ data, pageSize = 10, onDataChange }: T
         yourVerdicts: Set<string | null>
         adjusted: Set<string>
     }>(() => {
-        const tests = Array.from(new Set(data.map((row) => row.test).filter(Boolean))).sort()
-        const evaluations = Array.from(new Set(Array.from(evaluationDisplayLabelById.values()))).sort()
+        const tests = Array.from(new Set(data.map((row) => row.test).filter(Boolean))).sort((a, b) => a.localeCompare(b))
+        const evaluations = Array.from(new Set(Array.from(evaluationDisplayLabelById.values()))).sort((a, b) => a.localeCompare(b))
         
         return {
             tests: new Set(tests),
@@ -135,13 +135,13 @@ export default function TestResultTable({ data, pageSize = 10, onDataChange }: T
     // Reset to page 1 when filters change (using stringified version for stable comparison)
     const filterKey = useMemo(() => {
         return [
-            Array.from(filters.tests).sort().join(","),
-            Array.from(filters.evaluations).sort().join(","),
+            Array.from(filters.tests).sort((a, b) => a.localeCompare(b)).join(","),
+            Array.from(filters.evaluations).sort((a, b) => a.localeCompare(b)).join(","),
             Array.from(filters.yourVerdicts)
                 .map((v) => v ?? "null")
-                .sort()
+                .sort((a, b) => a.localeCompare(b))
                 .join(","),
-            Array.from(filters.adjusted).sort().join(","),
+            Array.from(filters.adjusted).sort((a, b) => a.localeCompare(b)).join(","),
         ].join("|")
     }, [filters])
     
@@ -510,13 +510,11 @@ export default function TestResultTable({ data, pageSize = 10, onDataChange }: T
                                     </div>
                                 </TableCell>
                                 <TableCell className="px-0 py-2 align-top">
-                                    <div 
-                                        className="flex flex-col items-start"
-                                        onClick={(e) => e.stopPropagation()}
-                                    >
+                                    <div className="flex flex-col items-start">
                                         <ToggleGroup
                                             type="single"
-                                            value={row.yourVerdict || undefined}
+                                            onClick={(e) => e.stopPropagation()}
+                                            value={row.yourVerdict ?? ""}
                                             onValueChange={(value) => {
                                                 if (onDataChange) {
                                                     onDataChange(row.id, {

@@ -31,7 +31,7 @@ export function buildConnectionTestFingerprint(input: {
   savedConfigPairs: Record<string, string>;
 }): string {
   const sortedPairs = Object.keys(input.savedConfigPairs)
-    .sort()
+    .sort((a, b) => a.localeCompare(b))
     .map((key) => [key, input.savedConfigPairs[key]]);
   return JSON.stringify({
     token: input.token.trim(),

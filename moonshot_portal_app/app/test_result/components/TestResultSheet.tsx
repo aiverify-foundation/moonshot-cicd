@@ -173,20 +173,6 @@ export default function TestResultSheet({
                         </div>
                     </div>
 
-                    {/* Evaluator Prompt */}
-                    {false && (
-                        <div className="flex flex-col gap-[6px]">
-                            <p className="font-medium text-[12px] leading-normal text-slate-700">
-                                Evaluator Prompt
-                            </p>
-                            <div className="bg-white border border-slate-200 rounded-[6px] h-[80px] overflow-y-auto p-3">
-                                <p className="font-medium text-[14px] leading-[20px] text-black whitespace-pre-wrap break-words">
-                                    {currentRow.graderLogic}
-                                </p>
-                            </div>
-                        </div>
-                    )}
-
                     {/* Evaluator Information */}
                     {currentRow.evaluatorInfo && (
                         <div className="border border-slate-200 rounded-[6px] p-[15px] flex flex-col gap-4">
@@ -260,7 +246,7 @@ export default function TestResultSheet({
                         </p>
                         <ToggleGroup
                             type="single"
-                            value={currentRow.yourVerdict || undefined}
+                            value={currentRow.yourVerdict ?? ""}
                             onValueChange={handleVerdictChange}
                             spacing={0}
                             className="bg-slate-200 border border-slate-200 rounded-[6px] p-0 shadow-none w-fit"
