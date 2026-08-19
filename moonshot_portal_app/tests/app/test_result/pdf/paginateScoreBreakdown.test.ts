@@ -23,6 +23,9 @@ function rowKinds(chunk: ReturnType<typeof paginateScoreBreakdown>[number]) {
   return chunk.map((row) => row.kind);
 }
 
+const FIRST_PAGE_ITEM_SLOTS = SCORE_BREAKDOWN_FIRST_PAGE_MAX_ROWS - 1;
+const CONTINUATION_ITEM_SLOTS = SCORE_BREAKDOWN_CONTINUATION_PAGE_MAX_ROWS - 1;
+
 describe('paginateScoreBreakdown', () => {
   it('returns a single empty chunk when there are no bundles', () => {
     expect(paginateScoreBreakdown([])).toEqual([[]]);
@@ -41,53 +44,61 @@ describe('paginateScoreBreakdown', () => {
   });
 
   it('keeps a single bundle with at most first-page limit rows in one chunk', () => {
-    const bundles = [makeBundle('Safety', 8)];
+    const bundles = [makeBundle('Safety', FIRST_PAGE_ITEM_SLOTS)];
     const chunks = paginateScoreBreakdown(bundles);
 
     expect(chunks).toHaveLength(1);
-    expect(chunks[0]).toHaveLength(9);
+    expect(chunks[0]).toHaveLength(SCORE_BREAKDOWN_FIRST_PAGE_MAX_ROWS);
     expect(chunks[0].length).toBeLessThanOrEqual(SCORE_BREAKDOWN_FIRST_PAGE_MAX_ROWS);
   });
 
   it('splits 10 test items across two chunks with a repeated bundle header', () => {
-    const bundles = [makeBundle('Safety', 10)];
+    const itemCount = 10;
+    const overflowItems = itemCount - FIRST_PAGE_ITEM_SLOTS;
+    const bundles = [makeBundle('Safety', itemCount)];
     const chunks = paginateScoreBreakdown(bundles);
 
     expect(chunks).toHaveLength(2);
     expect(chunks[0]).toHaveLength(SCORE_BREAKDOWN_FIRST_PAGE_MAX_ROWS);
-    expect(chunks[1]).toHaveLength(2);
+    expect(chunks[1]).toHaveLength(1 + overflowItems);
     expect(rowKinds(chunks[0])[0]).toBe('bundle');
     expect(rowKinds(chunks[1])[0]).toBe('bundle');
   });
 
   it('splits 24 test items across three chunks respecting row limits', () => {
-    const bundles = [makeBundle('Safety', 24)];
+    const itemCount = 24;
+    const lastChunkItems = itemCount - FIRST_PAGE_ITEM_SLOTS - CONTINUATION_ITEM_SLOTS;
+    const bundles = [makeBundle('Safety', itemCount)];
     const chunks = paginateScoreBreakdown(bundles);
 
     expect(chunks).toHaveLength(3);
     expect(chunks[0]).toHaveLength(SCORE_BREAKDOWN_FIRST_PAGE_MAX_ROWS);
     expect(chunks[1]).toHaveLength(SCORE_BREAKDOWN_CONTINUATION_PAGE_MAX_ROWS);
-    expect(chunks[2]).toHaveLength(2);
+    expect(chunks[2]).toHaveLength(1 + lastChunkItems);
   });
 
   it('splits 25 test items across three chunks with the last chunk partially filled', () => {
-    const bundles = [makeBundle('Safety', 25)];
+    const itemCount = 25;
+    const lastChunkItems = itemCount - FIRST_PAGE_ITEM_SLOTS - CONTINUATION_ITEM_SLOTS;
+    const bundles = [makeBundle('Safety', itemCount)];
     const chunks = paginateScoreBreakdown(bundles);
 
     expect(chunks).toHaveLength(3);
     expect(chunks[0]).toHaveLength(SCORE_BREAKDOWN_FIRST_PAGE_MAX_ROWS);
     expect(chunks[1]).toHaveLength(SCORE_BREAKDOWN_CONTINUATION_PAGE_MAX_ROWS);
-    expect(chunks[2]).toHaveLength(3);
+    expect(chunks[2]).toHaveLength(1 + lastChunkItems);
   });
 
   it('repeats bundle header when a bundle continues on the next chunk', () => {
-    const bundles = [makeBundle('Safety', 12)];
+    const itemCount = 12;
+    const overflowItems = itemCount - FIRST_PAGE_ITEM_SLOTS;
+    const bundles = [makeBundle('Safety', itemCount)];
     const chunks = paginateScoreBreakdown(bundles);
 
     expect(chunks).toHaveLength(2);
     expect(rowKinds(chunks[0])[0]).toBe('bundle');
     expect(rowKinds(chunks[1])[0]).toBe('bundle');
-    expect(chunks[1].filter((row) => row.kind === 'item')).toHaveLength(3);
+    expect(chunks[1].filter((row) => row.kind === 'item')).toHaveLength(overflowItems);
   });
 
   it('never places a bundle header without at least one item in the same chunk', () => {

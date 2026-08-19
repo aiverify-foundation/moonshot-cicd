@@ -15,13 +15,20 @@ async function setupAajSheet(page) {
 
 async function mockApiKeyConfigured(page, configured = true) {
   await page.route('**/api/providers/by-system-name/**/latest-details', async (route) => {
-    const response = await route.fetch();
-    const json = await response.json();
-    await route.fulfill({
-      status: response.status(),
-      contentType: 'application/json',
-      body: JSON.stringify({ ...json, api_key_configured: configured }),
-    });
+    try {
+      const response = await route.fetch();
+      const json = await response.json();
+      await route.fulfill({
+        status: response.status(),
+        contentType: 'application/json',
+        body: JSON.stringify({ ...json, api_key_configured: configured }),
+      });
+    } catch (error) {
+      if (/has been closed|Test ended/i.test(String(error))) {
+        return;
+      }
+      throw error;
+    }
   });
 }
 
@@ -33,6 +40,10 @@ async function clickAajTestAndWaitEnabled(sheet) {
 test.describe('Add Provider Token Sheet (EditLlmAajProviderSheet)', () => {
   // Shared E2E DB: serial so api-key Save tests do not race with optional-token mocks.
   test.describe.configure({ mode: 'serial' });
+
+  test.afterEach(async ({ page }) => {
+    await page.unrouteAll({ behavior: 'ignoreErrors' });
+  });
 
   // ---------------------------------------------------------------------
   // AC1: Open sheet
