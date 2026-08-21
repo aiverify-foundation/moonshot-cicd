@@ -14,7 +14,6 @@ dist/
 downloads/
 eggs/
 .eggs/
-lib/
 lib64/
 parts/
 sdist/
@@ -173,8 +172,5 @@ cython_debug/
 # MacOS system file
 .DS_Store
 
-# Process Check generated image for report
-process_check_app/temp_report/*
-
-data/results/*
-nus_codes/
+# Cursor IDE
+.cursor

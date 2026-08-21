@@ -1,0 +1,5 @@
+data/results/*
+data/database/moonshot.db
+data/database/moonshot_e2e.db
+data/database/moonshot_pytest*.db
+lib/

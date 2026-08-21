@@ -7,7 +7,7 @@ if [[ "$test_type" == "smoke" ]]; then
   echo "Running Smoke Tests..."
   cd moonshot-smoke-testing/test-moonshot-v1
   pip install python-dotenv PyYAML pytest
-  pytest
+  pytest -v
 elif [[ "$test_type" == "integration" ]]; then
   echo "Running Integration Tests..."
   cd moonshot-integration-testing/moonshot-v1-cli-integration

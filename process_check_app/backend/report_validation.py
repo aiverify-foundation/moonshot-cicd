@@ -1,11 +1,11 @@
 import json
 from typing import Any
 
-from backend.schema.ms_ga_schema import (
+from .schema.ms_ga_schema import (
     Schema1,
     extract_ga_report_info,
 )
-from backend.schema.ms_v06_schema import Schema2, extract_06_report_info
+from .schema.ms_v06_schema import Schema2, extract_06_report_info
 from pydantic import ValidationError
 
 

@@ -1,0 +1,322 @@
+const { test, expect } = require('@playwright/test');
+
+// Helper function for navigating to benchmark page
+async function navigateToBenchmark(page) {
+  await page.goto('/');
+  
+  // Wait for the page to load
+  await page.waitForLoadState('networkidle');
+  
+  // Click on the "Benchmark" link using data-testid
+  await page.click('[data-testid="benchmark-link"]');
+  
+  // Wait for navigation to complete
+  await page.waitForLoadState('networkidle');
+  
+  // Verify we're on the bundles page by checking for the page content
+  await expect(page.locator('[data-testid="select-bundles-header"]')).toContainText('Select Test Bundles');
+}
+
+// Helper function to toggle all toggle buttons
+async function toggleAllButtons(page) {
+  // Wait for toggle buttons to load
+  await page.waitForSelector('[data-testid^="toggle-"]', { timeout: 10000 });
+  
+  // Get all toggle buttons
+  const toggleButtons = page.locator('[data-testid^="toggle-"]');
+  const count = await toggleButtons.count();
+  
+  // Iterate through all toggle buttons and click them
+  for (let i = 0; i < count; i++) {
+    const toggleButton = toggleButtons.nth(i);
+    await toggleButton.click();
+
+  }
+}
+
+test.describe('Moonshot Integration Tests', () => {
+
+  test('navigate to benchmark page', { tag: '@happy-path' }, async ({ page }) => {
+    await navigateToBenchmark(page);
+    
+    // Check that the configure button is disabled (no bundles selected)
+    const configureButton = page.locator('[data-testid="configure-and-run-benchmark-tests"]');
+    // We cannot click the disabled button so just checking that it is disabled
+    await expect(configureButton).toBeDisabled();
+    
+    // Verify the page content is still there
+    await expect(page.locator('[data-testid="select-bundles-header"]')).toContainText('Select Test Bundles');
+  });
+
+  test('configure button becomes enabled after selecting a bundle', { tag: '@happy-path' }, async ({ page }) => {
+    await navigateToBenchmark(page);
+    
+    // Check that the configure button is initially disabled
+    const configureButton = page.locator('[data-testid="configure-and-run-benchmark-tests"]');
+    await expect(configureButton).toBeDisabled();
+    
+    // Wait for bundles to load and find the first toggle button
+    await page.waitForSelector('[data-testid^="toggle-"]', { timeout: 10000 });
+    
+    // Get all toggle buttons and select the second one (index 1)
+    const toggleButtons = page.locator('[data-testid^="toggle-"]');
+    const secondToggleButton = toggleButtons.nth(1); // nth(0) is first, nth(1) is second, etc.
+    
+    // Click the second bundle toggle button to select it
+    await secondToggleButton.click();
+    
+    // Wait a moment for the state to update
+    await page.waitForTimeout(500);
+    
+    // Check that the configure button is now enabled
+    await expect(configureButton).toBeEnabled();
+    
+    // Verify the button text is still correct
+    await expect(configureButton).toContainText('Configure and Run Benchmark Tests');
+    
+    // Click the enabled configure button to verify it works
+    await configureButton.click();
+    
+    // Wait for navigation to complete
+    await page.waitForLoadState('networkidle');
+    
+    // Verify navigation occurred by checking for the model selection page content
+    await expect(page.locator('[data-testid="select-model-header"]')).toContainText('Configure And Run Tests');
+  });
+
+  test('configure button becomes disabled after toggling off all bundles', async ({ page }) => {
+    await navigateToBenchmark(page);
+    
+    // Check that the configure button is initially disabled
+    const configureButton = page.locator('[data-testid="configure-and-run-benchmark-tests"]');
+    await expect(configureButton).toBeDisabled();
+    
+    // Wait for bundles to load and find the first toggle button
+    await page.waitForSelector('[data-testid^="toggle-"]', { timeout: 10000 });
+    
+    // Get all toggle buttons and select the second one (index 1)
+    const toggleButtons = page.locator('[data-testid^="toggle-"]');
+    const thirdToggleButton = toggleButtons.nth(2); // nth(0) is first, nth(1) is second, etc.
+    
+    // Click the second bundle toggle button to select it
+    await thirdToggleButton.click();
+    
+    // Wait a moment for the state to update
+    await page.waitForTimeout(500);
+    
+    // Check that the configure button is now enabled
+    await expect(configureButton).toBeEnabled();
+    
+    // Verify the button text is still correct
+    await expect(configureButton).toContainText('Configure and Run Benchmark Tests');
+    
+    // Click the second bundle toggle button to select it
+    await thirdToggleButton.click();
+    
+    // Wait a moment for the state to update
+    await page.waitForTimeout(500);
+    
+    // Check that the configure button is now disabled
+    await expect(configureButton).toBeDisabled();
+    
+  });
+
+  test('configure button becomes disabled after toggling off all bundles(Multiple bundles)', async ({ page }) => {
+    await navigateToBenchmark(page);
+    
+    // Check that the configure button is initially disabled
+    const configureButton = page.locator('[data-testid="configure-and-run-benchmark-tests"]');
+    await expect(configureButton).toBeDisabled();
+    
+    // Wait for bundles to load and find the first toggle button
+    await page.waitForSelector('[data-testid^="toggle-"]', { timeout: 10000 });
+    
+    // Toggle all the bundles
+    await toggleAllButtons(page)
+
+    // Wait a moment for the state to update
+    await page.waitForTimeout(200);
+    
+    // Check that the configure button is now enabled
+    await expect(configureButton).toBeEnabled(); //see if I can change this timeout
+    
+    // Verify the button text is still correct
+    await expect(configureButton).toContainText('Configure and Run Benchmark Tests');
+
+    // Wait for toggle buttons to load
+    await page.waitForSelector('[data-testid^="toggle-"]', { timeout: 10000 });
+  
+    // Get all toggle buttons
+    const toggleButtons = page.locator('[data-testid^="toggle-"]');
+    const count = await toggleButtons.count();
+  
+    // Iterate through all toggle buttons and click them
+    for (let i = 0; i < count; i++) {
+      const toggleButton = toggleButtons.nth(i);
+      await toggleButton.click();
+      if(i == count - 1){
+        // Check that the configure button is now disabled after toggling down all the bundles
+        await expect(configureButton).toBeDisabled(); // check if I can timeout here
+      }
+      else{
+        // Check that the configure button is still enabled
+        await expect(configureButton).toBeEnabled(); // check if I can timeout here
+      }
+    }
+    
+  });
+
+  test('Ensure Back to home page button is displayed on the Select Bundles page with the correct content', { tag: '@happy-path' }, async ({ page }) => {
+
+    await navigateToBenchmark(page);
+    
+    // Verify "Back to Home Page" button exists and links to landing page
+    const backToHomeButton = page.locator('[data-testid="back-to-home-button"]');
+    await expect(backToHomeButton).toBeVisible();
+    await expect(backToHomeButton).toContainText('Back to Home Page');
+
+    // Click the button and verify navigation
+    await backToHomeButton.click();
+    await page.waitForLoadState('networkidle');
+    await expect(page).toHaveURL('/');
+    
+  });
+
+  test('Ensure all elements are displayed on the Select Bundles page with the correct content', { tag: '@happy-path' }, async ({ page }) => {
+    // Navigate to the benchmark page
+    await navigateToBenchmark(page);
+    
+    // 1. Verify "Back to Home Page" button exists and links to landing page
+    const backToHomeButton = page.locator('[data-testid="back-to-home-button"]');
+    await expect(backToHomeButton).toBeVisible();
+    await expect(backToHomeButton).toContainText('Back to Home Page');
+    await expect(backToHomeButton).toBeEnabled(); 
+    
+    // 2. Verify "Configure and run benchmark test" button is disabled
+    const configureButton = page.locator('[data-testid="configure-and-run-benchmark-tests"]');
+    await expect(configureButton).toBeVisible();
+    await expect(configureButton).toBeDisabled();
+    await expect(configureButton).toContainText('Configure and Run Benchmark Tests');
+    
+    // 3. Verify page header and description text
+    const pageHeader = page.locator('h1');
+    await expect(pageHeader).toContainText('Select Test Bundles');
+    
+    const descriptionText = page.locator('[data-testid="select-bundles-description"]');
+    await expect(descriptionText).toContainText('Select suitable bundles for your benchmark test');
+    
+    // 4. Verify breadcrumb navigation
+    const breadcrumb = page.locator('[data-testid="Breadcrumb"]');
+    await expect(breadcrumb).toBeVisible();
+    await expect(breadcrumb).toContainText('New Benchmark Test');
+    await expect(breadcrumb).toContainText('Select Tests Or Test Bundles');
+    
+    // 5. Wait for bundle cards to load
+    await page.waitForSelector('[data-testid^="bundle-card-"]', { timeout: 10000 });
+    
+    // Get all bundle cards
+    const bundleCards = page.locator('[data-testid^="bundle-card-"]');
+    const cardCount = await bundleCards.count();
+    
+    // Verify at least one bundle card exists
+    await expect(cardCount).toBeGreaterThan(0);
+    
+    // 6. Verify each bundle card contains all required elements
+    for (let i = 0; i < Math.min(cardCount, 3); i++) { // Check first 3 cards to avoid long test execution
+      const card = bundleCards.nth(i);
+      
+      // Test Bundle Group text (e.g. IMDA's Starter Kit)
+      const bundleGroup = card.locator('[data-testid="bundle-group"]');
+      await expect(bundleGroup).toBeVisible();
+      await expect(bundleGroup).not.toBeEmpty();
+      
+      // Test Bundle Name text
+      const bundleName = card.locator('[data-testid="bundle-name"]');
+      await expect(bundleName).toBeVisible();
+      await expect(bundleName).not.toBeEmpty();
+      
+      // Test Bundle Description text
+      const bundleDescription = card.locator('[data-testid="bundle-description"]');
+      await expect(bundleDescription).toBeVisible();
+      await expect(bundleDescription).not.toBeEmpty();
+      
+      // Number of Tests
+      const numberOfTests = card.locator('[data-testid="number-of-tests"]');
+      await expect(numberOfTests).toBeVisible();
+      await expect(numberOfTests).toContainText(/\d+/); // Should contain at least one digit
+      
+      // Number of Prompts
+      const numberOfPrompts = card.locator('[data-testid="number-of-prompts"]');
+      await expect(numberOfPrompts).toBeVisible();
+      await expect(numberOfPrompts).toContainText(/\d+/); // Should contain at least one digit
+      
+      // List at most 2 Test names
+      const testNames = card.locator('[data-testid^="test-name-"]');
+      const testNameCount = await testNames.count();
+      await expect(testNameCount).toBeLessThanOrEqual(2);
+      
+      // Verify test names are not empty
+      for (let j = 0; j < testNameCount; j++) {
+        const testName = testNames.nth(j);
+        await expect(testName).toBeVisible();
+        await expect(testName).not.toBeEmpty();
+      }
+      
+      // "+{x} more" text if more than 2 Tests
+      if (testNameCount === 2) {
+        const moreTestsText = card.locator('[data-testid="more-tests-text"]');
+        await expect(moreTestsText).toBeVisible();
+        await expect(moreTestsText).toContainText(/\+.*more/);
+      }
+      
+      // "Select" checkbox
+      const selectCheckbox = card.locator('[data-testid^="toggle-"]');
+      await expect(selectCheckbox).toBeVisible();
+      await expect(selectCheckbox).toContainText('Select');
+      // cannot explicitly verify if a checkbox exists
+      
+      // "Learn more" button opens the bundle details sheet
+      const learnMoreButton = card.locator('[data-testid="learn-more-link"]');
+      await expect(learnMoreButton).toBeVisible();
+      await expect(learnMoreButton).toContainText('Learn more');
+      await expect(learnMoreButton).toBeEnabled();
+      await expect(learnMoreButton).toHaveRole('button');
+    }
+  });
+
+  test('hover over bundle description shows full description in tooltip', { tag: '@happy-path' }, async ({ page }) => {
+    // Navigate to the benchmark page
+    await navigateToBenchmark(page);
+    
+    // Wait for bundle cards to load
+    await page.waitForSelector('[data-testid^="bundle-card-"]', { timeout: 10000 });
+    
+    // Get the first bundle card
+    const bundleCards = page.locator('[data-testid^="bundle-card-"]');
+    const firstCard = bundleCards.first();
+    
+    // Get the bundle description element
+    const bundleDescription = firstCard.locator('[data-testid="bundle-description"]');
+    await expect(bundleDescription).toBeVisible();
+    
+    // Get the full description text for comparison
+    const descriptionText = await bundleDescription.textContent();
+    
+    // Hover over the description element
+    await bundleDescription.hover();
+    
+    // Wait for tooltip to appear
+    await page.waitForTimeout(500);
+    
+    // Check that the tooltip content is visible and contains the full description
+    const tooltipContent = page.locator('[role="tooltip"] p');
+    await expect(tooltipContent).toBeVisible();
+    
+    // Verify the tooltip contains the same text as the description
+    const tooltipText = await tooltipContent.textContent();
+    expect(tooltipText.trim()).toBe(descriptionText.trim());
+
+    // remove tooltip test is not done because it is not reliable
+  });
+
+});

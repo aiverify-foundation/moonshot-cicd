@@ -1,0 +1,14 @@
+# Minimal shared config with one bundle and two tests (for integration tests).
+minimal-bundle:
+  name: Minimal Bundle
+  tests:
+    - name: Sample Test
+      type: benchmark
+      dataset: test_sample_dataset
+      metric:
+        name: refusal_adapter
+    - name: Second Test
+      type: benchmark
+      dataset: test_sample_dataset
+      metric:
+        name: refusal_adapter

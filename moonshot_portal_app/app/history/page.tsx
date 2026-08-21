@@ -1,0 +1,221 @@
+"use client";
+
+import { useCallback, useEffect, useState } from "react";
+import Link from "next/link";
+import { Badge } from "@/components/ui/badge";
+import {
+  ApiError,
+  BenchmarkRun,
+  countBundlesAndTests,
+  fetchBenchmarkRuns,
+  fetchBenchmarkRunTestBundles,
+} from "@/lib/api";
+import {
+  formatDurationMinutes,
+  formatRunTimestamp,
+  parseApiUtcTimestamp,
+} from "@/lib/formatTimestamp";
+
+const HISTORY_REFRESH_INTERVAL_MS = 5000;
+
+interface HistoryCardProps {
+  title: string;
+  completedDate: string;
+  bundleAndTestCount: string;
+  status: string;
+  footerLine: string;
+  href?: string;
+  runId?: number;
+}
+
+function mapRunStatusToDisplay(status: string): string {
+  const s = status.toLowerCase();
+  if (s === "completed") return "Complete";
+  if (s === "running") return "In Progress";
+  if (s === "failed" || s === "error") return "Completed with Errors";
+  return status.charAt(0).toUpperCase() + status.slice(1);
+}
+
+const createHistoryCard = ({
+  title,
+  completedDate,
+  bundleAndTestCount,
+  status,
+  footerLine,
+  href = "/test_result",
+  runId,
+}: HistoryCardProps) => {
+  const statusColors = {
+    Complete: "bg-green-100 border-green-200 text-green-800",
+    "In Progress": "bg-blue-100 border-blue-200 text-blue-800",
+    "Completed with Errors": "bg-red-100 border-red-200 text-red-800",
+  };
+
+  const statusColorClass =
+    statusColors[status as keyof typeof statusColors] ||
+    "bg-gray-100 border-gray-200 text-gray-800";
+
+  return (
+    <Link
+      href={href}
+      data-testid={runId != null ? `history-run-link-${runId}` : undefined}
+    >
+      <Badge
+        variant="outline"
+        className="w-full p-4 bg-slate-50 border-slate-200 cursor-pointer hover:bg-slate-100 transition-colors"
+      >
+        <div className="text-left w-full">
+          <div className="mb-2">
+            <div className="text-left font-semibold text-base text-gray-900 mb-1">{title}</div>
+            <div className="font-normal text-sm text-slate-700 mb-1">{completedDate}</div>
+            <div className="font-normal text-[12px] text-slate-700">{bundleAndTestCount}</div>
+          </div>
+          <Badge variant="outline" className={`w-fit mt-2 ${statusColorClass} h-[23px]`}>
+            <div className="text-left text-[12px] font-semibold">{status}</div>
+          </Badge>
+          <div className="font-normal text-[12px] text-slate-700 mt-4">{footerLine}</div>
+        </div>
+      </Badge>
+    </Link>
+  );
+};
+
+type RunWithCounts = BenchmarkRun & {
+  bundleCount: number;
+  testCount: number;
+};
+
+export default function History() {
+  const [runs, setRuns] = useState<RunWithCounts[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  const load = useCallback(async (silent = false) => {
+    if (!silent) {
+      setLoading(true);
+      setError(null);
+    }
+    try {
+      const list = await fetchBenchmarkRuns();
+      const sorted = [...list].sort((a, b) => {
+        const ta = a.start_time ? (parseApiUtcTimestamp(a.start_time)?.getTime() ?? 0) : 0;
+        const tb = b.start_time ? (parseApiUtcTimestamp(b.start_time)?.getTime() ?? 0) : 0;
+        if (tb !== ta) return tb - ta;
+        return (b.id ?? 0) - (a.id ?? 0);
+      });
+
+      const withCounts = await Promise.all(
+        sorted.map(async (run) => {
+          const id = run.id;
+          if (id == null) {
+            return { ...run, bundleCount: 0, testCount: 0 };
+          }
+          try {
+            const rows = await fetchBenchmarkRunTestBundles(id);
+            const { bundleCount, testCount } = countBundlesAndTests(rows);
+            return { ...run, bundleCount, testCount };
+          } catch {
+            return { ...run, bundleCount: 0, testCount: 0 };
+          }
+        })
+      );
+
+      setRuns(withCounts);
+      if (!silent) {
+        setError(null);
+      }
+    } catch (e) {
+      if (!silent) {
+        setError(e instanceof ApiError ? e.message : "Failed to load history");
+        setRuns([]);
+      }
+    } finally {
+      if (!silent) {
+        setLoading(false);
+      }
+    }
+  }, []);
+
+  useEffect(() => {
+    load();
+    const interval = window.setInterval(() => load(true), HISTORY_REFRESH_INTERVAL_MS);
+    return () => window.clearInterval(interval);
+  }, [load]);
+
+  return (
+    <main className="p-8 w-[1300px]">
+      <div className="min-h-[100px]">
+        <p className="text-slate-700 text-[14px] font-medium w-[600px]">History</p>
+        <h1 className="text-2xl font-semibold text-gray-900 mb-2 mt-3">Recent Activity</h1>
+        <Badge variant="outline">
+          <div className="text-left">Status</div>
+        </Badge>
+
+        {loading && (
+          <p className="text-sm text-slate-600 mt-6">Loading benchmark runs…</p>
+        )}
+
+        {error && !loading && (
+          <div className="mt-6 space-y-2">
+            <p className="text-sm text-red-600">{error}</p>
+            <button
+              type="button"
+              onClick={() => load()}
+              className="text-sm text-blue-600 underline"
+            >
+              Retry
+            </button>
+          </div>
+        )}
+
+        {!loading && !error && runs.length === 0 && (
+          <p className="text-sm text-slate-600 mt-6">No benchmark runs yet.</p>
+        )}
+
+        <div className="grid grid-cols-4 gap-4 mt-4">
+          {!loading &&
+            !error &&
+            runs.map((run) => {
+              const displayStatus = mapRunStatusToDisplay(run.status);
+              const isComplete = run.status.toLowerCase() === "completed";
+              const isRunning = run.status.toLowerCase() === "running";
+
+              const completedDate = isComplete
+                ? formatRunTimestamp(run.end_time ?? run.start_time, "completed")
+                : formatRunTimestamp(run.start_time, "started");
+
+              const duration = formatDurationMinutes(run.start_time ?? undefined, run.end_time ?? undefined);
+              const footerLine = isComplete && duration
+                ? `Completed in ${duration}`
+                : isRunning
+                  ? "Run in progress"
+                  : duration
+                    ? `Finished in ${duration}`
+                    : "—";
+
+              const b = run.bundleCount;
+              const t = run.testCount;
+              const bundleAndTestCount = `${b} Bundle${b === 1 ? "" : "s"}, ${t} Test${t === 1 ? "" : "s"}`;
+
+              const cardHref =
+                run.id != null ? `/test_result?runId=${run.id}` : "/test_result";
+
+              return (
+                <div key={run.id ?? `run-${run.name}`} className="min-w-0">
+                  {createHistoryCard({
+                    title: run.name,
+                    completedDate,
+                    bundleAndTestCount,
+                    status: displayStatus,
+                    footerLine,
+                    href: cardHref,
+                    runId: run.id ?? undefined,
+                  })}
+                </div>
+              );
+            })}
+        </div>
+      </div>
+    </main>
+  );
+}

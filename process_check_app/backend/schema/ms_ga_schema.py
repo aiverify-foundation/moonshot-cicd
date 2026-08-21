@@ -36,7 +36,8 @@ class RunResultEntry(BaseModel):
 
 
 class RunMetaData(BaseModel):
-    run_id: str
+    # DB-backed benchmark runs use integer run id; legacy/file runs used string templates.
+    run_id: Union[str, int]
     test_id: str
     start_time: str
     end_time: str

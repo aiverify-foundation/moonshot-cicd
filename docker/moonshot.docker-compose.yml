@@ -1,0 +1,25 @@
+# Project name (otherwise Compose uses the compose file's parent dir: "docker")
+name: moonshot-cicd
+
+services:
+  moonshot-web:
+    container_name: moonshot-web
+    image: moonshot-cicd
+    build:
+      # Paths are relative to this compose file's directory (docker/).
+      # Context must be the repo root so COPY moonshot_core/ and moonshot_portal_app/ work.
+      context: ..
+      dockerfile: docker/moonshot.Dockerfile
+    ports:
+      - "8000:8000"
+    volumes:
+      - moonshot-cicd-data-volume:/var/lib/moonshot
+    environment:
+      MOONSHOT_DB_PATH: /var/lib/moonshot/moonshot.db
+      MOONSHOT_BENCHMARK_RESULTS_DIR: /var/lib/moonshot/results
+      MOONSHOT_API_NO_RELOAD: "1"
+    command: ["moonshot-web"]
+
+volumes:
+  moonshot-cicd-data-volume:
+    name: moonshot-cicd-data-volume

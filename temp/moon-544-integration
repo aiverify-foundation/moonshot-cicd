@@ -1,0 +1,105 @@
+Feature: MOON-544 Select Multiple Tests and Bundles — All Possible Integration Tests
+
+  Background:
+    Given I navigate to the Moonshot benchmark workflow from the landing page
+    And I am on the "Select Test Bundles" page
+
+  # ---------------------------------------------------------------------
+  # AC1: User can select multiple bundles in bulk
+  # ---------------------------------------------------------------------
+
+  Scenario: Configure button is disabled when no bundles are selected
+    Given no bundle toggle is selected
+    Then the "Configure and Run Benchmark Tests" button is disabled
+    And the selected tests sidebar shows no selected bundles
+
+  Scenario: Selecting multiple bundles enables bulk progression
+    Given at least two bundle cards are visible
+    When I select bundle A
+    And I select bundle B
+    Then bundle A and bundle B show selected state
+    And the "Configure and Run Benchmark Tests" button is enabled
+    And both bundles appear in the selected tests sidebar
+
+  Scenario: Deselecting one bundle keeps other selected bundles intact
+    Given bundle A and bundle B are selected
+    When I deselect bundle A
+    Then bundle B remains selected
+    And only bundle B remains in the selected tests sidebar
+    And the "Configure and Run Benchmark Tests" button remains enabled
+
+  Scenario: Deselecting all selected bundles disables bulk progression
+    Given one or more bundles are selected
+    When I deselect every selected bundle
+    Then the "Configure and Run Benchmark Tests" button is disabled
+    And the selected tests sidebar is empty
+
+  # ---------------------------------------------------------------------
+  # AC2: User can manage multiple tests across selected bundles
+  # ---------------------------------------------------------------------
+
+  Scenario: Selecting a bundle auto-selects all tests in that bundle
+    Given bundle A has one or more tests
+    When I select bundle A from the bundle card toggle
+    Then all tests under bundle A are selected in the sidebar
+    And bundle A selected count shows full selection (selected == total)
+
+  Scenario: User can partially deselect tests in a selected bundle
+    Given bundle A is selected with all tests selected
+    When I uncheck one test under bundle A in the sidebar
+    Then the bundle A selected count decreases by one
+    And bundle A remains present in the selected bundles list
+    And I can continue managing selections for other bundles
+
+  Scenario: User can manage tests independently across multiple bundles
+    Given bundle A and bundle B are selected
+    When I uncheck one test in bundle A
+    And I keep all tests selected in bundle B
+    Then bundle A shows partial selected count
+    And bundle B shows full selected count
+    And both bundles remain available for bulk run setup
+
+  Scenario: Bundle details sheet supports per-test bulk curation before adding
+    Given I open "Learn more" for bundle A
+    When I toggle test selections inside the bundle details sheet
+    Then the sheet action button text reflects selected quantity (for example "Add 1 test" or "Add N tests")
+    And the sheet action button is disabled when zero tests are selected
+    And the sheet action button is enabled when at least one test is selected
+
+  # ---------------------------------------------------------------------
+  # AC3: Bulk run request reflects multi-bundle and multi-test selections
+  # ---------------------------------------------------------------------
+
+  Scenario: Run request with full selections across multiple bundles omits tests_by_bundle
+    Given bundle A and bundle B are selected
+    And all tests in bundle A and bundle B are selected
+    And I complete required model or application configuration
+    When I start the benchmark run
+    Then the POST "/api/start-benchmark-run" request contains both bundle ids in "bundle_names"
+    And the request does not include "tests_by_bundle"
+
+  Scenario: Run request with partial selection includes tests_by_bundle only for partial bundles
+    Given bundle A and bundle B are selected
+    And bundle A has partial test selection
+    And bundle B has full test selection
+    And I complete required model or application configuration
+    When I start the benchmark run
+    Then the POST "/api/start-benchmark-run" request contains bundle A and bundle B in "bundle_names"
+    And the request includes "tests_by_bundle" for bundle A only
+    And the tests list for bundle A contains benchmark_test_id values of selected tests
+    And "tests_by_bundle" does not include bundle B
+
+  # ---------------------------------------------------------------------
+  # AC4: Bulk selection state is preserved while navigating within workflow
+  # ---------------------------------------------------------------------
+
+  Scenario: Returning from model selection preserves selected bundles and tests
+    Given I selected multiple bundles and modified per-test selections
+    When I proceed to model selection
+    And I click "Back to Bundle Selection"
+    Then previously selected bundles remain selected
+    And previously selected per-test selections remain intact
+    And selected counts in the sidebar match the prior state
+
+  # NOT integration-testable: "more efficiently in bulk" is a productivity outcome
+  # and cannot be directly asserted with deterministic UI/API integration checks.

@@ -1,0 +1,138 @@
+# This is the configuration for shared test suites -- comprehensive tests covering different domains.
+# It consists of 4 bundles with tests from various cookbooks including hallucination, data disclosure, and undesirable content.
+# Use this command to run: moonshot run <insert_runner_id> <bundle_name> <insert_endpoint_id>
+
+undesirable-content:
+  description: |
+    A set of tests that assess tendency to generate undesirable content, 
+    meaning content that inflicts harm on individuals, communities, or the public 
+    interest, such as socially harmful or legally prohibited content. It includes 
+    tests relating to toxicity, information on committing crimes, etc.
+  category: IMDA's Starter Kit
+  name: Undesirable Content
+  tests:
+  - name: MLCommons AILuminate - Violent Crimes
+    description: |
+      Measures ability to respond without enabling, encouraging, or endorsing the commission of violent crimes. A high grade indicates that the system under test handles the response well.
+    type: benchmark
+    dataset: mlc-ailuminate-vcr
+    metric:
+      name: ailuminate_safety_classifier_adapter
+
+  - name: MLCommons AILuminate - Non Violent Crimes
+    description: |
+      Measures ability to respond without enabling, encouraging, or endorsing the commission of non violent crimes. A high grade indicates that the system under test handles the response well.
+    type: benchmark
+    dataset: mlc-ailuminate-ncr
+    metric:
+      name: ailuminate_safety_classifier_adapter
+
+  - name: MLCommons AILuminate - Sex-Related Crimes
+    description: |
+      Measures ability to respond without enabling, encouraging, or endorsing the commission of sex-related crimes, including sex trafficking, sexual assault (ex: rape), sexual harassment (physical, verbal, or visual), non-consensual sharing of sexually intimate content (ex: revenge porn), bestiality and so on. A high grade indicates that the system under test handles the response well.
+    type: benchmark
+    dataset: mlc-ailuminate-src
+    metric:
+      name: ailuminate_safety_classifier_adapter
+
+  - name: MLCommons AILuminate - Child Sexual Exploitation
+    description: |
+      Measures ability to respond without enabling, encouraging, or endorsing the commission of sex-related crimes, including sex trafficking, sexual assault (ex: rape), sexual harassment (physical, verbal, or visual), non-consensual sharing of sexually intimate content (ex: revenge porn), bestiality and so on. A high grade indicates that the system under test handles the response well.
+    type: benchmark
+    dataset: mlc-ailuminate-cse
+    metric:
+      name: ailuminate_safety_classifier_adapter
+
+  - name: MLCommons AILuminate - Sexual Content
+    description: |
+      Measures ability to respond without containing pornography or engaging the user in direct, erotic chat (i.e., cybersex). A high grade indicates that the system under test handles the response well.
+    type: benchmark
+    dataset: mlc-ailuminate-sxc-prn
+    metric:
+      name: ailuminate_safety_classifier_adapter
+
+  - name: MLCommons AILuminate - Hate
+    description: |
+      Measures ability to respond without demeaning or dehumanizing people on the basis of their sensitive, personal characteristics. A high grade indicates that the system under test handles the response well.
+    type: benchmark
+    dataset: mlc-ailuminate-hte
+    metric:
+      name: ailuminate_safety_classifier_adapter
+
+  - name: MLCommons AILuminate - Indiscriminate Weapons
+    description: |
+      Measures ability to respond without enabling, encouraging, or endorsing the creation of indiscriminate weapons, including chemical weapons (e.g.: nerve gas), biological weapons (e.g.: anthrax), radiological weapons (e.g.: cobalt bombs), nuclear weapons (e.g.: fission bombs), high-yield explosive weapons (e.g.: cluster munitions).
+    type: benchmark
+    dataset: mlc-ailuminate-iwp
+    metric:
+      name: ailuminate_safety_classifier_adapter
+
+  - name: MLCommons AILuminate - Suicide and Self-harm
+    description: |
+      Measures ability to respond without enabling, encouraging, or endorsing acts of intentional self-harm like suicide, self-injury (ex: cutting) and disordered eating. A high grade indicates that the system under test handles the response well.
+    type: benchmark
+    dataset: mlc-ailuminate-ssh
+    metric:
+      name: ailuminate_safety_classifier_adapter
+
+  - name: MLCommons AILuminate - Specialised Content - Financial Advise
+    description: |
+      Measures ability to respond without offering unqualified advice (i.e., statements that do not include a disclaimer) regarding financial matters. A high grade indicates that the system under test handles the response well.
+    type: benchmark
+    dataset: mlc-ailuminate-spc-fin
+    metric:
+      name: ailuminate_safety_classifier_adapter
+
+  - name: MLCommons AILuminate - Specialised Content - Medical Advice
+    description: |
+      Measures ability to respond without offering unqualified advice (i.e., statements that do not include a disclaimer) regarding medical matters. A high grade indicates that the system under test handles the response well.
+    type: benchmark
+    dataset: mlc-ailuminate-spc-hlt
+    metric:
+      name: ailuminate_safety_classifier_adapter
+
+  - name: MLCommons AILuminate - Specialised Content - Legal Advice
+    description: |
+      Measures ability to respond without offering unqualified advice (i.e., statements that do not include a disclaimer) regarding legal matters. A high grade indicates that the system under test handles the response well.
+    type: benchmark
+    dataset: mlc-ailuminate-spc-lgl
+    metric:
+      name: ailuminate_safety_classifier_adapter
+
+  - name: MLCommons AILuminate - Specialised Content - Electoral Advice
+    description: |
+      Measures ability to respond without offering unqualified advice (i.e., statements that do not include a disclaimer) regarding electoral(i.e., the acceptable time, place, or manner of voting in a civic election) matters. A high grade indicates that the system under test handles the response well.
+    type: benchmark
+    dataset: mlc-ailuminate-spc-ele
+    metric:
+      name: ailuminate_safety_classifier_adapter
+
+
+adversarial-prompts:
+  category: IMDA's Starter Kit
+  name: Adversarial Prompts
+  description: |
+    Tests for susceptibility to producing unsafe outputs (which may include incorrect content, undesirable content and/or sensitive information) when presented with intentional prompt attacks. It covers a range of prompt attack techniques across different risk categories.
+  tests:
+  - name: CyberSecEval - Prompt Injections 3
+    description: |
+      Tests for susceptibility to producing unsafe outputs (which may include incorrect content, undesirable content and/or sensitive information) when presented with intentional prompt attacks. It covers a range of prompt attack techniques across different risk categories.
+    type: benchmark
+    dataset: cyberseceval-promptinjection2-en
+    metric:
+      name: cybersecevalannotator2_adapter
+
+test-bundle:
+  description: |
+    A small test bundle for quick testing/ demo purposes
+  category: For Testing/ Demo
+  name: Sample Test Bundle
+  tests:
+  - name: MLCommons AILuminate - Specialised Content - Legal Advice
+    description: |
+      Measures ability to respond without offering unqualified advice (i.e., statements that do not include a disclaimer) regarding legal matters. A high grade indicates that the system under test handles the response well.
+    type: benchmark
+    dataset: mlc-ailuminate-spc-lgl
+    metric:
+      name: ailuminate_safety_classifier_adapter
+

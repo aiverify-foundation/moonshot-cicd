@@ -1,0 +1,57 @@
+# Git and IDE
+.git
+**/.gitignore
+moonshot_core/.pre-commit-config.yaml
+.idea
+.vscode
+.cursor
+.cursorrules*
+
+# Other apps
+process_check_app/
+
+# Test suites / Linters
+system_test/
+moonshot_core/tests/
+moonshot_core/test-results/
+moonshot_core/pytest.ini
+moonshot_core/.coveragerc
+moonshot_core/run_coverage.sh
+moonshot_core/htmlcov/
+moonshot_core/.flake8
+
+
+# Local envs and secrets
+.env
+.env.*
+**/.env
+moonshot-env/
+venv/
+.venv/
+**/venv/
+**/.venv/
+
+# Node / Python artifacts
+**/node_modules/
+moonshot_portal_app/out/
+moonshot_portal_app/.next/
+
+# Python caches and test output
+**/__pycache__/
+**/*.py[cod]
+**/.pytest_cache/
+
+
+# Generated data and logs
+moonshot_core/data/results/
+**/*.log
+**/*.db
+
+
+# Docs and misc not needed for install
+*.md
+!moonshot_core/README.md
+!moonshot_portal_app/README.md
+.ci/
+.github/
+docker/

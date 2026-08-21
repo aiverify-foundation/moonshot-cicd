@@ -1,0 +1,12 @@
+# .coveragerc to control coverage.py
+[run]
+branch = True
+cover_pylib = False
+
+[report]
+skip_empty = false
+show_missing = true
+omit = 
+    tests/*
+    */test_*
+    */__init__.py
