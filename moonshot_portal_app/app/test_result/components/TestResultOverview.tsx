@@ -7,6 +7,7 @@ import TestResultInProgress from "./TestResultInProgress"
 import TestResultCompletedWithErrors, {
     groupErroredTestsByBundle,
 } from "./TestResultCompletedWithErrors"
+import { formatScorePercent } from "./scorePercent"
 import { runHasPromptErrors } from "./testCompletion"
 
 function TestResultNote() {
@@ -54,6 +55,8 @@ export interface ChartDataItem {
 interface ReportChartProps {
     chartData: ChartDataItem[]
     bundleName: string
+    /** Prompt-level / reviewed score for the header badge (same source as tab badges). */
+    headerScore?: number | null
     showMarginDebug?: boolean
 }
 
@@ -62,14 +65,9 @@ const BUNDLE_CONFIDENCE_LEVEL_PCT = 95
 function ReportChartScrollAdjustableHeight({
     chartData,
     bundleName,
+    headerScore = null,
     showMarginDebug = false,
 }: ReportChartProps) {
-    // Calculate average of all chart data values
-    const averageValue = chartData.length > 0
-        ? Math.round(chartData.reduce((sum, item) => sum + item.adjusted_percentage_score, 0) / chartData.length)
-        : 0
-
-    // Custom Y-axis ticks to match design
     const yAxisTicks = [20, 40, 60, 80, 100]
 
     // Custom formatter for Y-axis labels
@@ -141,11 +139,13 @@ function ReportChartScrollAdjustableHeight({
                     </p>
                 </div>
                 <div className="flex gap-2 items-center">
-                    <div className="bg-green-100 border border-green-200 flex gap-1 items-center justify-center p-1 rounded-[6px]">
-                        <p className="font-semibold text-[12px] text-green-800 whitespace-pre">
-                            {averageValue}%
-                        </p>
-                    </div>
+                    {headerScore != null && (
+                        <div className="bg-green-100 border border-green-200 flex gap-1 items-center justify-center p-1 rounded-[6px]">
+                            <p className="font-semibold text-[12px] text-green-800 whitespace-pre">
+                                {formatScorePercent(headerScore)}
+                            </p>
+                        </div>
+                    )}
                 </div>
             </div>
 
@@ -289,6 +289,8 @@ function ReportChartScrollAdjustableHeight({
 export interface OverviewBundleChart {
     bundleName: string
     data: ChartDataItem[]
+    /** Prompt-level / reviewed score for the header badge (same source as tab badges). */
+    headerScore?: number | null
 }
 
 export interface TestResultOverviewProps {
@@ -380,6 +382,7 @@ export default function TestResultOverview({
                                 key={`${c.bundleName}-${i}`}
                                 chartData={c.data}
                                 bundleName={c.bundleName}
+                                headerScore={c.headerScore}
                                 showMarginDebug={showMarginDebug}
                             />
                         ))}

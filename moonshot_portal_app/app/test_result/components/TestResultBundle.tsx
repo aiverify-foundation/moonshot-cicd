@@ -13,6 +13,7 @@ import {
     promptsForTest,
     testStatusByTestId,
 } from "./testCompletion"
+import { formatScorePercent } from "./scorePercent"
 
 export { extractEvaluatedResponse, evaluationDisplayLabel } from "./evaluationDisplayHelpers"
 
@@ -629,17 +630,13 @@ export default function TestResultBundle({
     }, [overallAdjustedScore, isLoading])
 
     // Format scores for ScoreCard
-    const formatScore = (score: number): string => {
-        return `${Math.round(score * 10) / 10}%`
-    }
-
     return (
         <div className="flex flex-col gap-[8px] items-start w-full">
             {/* Score Cards Row */}
             <div className="flex flex-row items-stretch gap-[8px] w-full mb-2 mt-2">
                 <ScoreCard
-                    aiScore={formatScore(overallAiScore)}
-                    adjustedScore={formatScore(overallAdjustedScore)}
+                    aiScore={formatScorePercent(overallAiScore)}
+                    adjustedScore={formatScorePercent(overallAdjustedScore)}
                     scoreChange={overallScoreChange}
                 />
                 <VerdictsRankedCard

@@ -12,6 +12,11 @@ import { Button } from "@/components/ui/button";
 import TestResultBundle from "./TestResultBundle";
 import { metricToPercentPoints } from "./metricToPercentPoints";
 import {
+  accuracyToPercent,
+  formatScorePercent,
+  meanScorePercent,
+} from "./scorePercent";
+import {
   filterPromptsForFullyCompleteTests,
   testStatusByTestId,
 } from "./testCompletion";
@@ -33,12 +38,6 @@ import {
 const TAB_OVERVIEW = "overview";
 const tabBundleId = (id: number) => `bundle:${id}`;
 const TAB_ALL = "all";
-
-function accuracyToPercent(acc: number | null | undefined): number | null {
-  if (acc == null || Number.isNaN(acc)) return null;
-  if (acc >= 0 && acc <= 1) return acc * 100;
-  return acc;
-}
 
 /** Per-test mean score % for charting (any subset of prompts). */
 function chartItemsFromPrompts(
@@ -83,8 +82,7 @@ function bundleMeanPercent(
     .filter((p) => p.test_id != null && set.has(p.test_id))
     .map((p) => accuracyToPercent(p.score))
     .filter((x): x is number => x != null);
-  if (!pts.length) return null;
-  return Math.round((pts.reduce((a, b) => a + b, 0) / pts.length) * 10) / 10;
+  return meanScorePercent(pts);
 }
 
 export default function TestResultApp() {
@@ -235,28 +233,52 @@ export default function TestResultApp() {
   const bundleCharts: OverviewBundleChart[] = useMemo(() => {
     if (!benchmarkRunId || loading) return [];
     if (resultBundles.length === 0) {
+      const allTestIds = [
+        ...new Set(
+          chartablePrompts
+            .map((p) => p.test_id)
+            .filter((id): id is number => id != null)
+        ),
+      ];
+      const headerScore =
+        allTabScore !== null
+          ? allTabScore
+          : bundleMeanPercent(prompts, allTestIds, testStatusMap);
       return [
         {
           bundleName: "All results",
           data: chartItemsFromPrompts(chartablePrompts, marginPercentByTestId),
+          headerScore,
         },
       ];
     }
-    return resultBundles.map((b) => ({
-      bundleName: b.name,
-      data: chartItemsFromPrompts(
-        chartablePrompts.filter(
-          (p) => p.test_id != null && b.test_ids.includes(p.test_id)
+    return resultBundles.map((b) => {
+      const fromTab = bundleTabScores[b.test_bundle_id];
+      const headerScore =
+        fromTab !== null && fromTab !== undefined
+          ? fromTab
+          : bundleMeanPercent(prompts, b.test_ids, testStatusMap);
+      return {
+        bundleName: b.name,
+        data: chartItemsFromPrompts(
+          chartablePrompts.filter(
+            (p) => p.test_id != null && b.test_ids.includes(p.test_id)
+          ),
+          marginPercentByTestId
         ),
-        marginPercentByTestId
-      ),
-    }));
+        headerScore,
+      };
+    });
   }, [
     benchmarkRunId,
     loading,
     resultBundles,
     chartablePrompts,
     marginPercentByTestId,
+    prompts,
+    testStatusMap,
+    bundleTabScores,
+    allTabScore,
   ]);
 
   const displayTitle = run ? run.name : loading ? "Loading…" : "";
@@ -318,19 +340,16 @@ export default function TestResultApp() {
       const pts = chartablePrompts
         .map((p) => accuracyToPercent(p.score))
         .filter((x): x is number => x != null);
-      const meanAll =
-        pts.length > 0
-          ? Math.round((pts.reduce((a, b) => a + b, 0) / pts.length) * 10) / 10
-          : null;
+      const meanAll = meanScorePercent(pts);
       return [
         {
           id: TAB_ALL,
           label: "All results",
           badge:
             allTabScore !== null
-              ? `${Math.round(allTabScore * 10) / 10}%`
+              ? formatScorePercent(allTabScore)
               : meanAll !== null
-                ? `${meanAll}%`
+                ? formatScorePercent(meanAll)
                 : prompts.length
                   ? "—"
                   : null,
@@ -342,9 +361,9 @@ export default function TestResultApp() {
       label: b.name,
       badge: (() => {
         const s = bundleTabScores[b.test_bundle_id];
-        if (s !== null && s !== undefined) return `${Math.round(s * 10) / 10}%`;
+        if (s !== null && s !== undefined) return formatScorePercent(s);
         const m = bundleMeanPercent(prompts, b.test_ids, testStatusMap);
-        return m !== null ? `${m}%` : prompts.length ? "—" : null;
+        return m !== null ? formatScorePercent(m) : prompts.length ? "—" : null;
       })(),
     }));
   }, [resultBundles, prompts, chartablePrompts, bundleTabScores, allTabScore, testStatusMap]);

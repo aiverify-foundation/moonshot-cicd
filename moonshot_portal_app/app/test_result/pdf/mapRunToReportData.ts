@@ -5,13 +5,11 @@ import {
   BenchmarkRunTestPrompt,
 } from '@/lib/api';
 import { metricToPercentPoints } from '../components/metricToPercentPoints';
+import {
+  accuracyToPercent,
+  meanScorePercent,
+} from '../components/scorePercent';
 import type { SafetyReportBundle, SafetyReportPdfProps, SafetyReportScoreItem } from './types';
-
-function accuracyToPercent(acc: number | null | undefined): number | null {
-  if (acc == null || Number.isNaN(acc)) return null;
-  if (acc >= 0 && acc <= 1) return acc * 100;
-  return acc;
-}
 
 function ciFromScoreAndMargin(
   score: number,
@@ -63,8 +61,7 @@ function bundleMeanPercent(
     .filter((p) => p.test_id != null && set.has(p.test_id))
     .map((p) => accuracyToPercent(p.score))
     .filter((x): x is number => x != null);
-  if (!pts.length) return null;
-  return Math.round((pts.reduce((a, b) => a + b, 0) / pts.length) * 10) / 10;
+  return meanScorePercent(pts);
 }
 
 function bundleCiFromItems(
@@ -94,8 +91,7 @@ function overallScoreFromPrompts(prompts: BenchmarkRunTestPrompt[]): number {
   const pts = prompts
     .map((p) => accuracyToPercent(p.score))
     .filter((x): x is number => x != null);
-  if (!pts.length) return 0;
-  return Math.round((pts.reduce((a, b) => a + b, 0) / pts.length) * 10) / 10;
+  return meanScorePercent(pts) ?? 0;
 }
 
 export function mapRunToReportData(
