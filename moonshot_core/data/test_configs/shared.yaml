@@ -144,7 +144,7 @@ sg-uc:
   category: IMDA's Starter Kit
   name: Singapore Undesirable Content
   tests:
-  - name: SG UC - Violent Content
+  - name: Violent Content
     description: |
       Measures ability to respond without enabling, encouraging, or endorsing violent content in a Singapore context. A high grade indicates that the system under test handles the response well.
     type: benchmark
@@ -152,7 +152,7 @@ sg-uc:
     metric:
       name: sg_uc_classifier_adapter
 
-  - name: SG UC - Non-Violent Crime
+  - name: Non-Violent Crime
     description: |
       Measures ability to respond without enabling, encouraging, or endorsing non-violent crime in a Singapore context. A high grade indicates that the system under test handles the response well.
     type: benchmark
@@ -160,7 +160,7 @@ sg-uc:
     metric:
       name: sg_uc_classifier_adapter
 
-  - name: SG UC - Sex Crimes
+  - name: Sex Crimes
     description: |
       Measures ability to respond without enabling, encouraging, or endorsing sex crimes in a Singapore context. A high grade indicates that the system under test handles the response well.
     type: benchmark
@@ -168,7 +168,7 @@ sg-uc:
     metric:
       name: sg_uc_classifier_adapter
 
-  - name: SG UC - Child Sexual Exploitation
+  - name: Child Sexual Exploitation
     description: |
       Measures ability to respond without enabling, encouraging, or endorsing child sexual exploitation in a Singapore context. A high grade indicates that the system under test handles the response well.
     type: benchmark
@@ -176,7 +176,7 @@ sg-uc:
     metric:
       name: sg_uc_classifier_adapter
 
-  - name: SG UC - Sexual Content
+  - name: Sexual Content
     description: |
       Measures ability to respond without containing pornography or engaging the user in direct, erotic chat in a Singapore context. A high grade indicates that the system under test handles the response well.
     type: benchmark
@@ -184,7 +184,7 @@ sg-uc:
     metric:
       name: sg_uc_classifier_adapter
 
-  - name: SG UC - Hate
+  - name: Hate
     description: |
       Measures ability to respond without demeaning or dehumanizing people on the basis of their sensitive, personal characteristics in a Singapore context. A high grade indicates that the system under test handles the response well.
     type: benchmark
@@ -192,7 +192,7 @@ sg-uc:
     metric:
       name: sg_uc_classifier_adapter
 
-  - name: SG UC - Self-Harm and Suicide
+  - name: Self-Harm and Suicide
     description: |
       Measures ability to respond without enabling, encouraging, or endorsing acts of intentional self-harm like suicide and self-injury in a Singapore context. A high grade indicates that the system under test handles the response well.
     type: benchmark
@@ -200,7 +200,7 @@ sg-uc:
     metric:
       name: sg_uc_classifier_adapter
 
-  - name: SG UC - Specialised Advice
+  - name: Specialised Advice
     description: |
       Measures ability to respond without offering unqualified specialised advice (e.g. financial, medical, or legal) in a Singapore context. A high grade indicates that the system under test handles the response well.
     type: benchmark
@@ -216,7 +216,7 @@ sg-fc:
   category: IMDA's Starter Kit
   name: Facts in Singapore
   tests:
-  - name: SG FC - Economy
+  - name: Economy
     description: |
       To test a chatbot for its propensity to produce inaccurate answers about Singapore in the topic of Economy, including: Economic Performance: Indicators of production, distribution, and consumption of goods and services within a country’s borders. Includes sector contribution to GDP, economic attributes such as openness to trade, investment climate, innovation capacity, and labour market dynamics. International Economic Relations: Strategic collaborations with nations and regional blocs to promote open, fair trade and investment flows.
     type: benchmark
@@ -224,7 +224,7 @@ sg-fc:
     metric:
       name: sg_fact_check_adapter
 
-  - name: SG FC - Environment
+  - name: Environment
     description: |
       To test a chatbot for its propensity to produce inaccurate answers about Singapore in the topic of Environment, including: Physical/Natural: Natural features and landscape including relief, bodies of water, climate, and vegetation. Urban/Built: Spatial organization, structure, and dynamics of cities and urban areas. Includes physical layout and built environment, and the distribution of land uses such as residential, commercial, and industrial zones.
     type: benchmark
@@ -232,7 +232,7 @@ sg-fc:
     metric:
       name: sg_fact_check_adapter
 
-  - name: SG FC - Law / Legal
+  - name: Law / Legal
     description: |
       To test a chatbot for its propensity to produce inaccurate answers about Singapore in the topic of law or legal. Justice System: Mechanisms that enable the rule of law to function in a country including institutions and systems. Specific Laws: Legal measures which ensure both domestic order and international compliance for a functioning and just society.
     type: benchmark
@@ -240,7 +240,7 @@ sg-fc:
     metric:
       name: sg_fact_check_adapter
 
-  - name: SG FC - Policy - Digital
+  - name: Policy - Digital
     description: |
       To test a chatbot for its propensity to produce inaccurate answers about Singapore related to policies the state adopts to support the digital development of its citizens and participate internationally.
     type: benchmark
@@ -248,7 +248,7 @@ sg-fc:
     metric:
       name: sg_fact_check_adapter
 
-  - name: SG FC - Policy - Education
+  - name: Policy - Education
     description: |
       To test a chatbot for its propensity to produce inaccurate answers about Singapore related to policies and agencies which govern and support educational attainment of a country including legal requirements, institutions and support schemes (e.g. financial, learning needs).
     type: benchmark
@@ -256,7 +256,7 @@ sg-fc:
     metric:
       name: sg_fact_check_adapter
 
-  - name: SG FC - Policy - Environment
+  - name: Policy - Environment
     description: |
       To test a chatbot for its propensity to produce inaccurate answers about Singapore related to policies the state adopts to ensure its environmental goals are met domestically and internationally.
     type: benchmark
@@ -264,7 +264,7 @@ sg-fc:
     metric:
       name: sg_fact_check_adapter
 
-  - name: SG FC - Policy - Health
+  - name: Policy - Health
     description: |
       To test a chatbot for its propensity to produce inaccurate answers about Singapore related to policies the state adopts for the physical and mental well-being of its citizens.
     type: benchmark
@@ -272,7 +272,7 @@ sg-fc:
     metric:
       name: sg_fact_check_adapter
 
-  - name: SG FC - Policy - Housing
+  - name: Policy - Housing
     description: |
       To test a chatbot for its propensity to produce inaccurate answers about Singapore related to policies and agencies that support accessible, affordable, and adequate housing for the population.
     type: benchmark
@@ -280,7 +280,7 @@ sg-fc:
     metric:
       name: sg_fact_check_adapter
 
-  - name: SG FC - Policy - National Security
+  - name: Policy - National Security
     description: |
       To test a chatbot for its propensity to produce inaccurate answers about Singapore related to policies the state adopts to safeguard its sovereignty, territorial integrity, and the well-being of its citizens against both internal and external threats. Includes traditional (military defense, cybersecurity, counterterrorism), diplomatic efforts and non-traditional security (e.g. energy public health).
     type: benchmark
@@ -288,7 +288,7 @@ sg-fc:
     metric:
       name: sg_fact_check_adapter
 
-  - name: SG FC - Policy - Social Support Schemes
+  - name: Policy - Social Support Schemes
     description: |
       To test a chatbot for its propensity to produce inaccurate answers about Singapore related to policies the state adopts to ensure that social safety nets are provided for all citizens across life stages to maintain the social compact between a government and its citizens.
     type: benchmark
@@ -296,7 +296,7 @@ sg-fc:
     metric:
       name: sg_fact_check_adapter
 
-  - name: SG FC - Policy - Transport
+  - name: Policy - Transport
     description: |
       To test a chatbot for its propensity to produce inaccurate answers about Singapore related to policies the state adopts to facilitate the movement of the population across the island and internationally.
     type: benchmark
@@ -304,7 +304,7 @@ sg-fc:
     metric:
       name: sg_fact_check_adapter
 
-  - name: SG FC - Political
+  - name: Political
     description: |
       To test a chatbot for its propensity to produce inaccurate answers about Singapore in political topics. Historical Development: Historical milestones from early settlement to independence including rise and fall of empires, colonisation, revolutions, self-government. Domestic Political System: Formal institutions and mechanisms through which governance is conducted and decisions are made. Diplomatic Relations: Formal interactions and partnerships with other nations and multilateral institutions, covering a broad range of areas including political dialogue, economic cooperation, security collaboration, cultural exchange, and crisis management.
     type: benchmark
@@ -312,7 +312,7 @@ sg-fc:
     metric:
       name: sg_fact_check_adapter
 
-  - name: SG FC - Social
+  - name: Social
     description: |
       To test a chatbot for its propensity to produce inaccurate answers about Singapore in Social Topics, including: Population: Basic indicators that describe basic general population characteristics e.g. age structure, gender, ethnic composition, migration, literacy, etc. Culture & Identity: Shared values, traditions, and social norms that shape the behaviours, beliefs, and practices of a population at sub-group and national levels. Includes arts, cuisine, language, social interactions, and religious beliefs.
     type: benchmark
