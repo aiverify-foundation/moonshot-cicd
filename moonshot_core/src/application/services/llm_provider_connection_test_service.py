@@ -11,7 +11,7 @@ from adapters.driven.repository.sqlalchemy.session_manager import \
 from application.dto.provider_dto import (TestLlmProviderConnectionBody,
                                           TestLlmProviderConnectionResponseDTO)
 from application.services.database_connector_config_service import \
-    SYSTEM_NAME_TO_ADAPTER_MODULE
+    get_system_name_to_adapter_module
 from application.services.provider_connector_env_key_service import \
     ProviderConnectorEnvKeyService
 from domain.entities.connector_entity import ConnectorEntity
@@ -108,7 +108,7 @@ class LlmProviderConnectionTestService:
 
         api_key = self._resolve_api_key(body)
         system_name = self._load_provider_system_name(body.llm_provider_id)
-        adapter_module = SYSTEM_NAME_TO_ADAPTER_MODULE.get(system_name)
+        adapter_module = get_system_name_to_adapter_module().get(system_name)
         if adapter_module is None:
             raise ValueError(
                 f"No connector adapter mapping for provider system_name={system_name!r}"
