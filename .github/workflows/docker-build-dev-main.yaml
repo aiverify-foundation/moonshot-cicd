@@ -14,7 +14,6 @@ jobs:
     runs-on: ubuntu-latest
 
     env:
-      IMAGE_TAG: dev_main
       GHCR_REGISTRY: ghcr.io
       GHCR_NAMESPACE: aiverify-foundation
       IMAGE_NAME_MS: moonshot
@@ -25,6 +24,21 @@ jobs:
       uses: actions/checkout@v4
       with:
         ref: ${{ github.head_ref || github.ref_name }}
+
+    # Tag format: dev_<build datetime in YYYYMMDD_HHMMSS>_<HEAD commit short SHA>
+    # Example:     dev_20260903_031145_a1b2c3d
+    - name: Set image tag
+      run: |
+        GIT_COMMIT="$(git rev-parse HEAD)"
+        GIT_BRANCH="$(git branch --show-current)"
+        GIT_BRANCH="${GIT_BRANCH:-${GITHUB_REF_NAME}}"
+        IMAGE_TAG="dev_$(TZ=Asia/Singapore date +%Y%m%d_%H%M%S)_${GIT_COMMIT:0:7}"
+        echo "GIT_COMMIT=${GIT_COMMIT}" >> "$GITHUB_ENV"
+        echo "GIT_BRANCH=${GIT_BRANCH}" >> "$GITHUB_ENV"
+        echo "IMAGE_TAG=${IMAGE_TAG}" >> "$GITHUB_ENV"
+        echo "Using image tag: ${IMAGE_TAG}"
+        echo "Using git.commit: ${GIT_COMMIT}"
+        echo "Using git.branch: ${GIT_BRANCH}"
 
     - name: Set up Docker Buildx
       uses: docker/setup-buildx-action@v3
@@ -39,13 +53,18 @@ jobs:
     # ---------- Moonshot ----------
     - name: Build Moonshot Docker image
       run: |
-        docker build -t moonshot:dev_main -f moonshot_core/Dockerfile moonshot_core
+        docker build -f docker/moonshot.Dockerfile \
+          -t moonshot:${{ env.IMAGE_TAG }} \
+          --label git.commit=${{ env.GIT_COMMIT }} \
+          --label git.branch=${{ env.GIT_BRANCH }} \
+          --label build.source=github-actions \
+          .
 
     - name: Push Moonshot Image to GitHub CR
       run: |
         docker login --username ${{ github.actor }} --password ${{ secrets.GITHUB_TOKEN }} ghcr.io
-        docker tag moonshot:dev_main ghcr.io/${{ env.GHCR_NAMESPACE }}/moonshot:${{ env.IMAGE_TAG }}
-        docker push ghcr.io/${{ env.GHCR_NAMESPACE }}/moonshot:${{ env.IMAGE_TAG }}
+        docker tag moonshot:${{ env.IMAGE_TAG }} ghcr.io/${{ env.GHCR_NAMESPACE }}/moonshot-dev:${{ env.IMAGE_TAG }}
+        docker push ghcr.io/${{ env.GHCR_NAMESPACE }}/moonshot-dev:${{ env.IMAGE_TAG }}
 
     # ---------- Process Checks ----------
     - name: Build and Push Process Checks (Multi-arch to GHCR)
@@ -56,4 +75,4 @@ jobs:
         platforms: linux/amd64,linux/arm64
         push: true
         tags: |
-          ghcr.io/${{ env.GHCR_NAMESPACE }}/process_checks:${{ env.IMAGE_TAG }}
+          ghcr.io/${{ env.GHCR_NAMESPACE }}/process_checks:dev_main
