@@ -51,28 +51,27 @@ jobs:
         password: ${{ secrets.GITHUB_TOKEN }}
 
     # ---------- Moonshot ----------
-    - name: Build Moonshot Docker image
-      run: |
-        docker build -f docker/moonshot.Dockerfile \
-          -t moonshot:${{ env.IMAGE_TAG }} \
-          --label git.commit=${{ env.GIT_COMMIT }} \
-          --label git.branch=${{ env.GIT_BRANCH }} \
-          --label build.source=github-actions \
-          .
-
-    - name: Push Moonshot Image to GitHub CR
-      run: |
-        docker login --username ${{ github.actor }} --password ${{ secrets.GITHUB_TOKEN }} ghcr.io
-        docker tag moonshot:${{ env.IMAGE_TAG }} ghcr.io/${{ env.GHCR_NAMESPACE }}/moonshot-dev:${{ env.IMAGE_TAG }}
-        docker push ghcr.io/${{ env.GHCR_NAMESPACE }}/moonshot-dev:${{ env.IMAGE_TAG }}
+    - name: Build and Push Moonshot App to GHCR
+      uses: docker/build-push-action@v5
+      with:
+        context: .
+        file: docker/moonshot.Dockerfile
+        platforms: linux/amd64
+        push: true
+        tags: |
+          ghcr.io/${{ env.GHCR_NAMESPACE }}/moonshot-dev:${{ env.IMAGE_TAG }}
+        labels: |
+          git.commit=${{ env.GIT_COMMIT }}
+          git.branch=${{ env.GIT_BRANCH }}
+          build.source=github-actions
 
     # ---------- Process Checks ----------
-    - name: Build and Push Process Checks (Multi-arch to GHCR)
+    - name: Build and Push Process Checks App to GHCR
       uses: docker/build-push-action@v5
       with:
         context: process_check_app
         file: docker/process-check-app.Dockerfile
-        platforms: linux/amd64,linux/arm64
+        platforms: linux/amd64
         push: true
         tags: |
           ghcr.io/${{ env.GHCR_NAMESPACE }}/process_checks:dev_main
