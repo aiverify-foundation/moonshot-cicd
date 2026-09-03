@@ -71,7 +71,7 @@ jobs:
       uses: docker/build-push-action@v5
       with:
         context: process_check_app
-        file: process_check_app/Dockerfile
+        file: docker/process-check-app.Dockerfile
         platforms: linux/amd64,linux/arm64
         push: true
         tags: |
