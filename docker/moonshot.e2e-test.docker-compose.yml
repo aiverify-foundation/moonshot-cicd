@@ -1,0 +1,53 @@
+# Playwright E2E stack. Isolated from local moonshot-web / moonshot-cicd-data-volume.
+#   docker compose -f docker/moonshot.e2e-test.docker-compose.yml up --build --abort-on-container-exit --exit-code-from moonshot-e2e-testing
+name: moonshot-cicd-e2e
+
+services:
+  moonshot-e2e-web:
+    container_name: moonshot-e2e-web
+    image: moonshot-cicd
+    build:
+      # Paths are relative to this compose file's directory (docker/).
+      # Context must be the repo root so COPY moonshot_core/ and moonshot_portal_app/ work.
+      context: ..
+      dockerfile: docker/moonshot.Dockerfile
+    volumes:
+      - moonshot-cicd-e2e-testing-data-volume:/var/lib/moonshot
+    environment:
+      MOONSHOT_DB_PATH: /var/lib/moonshot/moonshot.db
+      MOONSHOT_BENCHMARK_RESULTS_DIR: /var/lib/moonshot/results
+      MOONSHOT_API_NO_RELOAD: "1"
+    command: ["moonshot-web"]
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "python",
+          "-c",
+          "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/')",
+        ]
+      interval: 5s
+      timeout: 5s
+      retries: 24
+      start_period: 15s
+
+  moonshot-e2e-testing:
+    container_name: moonshot-e2e-testing
+    image: moonshot-e2e-test
+    build:
+      context: ..
+      dockerfile: docker/moonshot.e2e-test.Dockerfile
+    volumes:
+      - moonshot-cicd-e2e-testing-data-volume:/var/lib/moonshot
+    environment:
+      BASE_URL: http://moonshot-e2e-web:8000
+      MOONSHOT_DB_PATH: /var/lib/moonshot/moonshot.db
+      MOONSHOT_BENCHMARK_RESULTS_DIR: /var/lib/moonshot/results
+      CI: "1"
+    depends_on:
+      moonshot-e2e-web:
+        condition: service_healthy
+
+volumes:
+  moonshot-cicd-e2e-testing-data-volume:
+    name: moonshot-cicd-e2e-testing-data-volume

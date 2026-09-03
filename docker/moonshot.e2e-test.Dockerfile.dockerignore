@@ -1,0 +1,56 @@
+# Git and IDE
+.git
+**/.gitignore
+.idea
+.vscode
+.cursor
+.cursorrules*
+
+# Other apps (this image only needs moonshot_core + system_test)
+process_check_app/
+moonshot_portal_app/
+
+# Moonshot core unit tests / linters (not required for E2E seeding)
+moonshot_core/.pre-commit-config.yaml
+moonshot_core/tests/
+moonshot_core/test-results/
+moonshot_core/pytest.ini
+moonshot_core/.coveragerc
+moonshot_core/run_coverage.sh
+moonshot_core/htmlcov/
+moonshot_core/.flake8
+
+# Local envs and secrets
+.env
+.env.*
+**/.env
+moonshot-env/
+venv/
+.venv/
+**/venv/
+**/.venv/
+moonshot_core/.venv/
+moonshot_core/venv/
+
+# Node / Python artifacts
+**/node_modules/
+**/__pycache__/
+**/*.py[cod]
+**/.pytest_cache/
+
+# Generated data, reports, and logs
+moonshot_core/data/results/
+**/*.log
+**/*.db
+system_test/test-results/
+system_test/playwright-report/
+system_test/.e2e-download-run.json
+system_test/.e2e-progress-run.json
+
+# Docs and misc not needed for install
+*.md
+!moonshot_core/README.md
+.ci/
+.github/
+docker/
+.DS_Store
