@@ -1,0 +1,44 @@
+name: E2E Docker Tests
+
+on:
+  workflow_dispatch:
+
+jobs:
+  e2e-docker:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    permissions:
+      contents: read
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Run Playwright e2e via Docker Compose
+        id: e2e
+        run: |
+          COMPOSE=(docker compose -f docker/moonshot.e2e-test.docker-compose.yml)
+          mkdir -p e2e-artifacts
+
+          set +e
+          "${COMPOSE[@]}" up --build --abort-on-container-exit --exit-code-from moonshot-e2e-testing
+          TEST_EXIT=$?
+
+          docker cp moonshot-e2e-testing:/app/system_test/test-results e2e-artifacts/test-results || true
+          docker cp moonshot-e2e-testing:/app/system_test/playwright-report e2e-artifacts/playwright-report || true
+
+          "${COMPOSE[@]}" down -v || true
+          set -e
+
+          exit "$TEST_EXIT"
+
+      - name: Upload Playwright artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-e2e-docker-${{ github.run_id }}
+          path: e2e-artifacts/
+          if-no-files-found: warn
