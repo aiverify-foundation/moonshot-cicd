@@ -1,9 +1,6 @@
 name: Promote Moonshot Docker Image to STAGING
 
 on:
-  push:
-    branches:
-      - dev_main
   workflow_dispatch:
     inputs:
       moonshot_dev_tag:
@@ -37,7 +34,7 @@ jobs:
 
     - name: Add staging tag to moonshot-dev image
       run: |
-        STAGING_TAG = "staging-$(TZ=Asia/Singapore date +%Y%m%d_%H%M%S)"
+        STAGING_TAG="staging-$(TZ=Asia/Singapore date +%Y%m%d_%H%M%S)"
         docker buildx imagetools create \
           --tag "${SOURCE_IMAGE_REPO}:${STAGING_TAG}" \
           "${SOURCE_IMAGE_REPO}:${{ inputs.moonshot_dev_tag }}"
