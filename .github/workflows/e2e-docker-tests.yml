@@ -27,8 +27,26 @@ jobs:
           "${COMPOSE[@]}" up --build --abort-on-container-exit --exit-code-from moonshot-e2e-testing
           TEST_EXIT=$?
 
+          # Prefer the testing container's exit code when it exists.
+          CONTAINER_EXIT=$(docker inspect -f '{{.State.ExitCode}}' moonshot-e2e-testing 2>/dev/null)
+          if [ -n "$CONTAINER_EXIT" ]; then
+            TEST_EXIT=$CONTAINER_EXIT
+          fi
+
           docker cp moonshot-e2e-testing:/app/system_test/test-results e2e-artifacts/test-results || true
           docker cp moonshot-e2e-testing:/app/system_test/playwright-report e2e-artifacts/playwright-report || true
+
+          RESULTS_JSON=e2e-artifacts/test-results/results.json
+          if [ ! -f "$RESULTS_JSON" ]; then
+            echo "Missing Playwright results.json — suite did not produce a report."
+            TEST_EXIT=1
+          else
+            UNEXPECTED=$(python3 -c "import json,sys; s=json.load(open(sys.argv[1])).get('stats',{}); print(int(s.get('unexpected',0)))" "$RESULTS_JSON")
+            if [ "$UNEXPECTED" -gt 0 ]; then
+              echo "Playwright reported $UNEXPECTED unexpected (failed) test(s)."
+              TEST_EXIT=1
+            fi
+          fi
 
           "${COMPOSE[@]}" down -v || true
           set -e
