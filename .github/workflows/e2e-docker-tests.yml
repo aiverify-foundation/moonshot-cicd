@@ -27,7 +27,55 @@ jobs:
           mkdir -p e2e-artifacts
 
           set +e
-          "${COMPOSE[@]}" up --build --abort-on-container-exit --exit-code-from moonshot-e2e-testing
+
+          "${COMPOSE[@]}" build
+          BUILD_EXIT=$?
+          if [ "$BUILD_EXIT" -ne 0 ]; then
+            exit "$BUILD_EXIT"
+          fi
+
+          # Run the one-shot volume init separately. If it shares
+          # --abort-on-container-exit with web/testing, Compose aborts as soon
+          # as init exits (code 0) and never runs Playwright.
+          "${COMPOSE[@]}" run --rm --no-deps moonshot-e2e-volume-init
+          INIT_EXIT=$?
+          if [ "$INIT_EXIT" -ne 0 ]; then
+            echo "Volume init failed with exit code $INIT_EXIT"
+            "${COMPOSE[@]}" down -v || true
+            exit "$INIT_EXIT"
+          fi
+
+          "${COMPOSE[@]}" up -d --no-deps moonshot-e2e-web
+          WEB_UP_EXIT=$?
+          if [ "$WEB_UP_EXIT" -ne 0 ]; then
+            "${COMPOSE[@]}" logs moonshot-e2e-web || true
+            "${COMPOSE[@]}" down -v || true
+            exit "$WEB_UP_EXIT"
+          fi
+
+          # Healthcheck: interval 5s, retries 24, start_period 15s (~2+ min budget).
+          STATUS=starting
+          for _ in $(seq 1 48); do
+            STATUS=$(docker inspect -f '{{if .State.Health}}{{.State.Health.Status}}{{else}}{{.State.Status}}{{end}}' moonshot-e2e-web 2>/dev/null || echo missing)
+            if [ "$STATUS" = "healthy" ]; then
+              break
+            fi
+            if [ "$STATUS" = "unhealthy" ] || [ "$STATUS" = "exited" ] || [ "$STATUS" = "dead" ] || [ "$STATUS" = "missing" ]; then
+              echo "moonshot-e2e-web not healthy (status=$STATUS)"
+              "${COMPOSE[@]}" logs moonshot-e2e-web || true
+              "${COMPOSE[@]}" down -v || true
+              exit 1
+            fi
+            sleep 5
+          done
+          if [ "$STATUS" != "healthy" ]; then
+            echo "Timed out waiting for moonshot-e2e-web (status=$STATUS)"
+            "${COMPOSE[@]}" logs moonshot-e2e-web || true
+            "${COMPOSE[@]}" down -v || true
+            exit 1
+          fi
+
+          "${COMPOSE[@]}" up --no-deps --abort-on-container-exit --exit-code-from moonshot-e2e-testing moonshot-e2e-testing
           TEST_EXIT=$?
 
           # Prefer the testing container's exit code when it exists.
