@@ -24,7 +24,7 @@ jobs:
     env:
       GHCR_REGISTRY: ghcr.io
       SOURCE_IMAGE_REPO: ghcr.io/aiverify-foundation/moonshot-dev
-      TARGET_IMAGE_REPO: ghcr.io/aiverify-foundation/moonshot-test
+      TARGET_IMAGE_REPO: ghcr.io/aiverify-foundation/moonshot
 
     steps:
     - name: Validate semver tag
@@ -47,15 +47,15 @@ jobs:
 
     - name: Promote moonshot-dev image to moonshot
       run: |
-        SOURCE_IMAGE="${SOURCE_IMAGE_REPO}:${{ inputs.moonshot_dev_tag }}"
+        SOURCE_IMAGE_WITH_TAG = "${SOURCE_IMAGE_REPO}:${{ inputs.moonshot_dev_tag }}"
 
         # add one semver tag to existing moonshot-dev image on GHCR
         docker buildx imagetools create \
           --tag "${SOURCE_IMAGE_REPO}:${{ inputs.moonshot_semver_tag }}" \
-          "${SOURCE_IMAGE}"
+          "${SOURCE_IMAGE_WITH_TAG}"
 
         # promote moonshot-dev image to moonshot image with semver and latest tags
         docker buildx imagetools create \
           --tag "${TARGET_IMAGE_REPO}:${{ inputs.moonshot_semver_tag }}" \
           --tag "${TARGET_IMAGE_REPO}:latest" \
-          "${SOURCE_IMAGE}"
+          "${SOURCE_IMAGE_WITH_TAG}"
