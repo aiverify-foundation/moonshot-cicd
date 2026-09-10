@@ -2,6 +2,19 @@ name: E2E Docker Tests
 
 on:
   workflow_dispatch:
+    inputs:
+      moonshot_image:
+        description: 'Optional Moonshot image (full ref or sha256:…). Empty = build from docker/moonshot.Dockerfile'
+        required: false
+        type: string
+        default: ''
+  workflow_call:
+    inputs:
+      moonshot_image:
+        description: 'Optional Moonshot image (full ref or sha256:…). Empty = build from docker/moonshot.Dockerfile'
+        required: false
+        type: string
+        default: ''
 
 jobs:
   e2e-docker:
@@ -9,6 +22,7 @@ jobs:
     timeout-minutes: 120
     permissions:
       contents: read
+      packages: read
 
     steps:
       - name: Checkout code
@@ -17,18 +31,63 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
+      - name: Login to GHCR
+        if: inputs.moonshot_image != ''
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
       - name: Run Playwright e2e via Docker Compose
         id: e2e
+        env:
+          MOONSHOT_IMAGE_INPUT: ${{ inputs.moonshot_image }}
         run: |
           COMPOSE=(docker compose -f docker/moonshot.e2e-test.docker-compose.yml)
           mkdir -p e2e-artifacts
 
+          RAW="${MOONSHOT_IMAGE_INPUT:-}"
+          RAW="$(echo "$RAW" | xargs)"  # trim whitespace
+
+          if [ -z "$RAW" ]; then
+            echo "moonshot-e2e-web source: BUILDING from docker/moonshot.Dockerfile (no moonshot_image input)"
+            unset MOONSHOT_E2E_WEB_IMAGE
+          elif [[ "$RAW" =~ ^sha256:[0-9a-fA-F]+$ ]]; then
+            export MOONSHOT_E2E_WEB_IMAGE="ghcr.io/aiverify-foundation/moonshot-dev@${RAW}"
+            echo "moonshot-e2e-web source: resolved bare digest to ${MOONSHOT_E2E_WEB_IMAGE}"
+          else
+            export MOONSHOT_E2E_WEB_IMAGE="$RAW"
+          fi
+
           set +e
 
-          "${COMPOSE[@]}" build
-          BUILD_EXIT=$?
-          if [ "$BUILD_EXIT" -ne 0 ]; then
-            exit "$BUILD_EXIT"
+          if [ -n "${MOONSHOT_E2E_WEB_IMAGE:-}" ]; then
+            echo "moonshot-e2e-web source: PULLING ${MOONSHOT_E2E_WEB_IMAGE}"
+            if docker pull "${MOONSHOT_E2E_WEB_IMAGE}"; then
+              DIGEST=$(docker image inspect --format='{{index .RepoDigests 0}}' "${MOONSHOT_E2E_WEB_IMAGE}" 2>/dev/null || true)
+              if [ -n "$DIGEST" ]; then
+                echo "moonshot-e2e-web source: PULL OK (${MOONSHOT_E2E_WEB_IMAGE}) digest=${DIGEST}"
+              else
+                echo "moonshot-e2e-web source: PULL OK (${MOONSHOT_E2E_WEB_IMAGE})"
+              fi
+            else
+              echo "moonshot-e2e-web source: PULL FAILED (${MOONSHOT_E2E_WEB_IMAGE})"
+              exit 1
+            fi
+
+            "${COMPOSE[@]}" build moonshot-e2e-testing
+            BUILD_EXIT=$?
+            if [ "$BUILD_EXIT" -ne 0 ]; then
+              exit "$BUILD_EXIT"
+            fi
+          else
+            "${COMPOSE[@]}" build
+            BUILD_EXIT=$?
+            if [ "$BUILD_EXIT" -ne 0 ]; then
+              exit "$BUILD_EXIT"
+            fi
+            echo "moonshot-e2e-web source: BUILD OK (local image moonshot-cicd from Dockerfile)"
           fi
 
           # Run the one-shot volume init separately. If it shares
@@ -42,7 +101,8 @@ jobs:
             exit "$INIT_EXIT"
           fi
 
-          "${COMPOSE[@]}" up -d --no-deps moonshot-e2e-web
+          # --no-build: images are prepared above; avoids rebuilding a pulled digest.
+          "${COMPOSE[@]}" up -d --no-deps --no-build moonshot-e2e-web
           WEB_UP_EXIT=$?
           if [ "$WEB_UP_EXIT" -ne 0 ]; then
             "${COMPOSE[@]}" logs moonshot-e2e-web || true
@@ -72,7 +132,7 @@ jobs:
             exit 1
           fi
 
-          "${COMPOSE[@]}" up --no-deps --abort-on-container-exit --exit-code-from moonshot-e2e-testing moonshot-e2e-testing
+          "${COMPOSE[@]}" up --no-deps --no-build --abort-on-container-exit --exit-code-from moonshot-e2e-testing moonshot-e2e-testing
           TEST_EXIT=$?
 
           # Prefer the testing container's exit code when it exists.

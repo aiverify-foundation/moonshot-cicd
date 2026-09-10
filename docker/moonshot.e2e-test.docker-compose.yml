@@ -1,7 +1,10 @@
 # Playwright E2E stack. Isolated from local moonshot-web / moonshot-cicd-data-volume.
-#   docker compose -f docker/moonshot.e2e-test.docker-compose.yml up --build --abort-on-container-exit --exit-code-from moonshot-e2e-testing
 #
-# Each `up` resets the E2E SQLite DB (moonshot.db) via moonshot-e2e-volume-init,
+# Do not `up --abort-on-container-exit` all services together: moonshot-e2e-volume-init
+# is a one-shot and its exit 0 aborts the stack before Playwright runs. Prefer the
+# sequenced flow in .github/workflows/e2e-docker-tests.yml (init → web healthy → testing).
+#
+# Each run resets the E2E SQLite DB (moonshot.db) via moonshot-e2e-volume-init,
 # matching scripts/run-e2e-tests.sh. The named volume itself is kept.
 #
 # moonshot-e2e-testing uses network_mode: service:moonshot-e2e-web so localhost:8000
@@ -29,7 +32,8 @@ services:
 
   moonshot-e2e-web:
     container_name: moonshot-e2e-web
-    image: moonshot-cicd
+    # Override via MOONSHOT_E2E_WEB_IMAGE to use a pulled digest/ref instead of building.
+    image: ${MOONSHOT_E2E_WEB_IMAGE:-moonshot-cicd}
     build:
       # Paths are relative to this compose file's directory (docker/).
       # Context must be the repo root so COPY moonshot_core/ and moonshot_portal_app/ work.
