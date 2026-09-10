@@ -22,10 +22,10 @@ import { useAppDispatch } from "../../../hooks/reduxHooks";
 import { setEndpointStatus } from "../../../store";
 import type { Provider } from "../types/modelSelection";
 
-/** Matches `ConnectionStatus.CONNECTED` in Redux `endpointStatus` slice. */
-const ENDPOINT_STATUS_CONNECTED = "connected";
-/** Matches `ConnectionStatus.NOT_CONNECTED` in Redux `endpointStatus` slice. */
-const ENDPOINT_STATUS_NOT_CONNECTED = "not connected";
+/** Matches `ConfigurationStatus.CONFIGURED` in Redux `endpointStatus` slice. */
+const ENDPOINT_STATUS_CONFIGURED = "Configured";
+/** Matches `ConfigurationStatus.NOT_CONFIGURED` in Redux `endpointStatus` slice. */
+const ENDPOINT_STATUS_NOT_CONFIGURED = "Not Configured";
 
 export function buildAajConnectionTestFingerprint(token: string): string {
   return JSON.stringify({ token: token.trim() });
@@ -92,7 +92,7 @@ export default function EditLlmAajProviderSheet({
       dispatch(
         setEndpointStatus({
           configId: statusKey,
-          status: ENDPOINT_STATUS_NOT_CONNECTED,
+          status: ENDPOINT_STATUS_NOT_CONFIGURED,
         })
       );
     }
@@ -140,13 +140,13 @@ export default function EditLlmAajProviderSheet({
     }
   }, [testedFingerprint, currentFingerprint, clearConnectionTestSuccess]);
 
-  const dispatchEndpointConnected = () => {
+  const dispatchEndpointConfigured = () => {
     const statusKey = endpointStatusKey?.trim();
     if (statusKey) {
       dispatch(
         setEndpointStatus({
           configId: statusKey,
-          status: ENDPOINT_STATUS_CONNECTED,
+          status: ENDPOINT_STATUS_CONFIGURED,
         })
       );
     }
@@ -191,7 +191,7 @@ export default function EditLlmAajProviderSheet({
       setTestError(result.success ? null : result.error || "Connection test failed");
       setTestedFingerprint(fingerprint);
       if (result.success) {
-        dispatchEndpointConnected();
+        dispatchEndpointConfigured();
       }
     } catch (e) {
       const msg =
@@ -234,7 +234,7 @@ export default function EditLlmAajProviderSheet({
       if (trimmedToken) {
         await setLlmProviderApiKey(providerId, trimmedToken);
       }
-      dispatchEndpointConnected();
+      dispatchEndpointConfigured();
       await onSaved?.();
       setTokenValue("");
       setTestedFingerprint(null);

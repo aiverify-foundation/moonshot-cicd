@@ -2,7 +2,7 @@ import userEvent from '@testing-library/user-event';
 import { render, screen, waitFor } from '@/tests/utils/test-utils';
 import RequiredEndpointsCard, {
   aajEndpointStatusKey,
-  ConnectionStatus,
+  ConfigurationStatus,
   isAajEndpointAccepted,
 } from '@/app/benchmark/components/RequiredEndpointsCard';
 import type { Bundle } from '@/lib/api';
@@ -36,27 +36,27 @@ describe('aajEndpointStatusKey', () => {
 });
 
 describe('isAajEndpointAccepted', () => {
-  it('accepts when Redux is connected', () => {
+  it('accepts when Redux is configured', () => {
     expect(
-      isAajEndpointAccepted(ConnectionStatus.CONNECTED, false)
+      isAajEndpointAccepted(ConfigurationStatus.CONFIGURED, false)
     ).toBe(true);
   });
 
   it('accepts when API key is configured in DB', () => {
     expect(
-      isAajEndpointAccepted(ConnectionStatus.NOT_CONNECTED, true)
+      isAajEndpointAccepted(ConfigurationStatus.NOT_CONFIGURED, true)
     ).toBe(true);
   });
 
-  it('rejects when neither connected nor key configured', () => {
+  it('rejects when neither configured nor key configured', () => {
     expect(
-      isAajEndpointAccepted(ConnectionStatus.NOT_CONNECTED, false)
+      isAajEndpointAccepted(ConfigurationStatus.NOT_CONFIGURED, false)
     ).toBe(false);
   });
 
   it('rejects invalid token even when API key is configured', () => {
     expect(
-      isAajEndpointAccepted(ConnectionStatus.INVALID_TOKEN, true)
+      isAajEndpointAccepted(ConfigurationStatus.INVALID_TOKEN, true)
     ).toBe(false);
   });
 });
@@ -127,7 +127,7 @@ describe('RequiredEndpointsCard', () => {
     renderCard();
 
     expect(screen.getByTestId('required-endpoints-card-title')).toHaveTextContent(
-      'Connect LLM-as-judge Models',
+      'Configure LLM-as-judge Models',
     );
     expect(screen.getByTestId('required-endpoints-card-description')).toHaveTextContent(
       'Configure access to LLM-as-judge providers required by your selected tests.',
@@ -205,7 +205,7 @@ describe('RequiredEndpointsCard', () => {
     expect(mockFetchProviderLatestDetails).toHaveBeenCalledWith('openai_adapter');
   });
 
-  it('shows green indicator and connected badge when DB key exists only', async () => {
+  it('shows green indicator and configured badge when DB key exists only', async () => {
     mockFetchProviderLatestDetails.mockResolvedValue({
       api_key_configured: true,
       database_model_configs: [],
@@ -220,10 +220,10 @@ describe('RequiredEndpointsCard', () => {
         'text-green-500'
       );
     });
-    expect(screen.getByText('connected')).toBeInTheDocument();
+    expect(screen.getByText('Configured')).toBeInTheDocument();
   });
 
-  it('shows green indicator when Redux connected and DB key absent', async () => {
+  it('shows green indicator when Redux configured and DB key absent', async () => {
     mockFetchProviderLatestDetails.mockResolvedValue({
       api_key_configured: false,
       database_model_configs: [],
@@ -232,7 +232,7 @@ describe('RequiredEndpointsCard', () => {
     });
 
     renderCard({
-      endpointStatus: { [aajEndpointStatusKey('together_adapter')]: 'connected' },
+      endpointStatus: { [aajEndpointStatusKey('together_adapter')]: 'Configured' },
     });
 
     await waitFor(() => {
@@ -243,10 +243,10 @@ describe('RequiredEndpointsCard', () => {
         'text-green-500'
       );
     });
-    expect(screen.getByText('connected')).toBeInTheDocument();
+    expect(screen.getByText('Configured')).toBeInTheDocument();
   });
 
-  it('shows red indicator and not connected when neither Redux nor DB key', async () => {
+  it('shows red indicator and not configured when neither Redux nor DB key', async () => {
     mockFetchProviderLatestDetails.mockResolvedValue({
       api_key_configured: false,
       database_model_configs: [],
@@ -261,7 +261,7 @@ describe('RequiredEndpointsCard', () => {
         'text-red-500'
       );
     });
-    expect(screen.getByText('not connected')).toBeInTheDocument();
+    expect(screen.getByText('Not Configured')).toBeInTheDocument();
   });
 
   it('shows red indicator when Redux has invalid token even if DB key exists', async () => {
@@ -274,7 +274,7 @@ describe('RequiredEndpointsCard', () => {
 
     renderCard({
       endpointStatus: {
-        [aajEndpointStatusKey('together_adapter')]: ConnectionStatus.INVALID_TOKEN,
+        [aajEndpointStatusKey('together_adapter')]: ConfigurationStatus.INVALID_TOKEN,
       },
     });
 
@@ -283,17 +283,17 @@ describe('RequiredEndpointsCard', () => {
         'text-red-500'
       );
     });
-    expect(screen.getByText(ConnectionStatus.INVALID_TOKEN)).toBeInTheDocument();
+    expect(screen.getByText(ConfigurationStatus.INVALID_TOKEN)).toBeInTheDocument();
   });
 
-  it('opens Add Provider Token sheet and marks endpoint connected on Save when key exists', async () => {
+  it('opens Add Provider Token sheet and marks endpoint configured on Save when key exists', async () => {
     const user = userEvent.setup();
     const { store } = renderCard({ endpointStatus: {} });
 
     await waitFor(() => {
-      expect(screen.getByRole('button', { name: 'Connect' })).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: 'Configure' })).toBeInTheDocument();
     });
-    await user.click(screen.getByRole('button', { name: 'Connect' }));
+    await user.click(screen.getByRole('button', { name: 'Configure' }));
 
     await waitFor(() => {
       expect(screen.getByRole('dialog')).toBeInTheDocument();
@@ -309,7 +309,7 @@ describe('RequiredEndpointsCard', () => {
 
     await waitFor(() => {
       expect(store.getState().endpointStatus[aajEndpointStatusKey('together_adapter')]).toBe(
-        'connected'
+        'Configured'
       );
     });
     expect(mockSetLlmProviderApiKey).not.toHaveBeenCalled();

@@ -25,9 +25,9 @@ import {
 } from '../../../lib/aajProviderResolution';
 import type { Provider } from '../types/modelSelection';
 
-enum ConnectionStatus {
-  CONNECTED = "connected",
-  NOT_CONNECTED = "not connected",
+enum ConfigurationStatus {
+  CONFIGURED = "Configured",
+  NOT_CONFIGURED = "Not Configured",
   INVALID_TOKEN = "Invalid Token"
 }
 
@@ -38,17 +38,17 @@ export function aajEndpointStatusKey(metricProviderSystemName: string): string {
 
 /** Whether an LLM-as-judge endpoint is satisfied for display / overall status. */
 export function isAajEndpointAccepted(
-  status: ConnectionStatus,
+  status: ConfigurationStatus,
   apiKeyConfigured: boolean | undefined
 ): boolean {
-  if (status === ConnectionStatus.INVALID_TOKEN) return false;
-  return status === ConnectionStatus.CONNECTED || Boolean(apiKeyConfigured);
+  if (status === ConfigurationStatus.INVALID_TOKEN) return false;
+  return status === ConfigurationStatus.CONFIGURED || Boolean(apiKeyConfigured);
 }
 
 export type AajEndpointRow = {
   rowKey: string;
   modelName: string;
-  status: ConnectionStatus;
+  status: ConfigurationStatus;
   tests: string[];
   systemName: string;
   providerId: string | null;
@@ -57,32 +57,32 @@ export type AajEndpointRow = {
 
 function renderEndpointStatusCard(
   modelName: string,
-  status: ConnectionStatus,
+  status: ConfigurationStatus,
   tests: string[],
   onConnect: () => void,
   connectDisabled: boolean,
   systemName: string
 ) {
-  const getBadgeClasses = (status: ConnectionStatus) => {
+  const getBadgeClasses = (status: ConfigurationStatus) => {
     switch (status) {
-      case ConnectionStatus.CONNECTED:
+      case ConfigurationStatus.CONFIGURED:
         return "bg-green-100 text-green-800 border-green-200";
-      case ConnectionStatus.NOT_CONNECTED:
+      case ConfigurationStatus.NOT_CONFIGURED:
         return "bg-gray-100 text-gray-800 border-gray-200";
-      case ConnectionStatus.INVALID_TOKEN:
+      case ConfigurationStatus.INVALID_TOKEN:
         return "bg-red-100 text-red-800 border-red-200";
       default:
         return "bg-gray-100 text-gray-800 border-gray-200";
     }
   };
 
-  const getBorderClasses = (status: ConnectionStatus) => {
+  const getBorderClasses = (status: ConfigurationStatus) => {
     switch (status) {
-      case ConnectionStatus.CONNECTED:
+      case ConfigurationStatus.CONFIGURED:
         return "border-green-200";
-      case ConnectionStatus.NOT_CONNECTED:
+      case ConfigurationStatus.NOT_CONFIGURED:
         return "border-gray-200";
-      case ConnectionStatus.INVALID_TOKEN:
+      case ConfigurationStatus.INVALID_TOKEN:
         return "border-red-200";
       default:
         return "border-gray-200";
@@ -125,7 +125,7 @@ function renderEndpointStatusCard(
             disabled={connectDisabled}
             data-testid={`required-endpoint-connect-${systemName}`}
           >
-            Connect
+            Configure
           </Button>
         </div>
       </CardContent>
@@ -279,11 +279,11 @@ export default function RequiredEndpointsCard() {
       const statusKey = aajEndpointStatusKey(systemName);
       const storedStatus = endpointStatuses[statusKey];
       const rawStatus = storedStatus
-        ? (storedStatus as ConnectionStatus)
-        : ConnectionStatus.NOT_CONNECTED;
+        ? (storedStatus as ConfigurationStatus)
+        : ConfigurationStatus.NOT_CONFIGURED;
       const apiKeyConfigured = apiKeyConfiguredBySystem[systemName];
       const status = isAajEndpointAccepted(rawStatus, apiKeyConfigured)
-        ? ConnectionStatus.CONNECTED
+        ? ConfigurationStatus.CONFIGURED
         : rawStatus;
       const tests = Array.from(testSet).sort((a, b) => a.localeCompare(b));
       const providerMissing = !provider;
@@ -308,7 +308,7 @@ export default function RequiredEndpointsCard() {
     if (keysLoading) {
       return false;
     }
-    return endpoints.every((e) => e.status === ConnectionStatus.CONNECTED);
+    return endpoints.every((e) => e.status === ConfigurationStatus.CONFIGURED);
   }, [endpoints, keysLoading]);
 
   const handleConnect = (row: AajEndpointRow) => {
@@ -339,7 +339,7 @@ export default function RequiredEndpointsCard() {
           <AccordionItem value="item-1">
             <AccordionTrigger className="flex flex-row items-center hover:no-underline px-6 py-4">
               <div className="flex-1">
-                <CardTitle data-testid="required-endpoints-card-title">Connect LLM-as-judge Models</CardTitle>
+                <CardTitle data-testid="required-endpoints-card-title">Configure LLM-as-judge Models</CardTitle>
                 <CardDescription data-testid="required-endpoints-card-description">
                   Configure access to LLM-as-judge providers required by your selected tests.
                 </CardDescription>
@@ -382,4 +382,4 @@ export default function RequiredEndpointsCard() {
   );
 }
 
-export { ConnectionStatus };
+export { ConfigurationStatus };
