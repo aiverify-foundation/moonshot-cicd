@@ -1,8 +1,32 @@
 # Playwright E2E stack. Isolated from local moonshot-web / moonshot-cicd-data-volume.
 #   docker compose -f docker/moonshot.e2e-test.docker-compose.yml up --build --abort-on-container-exit --exit-code-from moonshot-e2e-testing
+#
+# Each `up` resets the E2E SQLite DB (moonshot.db) via moonshot-e2e-volume-init,
+# matching scripts/run-e2e-tests.sh. The named volume itself is kept.
+#
+# moonshot-e2e-testing uses network_mode: service:moonshot-e2e-web so localhost:8000
+# reaches the API (portal hardcodes http://localhost:8000 in lib/api.ts).
 name: moonshot-cicd-e2e
 
 services:
+  # Named volumes are root-owned on first mount; moonshot-cicd runs as appuser (uid 1001).
+  # Also wipe moonshot.db (+ wal/shm) so API keys / prior suite state do not leak across runs.
+  moonshot-e2e-volume-init:
+    container_name: moonshot-e2e-volume-init
+    image: busybox:1.36
+    user: "0:0"
+    volumes:
+      - moonshot-cicd-e2e-testing-data-volume:/var/lib/moonshot
+    command:
+      - sh
+      - -c
+      - >-
+        rm -f /var/lib/moonshot/moonshot.db
+        /var/lib/moonshot/moonshot.db-wal
+        /var/lib/moonshot/moonshot.db-shm;
+        mkdir -p /var/lib/moonshot/results;
+        chown -R 1001:1001 /var/lib/moonshot
+
   moonshot-e2e-web:
     container_name: moonshot-e2e-web
     image: moonshot-cicd
@@ -18,6 +42,11 @@ services:
       MOONSHOT_BENCHMARK_RESULTS_DIR: /var/lib/moonshot/results
       MOONSHOT_API_NO_RELOAD: "1"
     command: ["moonshot-web"]
+    ports:
+      - "8000:8000"
+    depends_on:
+      moonshot-e2e-volume-init:
+        condition: service_completed_successfully
     healthcheck:
       test:
         [
@@ -37,10 +66,11 @@ services:
     build:
       context: ..
       dockerfile: docker/moonshot.e2e-test.Dockerfile
+    network_mode: "service:moonshot-e2e-web"
     volumes:
       - moonshot-cicd-e2e-testing-data-volume:/var/lib/moonshot
     environment:
-      BASE_URL: http://moonshot-e2e-web:8000
+      BASE_URL: http://localhost:8000
       MOONSHOT_DB_PATH: /var/lib/moonshot/moonshot.db
       MOONSHOT_BENCHMARK_RESULTS_DIR: /var/lib/moonshot/results
       CI: "1"

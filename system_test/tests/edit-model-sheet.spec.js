@@ -8,6 +8,7 @@ const {
   openModelDropdownWithOptions,
   editModelSheet,
   mockTestConnection,
+  clearProviderApiKeyBySystemName,
 } = require('../utils/modelSelection');
 
 const OPENAI_EXPLANATION = 'Enter an OpenAI model name, e.g. gpt-4o-mini';
@@ -136,14 +137,38 @@ test.describe('Edit Model Configuration Sheet', () => {
   // AC3: Token / API key UX
   // ---------------------------------------------------------------------
   test.describe('AC3 Token UX', () => {
-    test('Token is required when no API key is configured', async ({ page }) => {
-      await setupOpenAI(page);
-      await openAddNewModelSheet(page);
-      const sheet = editModelSheet(page);
+    // Earlier files (e.g. edit-llm-aaj) may persist an OpenAI key on the shared E2E DB.
+    test.describe('when no API key is stored', () => {
+      test.beforeEach(() => {
+        clearProviderApiKeyBySystemName('openai_adapter');
+      });
 
-      await expect(sheet.getByText('Token*', { exact: true })).toBeVisible();
-      await expect(sheet.locator('#token')).toHaveAttribute('placeholder', 'Enter token');
-      await expect(sheet.getByText(SAVED_TOKEN_HELPER)).toHaveCount(0);
+      test('Token is required when no API key is configured', async ({ page }) => {
+        await setupOpenAI(page);
+        await openAddNewModelSheet(page);
+        const sheet = editModelSheet(page);
+
+        await expect(sheet.getByText('Token*', { exact: true })).toBeVisible();
+        await expect(sheet.locator('#token')).toHaveAttribute('placeholder', 'Enter token');
+        await expect(sheet.getByText(SAVED_TOKEN_HELPER)).toHaveCount(0);
+      });
+
+      test('Test Connection blocked without token when no key is stored', async ({ page }) => {
+        await setupOpenAI(page);
+        await openAddNewModelSheet(page);
+        const sheet = editModelSheet(page);
+
+        await sheet.locator('#model').fill('gpt-4o-mini');
+        // Token left empty
+
+        page.once('dialog', async (dialog) => {
+          expect(dialog.message()).toMatch(/enter a token/i);
+          await dialog.accept();
+        });
+
+        await sheet.getByTestId('edit-model-test-connection').click();
+        await expect(sheet.getByTestId('edit-model-save')).toBeDisabled();
+      });
     });
 
     test('Token is optional when an API key is already configured', async ({ page }) => {
@@ -165,23 +190,6 @@ test.describe('Edit Model Configuration Sheet', () => {
       await expect(sheet.getByText('Token (optional)')).toBeVisible({ timeout: 10000 });
       await expect(sheet.locator('#token')).toHaveAttribute('placeholder', '••••••••');
       await expect(sheet.getByText(SAVED_TOKEN_HELPER)).toBeVisible();
-    });
-
-    test('Test Connection blocked without token when no key is stored', async ({ page }) => {
-      await setupOpenAI(page);
-      await openAddNewModelSheet(page);
-      const sheet = editModelSheet(page);
-
-      await sheet.locator('#model').fill('gpt-4o-mini');
-      // Token left empty
-
-      page.once('dialog', async (dialog) => {
-        expect(dialog.message()).toMatch(/enter a token/i);
-        await dialog.accept();
-      });
-
-      await sheet.getByTestId('edit-model-test-connection').click();
-      await expect(sheet.getByTestId('edit-model-save')).toBeDisabled();
     });
   });
 

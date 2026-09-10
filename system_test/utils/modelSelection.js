@@ -1,4 +1,7 @@
 const { expect } = require('@playwright/test');
+const { spawnSync } = require('child_process');
+const path = require('path');
+const { bundleCard } = require('./bundleSelection');
 
 /** Navigate landing → select first bundle → model selection page. */
 async function navigateToModelSelection(page) {
@@ -317,6 +320,26 @@ async function setProviderApiKey(request, providerId, apiKey = 'sk-e2e-fake-key'
 }
 
 /**
+ * Clear stored API key rows for a provider system_name via the shared E2E DB.
+ * Needed when an earlier file (e.g. edit-llm-aaj) persisted an OpenAI key.
+ * @param {string} [systemName]
+ */
+function clearProviderApiKeyBySystemName(systemName = 'openai_adapter') {
+  const python = process.env.E2E_PYTHON || 'python3';
+  const script = path.join(__dirname, '..', 'scripts', 'clear_provider_api_key.py');
+  const result = spawnSync(python, [script, systemName], {
+    env: process.env,
+    encoding: 'utf-8',
+  });
+  if (result.status !== 0) {
+    const detail = (result.stderr || result.stdout || '').trim();
+    throw new Error(
+      `clear_provider_api_key.py failed for ${systemName} (exit ${result.status}): ${detail}`
+    );
+  }
+}
+
+/**
  * Navigate landing → select a bundle by visible name → model selection page.
  * @param {import('@playwright/test').Page} page
  * @param {string|RegExp} bundleName
@@ -326,15 +349,8 @@ async function navigateToModelSelectionWithBundle(page, bundleName) {
   await page.waitForLoadState('networkidle');
   await page.click('[data-testid="benchmark-link"]');
   await page.waitForLoadState('networkidle');
-  await page.waitForSelector('[data-testid^="bundle-card-"]', { timeout: 10000 });
 
-  const card = page
-    .locator('[data-testid^="bundle-card-"]')
-    .filter({
-      has: page.locator('[data-testid="bundle-name"]', { hasText: bundleName }),
-    })
-    .first();
-  await expect(card).toBeVisible({ timeout: 10000 });
+  const card = await bundleCard(page, { name: bundleName });
   await card.locator('[data-testid^="toggle-"]').click();
   await page.waitForTimeout(500);
 
@@ -446,6 +462,7 @@ module.exports = {
   resolveAajSystemNameFromBundle,
   resolveAajProvider,
   setProviderApiKey,
+  clearProviderApiKeyBySystemName,
   expandRequiredEndpointsCard,
   openAajProviderSheet,
   editAajProviderSheet,

@@ -1,11 +1,15 @@
 // @ts-check
 const { defineConfig, devices } = require('@playwright/test');
 
+// Set PLAYWRIGHT_INCLUDE_INTEGRATION=1 to include tests/integration (see npm run test:all).
+const includeIntegration = process.env.PLAYWRIGHT_INCLUDE_INTEGRATION === '1';
+
 /**
  * @see https://playwright.dev/docs/test-configuration
  */
 module.exports = defineConfig({
   testDir: './tests',
+  ...(includeIntegration ? {} : { testIgnore: ['**/integration/**'] }),
   globalSetup: require.resolve('./global-setup'),
   /* Run tests in files in parallel */
   fullyParallel: true,

@@ -1,8 +1,10 @@
 const { test, expect } = require('@playwright/test');
-
-function escapeRegex(value) {
-  return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-}
+const {
+  openBundleSheet,
+  parseSidebarCount,
+  selectBundleById,
+  sidebarBundleLabel,
+} = require('../utils/bundleSelection');
 
 async function navigateToBenchmark(page) {
   await page.goto('/');
@@ -39,24 +41,6 @@ function pickAnotherBundleWithTests(bundles, excludedId) {
   return bundle;
 }
 
-async function selectBundleById(page, bundleId) {
-  const toggle = page.locator(`[data-testid="toggle-${bundleId}"]`);
-  await expect(toggle).toBeVisible();
-  await toggle.click();
-}
-
-async function openBundleSheet(page, bundleName) {
-  const card = page
-    .locator('[data-testid^="bundle-card-"]')
-    .filter({
-      has: page.locator('[data-testid="bundle-name"]', { hasText: bundleName }),
-    })
-    .first();
-  await expect(card).toBeVisible();
-  await card.locator('[data-testid="learn-more-link"]').click();
-  await expect(page.locator('[data-testid="bundle-details-sheet"]')).toBeVisible();
-}
-
 async function saveBundleSheet(page) {
   const sheet = page.locator('[data-testid="bundle-details-sheet"]');
   const addButton = sheet.getByRole('button', { name: /^Add/ });
@@ -67,7 +51,9 @@ async function saveBundleSheet(page) {
 
 async function deselectFirstTestInBundleSheet(page) {
   const sheet = page.locator('[data-testid="bundle-details-sheet"]');
-  const selectedButtons = sheet.locator('button[aria-label="Toggle test"]').filter({ hasText: 'Selected' });
+  const selectedButtons = sheet
+    .locator('button[aria-label="Toggle test"]')
+    .filter({ hasText: /^Selected$/ });
   const count = await selectedButtons.count();
   expect(count).toBeGreaterThan(0);
   await selectedButtons.first().click();
@@ -75,7 +61,9 @@ async function deselectFirstTestInBundleSheet(page) {
 
 async function clearAllTestsInBundleSheet(page) {
   const sheet = page.locator('[data-testid="bundle-details-sheet"]');
-  const selectedButtons = sheet.locator('button[aria-label="Toggle test"]').filter({ hasText: 'Selected' });
+  const selectedButtons = sheet
+    .locator('button[aria-label="Toggle test"]')
+    .filter({ hasText: /^Selected$/ });
   let remaining = await selectedButtons.count();
   while (remaining > 0) {
     await selectedButtons.first().click();
@@ -85,19 +73,11 @@ async function clearAllTestsInBundleSheet(page) {
 
 async function selectOneTestInBundleSheet(page) {
   const sheet = page.locator('[data-testid="bundle-details-sheet"]');
-  const unselectedButtons = sheet.locator('button[aria-label="Toggle test"]').filter({ hasText: 'Select' });
+  const unselectedButtons = sheet
+    .locator('button[aria-label="Toggle test"]')
+    .filter({ hasText: /^Select$/ });
   expect(await unselectedButtons.count()).toBeGreaterThan(0);
   await unselectedButtons.first().click();
-}
-
-async function parseSidebarCount(page, bundleName) {
-  const regex = new RegExp(`${escapeRegex(bundleName)}\\s*\\[(\\d+)\\/(\\d+)\\]`);
-  const countLabel = page.locator('span.font-medium.text-sm').filter({ hasText: new RegExp(escapeRegex(bundleName)) }).first();
-  await expect(countLabel).toBeVisible();
-  const text = (await countLabel.textContent()) || '';
-  const match = regex.exec(text);
-  expect(match).toBeTruthy();
-  return { selected: Number(match[1]), total: Number(match[2]) };
 }
 
 async function goToModelSelection(page) {
@@ -167,8 +147,8 @@ test.describe('MOON-544 Multi-Bundle and Multi-Test Selection', () => {
     await expect(page.locator(`[data-testid="toggle-${bundleA.id}"]`)).toContainText('Selected');
     await expect(page.locator(`[data-testid="toggle-${bundleB.id}"]`)).toContainText('Selected');
     await expect(page.locator('[data-testid="configure-and-run-benchmark-tests"]')).toBeEnabled();
-    await expect(page.getByText(new RegExp(`${escapeRegex(bundleA.name)}\\s*\\[`))).toBeVisible();
-    await expect(page.getByText(new RegExp(`${escapeRegex(bundleB.name)}\\s*\\[`))).toBeVisible();
+    await expect(sidebarBundleLabel(page, bundleA.name)).toBeVisible();
+    await expect(sidebarBundleLabel(page, bundleB.name)).toBeVisible();
   });
 
   test('deselecting one bundle keeps other selected bundles intact', { tag: '@happy-path' }, async ({ page, request }) => {
@@ -183,8 +163,8 @@ test.describe('MOON-544 Multi-Bundle and Multi-Test Selection', () => {
     await expect(page.locator(`[data-testid="toggle-${bundleA.id}"]`)).toContainText('Select');
     await expect(page.locator(`[data-testid="toggle-${bundleB.id}"]`)).toContainText('Selected');
     await expect(page.locator('[data-testid="configure-and-run-benchmark-tests"]')).toBeEnabled();
-    await expect(page.getByText(new RegExp(`${escapeRegex(bundleA.name)}\\s*\\[`))).toHaveCount(0);
-    await expect(page.getByText(new RegExp(`${escapeRegex(bundleB.name)}\\s*\\[`))).toBeVisible();
+    await expect(sidebarBundleLabel(page, bundleA.name)).toHaveCount(0);
+    await expect(sidebarBundleLabel(page, bundleB.name)).toBeVisible();
   });
 
   test('deselecting all selected bundles disables bulk progression', { tag: '@happy-path' }, async ({ page, request }) => {
@@ -222,7 +202,7 @@ test.describe('MOON-544 Multi-Bundle and Multi-Test Selection', () => {
 
     await selectBundleById(page, bundle.id);
     const before = await parseSidebarCount(page, bundle.name);
-    await openBundleSheet(page, bundle.name);
+    await openBundleSheet(page, { id: bundle.id, name: bundle.name });
     await deselectFirstTestInBundleSheet(page);
     await saveBundleSheet(page);
 
@@ -242,7 +222,7 @@ test.describe('MOON-544 Multi-Bundle and Multi-Test Selection', () => {
     await selectBundleById(page, bundleA.id);
     await selectBundleById(page, bundleB.id);
 
-    await openBundleSheet(page, bundleA.name);
+    await openBundleSheet(page, { id: bundleA.id, name: bundleA.name });
     await deselectFirstTestInBundleSheet(page);
     await saveBundleSheet(page);
 
@@ -258,7 +238,7 @@ test.describe('MOON-544 Multi-Bundle and Multi-Test Selection', () => {
     const bundles = await fetchBundles(request);
     const bundle = pickBundleWithAtLeastTwoTests(bundles);
     await navigateToBenchmark(page);
-    await openBundleSheet(page, bundle.name);
+    await openBundleSheet(page, { id: bundle.id, name: bundle.name });
 
     const sheet = page.locator('[data-testid="bundle-details-sheet"]');
     const addButton = sheet.getByRole('button', { name: /^Add/ });
@@ -315,7 +295,7 @@ test.describe('MOON-544 Multi-Bundle and Multi-Test Selection', () => {
     await navigateToBenchmark(page);
     await selectBundleById(page, bundleA.id);
     await selectBundleById(page, bundleB.id);
-    await openBundleSheet(page, bundleA.name);
+    await openBundleSheet(page, { id: bundleA.id, name: bundleA.name });
     await deselectFirstTestInBundleSheet(page);
     await saveBundleSheet(page);
     await goToModelSelection(page);
@@ -353,7 +333,7 @@ test.describe('MOON-544 Multi-Bundle and Multi-Test Selection', () => {
 
     await selectBundleById(page, bundleA.id);
     await selectBundleById(page, bundleB.id);
-    await openBundleSheet(page, bundleA.name);
+    await openBundleSheet(page, { id: bundleA.id, name: bundleA.name });
     await deselectFirstTestInBundleSheet(page);
     await saveBundleSheet(page);
 

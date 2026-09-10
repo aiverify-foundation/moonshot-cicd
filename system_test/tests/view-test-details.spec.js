@@ -1,4 +1,8 @@
 const { test, expect } = require('@playwright/test');
+const {
+  findBundleByName,
+  openBundleSheet,
+} = require('../utils/bundleSelection');
 
 const UNDESIRABLE_BUNDLE = 'Undesirable Content';
 const VIOLENT_CRIMES_TEST = 'MLCommons AILuminate - Violent Crimes';
@@ -21,23 +25,6 @@ async function navigateToBenchmark(page) {
   await expect(
     page.locator('[data-testid="select-bundles-header"]')
   ).toContainText('Select Test Bundles');
-}
-
-async function openBundleSheet(page, bundleName) {
-  await page.waitForSelector('[data-testid^="bundle-card-"]', {
-    timeout: 15000,
-  });
-  const card = page
-    .locator('[data-testid^="bundle-card-"]')
-    .filter({
-      has: page.locator('[data-testid="bundle-name"]', { hasText: bundleName }),
-    });
-  await expect(card.first()).toBeVisible();
-  await card.first().locator('[data-testid="learn-more-link"]').click();
-  await expect(page.locator('[data-testid="bundle-details-sheet"]')).toBeVisible();
-  await expect(page.locator('[data-testid="bundle-details-name"]')).toContainText(
-    bundleName
-  );
 }
 
 /**
@@ -171,9 +158,13 @@ function mockBundleWithTest(overrides = {}) {
 }
 
 test.describe('MOON-543 View Test Details', () => {
-  test('bundle Learn more opens the bundle details sheet', { tag: '@happy-path' }, async ({ page }) => {
+  test('bundle Learn more opens the bundle details sheet', { tag: '@happy-path' }, async ({
+    page,
+    request,
+  }) => {
+    const bundle = await findBundleByName(request, UNDESIRABLE_BUNDLE);
     await navigateToBenchmark(page);
-    await openBundleSheet(page, UNDESIRABLE_BUNDLE);
+    await openBundleSheet(page, { id: bundle.id, name: bundle.name });
 
     await expect(
       page.locator('[data-testid="bundle-details-prompt-count"]')
@@ -199,10 +190,10 @@ test.describe('MOON-543 View Test Details', () => {
     context,
     request,
   }) => {
-    const { datasetId } = await findBundleTest(request, VIOLENT_CRIMES_TEST);
+    const { datasetId, bundle } = await findBundleTest(request, VIOLENT_CRIMES_TEST);
 
     await navigateToBenchmark(page);
-    await openBundleSheet(page, UNDESIRABLE_BUNDLE);
+    await openBundleSheet(page, { id: bundle.id, name: bundle.name });
 
     const popup = await openTestDetailsInNewTab(
       page,
@@ -480,9 +471,11 @@ test.describe('MOON-543 View Test Details', () => {
   test('Adversarial Prompts sheet exposes CyberSecEval Learn More', { tag: '@happy-path' }, async ({
     page,
     context,
+    request,
   }) => {
+    const bundle = await findBundleByName(request, ADVERSARIAL_BUNDLE);
     await navigateToBenchmark(page);
-    await openBundleSheet(page, ADVERSARIAL_BUNDLE);
+    await openBundleSheet(page, { id: bundle.id, name: bundle.name });
     await expect(
       page.locator(`[data-testid="${CYBERSECEVAL_LEARN_MORE}"]`)
     ).toBeVisible();

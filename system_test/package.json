@@ -5,6 +5,8 @@
   "main": "index.js",
   "scripts": {
     "test": "playwright test",
+    "test:all": "PLAYWRIGHT_INCLUDE_INTEGRATION=1 playwright test",
+    "test:integration": "PLAYWRIGHT_INCLUDE_INTEGRATION=1 playwright test tests/integration",
     "test:headed": "playwright test --headed",
     "test:ui": "playwright test --ui",
     "test:debug": "playwright test --debug",
