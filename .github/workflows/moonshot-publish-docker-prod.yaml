@@ -1,6 +1,9 @@
 name: Publish Moonshot Docker Image to PROD
 
 on:
+  push:
+    branches:
+      - dev_main
   workflow_dispatch:
     inputs:
       moonshot_dev_tag:
