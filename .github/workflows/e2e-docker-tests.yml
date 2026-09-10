@@ -2,9 +2,6 @@ name: E2E Docker Tests
 
 on:
   workflow_dispatch:
-  push:
-    branches:
-      - "dev_main"
 
 jobs:
   e2e-docker:
