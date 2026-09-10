@@ -1,0 +1,64 @@
+name: Publish Moonshot Docker Image to PROD
+
+on:
+  workflow_dispatch:
+    inputs:
+      moonshot_dev_tag:
+        description: 'Existing tag of the moonshot-dev image to promote'
+        required: true
+        type: string
+      moonshot_semver_tag:
+        description: 'New semver tag for the moonshot image (e.g. 1.2.3, 1.2.3-rc1)'
+        required: true
+        type: string
+
+jobs:
+  promote-moonshot-dev-to-moonshot:
+    if: github.event_name == 'workflow_dispatch'
+    permissions:
+      id-token: write
+      contents: read
+      packages: write
+    runs-on: ubuntu-latest
+
+    env:
+      GHCR_REGISTRY: ghcr.io
+      SOURCE_IMAGE_REPO: ghcr.io/aiverify-foundation/moonshot-dev
+      TARGET_IMAGE_REPO: ghcr.io/aiverify-foundation/moonshot
+
+    steps:
+    - name: Validate semver tag
+      run: |
+        SEMVER_TAG="${{ inputs.moonshot_semver_tag }}"
+        if [[ ! "${SEMVER_TAG}" =~ ^[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?(\+[0-9A-Za-z.-]+)?$ ]]; then
+          echo "Invalid moonshot_semver_tag '${SEMVER_TAG}'. Expected semver like 1.2.3, 1.2.3-rc.1, or 1.2.3+build.1"
+          exit 1
+        fi
+
+    - name: Login to GHCR
+      uses: docker/login-action@v3
+      with:
+        registry: ${{ env.GHCR_REGISTRY }}
+        username: ${{ github.actor }}
+        password: ${{ secrets.GITHUB_TOKEN }}
+
+    - name: Promote moonshot-dev image to moonshot
+      run: |
+        SOURCE_IMAGE="${SOURCE_IMAGE_REPO}:${{ inputs.moonshot_dev_tag }}"
+        SOURCE_PROMOTED_IMAGE="${SOURCE_IMAGE_REPO}:${{ inputs.moonshot_semver_tag }}"
+        TARGET_IMAGE="${TARGET_IMAGE_REPO}:${{ inputs.moonshot_semver_tag }}"
+        TARGET_LATEST="${TARGET_IMAGE_REPO}:latest"
+
+        echo "Promoting ${SOURCE_IMAGE} -> ${TARGET_IMAGE}"
+        echo "Marking source as promoted: ${SOURCE_PROMOTED_IMAGE}"
+        echo "Also tagging ${TARGET_LATEST}"
+
+        docker pull "${SOURCE_IMAGE}"
+        
+        docker tag "${SOURCE_IMAGE}" "${SOURCE_PROMOTED_IMAGE}"
+        docker tag "${SOURCE_IMAGE}" "${TARGET_IMAGE}"
+        docker tag "${SOURCE_IMAGE}" "${TARGET_LATEST}"
+
+        docker push "${SOURCE_PROMOTED_IMAGE}"
+        # docker push "${TARGET_IMAGE}"
+        # docker push "${TARGET_LATEST}"
