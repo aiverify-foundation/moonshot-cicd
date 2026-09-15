@@ -58,6 +58,8 @@ jobs:
         file: docker/moonshot.Dockerfile
         platforms: linux/amd64
         push: true
+        provenance: false
+        sbom: false
         tags: |
           ghcr.io/${{ env.GHCR_NAMESPACE }}/moonshot-dev:${{ env.IMAGE_TAG }}
         labels: |
