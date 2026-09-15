@@ -131,7 +131,7 @@ jobs:
         uses: hadolint/hadolint-action@v3.1.0
         if: ${{ ! cancelled() }}
         with:
-          dockerfile: moonshot_core/Dockerfile
+          dockerfile: docker/moonshot.Dockerfile
           output-file: hadolint-report.json
           format: json
           no-fail: true
@@ -147,7 +147,7 @@ jobs:
           
           export message="$HADOLINT_SUMMARY"
           export dockerfile_root=0  # Ensure variable is initialized
-          export DOCKERFILE_PATH="moonshot_core/Dockerfile"
+          export DOCKERFILE_PATH="docker/moonshot.Dockerfile"
 
           if ! grep -q '^USER ' "$DOCKERFILE_PATH"; then
             # Temporary clause to ignore certain Dockerfile checks. Will remove in future.
