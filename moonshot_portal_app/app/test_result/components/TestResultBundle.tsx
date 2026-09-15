@@ -14,6 +14,7 @@ import {
     testStatusByTestId,
 } from "./testCompletion"
 import { formatScorePercent } from "./scorePercent"
+import { evaluationDisplayLabel } from "./evaluationDisplayHelpers"
 
 export { extractEvaluatedResponse, evaluationDisplayLabel } from "./evaluationDisplayHelpers"
 
@@ -40,6 +41,34 @@ export function adjustedAccuracyPercent(
 ): number {
     if (rowCount <= 0) return 0
     return ((totalScore - disagreeWithScore1 + disagreeWithScore0) / rowCount) * 100
+}
+
+/**
+ * First non-Error/Unknown evaluation labels for score 1 and score 0 (table order).
+ * Falls back to True / False when a polarity is missing.
+ */
+export function firstScorePolarityLabels(rows: TestResultTableRow[]): {
+    score1Label: string
+    score0Label: string
+} {
+    let score1Label: string | null = null
+    let score0Label: string | null = null
+
+    for (const row of rows) {
+        if (score1Label != null && score0Label != null) break
+        const label = evaluationDisplayLabel(row.evaluation, row.score, {
+            isPromptError: row.isPromptError,
+            errorSource: row.errorSource,
+        })
+        if (label === "Error" || label === "Unknown") continue
+        if (row.score === 1 && score1Label == null) score1Label = label
+        else if (row.score === 0 && score0Label == null) score0Label = label
+    }
+
+    return {
+        score1Label: score1Label ?? "True",
+        score0Label: score0Label ?? "False",
+    }
 }
 
 export function promptsToTableRows(
@@ -222,6 +251,8 @@ function VerdictsRankedCard({
 
 interface VerdictsAdjustedCardProps {
     totalAdjusted: string
+    score1Label: string
+    score0Label: string
     trueToFalseCount: string
     trueToFalsePercentage: string
     falseToTrueCount: string
@@ -230,14 +261,18 @@ interface VerdictsAdjustedCardProps {
 
 function VerdictsAdjustedCard({
     totalAdjusted,
+    score1Label,
+    score0Label,
     trueToFalseCount,
     trueToFalsePercentage,
     falseToTrueCount,
     falseToTruePercentage,
 }: VerdictsAdjustedCardProps) {
+    const score1ToScore0 = `${score1Label} –> ${score0Label}`
+    const score0ToScore1 = `${score0Label} –> ${score1Label}`
     return (
-        <div className="bg-white border border-slate-200 rounded-[12px] flex items-start justify-between p-3 flex-1">
-            <div className="flex flex-col gap-[6px] items-start w-[150px]">
+        <div className="bg-white border border-slate-200 rounded-[12px] flex items-start justify-between p-3 flex-1 min-w-0">
+            <div className="flex flex-col gap-[6px] items-start w-[150px] shrink-0">
                 <p className="font-medium text-[12px] text-slate-500">
                     Evaluation adjusted
                 </p>
@@ -245,11 +280,14 @@ function VerdictsAdjustedCard({
                     {totalAdjusted}
                 </p>
             </div>
-            <div className="flex gap-[12px] items-start">
-                {/* True -> False Section */}
-                <div className="flex flex-col gap-[4px] items-start rounded-[6px] w-[80px]">
-                    <p className="font-medium text-[12px] text-slate-500 w-full">
-                        True –&gt; False
+            <div className="flex gap-[12px] items-start min-w-0">
+                {/* Score 1 -> Score 0 Section */}
+                <div className="flex flex-col gap-[4px] items-start rounded-[6px] min-w-[80px] max-w-[120px]">
+                    <p
+                        className="font-medium text-[12px] text-slate-500 w-full truncate"
+                        title={score1ToScore0}
+                    >
+                        {score1ToScore0}
                     </p>
                     <div className="flex gap-[4px] items-start text-[12px] whitespace-pre w-full">
                         <p className="font-bold text-slate-700">
@@ -261,11 +299,14 @@ function VerdictsAdjustedCard({
                     </div>
                 </div>
                 {/* Divider */}
-                <div className="h-[31px] w-px bg-slate-200" />
-                {/* False -> True Section */}
-                <div className="flex flex-col gap-[4px] items-start rounded-[6px] w-[80px]">
-                    <p className="font-medium text-[12px] text-slate-500 w-full">
-                        False –&gt; True
+                <div className="h-[31px] w-px bg-slate-200 shrink-0" />
+                {/* Score 0 -> Score 1 Section */}
+                <div className="flex flex-col gap-[4px] items-start rounded-[6px] min-w-[80px] max-w-[120px]">
+                    <p
+                        className="font-medium text-[12px] text-slate-500 w-full truncate"
+                        title={score0ToScore1}
+                    >
+                        {score0ToScore1}
                     </p>
                     <div className="flex gap-[4px] items-start text-[12px] whitespace-pre w-full">
                         <p className="font-bold text-slate-700">
@@ -540,6 +581,11 @@ export default function TestResultBundle({
     // Calculate verdict statistics (all rows; table shows everything)
     const verdictStats = calculateVerdictStatistics(tableData)
 
+    const polarityLabels = useMemo(
+        () => firstScorePolarityLabels(tableData),
+        [tableData]
+    )
+
     const scorecardRows = useMemo(
         () => rowsForFullyCompleteTests(scopedApiPrompts, tableData, testRunStatus),
         [scopedApiPrompts, tableData, testRunStatus]
@@ -650,6 +696,8 @@ export default function TestResultBundle({
                 />
                 <VerdictsAdjustedCard
                     totalAdjusted={formatNumber(totalAdjusted)}
+                    score1Label={polarityLabels.score1Label}
+                    score0Label={polarityLabels.score0Label}
                     trueToFalseCount={formatNumber(trueToFalseCount)}
                     trueToFalsePercentage={trueToFalsePercentage}
                     falseToTrueCount={formatNumber(falseToTrueCount)}
