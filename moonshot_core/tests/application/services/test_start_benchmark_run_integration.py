@@ -1,9 +1,10 @@
 """
 Integration tests for start_benchmark_run with real database.
 
-Seeds config via seed_if_test_file_changed, then calls BenchmarkExecutionService.start_benchmark_run
-with Process patched to run in-process. Asserts benchmark_run row, no combined bundle JSON file
-(API path), run_test/prompts, and duplicate run name rejection.
+Force-seeds config (resets test_file_last_modified so order does not matter), then calls
+BenchmarkExecutionService.start_benchmark_run with Process patched to run in-process.
+Asserts benchmark_run row, no combined bundle JSON file (API path), run_test/prompts,
+and duplicate run name rejection.
 """
 
 import os
@@ -31,7 +32,10 @@ from application.services.database_connector_config_service import (
 )
 from application.services.benchmark_run_service import BenchmarkRunService
 from application.services.provider_seed_service import ProviderSeedService
-from application.services.shared_config_seed_service import SharedConfigSeedService
+from application.services.shared_config_seed_service import (
+    TEST_FILE_LAST_MODIFIED_KEY,
+    SharedConfigSeedService,
+)
 from application.services.file_shared_config_repository import (
     FileSharedConfigRepository,
 )
@@ -108,6 +112,19 @@ def shared_config_seed_service(test_db_env):
         shared_config_repository=shared_config_repo,
         benchmark_dataset_seed_service=dataset_seed_service,
     )
+
+
+def _force_seed_config(service: SharedConfigSeedService, config_path: Path) -> None:
+    """
+    Always seed from config_path, ignoring prior test_file_last_modified.
+
+    Session-scoped DB + a single global mtime key would otherwise skip seeding when
+    an earlier test seeded a different YAML with the same (or newer) mtime — common
+    after a fresh checkout in CI.
+    """
+    MoonshotConfigAdapter().set(TEST_FILE_LAST_MODIFIED_KEY, "0")
+    did_seed = service.seed_if_test_file_changed(config_path=config_path)
+    assert did_seed, f"Expected seed to run for {config_path}"
 
 
 def _get_run_test_status(session_manager, run_id: int, test_id: int):
@@ -207,14 +224,14 @@ def test_start_benchmark_run_happy_path_with_db(
     tmp_path,
 ):
     """
-    Seed DB via seed_if_test_file_changed, then run start_benchmark_run with one bundle.
+    Seed DB via _force_seed_config, then run start_benchmark_run with one bundle.
     Process is patched to run the bundle in the current process; connector/metric mocked.
     Assert benchmark_run row exists, get_all_runs includes that run, no combined bundle JSON file,
     and run_test/prompts completed.
     """
     assert CONFIG_PATH.exists(), f"Fixture config missing: {CONFIG_PATH}"
 
-    shared_config_seed_service.seed_if_test_file_changed(config_path=CONFIG_PATH)
+    _force_seed_config(shared_config_seed_service, CONFIG_PATH)
 
     config_adapter = BenchmarkTestConfigAdapter()
     bundle_id = config_adapter.get_bundle_id_by_system_name_latest("minimal-bundle")
@@ -330,7 +347,7 @@ def test_start_benchmark_run_two_runs_back_to_back(
     exist and both have completed run_test_status and prompt results.
     """
     assert CONFIG_PATH.exists(), f"Fixture config missing: {CONFIG_PATH}"
-    shared_config_seed_service.seed_if_test_file_changed(config_path=CONFIG_PATH)
+    _force_seed_config(shared_config_seed_service, CONFIG_PATH)
 
     config_adapter = BenchmarkTestConfigAdapter()
     bundle_id = config_adapter.get_bundle_id_by_system_name_latest("minimal-bundle")
@@ -446,7 +463,7 @@ def test_start_benchmark_run_duplicate_name_raises(
     Second call should raise IntegrityError from save_run.
     """
     assert CONFIG_PATH.exists(), f"Fixture config missing: {CONFIG_PATH}"
-    shared_config_seed_service.seed_if_test_file_changed(config_path=CONFIG_PATH)
+    _force_seed_config(shared_config_seed_service, CONFIG_PATH)
 
     run_name = "start-benchmark-run-dup-name"
     mock_connector = MagicMock()
@@ -542,7 +559,7 @@ def test_start_benchmark_run_test_bundle(
     and completed run_test/prompts.
     """
     assert SHARED_CONFIG_PATH.exists(), f"Shared config missing: {SHARED_CONFIG_PATH}"
-    shared_config_seed_service.seed_if_test_file_changed(config_path=SHARED_CONFIG_PATH)
+    _force_seed_config(shared_config_seed_service, SHARED_CONFIG_PATH)
 
     config_adapter = BenchmarkTestConfigAdapter()
     bundle_id = config_adapter.get_bundle_id_by_system_name_latest("test-bundle")
@@ -1123,7 +1140,7 @@ def test_start_benchmark_run_live_openai_real_api(
     Does not require ``evaluation_accuracy`` (nullable for dict-shaped metric results). Uses ``moonshot_config.yaml`` via ``MS_CONFIG_PATH``.
     """
     assert CONFIG_PATH.exists(), f"Fixture config missing: {CONFIG_PATH}"
-    shared_config_seed_service.seed_if_test_file_changed(config_path=CONFIG_PATH)
+    _force_seed_config(shared_config_seed_service, CONFIG_PATH)
 
     config_adapter = BenchmarkTestConfigAdapter()
     bundle_db_id = config_adapter.get_bundle_id_by_system_name_latest("minimal-bundle")
