@@ -53,7 +53,17 @@ jobs:
         SOURCE_IMAGE_WITH_TAG="${SOURCE_IMAGE_REPO}:${{ inputs.moonshot_dev_tag }}"
 
         # add semver tag to existing moonshot-dev image on GHCR
-        crane tag "${SOURCE_IMAGE_WITH_TAG}" "${SOURCE_IMAGE_REPO}:${{ inputs.moonshot_semver_tag }}"
+        crane tag "${SOURCE_IMAGE_WITH_TAG}" "${{ inputs.moonshot_semver_tag }}"
+
+        SOURCE_WITH_STAGING_TAG_DIGEST="$(crane digest "${SOURCE_IMAGE_WITH_TAG}")"
+        SOURCE_WITH_SEMVER_TAG_DIGEST="$(crane digest "${SOURCE_IMAGE_REPO}:${{ inputs.moonshot_semver_tag }}")"
+        echo "Tagged ${SOURCE_IMAGE_WITH_TAG} as ${SOURCE_IMAGE_REPO}:${{ inputs.moonshot_semver_tag }}"
+        echo "Source with Staging tag digest:  ${SOURCE_WITH_STAGING_TAG_DIGEST}"
+        echo "Source with Semver tag digest: ${SOURCE_WITH_SEMVER_TAG_DIGEST}"
+        if [[ "${SOURCE_WITH_STAGING_TAG_DIGEST}" != "${SOURCE_WITH_SEMVER_TAG_DIGEST}" ]]; then
+          echo "Expected both tags to share the same digest"
+          exit 1
+        fi
 
         # publish moonshot-dev image as moonshot image with semver and latest tags
         docker buildx imagetools create \
