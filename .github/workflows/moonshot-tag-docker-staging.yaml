@@ -22,8 +22,8 @@ jobs:
       SOURCE_IMAGE_REPO: ghcr.io/aiverify-foundation/moonshot-dev
 
     steps:
-    - name: Set up Docker Buildx
-      uses: docker/setup-buildx-action@v3
+    - name: Set up crane
+      uses: imjasonh/setup-crane@v0.4
 
     - name: Login to GHCR
       uses: docker/login-action@v3
@@ -35,7 +35,16 @@ jobs:
     - name: Add staging tag to moonshot-dev image
       run: |
         STAGING_TAG="staging_$(TZ=Asia/Singapore date +%Y%m%d_%H%M%S)"
-        docker buildx imagetools create \
-          --tag "${SOURCE_IMAGE_REPO}:${STAGING_TAG}" \
-          "${SOURCE_IMAGE_REPO}:${{ inputs.moonshot_dev_tag }}"
+        SOURCE_IMAGE="${SOURCE_IMAGE_REPO}:${{ inputs.moonshot_dev_tag }}"
+        crane tag "${SOURCE_IMAGE}" "${STAGING_TAG}"
+
+        SOURCE_DIGEST="$(crane digest "${SOURCE_IMAGE}")"
+        STAGING_DIGEST="$(crane digest "${SOURCE_IMAGE_REPO}:${STAGING_TAG}")"
+        echo "Tagged ${SOURCE_IMAGE} as ${SOURCE_IMAGE_REPO}:${STAGING_TAG}"
+        echo "Source digest:  ${SOURCE_DIGEST}"
+        echo "Staging digest: ${STAGING_DIGEST}"
+        if [[ "${SOURCE_DIGEST}" != "${STAGING_DIGEST}" ]]; then
+          echo "Expected both tags to share the same digest"
+          exit 1
+        fi
 
