@@ -6,6 +6,8 @@ from domain.services.metric_aaj_requirements import (
     CYBERSEC_REFUSAL_METRIC,
     REFUSAL_JUDGE_CONNECTOR_SYSTEM_NAME,
     REFUSAL_METRIC,
+    SG_FACT_CHECK_METRIC,
+    SG_UC_CLASSIFIER_METRIC,
     metric_aaj_fields,
     metric_grader_model_name,
 )
@@ -17,6 +19,18 @@ def test_ailuminate_safety_classifier_metric_sets_aaj():
     )
     assert requires is True
     assert provider == AILUMINATE_JUDGE_CONNECTOR_SYSTEM_NAME
+
+
+def test_sg_uc_classifier_metric_sets_aaj():
+    requires, provider = metric_aaj_fields({"name": SG_UC_CLASSIFIER_METRIC})
+    assert requires is True
+    assert provider == AILUMINATE_JUDGE_CONNECTOR_SYSTEM_NAME
+
+
+def test_sg_fact_check_metric_sets_aaj():
+    requires, provider = metric_aaj_fields({"name": SG_FACT_CHECK_METRIC})
+    assert requires is True
+    assert provider == REFUSAL_JUDGE_CONNECTOR_SYSTEM_NAME
 
 
 def test_refusal_metric_sets_aaj_and_openai():
@@ -60,9 +74,10 @@ def test_metric_grader_model_name_from_app_config():
                 )
             return None
 
-    assert metric_grader_model_name(
-        {"name": REFUSAL_METRIC}, app_config=FakeConfig()
-    ) == "gpt-4o"
+    assert (
+        metric_grader_model_name({"name": REFUSAL_METRIC}, app_config=FakeConfig())
+        == "gpt-4o"
+    )
 
 
 def test_metric_grader_model_name_empty_when_no_model():
@@ -80,9 +95,10 @@ def test_metric_grader_model_name_empty_when_no_model():
                 params={},
             )
 
-    assert metric_grader_model_name(
-        {"name": "accuracy_adapter"}, app_config=FakeConfig()
-    ) is None
+    assert (
+        metric_grader_model_name({"name": "accuracy_adapter"}, app_config=FakeConfig())
+        is None
+    )
 
 
 def test_metric_grader_model_name_none_for_missing_metric():

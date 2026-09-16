@@ -11,6 +11,10 @@ from adapters.driven.repository.sqlalchemy.llm_provider_models import (
 from adapters.driven.repository.sqlalchemy.moonshot_config_adapter import MoonshotConfigAdapter
 from adapters.driven.repository.sqlalchemy.session_manager import SessionManager
 from application.services.secrets_master_key_service import SecretsMasterKeyService
+from domain.services.feature_flags import (
+    OPENROUTER_ADAPTER_SYSTEM_NAME,
+    is_openrouter_enabled,
+)
 from domain.services.logger import configure_logger
 from domain.services.secret_encryption import (
     LegacyApiKeyStorageError,
@@ -20,19 +24,29 @@ from domain.services.secret_encryption import (
 
 logger = configure_logger(__name__)
 
-# Connector module name (same as ModuleLoader / ConnectorEntity) -> env var the adapter reads
-ADAPTER_MODULE_TO_ENV: dict[str, str] = {
-    "openai_adapter": "OPENAI_API_KEY",
-    "together_adapter": "TOGETHER_API_KEY",
-}
+
+def get_adapter_module_to_env() -> dict[str, str]:
+    """Connector module name -> env var the adapter reads (OpenRouter gated by feature flag)."""
+    mapping = {
+        "openai_adapter": "OPENAI_API_KEY",
+        "together_adapter": "TOGETHER_API_KEY",
+    }
+    if is_openrouter_enabled():
+        mapping[OPENROUTER_ADAPTER_SYSTEM_NAME] = "OPENROUTER_API_KEY"
+    return mapping
+
+
+# Backward-compatible name; prefer get_adapter_module_to_env() for flag-aware lookups.
+ADAPTER_MODULE_TO_ENV: dict[str, str] = get_adapter_module_to_env()
 
 
 class ProviderConnectorEnvKeyService:
     """
     When running benchmarks against a DB-resolved connector, adapters that only read ``os.environ``
-    need the API key injected. ``OpenAIAdapter`` and ``TogetherAdapter`` resolve keys via
-    ``llm_provider.system_name`` (see ``ConnectorPort.require_system_name_and_version``); other
-    adapters rely on env populated by ``ensure_provider_api_key_in_environment``.
+    need the API key injected. ``OpenAIAdapter``, ``TogetherAdapter``, and ``OpenRouterAdapter``
+    (when enabled) resolve keys via ``llm_provider.system_name`` (see
+    ``ConnectorPort.require_system_name_and_version``); other adapters rely on env populated by
+    ``ensure_provider_api_key_in_environment``.
 
     Prefer a decrypted key from ``llm_provider_api_key`` before any non-empty environment value.
     """
@@ -107,7 +121,7 @@ class ProviderConnectorEnvKeyService:
         llm_provider_id: int,
         adapter_module: str,
     ) -> None:
-        env_name = ADAPTER_MODULE_TO_ENV.get(adapter_module)
+        env_name = get_adapter_module_to_env().get(adapter_module)
         if env_name is None:
             return
 

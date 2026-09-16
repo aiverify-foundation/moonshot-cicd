@@ -103,3 +103,6 @@ venv/
 # Application generated folders
 logs/
 sessions/
+
+# MacOS
+.DS_Store

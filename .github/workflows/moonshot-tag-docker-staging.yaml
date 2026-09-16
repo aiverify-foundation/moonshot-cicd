@@ -1,0 +1,50 @@
+name: Promote Moonshot Docker Image to STAGING
+
+on:
+  workflow_dispatch:
+    inputs:
+      moonshot_dev_tag:
+        description: 'Existing tag of the moonshot-dev image to promote'
+        required: true
+        type: string
+
+jobs:
+  promote-moonshot-dev-to-staging:
+    if: github.event_name == 'workflow_dispatch'
+    permissions:
+      id-token: write
+      contents: read
+      packages: write
+    runs-on: ubuntu-latest
+
+    env:
+      GHCR_REGISTRY: ghcr.io
+      SOURCE_IMAGE_REPO: ghcr.io/aiverify-foundation/moonshot-dev
+
+    steps:
+    - name: Set up crane
+      uses: imjasonh/setup-crane@v0.4
+
+    - name: Login to GHCR
+      uses: docker/login-action@v3
+      with:
+        registry: ${{ env.GHCR_REGISTRY }}
+        username: ${{ github.actor }}
+        password: ${{ secrets.GITHUB_TOKEN }}
+
+    - name: Add staging tag to moonshot-dev image
+      run: |
+        STAGING_TAG="staging_$(TZ=Asia/Singapore date +%Y%m%d_%H%M%S)"
+        SOURCE_IMAGE="${SOURCE_IMAGE_REPO}:${{ inputs.moonshot_dev_tag }}"
+        crane tag "${SOURCE_IMAGE}" "${STAGING_TAG}"
+
+        SOURCE_DIGEST="$(crane digest "${SOURCE_IMAGE}")"
+        STAGING_DIGEST="$(crane digest "${SOURCE_IMAGE_REPO}:${STAGING_TAG}")"
+        echo "Tagged ${SOURCE_IMAGE} as ${SOURCE_IMAGE_REPO}:${STAGING_TAG}"
+        echo "Source digest:  ${SOURCE_DIGEST}"
+        echo "Staging digest: ${STAGING_DIGEST}"
+        if [[ "${SOURCE_DIGEST}" != "${STAGING_DIGEST}" ]]; then
+          echo "Expected both tags to share the same digest"
+          exit 1
+        fi
+

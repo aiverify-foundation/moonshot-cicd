@@ -7,6 +7,7 @@ import TestResultInProgress from "./TestResultInProgress"
 import TestResultCompletedWithErrors, {
     groupErroredTestsByBundle,
 } from "./TestResultCompletedWithErrors"
+import { formatScorePercent } from "./scorePercent"
 import { runHasPromptErrors } from "./testCompletion"
 
 function TestResultNote() {
@@ -54,6 +55,8 @@ export interface ChartDataItem {
 interface ReportChartProps {
     chartData: ChartDataItem[]
     bundleName: string
+    /** Prompt-level / reviewed score for the header badge (same source as tab badges). */
+    headerScore?: number | null
     showMarginDebug?: boolean
 }
 
@@ -62,31 +65,38 @@ const BUNDLE_CONFIDENCE_LEVEL_PCT = 95
 function ReportChartScrollAdjustableHeight({
     chartData,
     bundleName,
+    headerScore = null,
     showMarginDebug = false,
 }: ReportChartProps) {
-    // Calculate average of all chart data values
-    const averageValue = chartData.length > 0
-        ? Math.round(chartData.reduce((sum, item) => sum + item.adjusted_percentage_score, 0) / chartData.length)
-        : 0
-
-    // Custom Y-axis ticks to match design
     const yAxisTicks = [20, 40, 60, 80, 100]
 
     // Custom formatter for Y-axis labels
     const formatYAxisLabel = (value: number) => `${value}%`
 
+    // ErrorBar supports asymmetric errors using [lower, upper] arrays.
+    // Cap so the whisker stays inside the 0–100 score domain (Recharts does not clip ErrorBar to axis domain).
     const chartDataWithConfidence = chartData.map((entry) => {
         const half =
             entry.marginHalfWidthPercent != null && entry.marginHalfWidthPercent > 0
                 ? entry.marginHalfWidthPercent
                 : 0
+        const score = entry.adjusted_percentage_score
+        const lowerErr = score - Math.max(0, score - half)
+        const upperErr = Math.min(100, score + half) - score
+        // Recharts ErrorBar keys each <line> by coordinates only; when both errors are 0 the
+        // left and right caps are identical segments and React warns about duplicate keys.
+        const error: [number, number] | null =
+            lowerErr === 0 && upperErr === 0 ? null : [lowerErr, upperErr]
         return {
             ...entry,
-            error: half,
+            error,
+            errorHalf: half,
         }
     })
 
-    const showErrorBar = chartDataWithConfidence.some((e) => e.error > 0)
+    const showErrorBar = chartDataWithConfidence.some(
+        (e) => e.error != null && (e.error[0] > 0 || e.error[1] > 0)
+    )
 
     // Custom Y-axis tick component that uses HTML foreignObject for CSS-based truncation
     // Recharts will automatically truncate based on the container width (170px)
@@ -129,11 +139,13 @@ function ReportChartScrollAdjustableHeight({
                     </p>
                 </div>
                 <div className="flex gap-2 items-center">
-                    <div className="bg-green-100 border border-green-200 flex gap-1 items-center justify-center p-1 rounded-[6px]">
-                        <p className="font-semibold text-[12px] text-green-800 whitespace-pre">
-                            {averageValue}%
-                        </p>
-                    </div>
+                    {headerScore != null && (
+                        <div className="bg-green-100 border border-green-200 flex gap-1 items-center justify-center p-1 rounded-[6px]">
+                            <p className="font-semibold text-[12px] text-green-800 whitespace-pre">
+                                {formatScorePercent(headerScore)}
+                            </p>
+                        </div>
+                    )}
                 </div>
             </div>
 
@@ -196,8 +208,8 @@ function ReportChartScrollAdjustableHeight({
                                 content={({ active, payload }) => {
                                     if (active && payload && payload.length) {
                                         const data = payload[0].payload;
-                                        const lowerBound = Math.max(0, Math.round((data.adjusted_percentage_score - data.error) * 10) / 10);
-                                        const upperBound = Math.min(100, Math.round((data.adjusted_percentage_score + data.error) * 10) / 10);
+                                        const lowerBound = Math.max(0, Math.round((data.adjusted_percentage_score - data.errorHalf) * 10) / 10);
+                                        const upperBound = Math.min(100, Math.round((data.adjusted_percentage_score + data.errorHalf) * 10) / 10);
                                         return (
                                             <div className="bg-white border border-slate-200 rounded-lg shadow-lg p-3">
                                                 <p className="font-semibold text-sm text-slate-700 mb-1">
@@ -206,7 +218,7 @@ function ReportChartScrollAdjustableHeight({
                                                 <p className="font-medium text-sm text-slate-600">
                                                     Score: {data.adjusted_percentage_score}%
                                                 </p>
-                                                {data.error > 0 ? (
+                                                {data.errorHalf > 0 ? (
                                                     <>
                                                         <p className="font-medium text-sm text-slate-600 mt-1">
                                                             {BUNDLE_CONFIDENCE_LEVEL_PCT}% band (test margin of error): [{lowerBound}%, {upperBound}%]
@@ -277,6 +289,8 @@ function ReportChartScrollAdjustableHeight({
 export interface OverviewBundleChart {
     bundleName: string
     data: ChartDataItem[]
+    /** Prompt-level / reviewed score for the header badge (same source as tab badges). */
+    headerScore?: number | null
 }
 
 export interface TestResultOverviewProps {
@@ -368,6 +382,7 @@ export default function TestResultOverview({
                                 key={`${c.bundleName}-${i}`}
                                 chartData={c.data}
                                 bundleName={c.bundleName}
+                                headerScore={c.headerScore}
                                 showMarginDebug={showMarginDebug}
                             />
                         ))}

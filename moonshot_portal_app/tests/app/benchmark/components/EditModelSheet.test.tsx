@@ -525,7 +525,7 @@ describe('EditModelSheet', () => {
     const modelInput = screen.getByPlaceholderText('gpt-4');
     await user.type(modelInput, 'gpt-4');
     await clickTestConnectionAndWait(user);
-    expect(store.getState().endpointStatus['aaj:together_adapter']).toBe('connected');
+    expect(store.getState().endpointStatus['aaj:together_adapter']).toBe('Configured');
   });
 
   it('enables save after a failed connection test and re-gates when the token changes', async () => {
@@ -634,7 +634,7 @@ describe('EditModelSheet', () => {
     );
 
     await clickTestConnectionAndWait(user);
-    expect(store.getState().endpointStatus['aaj:together_adapter']).toBe('connected');
+    expect(store.getState().endpointStatus['aaj:together_adapter']).toBe('Configured');
     expect(screen.getByRole('button', { name: /^Save$/ })).not.toBeDisabled();
 
     const tokenInput = screen.getByLabelText(/Token/i);
@@ -644,7 +644,7 @@ describe('EditModelSheet', () => {
       expect(screen.getByRole('button', { name: /^Save$/ })).toBeDisabled();
     });
     expect(store.getState().endpointStatus['aaj:together_adapter']).toBe(
-      'not connected'
+      'Not Configured'
     );
 
     await clickTestConnectionAndWait(user);

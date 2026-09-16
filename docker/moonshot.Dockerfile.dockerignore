@@ -55,3 +55,4 @@ moonshot_core/data/results/
 .ci/
 .github/
 docker/
+.DS_Store

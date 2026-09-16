@@ -18,7 +18,7 @@ import {
 } from '../../../lib/api';
 import { useAppDispatch, useAppSelector } from '../../../hooks/reduxHooks';
 import { setEndpointStatus } from '../../../store';
-import { ConnectionStatus } from './RequiredEndpointsCard';
+import { ConfigurationStatus } from './RequiredEndpointsCard';
 import type { Provider, ModelConfig, ProviderListEntry } from '../types/modelSelection';
 
 // Constants — backend `/api/providers` defaultConfigPairs are the source of truth for new models
@@ -270,7 +270,7 @@ export default function EditModelSheet({
       dispatch(
         setEndpointStatus({
           configId: statusKey,
-          status: ConnectionStatus.NOT_CONNECTED,
+          status: ConfigurationStatus.NOT_CONFIGURED,
         })
       );
     }
@@ -514,7 +514,7 @@ export default function EditModelSheet({
           dispatch(
             setEndpointStatus({
               configId: explicitKey,
-              status: ConnectionStatus.CONNECTED,
+              status: ConfigurationStatus.CONFIGURED,
             })
           );
         }

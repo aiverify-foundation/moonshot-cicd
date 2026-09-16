@@ -228,8 +228,8 @@ export const {
   clearTestsForBundle 
 } = testSelectionSlice.actions;
 
-// Endpoint connection status slice
-// Status values: "connected", "not connected", "Invalid Token"
+// Endpoint configuration status slice
+// Status values: "Configured", "Not Configured", "Invalid Token"
 const endpointStatusSlice = createSlice({
   name: 'endpointStatus',
   initialState: {} as Record<string, string>,
