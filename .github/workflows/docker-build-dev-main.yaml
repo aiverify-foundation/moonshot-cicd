@@ -4,6 +4,14 @@ on:
   push:
     branches: [ "dev_main" ]
   workflow_dispatch:
+  workflow_call:
+    outputs:
+      image_tag:
+        description: 'Generated moonshot-dev image tag'
+        value: ${{ jobs.dev-main-build-test-push.outputs.image_tag }}
+      moonshot_image:
+        description: 'Full GHCR ref for the moonshot-dev image'
+        value: ${{ jobs.dev-main-build-test-push.outputs.moonshot_image }}
 
 jobs:
   dev-main-build-test-push:
@@ -12,6 +20,9 @@ jobs:
       contents: read
       packages: write
     runs-on: ubuntu-latest
+    outputs:
+      image_tag: ${{ steps.set_tag.outputs.image_tag }}
+      moonshot_image: ${{ steps.set_tag.outputs.moonshot_image }}
 
     env:
       GHCR_REGISTRY: ghcr.io
@@ -28,15 +39,20 @@ jobs:
     # Tag format: dev_<build datetime in YYYYMMDD_HHMMSS>_<HEAD commit short SHA>
     # Example:     dev_20260903_031145_a1b2c3d
     - name: Set image tag
+      id: set_tag
       run: |
         GIT_COMMIT="$(git rev-parse HEAD)"
         GIT_BRANCH="$(git branch --show-current)"
         GIT_BRANCH="${GIT_BRANCH:-${GITHUB_REF_NAME}}"
         IMAGE_TAG="dev_$(TZ=Asia/Singapore date +%Y%m%d_%H%M%S)_${GIT_COMMIT:0:7}"
+        MOONSHOT_IMAGE="ghcr.io/${GHCR_NAMESPACE}/moonshot-dev:${IMAGE_TAG}"
         echo "GIT_COMMIT=${GIT_COMMIT}" >> "$GITHUB_ENV"
         echo "GIT_BRANCH=${GIT_BRANCH}" >> "$GITHUB_ENV"
         echo "IMAGE_TAG=${IMAGE_TAG}" >> "$GITHUB_ENV"
+        echo "image_tag=${IMAGE_TAG}" >> "$GITHUB_OUTPUT"
+        echo "moonshot_image=${MOONSHOT_IMAGE}" >> "$GITHUB_OUTPUT"
         echo "Using image tag: ${IMAGE_TAG}"
+        echo "Using moonshot image: ${MOONSHOT_IMAGE}"
         echo "Using git.commit: ${GIT_COMMIT}"
         echo "Using git.branch: ${GIT_BRANCH}"
 

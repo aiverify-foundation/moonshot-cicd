@@ -21,6 +21,7 @@ on:
         required: true
         default: 'dev_main'
         type: string
+  workflow_call:
 
 concurrency:
   group: ${{ github.repository }}-${{ github.workflow }}
@@ -34,6 +35,7 @@ jobs:
       contents: read
     steps:
       - name: Set env variables
+        if: github.event_name != 'workflow_call'
         run: |
           if [ "${{ github.event_name }}" == "pull_request" ]; then
             echo "MS_BRANCH=${{ github.event.pull_request.head.ref }}" >> $GITHUB_ENV
@@ -44,6 +46,13 @@ jobs:
           fi
 
       - name: Checkout code
+        if: github.event_name == 'workflow_call'
+        uses: actions/checkout@v3
+        with:
+          submodules: recursive
+
+      - name: Checkout code
+        if: github.event_name != 'workflow_call'
         uses: actions/checkout@v3
         with:
           ref: ${{ env.MS_BRANCH }}

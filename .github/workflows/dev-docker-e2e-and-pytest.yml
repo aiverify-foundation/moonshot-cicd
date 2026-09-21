@@ -1,0 +1,34 @@
+name: Dev Docker + E2E + Pytest + Portal Jest
+
+on:
+  push:
+    branches: [dev_main]
+  workflow_dispatch:
+
+jobs:
+  build-dev-docker:
+    uses: ./.github/workflows/docker-build-dev-main.yaml
+    permissions:
+      id-token: write
+      contents: read
+      packages: write
+
+  e2e-on-docker:
+    needs: build-dev-docker
+    uses: ./.github/workflows/e2e-docker-tests.yml
+    with:
+      moonshot_image: ${{ needs.build-dev-docker.outputs.moonshot_image }}
+    permissions:
+      contents: read
+      packages: read
+
+  pre-build-checks:
+    uses: ./.github/workflows/v1-pre-build-checks-core.yml
+    permissions:
+      id-token: write
+      contents: read
+
+  portal-jest:
+    uses: ./.github/workflows/portal-jest-tests.yml
+    permissions:
+      contents: read
