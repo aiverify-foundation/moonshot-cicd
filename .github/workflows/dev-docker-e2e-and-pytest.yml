@@ -1,8 +1,6 @@
 name: Dev Docker + E2E + Pytest + Portal Jest
 
 on:
-  push:
-    branches: [dev_main]
   workflow_dispatch:
 
 jobs:

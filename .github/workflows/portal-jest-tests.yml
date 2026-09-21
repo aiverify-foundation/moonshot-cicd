@@ -1,8 +1,6 @@
 name: Portal Jest Tests
 
 on:
-  push:
-    branches: [dev_main]
   workflow_dispatch:
   workflow_call:
 
