@@ -371,7 +371,7 @@ async function selectFirstSeededModel(page) {
   await page.waitForTimeout(500);
 }
 
-/** Expand Connect LLM-as-judge Models if the Connect controls are collapsed. */
+/** Expand Configure LLM-as-judge Models if the Configure controls are collapsed. */
 async function expandRequiredEndpointsCard(page) {
   const cardTitle = page.locator('[data-testid="required-endpoints-card-title"]');
   await expect(cardTitle).toBeVisible({ timeout: 15000 });
