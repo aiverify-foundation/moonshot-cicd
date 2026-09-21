@@ -1,0 +1,39 @@
+name: Portal Jest Tests
+
+on:
+  push:
+    branches: [dev_main]
+  workflow_dispatch:
+  workflow_call:
+
+jobs:
+  portal-jest:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+          cache-dependency-path: moonshot_portal_app/package-lock.json
+
+      - name: Install dependencies
+        working-directory: moonshot_portal_app
+        run: npm ci
+
+      - name: Run Jest
+        working-directory: moonshot_portal_app
+        run: npx jest --ci --coverage
+        env:
+          CI: '1'
+
+      - name: Upload coverage
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: portal-jest-coverage-${{ github.run_id }}
+          path: moonshot_portal_app/coverage/
+          if-no-files-found: warn
