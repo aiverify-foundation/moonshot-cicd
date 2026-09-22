@@ -1,10 +1,10 @@
 <div align="center">
 
-![image](https://github.com/user-attachments/assets/ed578918-e26a-4ad6-9d33-307712127ce5)
+![image](https://github.com/user-attachments/assets/12d3e0e1-f147-43b7-87d8-4c5baac30fe2)
 
-**Version 1.1.0**
+**Version 2.0.0**
 
-A simple and modular tool to evaluate any LLM-based AI applications.
+A simple and modular tool to evaluate LLM-based AI applications.
 
 [![Python 3.12](https://img.shields.io/badge/python-3.12-green)](https://www.python.org/downloads/release/python-3120/)
 
@@ -111,15 +111,6 @@ For more information, check out the [framework here](https://aiverifyfoundation.
 This application is available as a separate Docker image that the compliance team can easily download and deploy on the laptop.
 - To understand how you can use the Process Checks application, you can check out this [onboarding guide](https://github.com/aiverify-foundation/moonshot-cicd/wiki/Process-Checks-Onboarding-Guide).
 - Alternatively, you can download the [Quick Start Guide here](https://github.com/aiverify-foundation/moonshot-cicd/wiki/Process-Checks-Quick-Start-Guide) to get yourself up and running.
-
-</br>
-
-***
-## 🤝 Contribution
-
-Moonshot is an open-source project, and we welcome contributions from the community! Whether fixing a bug, adding a new feature, improving documentation, or suggesting an enhancement, your efforts are highly valued.
-
-If you are interested to contribute, kindly contact our Support Team at [info@aiverify.sg](mailto:info@aiverify.sg).
 
 </br>
 
