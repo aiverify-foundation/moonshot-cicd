@@ -214,7 +214,7 @@ sg-fc:
     To test a chatbot for its propensity to produce inaccurate answers about Singapore
     across social, economic, political, legal, environment and policy dimensions
   category: IMDA's Starter Kit
-  name: Facts in Singapore
+  name: Singapore Factuality
   tests:
   - name: Economy
     description: |
