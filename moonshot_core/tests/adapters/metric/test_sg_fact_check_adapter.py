@@ -376,3 +376,16 @@ class TestSgFactCheckAdapter:
         result = await adapter.get_results([entity])
 
         assert result == {"FactCheck": {"true_rate": 0.0}}
+
+    def test_score_result_labels(self):
+        """Metric owns True/False names for binary scores."""
+        adapter = SgFactCheckAdapter.__new__(SgFactCheckAdapter)
+
+        assert adapter.RESULT_PASS == "True"
+        assert adapter.RESULT_FAIL == "False"
+        assert adapter.RESULT_UNKNOWN == "unknown"
+        assert adapter.score_from_evaluated_response("True") == 1.0
+        assert adapter.score_from_evaluated_response("False") == 0.0
+        assert adapter.score_from_evaluated_response("unknown") == 0.0
+        assert adapter.result_name_for_score(1) == "True"
+        assert adapter.result_name_for_score(0) == "False"

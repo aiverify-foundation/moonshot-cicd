@@ -19,6 +19,36 @@ class MetricPort(ABC):
         "[MetricPort] Error retrieving metric config for {}: {}"
     )
 
+    # Binary score result names. Children override RESULT_PASS / RESULT_FAIL;
+    # RESULT_UNKNOWN is shared and always maps to score 0.0.
+    RESULT_UNKNOWN = "unknown"
+    RESULT_PASS = "True"
+    RESULT_FAIL = "False"
+
+    def score_from_evaluated_response(self, evaluated_response: str) -> float:
+        """
+        Map a categorical evaluated_response label to a binary score.
+
+        Returns:
+            float: ``1.0`` if ``evaluated_response`` equals ``RESULT_PASS``,
+            otherwise ``0.0`` (including ``RESULT_UNKNOWN`` and fail labels).
+        """
+        if evaluated_response == self.RESULT_PASS:
+            return 1.0
+        return 0.0
+
+    def result_name_for_score(self, score: float | int) -> str:
+        """
+        Return the metric-owned result name for a binary score.
+
+        Returns:
+            str: ``RESULT_PASS`` for score ``1`` / ``1.0``, otherwise
+            ``RESULT_FAIL``.
+        """
+        if score == 1 or score == 1.0:
+            return self.RESULT_PASS
+        return self.RESULT_FAIL
+
     def get_metric_config(self, metric_id: str) -> MetricConfigEntity:
         """
         Retrieve the configuration for a specific metric.

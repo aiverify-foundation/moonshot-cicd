@@ -43,16 +43,19 @@ RUN_RESULTS_SCORE_CONFIDENCE_ALPHA = 0.05
 
 class BenchmarkRunResultsQueryService:
     """
-    Load run header, per-bundle test membership, and all prompts enriched with test_id/test_name.
+    Load run header, per-bundle test membership, and all prompts enriched with
+    test_id / test_name / metric_name.
     """
 
     def list_prompt_dtos(self, run_id: int) -> list[BenchmarkRunTestPromptResponseDTO]:
         """
-        All prompts for the run with test_name and test_id populated from DB.
+        All prompts for the run with test_name, test_id, and metric_name populated from DB.
         """
         prompt_service = BenchmarkRunPromptService()
         entities = prompt_service.get_all_prompts_by_run_id(run_id)
-        run_test_to_name, run_test_to_test_id = self._run_test_enrichment_maps(run_id)
+        run_test_to_name, run_test_to_test_id, run_test_to_metric_name = (
+            self._run_test_enrichment_maps(run_id)
+        )
         errors_by_prompt_id = self._latest_errors_by_prompt_id(entities)
         return [
             BenchmarkRunTestPromptResponseDTO.model_validate(
@@ -60,6 +63,7 @@ class BenchmarkRunResultsQueryService:
                     e,
                     run_test_to_name,
                     run_test_to_test_id,
+                    run_test_to_metric_name,
                     errors_by_prompt_id,
                 )
             )
@@ -110,12 +114,13 @@ class BenchmarkRunResultsQueryService:
 
     def _run_test_enrichment_maps(
         self, run_id: int
-    ) -> tuple[dict[int, str], dict[int, int]]:
-        """run_test_status.id -> (benchmark_test.name, benchmark_test.id)."""
+    ) -> tuple[dict[int, str], dict[int, int], dict[int, str]]:
+        """run_test_status.id -> (benchmark_test.name, benchmark_test.id, metric.name)."""
         status_repo = SqlAlchemyBenchmarkRunTestStatusRepository()
         statuses = status_repo.get_all_by_run_id(run_id)
         test_ids = {s.test_id for s in statuses if s.id is not None}
         id_to_name: dict[int, str] = {}
+        id_to_metric_name: dict[int, str] = {}
         if test_ids:
             with SessionManager.get_instance().get_session() as session:
                 models = (
@@ -123,28 +128,39 @@ class BenchmarkRunResultsQueryService:
                     .filter(BenchmarkTestModel.id.in_(test_ids))
                     .all()
                 )
-                id_to_name = {m.id: m.name for m in models if m.id is not None}
+                for m in models:
+                    if m.id is None:
+                        continue
+                    id_to_name[m.id] = m.name
+                    id_to_metric_name[m.id] = (
+                        m.metric.name if m.metric is not None else ""
+                    )
 
         run_test_to_name: dict[int, str] = {}
         run_test_to_test_id: dict[int, int] = {}
+        run_test_to_metric_name: dict[int, str] = {}
         for st in statuses:
             if st.id is None:
                 continue
             run_test_to_test_id[st.id] = st.test_id
             run_test_to_name[st.id] = id_to_name.get(st.test_id, "")
-        return run_test_to_name, run_test_to_test_id
+            run_test_to_metric_name[st.id] = id_to_metric_name.get(st.test_id, "")
+        return run_test_to_name, run_test_to_test_id, run_test_to_metric_name
 
     def prompt_dto_for_entity(
         self, run_id: int, entity: BenchmarkRunTestPromptEntity
     ) -> BenchmarkRunTestPromptResponseDTO:
         """Build a response DTO for one prompt row with test_name and test_id enrichment."""
-        run_test_to_name, run_test_to_test_id = self._run_test_enrichment_maps(run_id)
+        run_test_to_name, run_test_to_test_id, run_test_to_metric_name = (
+            self._run_test_enrichment_maps(run_id)
+        )
         errors_by_prompt_id = self._latest_errors_by_prompt_id([entity])
         return BenchmarkRunTestPromptResponseDTO.model_validate(
             self._prompt_dto_payload(
                 entity,
                 run_test_to_name,
                 run_test_to_test_id,
+                run_test_to_metric_name,
                 errors_by_prompt_id,
             )
         )
@@ -164,12 +180,15 @@ class BenchmarkRunResultsQueryService:
         entity: BenchmarkRunTestPromptEntity,
         run_test_to_name: dict[int, str],
         run_test_to_test_id: dict[int, int],
+        run_test_to_metric_name: dict[int, str],
         errors_by_prompt_id: dict[int, BenchmarkRunTestErrorEntity],
     ) -> dict:
+        metric_name = run_test_to_metric_name.get(entity.run_test_id, "") or None
         payload = {
             **entity.model_dump(),
             "test_name": run_test_to_name.get(entity.run_test_id, ""),
             "test_id": run_test_to_test_id.get(entity.run_test_id),
+            "metric_name": metric_name,
         }
         if entity.id is not None:
             error = errors_by_prompt_id.get(entity.id)

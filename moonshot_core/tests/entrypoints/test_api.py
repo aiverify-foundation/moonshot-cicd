@@ -96,6 +96,45 @@ def test_bundles_endpoint(mock_benchmark_service):
     assert "dataset" in test
 
 
+@patch("entrypoints.api.metric_score_label_service")
+def test_metric_score_result_names_endpoint(mock_service):
+    """GET /api/metrics/{metric_name}/score-result-names returns pass/fail labels."""
+    from application.dto.metric_score_label_dto import MetricScoreResultNamesDTO
+
+    mock_service.get_score_result_names.return_value = MetricScoreResultNamesDTO(
+        metric_name="sg_uc_classifier_adapter",
+        result_pass="safe",
+        result_fail="unsafe",
+    )
+
+    response = client.get("/api/metrics/sg_uc_classifier_adapter/score-result-names")
+    assert response.status_code == 200
+    assert response.json() == {
+        "metric_name": "sg_uc_classifier_adapter",
+        "result_pass": "safe",
+        "result_fail": "unsafe",
+    }
+    mock_service.get_score_result_names.assert_called_once_with(
+        "sg_uc_classifier_adapter"
+    )
+
+
+@patch("entrypoints.api.metric_score_label_service")
+def test_metric_score_result_names_endpoint_not_found(mock_service):
+    """GET /api/metrics/{metric_name}/score-result-names returns 404 when missing."""
+    from application.services.metric_score_label_service import (
+        MetricScoreLabelNotFoundError,
+    )
+
+    mock_service.get_score_result_names.side_effect = MetricScoreLabelNotFoundError(
+        "Metric 'missing_adapter' was not found."
+    )
+
+    response = client.get("/api/metrics/missing_adapter/score-result-names")
+    assert response.status_code == 404
+    assert "was not found" in response.json()["detail"]
+
+
 @patch("entrypoints.api.BenchmarkRunService")
 def test_list_benchmark_runs_empty(mock_service_class):
     """GET /api/benchmark-runs returns [] when no runs."""

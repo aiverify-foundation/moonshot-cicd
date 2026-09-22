@@ -241,6 +241,8 @@ class BenchmarkRunTestPromptResponseDTO(BaseModel):
     user_notes: Optional[str] = None
     #: benchmark_test.name (display name) for the run-test this prompt belongs to (API-enriched).
     test_name: str = ""
+    #: Metric adapter module name for the run-test (API-enriched), e.g. sg_uc_classifier_adapter.
+    metric_name: Optional[str] = None
     #: Latest per-prompt error message from benchmark_run_test_error (API-enriched).
     error_message: Optional[str] = None
     #: Latest per-prompt error source: "connector" or "metric" (API-enriched).

@@ -50,7 +50,11 @@ def test_list_prompt_dtos_enriches_latest_error_fields(
     with patch.object(
         service,
         "_run_test_enrichment_maps",
-        return_value=({7: "Safety"}, {7: 99}),
+        return_value=(
+            {7: "Safety"},
+            {7: 99},
+            {7: "sg_uc_classifier_adapter"},
+        ),
     ):
         dtos = service.list_prompt_dtos(run_id=1)
 
@@ -61,4 +65,5 @@ def test_list_prompt_dtos_enriches_latest_error_fields(
     assert dto.error_source == "connector"
     assert dto.test_name == "Safety"
     assert dto.test_id == 99
+    assert dto.metric_name == "sg_uc_classifier_adapter"
     mock_error_repo.get_latest_by_prompt_ids.assert_called_once_with([42])

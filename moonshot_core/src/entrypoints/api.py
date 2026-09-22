@@ -49,6 +49,7 @@ from application.dto.run_bundle_dto import (BenchmarkRunResponseDTO,
                                             StartBenchmarkRunRequestDTO,
                                             StartBenchmarkRunResponseDTO)
 from application.dto.seed_dto import SeedSharedConfigResponseDTO
+from application.dto.metric_score_label_dto import MetricScoreResultNamesDTO
 from application.services.benchmark import BenchmarkService
 # Benchmark execution service
 from application.services.benchmark_execution_service import (
@@ -82,6 +83,8 @@ from application.services.llm_provider_api_key_service import (
     LlmProviderApiKeyService, LlmProviderApiKeyUnknownProviderError)
 from application.services.llm_provider_connection_test_service import \
     LlmProviderConnectionTestService
+from application.services.metric_score_label_service import (
+    MetricScoreLabelNotFoundError, MetricScoreLabelService)
 from application.services.provider_seed_service import ProviderSeedService
 # Provider/model-config service & DTOs
 from application.services.provider_service import ProviderService
@@ -208,6 +211,7 @@ custom_app_connection_test_service = CustomAppConnectionTestService(
     secret_service=custom_app_config_secret_service,
 )
 llm_provider_connection_test_service = LlmProviderConnectionTestService()
+metric_score_label_service = MetricScoreLabelService()
 
 # Lazy-initialized SharedConfigSeedService for seed-if-testfile-changed
 _shared_config_seed_service = None
@@ -258,6 +262,32 @@ async def view_all_bundles():
     except Exception as e:
         logger.error(f"Error fetching bundles: {e}")
         raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
+
+
+@app.get(
+    "/api/metrics/{metric_name}/score-result-names",
+    response_model=MetricScoreResultNamesDTO,
+)
+async def get_metric_score_result_names(metric_name: str):
+    """
+    Return RESULT_PASS / RESULT_FAIL labels for a metric adapter by name.
+
+    Used by the frontend to display metric-owned score names (e.g. safe/unsafe).
+    """
+    try:
+        return metric_score_label_service.get_score_result_names(metric_name)
+    except MetricScoreLabelNotFoundError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    except Exception as e:
+        logger.error(
+            "Error fetching score result names for metric_name=%s: %s",
+            metric_name,
+            e,
+        )
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to fetch score result names: {str(e)}",
+        )
 
 
 @app.get("/api/providers", response_model=List[ProviderDTO])

@@ -4,9 +4,11 @@ import { ThumbsUp, ThumbsDown } from "lucide-react"
 import BundleChart, { BundleChartDataItem } from "./BundleChart"
 import TestResultTable, { TestResultTableRow } from "./TestResultTable"
 import {
+    fetchMetricScoreResultNames,
     patchBenchmarkRunPromptUserFeedback,
     type BenchmarkRunTestPrompt,
     type BenchmarkRunTestStatusSummary,
+    type MetricScoreResultNames,
 } from "@/lib/api"
 import {
     classifyTest,
@@ -14,11 +16,15 @@ import {
     testStatusByTestId,
 } from "./testCompletion"
 import { formatScorePercent } from "./scorePercent"
-import { evaluationDisplayLabel } from "./evaluationDisplayHelpers"
 
 export { extractEvaluatedResponse, evaluationDisplayLabel } from "./evaluationDisplayHelpers"
 
 const EMPTY_PROMPTS: BenchmarkRunTestPrompt[] = []
+
+const DEFAULT_POLARITY_LABELS = {
+    score1Label: "True",
+    score0Label: "False",
+} as const
 
 /**
  * Normalize API score to binary 0/1 for UI rendering.
@@ -43,31 +49,31 @@ export function adjustedAccuracyPercent(
     return ((totalScore - disagreeWithScore1 + disagreeWithScore0) / rowCount) * 100
 }
 
-/**
- * First non-Error/Unknown evaluation labels for score 1 and score 0 (table order).
- * Falls back to True / False when a polarity is missing.
- */
-export function firstScorePolarityLabels(rows: TestResultTableRow[]): {
-    score1Label: string
-    score0Label: string
-} {
-    let score1Label: string | null = null
-    let score0Label: string | null = null
-
-    for (const row of rows) {
-        if (score1Label != null && score0Label != null) break
-        const label = evaluationDisplayLabel(row.evaluation, row.score, {
-            isPromptError: row.isPromptError,
-            errorSource: row.errorSource,
-        })
-        if (label === "Error" || label === "Unknown") continue
-        if (row.score === 1 && score1Label == null) score1Label = label
-        else if (row.score === 0 && score0Label == null) score0Label = label
+/** Unique non-empty metric adapter names from prompts. */
+export function uniqueMetricNames(
+    prompts: BenchmarkRunTestPrompt[]
+): string[] {
+    const names = new Set<string>()
+    for (const p of prompts) {
+        const name = p.metric_name?.trim()
+        if (name) names.add(name)
     }
+    return Array.from(names).sort()
+}
 
+/**
+ * Map metric score-result-names DTO to chart polarity labels.
+ * Null / missing → MetricPort defaults True / False.
+ */
+export function polarityLabelsFromMetricScoreNames(
+    dto: MetricScoreResultNames | null | undefined
+): { score1Label: string; score0Label: string } {
+    if (!dto?.result_pass || !dto?.result_fail) {
+        return { ...DEFAULT_POLARITY_LABELS }
+    }
     return {
-        score1Label: score1Label ?? "True",
-        score0Label: score0Label ?? "False",
+        score1Label: dto.result_pass,
+        score0Label: dto.result_fail,
     }
 }
 
@@ -510,6 +516,10 @@ export default function TestResultBundle({
     const [tableData, setTableData] = useState<TestResultTableRow[]>([])
     const [isLoading, setIsLoading] = useState(true)
     const [error, setError] = useState<string | null>(null)
+    const [polarityLabels, setPolarityLabels] = useState<{
+        score1Label: string
+        score0Label: string
+    }>({ ...DEFAULT_POLARITY_LABELS })
 
     const tableDataRef = useRef<TestResultTableRow[]>([])
     const noteDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
@@ -578,13 +588,40 @@ export default function TestResultBundle({
         bundleDisplayName,
     ])
 
+    const singleMetricName = useMemo(() => {
+        const names = uniqueMetricNames(scopedApiPrompts)
+        return names.length === 1 ? names[0] : null
+    }, [scopedApiPrompts])
+
+    useEffect(() => {
+        let cancelled = false
+
+        if (!singleMetricName) {
+            setPolarityLabels({ ...DEFAULT_POLARITY_LABELS })
+            return
+        }
+
+        setPolarityLabels({ ...DEFAULT_POLARITY_LABELS })
+        fetchMetricScoreResultNames(singleMetricName)
+            .then((dto) => {
+                if (!cancelled) {
+                    setPolarityLabels(polarityLabelsFromMetricScoreNames(dto))
+                }
+            })
+            .catch((e) => {
+                console.error("Failed to fetch metric score result names:", e)
+                if (!cancelled) {
+                    setPolarityLabels({ ...DEFAULT_POLARITY_LABELS })
+                }
+            })
+
+        return () => {
+            cancelled = true
+        }
+    }, [singleMetricName])
+
     // Calculate verdict statistics (all rows; table shows everything)
     const verdictStats = calculateVerdictStatistics(tableData)
-
-    const polarityLabels = useMemo(
-        () => firstScorePolarityLabels(tableData),
-        [tableData]
-    )
 
     const scorecardRows = useMemo(
         () => rowsForFullyCompleteTests(scopedApiPrompts, tableData, testRunStatus),

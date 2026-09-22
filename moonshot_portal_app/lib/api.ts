@@ -56,6 +56,15 @@ export interface BundlesResponse {
   bundles: Bundle[];
 }
 
+/** Binary score labels owned by a metric adapter (GET /api/metrics/{name}/score-result-names). */
+export interface MetricScoreResultNames {
+  metric_name: string;
+  /** Label for score 1 (RESULT_PASS), e.g. "safe" or "True". */
+  result_pass: string;
+  /** Label for score 0 (RESULT_FAIL), e.g. "unsafe" or "False". */
+  result_fail: string;
+}
+
 export class ApiError extends Error {
   constructor(
     message: string,
@@ -108,6 +117,48 @@ export async function fetchBundles(): Promise<Bundle[]> {
     
     throw new ApiError(
       `Network error: ${error instanceof Error ? error.message : 'Unknown error'}`
+    );
+  }
+}
+
+/**
+ * Fetch RESULT_PASS / RESULT_FAIL labels for a metric adapter by name.
+ */
+export async function fetchMetricScoreResultNames(
+  metricName: string
+): Promise<MetricScoreResultNames> {
+  const encoded = encodeURIComponent(metricName);
+  try {
+    const response = await fetch(
+      `${API_BASE_URL}/api/metrics/${encoded}/score-result-names`,
+      {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      }
+    );
+
+    if (!response.ok) {
+      throw new ApiError(
+        `Failed to fetch metric score result names: ${response.statusText}`,
+        response.status,
+        response.statusText
+      );
+    }
+
+    return (await response.json()) as MetricScoreResultNames;
+  } catch (error) {
+    if (error instanceof ApiError) {
+      throw error;
+    }
+    if (error instanceof TypeError && error.message.includes('fetch')) {
+      throw new ApiError(
+        `Cannot connect to API server at ${API_BASE_URL}. Please ensure the backend is running on port 8000.`
+      );
+    }
+    throw new ApiError(
+      `Unexpected error: ${error instanceof Error ? error.message : 'Unknown error'}`
     );
   }
 }
@@ -265,6 +316,8 @@ export interface BenchmarkRunTestPrompt {
   user_notes?: string | null;
   /** Display name of the test this prompt belongs to (benchmark_test.name). */
   test_name?: string;
+  /** Metric adapter module name for this prompt's test (API-enriched). */
+  metric_name?: string | null;
   /** Latest per-prompt error message from benchmark_run_test_error. */
   error_message?: string | null;
   /** Latest per-prompt error source: "connector" or "metric". */
