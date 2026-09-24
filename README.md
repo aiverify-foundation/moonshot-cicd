@@ -29,10 +29,10 @@ This repository contains **three products** built on a shared evaluation engine,
 <table>
 <tr>
 <td width="34%" valign="top">
-AI Verify Evals Toolkit
+
+### AI Verify Evals Toolkit
 
 **For: product managers, domain experts, risk/business reviewers — no coding required**
-
 
 Run benchmark tests through a dashboard, review flagged results, and override an automated verdict with your own judgment and a recorded reason. Confidence intervals tell you how much to trust a result, not just what the score was.
  
@@ -40,7 +40,8 @@ Run benchmark tests through a dashboard, review flagged results, and override an
  
 </td>
 <td width="33%" valign="top">
-Moonshot CI/CD
+  
+### Moonshot CI/CD
 
 **For: developers integrating safety testing into a pipeline**
  
@@ -50,7 +51,8 @@ The CLI and automation engine underneath the toolkit. Run benchmark + red-team s
  
 </td>
 <td width="33%" valign="top">
-📋 Process Checks
+
+### Process Checks
 
 **For: governance and compliance teams**
  
@@ -69,29 +71,17 @@ A web app that maps test evidence from this toolkit against 11 internationally r
 - **Confidence intervals, not just a single number.** LLM outputs vary run to run. Results are reported with statistical confidence so a risk estimate carries a stated margin of uncertainty.
 - **Four risk areas, aligned to IMDA's Starter Kit** for LLM-based app testing: hallucination, undesirable content, data disclosure, and adversarial vulnerabilities.
 - **Extensible** — bring your own connectors, evaluation metrics, and datasets rather than being limited to the bundled suite.
-## Quick start (AI Verify Evals Toolkit)
-- **A real CI/CD gate when you need one** — Docker-based, native S3 output, pluggable into GitHub Actions or AWS CodeBuild.
-
-For developers wiring this into a pipeline. If you're here for the review dashboard, see the **AI Verify Evals Toolkit** card above instead.
- 
+## Quick start with Docker (AI Verify Evals Toolkit)
 ```bash
-git clone git@github.com:aiverify-foundation/moonshot-cicd.git
-cd moonshot-cicd
- 
-python -m venv my_venv && source my_venv/bin/activate
-poetry install
- 
-# run a bundled set of benchmark + red-team tests against an endpoint
-moonshot run my-run-1 qa-tests my-gpt-4o-mini
+docker run --detach --name moonshot-web --platform linux/amd64 -p 8000:8000 -v moonshot-cicd-data-volume:/var/lib/moonshot -e MOONSHOT_DB_PATH=/var/lib/moonshot/moonshot.db -e MOONSHOT_BENCHMARK_RESULTS_DIR=/var/lib/moonshot/results ghcr.io/aiverify-foundation/moonshot:latest moonshot-web
 ```
- 
-Results are written as `<run_id>.json`. Full setup and pipeline configuration: [Local Repo Setup](https://github.com/aiverify-foundation/moonshot-cicd/wiki/Local-Repo-Setup) · [Onboarding Guide for CI/CD Deployment](https://github.com/aiverify-foundation/moonshot-cicd/wiki/Onboarding-Guide-for-CI-CD-Deployment) · [AWS CodeBuild + CloudFormation](https://github.com/aiverify-foundation/moonshot-cicd/wiki/CloudFormation-for-AWS-CodeBuild-Deployment).
- 
+Lood the homepage via `localhost:8000`
+
 ## Documentation, by role
  
 | If you are a... | Start here |
 |---|---|
-| **Business/product reviewer** using the dashboard | *(no-code quick start — TODO, see gap noted above)* |
+| **Business/product reviewer** using the dashboard |[Installation Guide](https://github.com/aiverify-foundation/moonshot-cicd/wiki/AI-Verify-Evals-Toolkit-Installation-Guide) · [User Guide](https://github.com/aiverify-foundation/moonshot-cicd/wiki/AI-Verify-Evals-Toolkit-User-Guide) |
 | **Developer** wiring this into CI/CD | [Onboarding Guide for CI/CD Deployment](https://github.com/aiverify-foundation/moonshot-cicd/wiki/Onboarding-Guide-for-CI-CD-Deployment) |
 | **Test developer** building custom tests | [Create Custom Moonshot Tests](https://github.com/aiverify-foundation/moonshot-cicd/wiki/Create-Custom-Moonshot-Tests) · [Custom Evaluation Metrics](https://github.com/aiverify-foundation/moonshot-cicd/wiki/Create-Custom-Evaluation-Metrics) · [Custom Connectors](https://github.com/aiverify-foundation/moonshot-cicd/wiki/Create-Custom-Connectors) |
 | **Governance/compliance** consuming results as evidence | [Process Checks Quick Start Guide](https://github.com/aiverify-foundation/moonshot-cicd/wiki/Process-Checks-Quick-Start-Guide) |- **Comprehensive Test Result** in the widely-accepted `.json` format for easy read/write. Moonshot's result files are also compatible with the [AI Verify Testing Framework](https://aiverifyfoundation.sg/what-is-ai-verify/) and can be used to generate a business-ready summary report for internal compliance.
