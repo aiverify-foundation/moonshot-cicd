@@ -7,10 +7,16 @@ on:
         description: 'Existing tag of the moonshot-dev image to promote'
         required: true
         type: string
+  workflow_call:
+    inputs:
+      moonshot_dev_tag:
+        description: 'Existing tag of the moonshot-dev image to promote'
+        required: true
+        type: string
 
 jobs:
   promote-moonshot-dev-to-staging:
-    if: github.event_name == 'workflow_dispatch'
+    if: github.event_name == 'workflow_dispatch' || github.event_name == 'workflow_call'
     permissions:
       id-token: write
       contents: read
@@ -47,4 +53,3 @@ jobs:
           echo "Expected both tags to share the same digest"
           exit 1
         fi
-

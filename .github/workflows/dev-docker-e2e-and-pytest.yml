@@ -30,3 +30,13 @@ jobs:
     uses: ./.github/workflows/portal-jest-tests.yml
     permissions:
       contents: read
+
+  promote-to-staging:
+    needs: [build-dev-docker, e2e-on-docker, pre-build-checks, portal-jest]
+    uses: ./.github/workflows/moonshot-tag-docker-staging.yaml
+    with:
+      moonshot_dev_tag: ${{ needs.build-dev-docker.outputs.image_tag }}
+    permissions:
+      id-token: write
+      contents: read
+      packages: write
