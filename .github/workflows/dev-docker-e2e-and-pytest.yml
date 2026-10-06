@@ -4,7 +4,19 @@ on:
   workflow_dispatch:
 
 jobs:
+  assert-dev-main:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Require dev_main
+        run: |
+          if [ "${{ github.ref }}" != "refs/heads/dev_main" ]; then
+            echo "This workflow may only run on dev_main (got ${{ github.ref }})."
+            echo "Re-run with: gh workflow run dev-docker-e2e-and-pytest.yml --ref dev_main"
+            exit 1
+          fi
+
   build-dev-docker:
+    needs: assert-dev-main
     uses: ./.github/workflows/docker-build-dev-main.yaml
     permissions:
       id-token: write
@@ -21,12 +33,14 @@ jobs:
       packages: read
 
   pre-build-checks:
+    needs: assert-dev-main
     uses: ./.github/workflows/v1-pre-build-checks-core.yml
     permissions:
       id-token: write
       contents: read
 
   portal-jest:
+    needs: assert-dev-main
     uses: ./.github/workflows/portal-jest-tests.yml
     permissions:
       contents: read
