@@ -7,7 +7,6 @@ from adapters.connector.openrouter_adapter import OpenRouterAdapter
 from adapters.connector.together_adapter import TogetherAdapter
 from adapters.driven.repository.sqlalchemy.llm_provider_adapter import LLMProviderAdapter
 from domain.entities.provider_entity import ProviderEntity
-from domain.services.feature_flags import is_openrouter_enabled
 
 
 class ProviderSeedService:
@@ -28,13 +27,11 @@ class ProviderSeedService:
         """
         Build provider definitions from connector adapter class metadata.
         """
-        definitions = [
+        return [
             OpenAIAdapter.provider_seed_definition(),
             TogetherAdapter.provider_seed_definition(),
+            OpenRouterAdapter.provider_seed_definition(),
         ]
-        if is_openrouter_enabled():
-            definitions.append(OpenRouterAdapter.provider_seed_definition())
-        return definitions
 
     def seed_hardcoded_providers(self) -> None:
         """Seed providers from adapter metadata with version-aware logic."""

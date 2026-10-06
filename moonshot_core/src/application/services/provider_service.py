@@ -33,25 +33,12 @@ from application.dto.model_config_dto import (
 )
 from application.services.sqlite_adapter import SQLiteAdapter
 from domain.ports.connector_port import ConnectorPort
-from domain.services.feature_flags import (
-    OPENROUTER_ADAPTER_SYSTEM_NAME,
-    is_openrouter_enabled,
-)
 
-
-def get_adapter_by_system_name() -> Dict[str, Type[ConnectorPort]]:
-    """Map llm_provider.system_name to ConnectorPort class (OpenRouter gated by feature flag)."""
-    mapping: Dict[str, Type[ConnectorPort]] = {
-        OpenAIAdapter.SYSTEM_NAME: OpenAIAdapter,
-        TogetherAdapter.SYSTEM_NAME: TogetherAdapter,
-    }
-    if is_openrouter_enabled():
-        mapping[OpenRouterAdapter.SYSTEM_NAME] = OpenRouterAdapter
-    return mapping
-
-
-# Backward-compatible name; prefer get_adapter_by_system_name() for flag-aware lookups.
-_ADAPTER_BY_SYSTEM_NAME: Dict[str, Type[ConnectorPort]] = get_adapter_by_system_name()
+_ADAPTER_BY_SYSTEM_NAME: Dict[str, Type[ConnectorPort]] = {
+    OpenAIAdapter.SYSTEM_NAME: OpenAIAdapter,
+    TogetherAdapter.SYSTEM_NAME: TogetherAdapter,
+    OpenRouterAdapter.SYSTEM_NAME: OpenRouterAdapter,
+}
 
 
 class ProviderService:
@@ -91,7 +78,7 @@ class ProviderService:
         Fill defaultModel, modelTextboxExplanation, defaultConfigPairs, and modelToken from the
         matching ConnectorPort class metadata when DB-derived values are empty.
         """
-        adapter_cls = get_adapter_by_system_name().get(dto.system_name)
+        adapter_cls = _ADAPTER_BY_SYSTEM_NAME.get(dto.system_name)
         if adapter_cls is None:
             return dto
         seed = adapter_cls.provider_seed_definition()
@@ -214,8 +201,6 @@ class ProviderService:
         return [
             self._enrich_dto_with_adapter_defaults(self._provider_entity_to_dto(entity))
             for entity in entities
-            if is_openrouter_enabled()
-            or entity.system_name != OPENROUTER_ADAPTER_SYSTEM_NAME
         ]
 
     def add_provider(self, provider: ProviderDTO) -> ProviderDTO:
