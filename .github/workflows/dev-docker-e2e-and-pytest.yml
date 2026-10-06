@@ -2,10 +2,23 @@ name: Dev Docker + E2E + Pytest + Portal Jest
 
 on:
   workflow_dispatch:
+    inputs:
+      promote_to_staging:
+        description: 'Promote moonshot-dev to staging after tests pass'
+        type: boolean
+        default: true
+      commit_sha:
+        description: 'Git SHA to build and test (any branch). Empty = HEAD of this run (dev_main tip).'
+        type: string
+        required: false
+        default: ''
 
 jobs:
   assert-dev-main:
     runs-on: ubuntu-latest
+    outputs:
+      resolved_sha: ${{ steps.resolve.outputs.resolved_sha }}
+      on_dev_main: ${{ steps.resolve.outputs.on_dev_main }}
     steps:
       - name: Require dev_main
         run: |
@@ -15,19 +28,48 @@ jobs:
             exit 1
           fi
 
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Resolve commit SHA
+        id: resolve
+        run: |
+          REQUESTED="${{ inputs.commit_sha }}"
+          REQUESTED="$(echo "${REQUESTED}" | tr -d '[:space:]')"
+          if [ -z "${REQUESTED}" ]; then
+            RESOLVED="$(git rev-parse HEAD)"
+          else
+            git fetch --no-tags origin "${REQUESTED}"
+            RESOLVED="$(git rev-parse --verify "${REQUESTED}^{commit}")"
+          fi
+          echo "resolved_sha=${RESOLVED}" >> "$GITHUB_OUTPUT"
+          echo "Resolved SHA: ${RESOLVED}"
+          if git merge-base --is-ancestor "${RESOLVED}" HEAD; then
+            echo "on_dev_main=true" >> "$GITHUB_OUTPUT"
+            echo "Commit is on dev_main"
+          else
+            echo "on_dev_main=false" >> "$GITHUB_OUTPUT"
+            echo "Commit is not on dev_main; staging promote will be skipped"
+          fi
+
   build-dev-docker:
     needs: assert-dev-main
     uses: ./.github/workflows/docker-build-dev-main.yaml
+    with:
+      checkout_ref: ${{ needs.assert-dev-main.outputs.resolved_sha }}
     permissions:
       id-token: write
       contents: read
       packages: write
 
   e2e-on-docker:
-    needs: build-dev-docker
+    needs: [assert-dev-main, build-dev-docker]
     uses: ./.github/workflows/e2e-docker-tests.yml
     with:
       moonshot_image: ${{ needs.build-dev-docker.outputs.moonshot_image }}
+      checkout_ref: ${{ needs.assert-dev-main.outputs.resolved_sha }}
     permissions:
       contents: read
       packages: read
@@ -35,6 +77,8 @@ jobs:
   pre-build-checks:
     needs: assert-dev-main
     uses: ./.github/workflows/v1-pre-build-checks-core.yml
+    with:
+      checkout_ref: ${{ needs.assert-dev-main.outputs.resolved_sha }}
     permissions:
       id-token: write
       contents: read
@@ -42,11 +86,14 @@ jobs:
   portal-jest:
     needs: assert-dev-main
     uses: ./.github/workflows/portal-jest-tests.yml
+    with:
+      checkout_ref: ${{ needs.assert-dev-main.outputs.resolved_sha }}
     permissions:
       contents: read
 
   promote-to-staging:
-    needs: [build-dev-docker, e2e-on-docker, pre-build-checks, portal-jest]
+    if: ${{ inputs.promote_to_staging && needs.assert-dev-main.outputs.on_dev_main == 'true' }}
+    needs: [assert-dev-main, build-dev-docker, e2e-on-docker, pre-build-checks, portal-jest]
     uses: ./.github/workflows/moonshot-tag-docker-staging.yaml
     with:
       moonshot_dev_tag: ${{ needs.build-dev-docker.outputs.image_tag }}

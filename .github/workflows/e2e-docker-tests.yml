@@ -15,6 +15,11 @@ on:
         required: false
         type: string
         default: ''
+      checkout_ref:
+        description: 'Git ref or SHA to checkout. Empty = current run SHA.'
+        required: false
+        type: string
+        default: ''
 
 jobs:
   e2e-docker:
@@ -27,6 +32,8 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.checkout_ref || github.sha }}
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3

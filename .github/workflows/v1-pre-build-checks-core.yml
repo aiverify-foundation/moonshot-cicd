@@ -22,6 +22,12 @@ on:
         default: 'dev_main'
         type: string
   workflow_call:
+    inputs:
+      checkout_ref:
+        description: 'Git ref or SHA to checkout. Empty = current run SHA.'
+        required: false
+        type: string
+        default: ''
 
 concurrency:
   group: ${{ github.repository }}-${{ github.workflow }}
@@ -49,6 +55,7 @@ jobs:
         if: github.event_name == 'workflow_call'
         uses: actions/checkout@v3
         with:
+          ref: ${{ inputs.checkout_ref || github.sha }}
           submodules: recursive
 
       - name: Checkout code

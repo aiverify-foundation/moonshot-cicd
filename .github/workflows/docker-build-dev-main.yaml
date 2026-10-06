@@ -5,6 +5,12 @@ on:
     branches: [ "dev_main" ]
   workflow_dispatch:
   workflow_call:
+    inputs:
+      checkout_ref:
+        description: 'Git ref or SHA to checkout. Empty = current run ref.'
+        required: false
+        type: string
+        default: ''
     outputs:
       image_tag:
         description: 'Generated moonshot-dev image tag'
@@ -34,7 +40,7 @@ jobs:
     - name: Checkout code
       uses: actions/checkout@v4
       with:
-        ref: ${{ github.head_ref || github.ref_name }}
+        ref: ${{ inputs.checkout_ref || github.head_ref || github.ref_name }}
 
     # Tag format: dev_<build datetime in YYYYMMDD_HHMMSS>_<HEAD commit short SHA>
     # Example:     dev_20260903_031145_a1b2c3d

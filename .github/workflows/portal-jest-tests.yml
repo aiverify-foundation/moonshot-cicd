@@ -3,6 +3,12 @@ name: Portal Jest Tests
 on:
   workflow_dispatch:
   workflow_call:
+    inputs:
+      checkout_ref:
+        description: 'Git ref or SHA to checkout. Empty = current run SHA.'
+        required: false
+        type: string
+        default: ''
 
 jobs:
   portal-jest:
@@ -11,6 +17,8 @@ jobs:
       contents: read
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.checkout_ref || github.sha }}
 
       - uses: actions/setup-node@v4
         with:
