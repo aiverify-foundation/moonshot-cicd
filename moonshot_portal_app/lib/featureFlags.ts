@@ -2,6 +2,7 @@
 // Source of truth: moonshot_core/data/feature_flags.txt
 export const FeatureFlagNames = {
   AIVET_Q42026_MOON774: "AIVET_Q42026_MOON774",
+  AIVET_OCT2026_MOON771: "AIVET_OCT2026_MOON771",
 } as const;
 
 export type FeatureFlagName =

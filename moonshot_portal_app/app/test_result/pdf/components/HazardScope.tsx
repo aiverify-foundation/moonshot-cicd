@@ -6,18 +6,24 @@ import type { HazardSection } from '../types';
 type HazardScopeProps = {
   hazardSections: HazardSection[];
   showSectionHeader: boolean;
+  useAivetBranding: boolean;
 };
 
 export default function HazardScope({
   hazardSections,
   showSectionHeader,
+  useAivetBranding,
 }: HazardScopeProps) {
+  const productName = useAivetBranding
+    ? 'AI Verify Evals Toolkit'
+    : 'Project Moonshot';
+
   return (
     <View style={styles.card}>
       {showSectionHeader && (
         <>
           <Text style={styles.sectionTitle}>
-            Benchmarks Covered in Project Moonshot
+            Benchmarks Covered in {productName}
           </Text>
           <Text style={styles.muted}>
             The benchmarks are selected from the following:

@@ -42,7 +42,7 @@ test.describe('MOON-548 Navigation and Access', { tag: '@happy-path' }, () => {
   test('Header renders logo, product name, and version', async ({ page }) => {
     await goToLanding(page);
 
-    const productName = page.locator('h1', { hasText: 'Moonshot' });
+    const productName = page.locator('h1', { hasText: 'AI Verify Evals Toolkit' });
     await expect(productName).toBeVisible();
 
     const logoSection = page.locator('div.flex.items-center.gap-2').filter({ has: productName });
@@ -107,10 +107,10 @@ test.describe('MOON-548 Navigation and Access', { tag: '@happy-path' }, () => {
     await expect(page.locator('[data-testid="sidebar-connectors-button"]')).toHaveCount(0);
   });
 
-  test('Header help icon opens the Moonshot wiki', async ({ page }) => {
+  test('Header help icon opens the AI Verify Evals Toolkit wiki', async ({ page }) => {
     await goToLanding(page);
 
-    const help = page.getByLabel('Open Moonshot wiki');
+    const help = page.getByLabel('Open AI Verify Evals Toolkit wiki');
     await expect(help).toBeVisible();
     await assertExternalLinkOpens(page, help, WIKI_URL);
   });
@@ -118,7 +118,7 @@ test.describe('MOON-548 Navigation and Access', { tag: '@happy-path' }, () => {
   test('Header issues icon opens the GitHub issues page', async ({ page }) => {
     await goToLanding(page);
 
-    const issues = page.getByLabel('Open Moonshot issues');
+    const issues = page.getByLabel('Open AI Verify Evals Toolkit issues');
     await expect(issues).toBeVisible();
     await assertExternalLinkOpens(page, issues, ISSUES_URL);
   });
@@ -126,7 +126,7 @@ test.describe('MOON-548 Navigation and Access', { tag: '@happy-path' }, () => {
   test('Header GitHub icon opens the repository', async ({ page }) => {
     await goToLanding(page);
 
-    const github = page.getByLabel('Open Moonshot GitHub repository');
+    const github = page.getByLabel('Open AI Verify Evals Toolkit GitHub repository');
     await expect(github).toBeVisible();
     await assertExternalLinkOpens(page, github, REPO_URL);
   });

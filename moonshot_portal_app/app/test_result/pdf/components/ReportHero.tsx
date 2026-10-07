@@ -16,6 +16,7 @@ type ReportHeroProps = {
   companyName: string;
   testRunName: string;
   reportDate: string;
+  useAivetBranding: boolean;
 };
 
 function HeroGradient() {
@@ -62,11 +63,15 @@ export default function ReportHero({
   companyName,
   testRunName,
   reportDate,
+  useAivetBranding,
 }: ReportHeroProps) {
+  const testTool = useAivetBranding
+    ? REPORT_METADATA.testToolAivet
+    : REPORT_METADATA.testTool;
   const fields = [
     { label: 'Model / App Configuration Name', value: companyName },
     { label: 'Test Run Name', value: testRunName },
-    { label: 'Test Tool', value: REPORT_METADATA.testTool },
+    { label: 'Test Tool', value: testTool },
     { label: 'Issued', value: reportDate },
   ];
 

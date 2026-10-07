@@ -24,4 +24,5 @@ export type SafetyReportPdfProps = {
   reportDate: string;
   bundles: SafetyReportBundle[];
   hazardSections: HazardSection[];
+  useAivetBranding: boolean;
 };

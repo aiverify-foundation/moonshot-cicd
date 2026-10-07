@@ -34,6 +34,8 @@ import {
   downloadBenchmarkRunResults,
   fetchBenchmarkRunResults,
 } from "@/lib/api";
+import { useFeatureFlags } from "@/hooks/useFeatureFlags";
+import { FeatureFlagNames } from "@/lib/featureFlags";
 
 const TAB_OVERVIEW = "overview";
 const tabBundleId = (id: number) => `bundle:${id}`;
@@ -95,6 +97,8 @@ export default function TestResultApp() {
   }, [searchParams]);
 
   const showMarginDebug = searchParams.get("debugMargin") === "1";
+  const { isEnabled } = useFeatureFlags();
+  const useAivetBranding = isEnabled(FeatureFlagNames.AIVET_OCT2026_MOON771);
 
   const [run, setRun] = useState<BenchmarkRun | null>(null);
   const [prompts, setPrompts] = useState<BenchmarkRunTestPrompt[]>([]);
@@ -314,7 +318,8 @@ export default function TestResultApp() {
         run,
         resultBundles,
         prompts,
-        testMargins
+        testMargins,
+        useAivetBranding
       );
     } catch (e) {
       const detail =

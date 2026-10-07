@@ -24,12 +24,14 @@ export async function downloadSafetyReportPdf(
   run: BenchmarkRun,
   bundles: BenchmarkRunResultsBundleSummary[],
   prompts: BenchmarkRunTestPrompt[],
-  testMargins: BenchmarkRunTestMarginOfError[]
+  testMargins: BenchmarkRunTestMarginOfError[],
+  useAivetBranding: boolean = false
 ): Promise<void> {
   const configBundles = await fetchBundles();
   const props: SafetyReportPdfProps = {
     ...mapRunToReportData(run, bundles, prompts, testMargins),
     hazardSections: mapBundlesToHazardSections(configBundles),
+    useAivetBranding,
   };
   const blob = await generateSafetyReportBlob(props);
   const filename = run.name ? `${run.name}.pdf` : `benchmark-run-${run.id ?? 'report'}.pdf`;

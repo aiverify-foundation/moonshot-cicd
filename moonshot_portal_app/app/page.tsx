@@ -1,6 +1,10 @@
+"use client";
+
 import Link from "next/link";
 import { HelpCircle, Bug, Github } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { useFeatureFlags } from "@/hooks/useFeatureFlags";
+import { FeatureFlagNames } from "@/lib/featureFlags";
 
 function QuickStartButton() {
   return (
@@ -57,6 +61,12 @@ function IMDAStarterKitButton() {
 }
 
 export default function Home() {
+  const { isEnabled } = useFeatureFlags();
+  const useAivetBranding = isEnabled(FeatureFlagNames.AIVET_OCT2026_MOON771);
+  const productName = useAivetBranding
+    ? "AI Verify Evals Toolkit"
+    : "Moonshot";
+
   return (
     <div className="min-h-screen w-[1200px]">
       {/* Header */}
@@ -75,10 +85,10 @@ export default function Home() {
           </svg>
           <div className="flex flex-col">
             <h1 className="text-sm font-semibold text-gray-900 leading-none">
-              Moonshot
+              {productName}
             </h1>
             <p className="text-xs font-medium text-slate-500 leading-tight">
-              0.1.0
+              2.0.0
             </p>
           </div>
         </div>
@@ -90,7 +100,7 @@ export default function Home() {
             target="_blank"
             rel="noopener noreferrer"
             className="p-2 rounded hover:bg-gray-100 transition-colors"
-            aria-label="Open Moonshot wiki"
+            aria-label={`Open ${productName} wiki`}
           >
             <HelpCircle className="w-4 h-4 text-slate-500" />
           </a>
@@ -99,7 +109,7 @@ export default function Home() {
             target="_blank"
             rel="noopener noreferrer"
             className="p-2 rounded hover:bg-gray-100 transition-colors"
-            aria-label="Open Moonshot issues"
+            aria-label={`Open ${productName} issues`}
           >
             <Bug className="w-4 h-4 text-slate-500" />
           </a>
@@ -108,7 +118,7 @@ export default function Home() {
             target="_blank"
             rel="noopener noreferrer"
             className="p-2 rounded hover:bg-gray-100 transition-colors"
-            aria-label="Open Moonshot GitHub repository"
+            aria-label={`Open ${productName} GitHub repository`}
           >
             <Github className="w-4 h-4 text-slate-500" />
           </a>

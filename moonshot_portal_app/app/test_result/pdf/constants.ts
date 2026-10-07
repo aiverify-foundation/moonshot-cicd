@@ -22,6 +22,7 @@ export const USE_CASE_COPY =
 export const REPORT_METADATA = {
   testProvider: 'AI Verify Foundation',
   testTool: 'Project Moonshot V1',
+  testToolAivet: 'AI Verify Evals Toolkit V1',
 } as const;
 
 export const SCORE_BREAKDOWN_TITLE = 'Score Breakdown by Risk Category';

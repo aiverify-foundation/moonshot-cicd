@@ -8,6 +8,8 @@ import { useSearchParams } from "next/navigation";
 import React, { useEffect, useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { ApiError, fetchBenchmarkRunResults, fetchBundles } from "@/lib/api";
+import { useFeatureFlags } from "@/hooks/useFeatureFlags";
+import { FeatureFlagNames } from "@/lib/featureFlags";
 import { mapBundlesToHazardSections } from "../pdf/mapBundlesToHazardSections";
 import { mapRunToReportData } from "../pdf/mapRunToReportData";
 import PdfFitWidthPreview from "./PdfFitWidthPreview";
@@ -20,6 +22,9 @@ export default function SafetyReportPreviewApp() {
     const n = parseInt(raw, 10);
     return Number.isFinite(n) && n > 0 ? n : null;
   }, [searchParams]);
+
+  const { isEnabled, loading: flagsLoading } = useFeatureFlags();
+  const useAivetBranding = isEnabled(FeatureFlagNames.AIVET_OCT2026_MOON771);
 
   const [pdfUrl, setPdfUrl] = useState<string | null>(null);
   const [runName, setRunName] = useState<string>("");
@@ -39,6 +44,11 @@ export default function SafetyReportPreviewApp() {
       setRunName("");
       setLoading(false);
       setError(null);
+      return;
+    }
+
+    if (flagsLoading) {
+      setLoading(true);
       return;
     }
 
@@ -78,6 +88,7 @@ export default function SafetyReportPreviewApp() {
             res.test_margin_of_error ?? []
           ),
           hazardSections: mapBundlesToHazardSections(configBundles),
+          useAivetBranding,
         };
         const { generateSafetyReportBlob } = await import(
           "../pdf/downloadSafetyReportPdf"
@@ -100,7 +111,7 @@ export default function SafetyReportPreviewApp() {
     return () => {
       cancelled = true;
     };
-  }, [benchmarkRunId]);
+  }, [benchmarkRunId, flagsLoading, useAivetBranding]);
 
   if (!benchmarkRunId) {
     return (
