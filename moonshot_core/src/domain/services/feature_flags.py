@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from typing import Optional
 
+from domain.services.enums.feature_flag_names import FeatureFlagNames
 from domain.services.loader.factory.feature_flag_adapter_factory import (
     FeatureFlagAdapterFactory,
 )
@@ -11,7 +12,7 @@ from domain.services.logger import configure_logger
 
 logger = configure_logger(__name__)
 
-AIVET_Q42026_MOON774 = "AIVET_Q42026_MOON774"
+__all__ = ["FeatureFlagNames", "FeatureFlags"]
 
 
 class FeatureFlags:
@@ -36,13 +37,21 @@ class FeatureFlags:
         cls._instance = None
         cls._flags = None
 
-    def is_enabled(self, name: str) -> bool:
+    def is_enabled(self, name: str | FeatureFlagNames) -> bool:
         """
         Return whether the named flag is enabled.
 
         Missing keys and load failures are treated as False.
         """
-        return bool(self._load().get(name, False))
+        return bool(self._load().get(str(name), False))
+
+    def get_all(self) -> dict[str, bool]:
+        """
+        Return all loaded flags.
+
+        Load failures are treated as an empty mapping (fail-closed).
+        """
+        return dict(self._load())
 
     def _load(self) -> dict[str, bool]:
         if FeatureFlags._flags is not None:

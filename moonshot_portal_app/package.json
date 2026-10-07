@@ -3,8 +3,8 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "next dev --turbopack",
-    "build": "next build --turbopack",
+    "dev": "python3 ../scripts/generate_feature_flags.py && next dev --turbopack",
+    "build": "python3 ../scripts/generate_feature_flags.py && next build --turbopack",
     "start": "next start",
     "lint": "eslint"
   },

@@ -2,6 +2,8 @@
  * API service for communicating with the Moonshot CI/CD backend
  */
 
+import type { FeatureFlagName } from '@/lib/featureFlags';
+
 const API_BASE_URL = 'http://localhost:8000';
 
 /** Prompt-level row from test_details.csv (GET /api/bundles → tests[].details). */
@@ -404,6 +406,22 @@ function handleConnectError(error: unknown, label: string): never {
   throw new ApiError(
     `${label}: ${error instanceof Error ? error.message : 'Unknown error'}`
   );
+}
+
+/** GET /api/feature-flags */
+export interface FeatureFlagsResponse {
+  flags: Partial<Record<FeatureFlagName, boolean>>;
+}
+
+export async function getFeatureFlags(): Promise<FeatureFlagsResponse> {
+  try {
+    return await handleJsonGet<FeatureFlagsResponse>(
+      `${API_BASE_URL}/api/feature-flags`,
+      'fetch feature flags'
+    );
+  } catch (error) {
+    handleConnectError(error, 'Network error');
+  }
 }
 
 /** GET /api/providers */

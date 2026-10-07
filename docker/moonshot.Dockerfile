@@ -1,8 +1,20 @@
 # Build portal static export (discarded after COPY into final stage)
 FROM node:22-bookworm AS frontend
 
+# Generator + SoT for npm run build (package.json prefixes generate_feature_flags.py)
+COPY scripts/generate_feature_flags.py /scripts/generate_feature_flags.py
+COPY moonshot_core/data/feature_flags.txt /flags/feature_flags.txt
+COPY moonshot_portal_app/ /portal/
+
+ENV FEATURE_FLAGS_TXT=/flags/feature_flags.txt \
+    FEATURE_FLAGS_PY_OUT=/tmp/feature_flag_names.py \
+    FEATURE_FLAGS_TS_OUT=/portal/lib/featureFlags.ts
+
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends python3 \
+    && rm -rf /var/lib/apt/lists/*
+
 WORKDIR /portal
-COPY moonshot_portal_app/ ./
 RUN npm install && npm run build
 
 # Final runtime image: Python only + static HTML

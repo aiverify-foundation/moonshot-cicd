@@ -9,86 +9,128 @@ from contextlib import asynccontextmanager
 from pathlib import Path
 from urllib.parse import urlparse
 
+import uvicorn
 from fastapi import FastAPI, HTTPException, Request, Response
 from fastapi.responses import FileResponse, Response
 
 from domain.services.logger import configure_logger
-import uvicorn
 
 logger = configure_logger(__name__)
 
 from typing import List
 
-from adapters.driven.repository.sqlalchemy.benchmark_run_test_status_adapter import \
-    SqlAlchemyBenchmarkRunTestStatusRepository
-from adapters.driven.repository.sqlalchemy.dataset_adapter import \
-    SqlAlchemyDatasetRepository
-from adapters.driven.repository.sqlalchemy.sqlalchemy_benchmark_repository import \
-    SqlAlchemyBenchmarkRepository
+from adapters.driven.repository.sqlalchemy.benchmark_run_test_status_adapter import (
+    SqlAlchemyBenchmarkRunTestStatusRepository,
+)
+from adapters.driven.repository.sqlalchemy.dataset_adapter import (
+    SqlAlchemyDatasetRepository,
+)
+from adapters.driven.repository.sqlalchemy.sqlalchemy_benchmark_repository import (
+    SqlAlchemyBenchmarkRepository,
+)
 from application.dto.custom_app_config_dto import (
-    CreateCustomAppBody, CreateCustomAppConfigBody, CustomAppConfigResponseDTO,
-    CustomAppResponseDTO, SetCustomAppConfigSecretBody,
-    TestCustomAppConnectionBody, TestCustomAppConnectionResponseDTO,
-    UpdateCustomAppConfigBody)
+    CreateCustomAppBody,
+    CreateCustomAppConfigBody,
+    CustomAppConfigResponseDTO,
+    CustomAppResponseDTO,
+    SetCustomAppConfigSecretBody,
+    TestCustomAppConnectionBody,
+    TestCustomAppConnectionResponseDTO,
+    UpdateCustomAppConfigBody,
+)
+from application.dto.feature_flags_dto import FeatureFlagsResponseDTO
 from application.dto.llm_provider_api_key_dto import (
-    SetLlmProviderApiKeyRequestDTO, SetLlmProviderApiKeyResponseDTO)
-from application.dto.model_config_dto import (CreateDatabaseModelConfigBody,
-                                              LLMProviderDetailsDTO,
-                                              ModelConfigDTO,
-                                              ProviderDatabaseConfigsDTO,
-                                              UpdateDatabaseModelConfigBody)
-from application.dto.provider_dto import (ProviderDTO,
-                                          TestLlmProviderConnectionBody,
-                                          TestLlmProviderConnectionResponseDTO)
-from application.dto.run_bundle_dto import (BenchmarkRunResponseDTO,
-                                            BenchmarkRunResultsResponseDTO,
-                                            BenchmarkRunTestBundleResponseDTO,
-                                            BenchmarkRunTestPromptResponseDTO,
-                                            CheckBenchmarkRunNameResponseDTO,
-                                            PatchBenchmarkRunTestPromptUserDTO,
-                                            StartBenchmarkRunRequestDTO,
-                                            StartBenchmarkRunResponseDTO)
-from application.dto.seed_dto import SeedSharedConfigResponseDTO
+    SetLlmProviderApiKeyRequestDTO,
+    SetLlmProviderApiKeyResponseDTO,
+)
 from application.dto.metric_score_label_dto import MetricScoreResultNamesDTO
+from application.dto.model_config_dto import (
+    CreateDatabaseModelConfigBody,
+    LLMProviderDetailsDTO,
+    ModelConfigDTO,
+    ProviderDatabaseConfigsDTO,
+    UpdateDatabaseModelConfigBody,
+)
+from application.dto.provider_dto import (
+    ProviderDTO,
+    TestLlmProviderConnectionBody,
+    TestLlmProviderConnectionResponseDTO,
+)
+from application.dto.run_bundle_dto import (
+    BenchmarkRunResponseDTO,
+    BenchmarkRunResultsResponseDTO,
+    BenchmarkRunTestBundleResponseDTO,
+    BenchmarkRunTestPromptResponseDTO,
+    CheckBenchmarkRunNameResponseDTO,
+    PatchBenchmarkRunTestPromptUserDTO,
+    StartBenchmarkRunRequestDTO,
+    StartBenchmarkRunResponseDTO,
+)
+from application.dto.seed_dto import SeedSharedConfigResponseDTO
 from application.services.benchmark import BenchmarkService
+
 # Benchmark execution service
 from application.services.benchmark_execution_service import (
-    BenchmarkExecutionService, BenchmarkRunTestSelectionError)
-from application.services.benchmark_run_prompt_service import \
-    BenchmarkRunPromptService
+    BenchmarkExecutionService,
+    BenchmarkRunTestSelectionError,
+)
+from application.services.benchmark_run_prompt_service import BenchmarkRunPromptService
 from application.services.benchmark_run_results_export_service import (
-    BenchmarkRunResultsExportError, BenchmarkRunResultsExportService)
-from application.services.benchmark_run_results_query_service import \
-    BenchmarkRunResultsQueryService
+    BenchmarkRunResultsExportError,
+    BenchmarkRunResultsExportService,
+)
+from application.services.benchmark_run_results_query_service import (
+    BenchmarkRunResultsQueryService,
+)
 from application.services.benchmark_run_service import BenchmarkRunService
-from application.services.benchmark_run_test_bundle_query_service import \
-    BenchmarkRunTestBundleQueryService
+from application.services.benchmark_run_test_bundle_query_service import (
+    BenchmarkRunTestBundleQueryService,
+)
 from application.services.custom_app_config_secret_service import (
-    CustomAppConfigSecretService, CustomAppConfigSecretUnknownConfigError)
-from application.services.custom_app_connection_test_service import \
-    CustomAppConnectionTestService
+    CustomAppConfigSecretService,
+    CustomAppConfigSecretUnknownConfigError,
+)
+from application.services.custom_app_connection_test_service import (
+    CustomAppConnectionTestService,
+)
 from application.services.custom_app_seed_service import CustomAppSeedService
-from application.services.database_connector_config_service import \
-    DatabaseConnectorConfigError
+from application.services.database_connector_config_service import (
+    DatabaseConnectorConfigError,
+)
 from application.services.database_custom_app_config_service import (
     DatabaseCustomAppConfigBadRequestError,
-    DatabaseCustomAppConfigConflictError, DatabaseCustomAppConfigNotFoundError,
-    DatabaseCustomAppConfigService, DatabaseCustomAppService)
-from application.services.database_custom_app_connector_config_service import \
-    DatabaseCustomAppConnectorConfigError
+    DatabaseCustomAppConfigConflictError,
+    DatabaseCustomAppConfigNotFoundError,
+    DatabaseCustomAppConfigService,
+    DatabaseCustomAppService,
+)
+from application.services.database_custom_app_connector_config_service import (
+    DatabaseCustomAppConnectorConfigError,
+)
 from application.services.database_model_config_service import (
-    DatabaseModelConfigBadRequestError, DatabaseModelConfigConflictError,
-    DatabaseModelConfigNotFoundError, DatabaseModelConfigService)
+    DatabaseModelConfigBadRequestError,
+    DatabaseModelConfigConflictError,
+    DatabaseModelConfigNotFoundError,
+    DatabaseModelConfigService,
+)
+from application.services.feature_flag_service import FeatureFlagService
 from application.services.llm_provider_api_key_service import (
-    LlmProviderApiKeyService, LlmProviderApiKeyUnknownProviderError)
-from application.services.llm_provider_connection_test_service import \
-    LlmProviderConnectionTestService
+    LlmProviderApiKeyService,
+    LlmProviderApiKeyUnknownProviderError,
+)
+from application.services.llm_provider_connection_test_service import (
+    LlmProviderConnectionTestService,
+)
 from application.services.metric_score_label_service import (
-    MetricScoreLabelNotFoundError, MetricScoreLabelService)
+    MetricScoreLabelNotFoundError,
+    MetricScoreLabelService,
+)
 from application.services.provider_seed_service import ProviderSeedService
+
 # Provider/model-config service & DTOs
 from application.services.provider_service import ProviderService
 from domain.services.app_config import AppConfig
+
 # Comment out this import to disable CORS middleware ( This is used for local development only)
 from entrypoints.cors_middleware_setup import configure_cors_middleware
 
@@ -212,6 +254,7 @@ custom_app_connection_test_service = CustomAppConnectionTestService(
 )
 llm_provider_connection_test_service = LlmProviderConnectionTestService()
 metric_score_label_service = MetricScoreLabelService()
+feature_flag_service = FeatureFlagService()
 
 # Lazy-initialized SharedConfigSeedService for seed-if-testfile-changed
 _shared_config_seed_service = None
@@ -221,18 +264,22 @@ def get_shared_config_seed_service():
     """Get or create SharedConfigSeedService with full deps for seed_if_test_file_changed."""
     global _shared_config_seed_service
     if _shared_config_seed_service is None:
-        from adapters.driven.repository.sqlalchemy.dataset_adapter import \
-            SqlAlchemyDatasetRepository
-        from adapters.driven.repository.sqlalchemy.moonshot_config_adapter import \
-            MoonshotConfigAdapter
-        from application.services.benchmark_dataset_seed_service import \
-            BenchmarkDatasetSeedService
-        from application.services.file_dataset_repository import \
-            FileDatasetRepository
-        from application.services.file_shared_config_repository import \
-            FileSharedConfigRepository
-        from application.services.shared_config_seed_service import \
-            SharedConfigSeedService
+        from adapters.driven.repository.sqlalchemy.dataset_adapter import (
+            SqlAlchemyDatasetRepository,
+        )
+        from adapters.driven.repository.sqlalchemy.moonshot_config_adapter import (
+            MoonshotConfigAdapter,
+        )
+        from application.services.benchmark_dataset_seed_service import (
+            BenchmarkDatasetSeedService,
+        )
+        from application.services.file_dataset_repository import FileDatasetRepository
+        from application.services.file_shared_config_repository import (
+            FileSharedConfigRepository,
+        )
+        from application.services.shared_config_seed_service import (
+            SharedConfigSeedService,
+        )
 
         moonshot_config = MoonshotConfigAdapter()
         shared_config_repo = FileSharedConfigRepository()
@@ -246,6 +293,18 @@ def get_shared_config_seed_service():
             benchmark_dataset_seed_service=dataset_seed,
         )
     return _shared_config_seed_service
+
+
+@app.get("/api/feature-flags", response_model=FeatureFlagsResponseDTO)
+async def get_feature_flags():
+    """Return live feature flag name → enabled mapping."""
+    try:
+        return feature_flag_service.get_flags()
+    except Exception as e:
+        logger.error(f"Error fetching feature flags: {e}")
+        raise HTTPException(
+            status_code=500, detail=f"Failed to fetch feature flags: {str(e)}"
+        )
 
 
 @app.get("/api/bundles")
@@ -1022,6 +1081,9 @@ __all__ = ["app"]
 
 def serve():
     """Serve the FastAPI application."""
+    from entrypoints.feature_flag_codegen import maybe_generate_feature_flags
+
+    maybe_generate_feature_flags()
     uvicorn.run(
         "src.entrypoints.api:app",
         host="0.0.0.0",
@@ -1030,6 +1092,7 @@ def serve():
         log_level="info",
         log_config=None,
     )
+
 
 if __name__ == "__main__":
     serve()

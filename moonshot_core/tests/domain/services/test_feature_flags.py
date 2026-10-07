@@ -4,7 +4,7 @@ import pytest
 
 from adapters.feature_flag.txt_adapter import TxtAdapter
 from domain.services.app_config import AppConfig
-from domain.services.feature_flags import AIVET_Q42026_MOON774, FeatureFlags
+from domain.services.feature_flags import FeatureFlagNames, FeatureFlags
 from domain.services.loader.factory.feature_flag_adapter_factory import (
     FeatureFlagAdapterFactory,
 )
@@ -19,13 +19,15 @@ def reset_feature_flags():
 
 def test_is_enabled_true_from_loaded_flags():
     adapter = MagicMock()
-    adapter.load_flags.return_value = {AIVET_Q42026_MOON774: True}
+    adapter.load_flags.return_value = {FeatureFlagNames.AIVET_Q42026_MOON774: True}
 
     with patch(
         "domain.services.feature_flags.FeatureFlagAdapterFactory.get_adapter",
         return_value=adapter,
     ) as mock_get:
-        assert FeatureFlags().is_enabled(AIVET_Q42026_MOON774) is True
+        assert (
+            FeatureFlags().is_enabled(FeatureFlagNames.AIVET_Q42026_MOON774) is True
+        )
         mock_get.assert_called_once_with()
         adapter.load_flags.assert_called_once_with()
 
@@ -38,7 +40,9 @@ def test_is_enabled_false_for_missing_key():
         "domain.services.feature_flags.FeatureFlagAdapterFactory.get_adapter",
         return_value=adapter,
     ):
-        assert FeatureFlags().is_enabled(AIVET_Q42026_MOON774) is False
+        assert (
+            FeatureFlags().is_enabled(FeatureFlagNames.AIVET_Q42026_MOON774) is False
+        )
 
 
 def test_is_enabled_false_when_load_returns_empty():
@@ -49,7 +53,9 @@ def test_is_enabled_false_when_load_returns_empty():
         "domain.services.feature_flags.FeatureFlagAdapterFactory.get_adapter",
         return_value=adapter,
     ):
-        assert FeatureFlags().is_enabled(AIVET_Q42026_MOON774) is False
+        assert (
+            FeatureFlags().is_enabled(FeatureFlagNames.AIVET_Q42026_MOON774) is False
+        )
 
 
 def test_is_enabled_false_when_load_returns_non_dict():
@@ -60,20 +66,22 @@ def test_is_enabled_false_when_load_returns_non_dict():
         "domain.services.feature_flags.FeatureFlagAdapterFactory.get_adapter",
         return_value=adapter,
     ):
-        assert FeatureFlags().is_enabled(AIVET_Q42026_MOON774) is False
+        assert (
+            FeatureFlags().is_enabled(FeatureFlagNames.AIVET_Q42026_MOON774) is False
+        )
 
 
 def test_flags_are_cached_after_first_load():
     adapter = MagicMock()
-    adapter.load_flags.return_value = {AIVET_Q42026_MOON774: True}
+    adapter.load_flags.return_value = {FeatureFlagNames.AIVET_Q42026_MOON774: True}
 
     with patch(
         "domain.services.feature_flags.FeatureFlagAdapterFactory.get_adapter",
         return_value=adapter,
     ) as mock_get:
         flags = FeatureFlags()
-        assert flags.is_enabled(AIVET_Q42026_MOON774) is True
-        assert flags.is_enabled(AIVET_Q42026_MOON774) is True
+        assert flags.is_enabled(FeatureFlagNames.AIVET_Q42026_MOON774) is True
+        assert flags.is_enabled(FeatureFlagNames.AIVET_Q42026_MOON774) is True
         mock_get.assert_called_once()
         adapter.load_flags.assert_called_once()
 
@@ -86,8 +94,35 @@ def test_load_exception_is_treated_as_disabled():
         ),
         patch("domain.services.feature_flags.logger") as mock_logger,
     ):
-        assert FeatureFlags().is_enabled(AIVET_Q42026_MOON774) is False
+        assert (
+            FeatureFlags().is_enabled(FeatureFlagNames.AIVET_Q42026_MOON774) is False
+        )
         mock_logger.error.assert_called_once()
+
+
+def test_get_all_returns_loaded_flags():
+    adapter = MagicMock()
+    adapter.load_flags.return_value = {
+        FeatureFlagNames.AIVET_Q42026_MOON774: True,
+        "OTHER": False,
+    }
+
+    with patch(
+        "domain.services.feature_flags.FeatureFlagAdapterFactory.get_adapter",
+        return_value=adapter,
+    ):
+        assert FeatureFlags().get_all() == {
+            str(FeatureFlagNames.AIVET_Q42026_MOON774): True,
+            "OTHER": False,
+        }
+
+
+def test_get_all_returns_empty_on_load_failure():
+    with patch(
+        "domain.services.feature_flags.FeatureFlagAdapterFactory.get_adapter",
+        side_effect=RuntimeError("boom"),
+    ):
+        assert FeatureFlags().get_all() == {}
 
 
 def test_factory_returns_txt_adapter_for_default_source():

@@ -135,6 +135,21 @@ def test_metric_score_result_names_endpoint_not_found(mock_service):
     assert "was not found" in response.json()["detail"]
 
 
+@patch("entrypoints.api.feature_flag_service")
+def test_feature_flags_endpoint(mock_service):
+    """GET /api/feature-flags returns live flag mapping."""
+    from application.dto.feature_flags_dto import FeatureFlagsResponseDTO
+
+    mock_service.get_flags.return_value = FeatureFlagsResponseDTO(
+        flags={"AIVET_Q42026_MOON774": True}
+    )
+
+    response = client.get("/api/feature-flags")
+    assert response.status_code == 200
+    assert response.json() == {"flags": {"AIVET_Q42026_MOON774": True}}
+    mock_service.get_flags.assert_called_once_with()
+
+
 @patch("entrypoints.api.BenchmarkRunService")
 def test_list_benchmark_runs_empty(mock_service_class):
     """GET /api/benchmark-runs returns [] when no runs."""
