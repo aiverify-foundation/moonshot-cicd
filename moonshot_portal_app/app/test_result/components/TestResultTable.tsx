@@ -14,8 +14,14 @@ import { Button } from "@/components/ui/button"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Input } from "@/components/ui/input"
+import { useFeatureFlags } from "@/hooks/useFeatureFlags"
+import { FeatureFlagNames } from "@/lib/featureFlags"
 import TestResultSheet from "./TestResultSheet"
 import { evaluationDisplayLabel } from "./evaluationDisplayHelpers"
+import {
+    getFacetedFilterCounts,
+    getGlobalFilterCounts,
+} from "./getFilterCounts"
 
 export interface TestResultTableRow {
     id: string
@@ -57,6 +63,8 @@ export default function TestResultTable({ data, pageSize = 10, onDataChange }: T
     const [sheetOpen, setSheetOpen] = useState(false)
     const [selectedRowIndex, setSelectedRowIndex] = useState(0)
     const [searchTerm, setSearchTerm] = useState("")
+    const { isEnabled } = useFeatureFlags()
+    const facetedCountsEnabled = isEnabled(FeatureFlagNames.AIVET_Q42026_MOON774)
 
     const evaluationDisplayLabelById = useMemo(() => {
         const m = new Map<string, string>()
@@ -241,34 +249,24 @@ export default function TestResultTable({ data, pageSize = 10, onDataChange }: T
         }
     }
 
-    // Calculate counts for each filter option
-    const getFilterCounts = () => {
-        const testCounts = new Map<string, number>()
-        const evaluationCounts = new Map<string, number>()
-        const yourVerdictCounts = new Map<string | null, number>()
-        const adjustedCounts = new Map<string, number>()
-
-        data.forEach((row) => {
-            // Test counts
-            testCounts.set(row.test, (testCounts.get(row.test) || 0) + 1)
-
-            // Evaluation counts (display label)
-            const evLabel = evaluationDisplayLabelById.get(row.id) ?? ""
-            evaluationCounts.set(evLabel, (evaluationCounts.get(evLabel) || 0) + 1)
-
-            // Your verdict counts
-            yourVerdictCounts.set(row.yourVerdict, (yourVerdictCounts.get(row.yourVerdict) || 0) + 1)
-
-            // Adjusted counts
-            const isAdjusted = row.yourVerdict === "disagree"
-            const adjustedKey = isAdjusted ? "adjusted" : "not adjusted"
-            adjustedCounts.set(adjustedKey, (adjustedCounts.get(adjustedKey) || 0) + 1)
-        })
-
-        return { testCounts, evaluationCounts, yourVerdictCounts, adjustedCounts }
-    }
-
-    const filterCounts = getFilterCounts()
+    const filterCounts = useMemo(
+        () =>
+            facetedCountsEnabled
+                ? getFacetedFilterCounts(
+                      data,
+                      filters,
+                      searchTerm,
+                      evaluationDisplayLabelById
+                  )
+                : getGlobalFilterCounts(data, evaluationDisplayLabelById),
+        [
+            facetedCountsEnabled,
+            data,
+            filters,
+            searchTerm,
+            evaluationDisplayLabelById,
+        ]
+    )
 
     // Filter dropdown component
     const FilterDropdown = <T extends string | null>({
