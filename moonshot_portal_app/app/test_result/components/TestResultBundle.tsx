@@ -602,18 +602,11 @@ export default function TestResultBundle({
         }
 
         setPolarityLabels({ ...DEFAULT_POLARITY_LABELS })
-        fetchMetricScoreResultNames(singleMetricName)
-            .then((dto) => {
-                if (!cancelled) {
-                    setPolarityLabels(polarityLabelsFromMetricScoreNames(dto))
-                }
-            })
-            .catch((e) => {
-                console.error("Failed to fetch metric score result names:", e)
-                if (!cancelled) {
-                    setPolarityLabels({ ...DEFAULT_POLARITY_LABELS })
-                }
-            })
+        fetchMetricScoreResultNames(singleMetricName).then((dto) => {
+            if (!cancelled) {
+                setPolarityLabels(polarityLabelsFromMetricScoreNames(dto))
+            }
+        })
 
         return () => {
             cancelled = true

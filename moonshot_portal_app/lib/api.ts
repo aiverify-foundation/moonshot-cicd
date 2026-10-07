@@ -123,12 +123,26 @@ export async function fetchBundles(): Promise<Bundle[]> {
   }
 }
 
+/** MetricPort defaults when the API is older or the metric cannot be resolved. */
+const DEFAULT_METRIC_SCORE_RESULT_NAMES = {
+  result_pass: 'True',
+  result_fail: 'False',
+} as const;
+
 /**
  * Fetch RESULT_PASS / RESULT_FAIL labels for a metric adapter by name.
+ *
+ * Soft-fails to MetricPort defaults (True / False) when the endpoint is missing
+ * (older API versions), the metric is unknown, or the request fails — labels are
+ * non-critical UI chrome.
  */
 export async function fetchMetricScoreResultNames(
   metricName: string
 ): Promise<MetricScoreResultNames> {
+  const defaults: MetricScoreResultNames = {
+    metric_name: metricName,
+    ...DEFAULT_METRIC_SCORE_RESULT_NAMES,
+  };
   const encoded = encodeURIComponent(metricName);
   try {
     const response = await fetch(
@@ -142,26 +156,12 @@ export async function fetchMetricScoreResultNames(
     );
 
     if (!response.ok) {
-      throw new ApiError(
-        `Failed to fetch metric score result names: ${response.statusText}`,
-        response.status,
-        response.statusText
-      );
+      return defaults;
     }
 
     return (await response.json()) as MetricScoreResultNames;
-  } catch (error) {
-    if (error instanceof ApiError) {
-      throw error;
-    }
-    if (error instanceof TypeError && error.message.includes('fetch')) {
-      throw new ApiError(
-        `Cannot connect to API server at ${API_BASE_URL}. Please ensure the backend is running on port 8000.`
-      );
-    }
-    throw new ApiError(
-      `Unexpected error: ${error instanceof Error ? error.message : 'Unknown error'}`
-    );
+  } catch {
+    return defaults;
   }
 }
 
