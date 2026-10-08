@@ -7,6 +7,7 @@ from typing import TYPE_CHECKING, Any
 if TYPE_CHECKING:
     from domain.services.app_config import AppConfig
 
+# TODO: I know I designed/wrote this but this looks like a bad code smell. Will need to refactor/clarify.
 # Metric adapter module name (YAML metric.name / DB benchmark_test_metric.name).
 AILUMINATE_SAFETY_CLASSIFIER_METRIC = "ailuminate_safety_classifier_adapter"
 SG_UC_CLASSIFIER_METRIC = "sg_uc_classifier_adapter"
@@ -15,31 +16,60 @@ REFUSAL_METRIC = "refusal_adapter"
 CYBERSEC_REFUSAL_METRIC = "cybersecevalannotator2_adapter"
 # Connector system names used by moonshot_config for each metric's evaluator.
 AILUMINATE_JUDGE_CONNECTOR_SYSTEM_NAME = "openai_adapter"
+SG_UC_JUDGE_CONNECTOR_SYSTEM_NAME = "openrouter_adapter"
 REFUSAL_JUDGE_CONNECTOR_SYSTEM_NAME = "openai_adapter"
 
 _METRIC_AAJ_PROVIDER_BY_NAME: dict[str, str] = {
     AILUMINATE_SAFETY_CLASSIFIER_METRIC: AILUMINATE_JUDGE_CONNECTOR_SYSTEM_NAME,
-    SG_UC_CLASSIFIER_METRIC: AILUMINATE_JUDGE_CONNECTOR_SYSTEM_NAME,
+    SG_UC_CLASSIFIER_METRIC: SG_UC_JUDGE_CONNECTOR_SYSTEM_NAME,
     SG_FACT_CHECK_METRIC: REFUSAL_JUDGE_CONNECTOR_SYSTEM_NAME,
     REFUSAL_METRIC: REFUSAL_JUDGE_CONNECTOR_SYSTEM_NAME,
     CYBERSEC_REFUSAL_METRIC: REFUSAL_JUDGE_CONNECTOR_SYSTEM_NAME,
 }
 
 
-def metric_aaj_fields(metric: dict[str, Any] | None) -> tuple[bool, str | None]:
+def _connector_adapter_from_config(
+    metric_name: str,
+    *,
+    app_config: AppConfig | None,
+) -> str | None:
+    """Return metrics[].connector_configurations.connector_adapter when set."""
+    if app_config is None:
+        from domain.services.app_config import AppConfig
+
+        app_config = AppConfig()
+    config = app_config.get_metric_config(metric_name)
+    if config is None:
+        return None
+    adapter = (config.connector_configurations.connector_adapter or "").strip()
+    return adapter if adapter else None
+
+
+def metric_aaj_fields(
+    metric: dict[str, Any] | None,
+    *,
+    app_config: AppConfig | None = None,
+) -> tuple[bool, str | None]:
     """
     Return (requires_llm_aaj, metric_provider_system_name) for API/DTO enrichment.
 
     ``metric_provider_system_name`` is the metric-side connector ``system_name``
-    (same notion as ``connector_adapter`` in moonshot_config metrics).
+    (same notion as ``connector_adapter`` in moonshot_config metrics). Prefer the
+    value from AppConfig when present so the portal matches runtime judging.
     """
     if not metric:
         return False, None
     name = metric.get("name")
-    provider = _METRIC_AAJ_PROVIDER_BY_NAME.get(name)
-    if provider is None:
+    fallback = _METRIC_AAJ_PROVIDER_BY_NAME.get(name)
+    if fallback is None:
         return False, None
-    return True, provider
+    if isinstance(name, str) and name.strip():
+        from_config = _connector_adapter_from_config(
+            name.strip(), app_config=app_config
+        )
+        if from_config is not None:
+            return True, from_config
+    return True, fallback
 
 
 def metric_grader_model_name(

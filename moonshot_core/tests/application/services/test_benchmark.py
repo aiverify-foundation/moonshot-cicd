@@ -193,8 +193,8 @@ class TestBenchmarkService:
         mock_dataset_repository.get_dataset_by_id.return_value = sample_dataset_entity
         dto = benchmark_service.get_benchmark_test_by_id("any")
         assert dto.requires_llm_aaj is True
-        assert dto.metric_provider_system_name == "openai_adapter"
-        assert dto.metric_grader_model_name == "gpt-5-mini"
+        assert dto.metric_provider_system_name == "openrouter_adapter"
+        assert dto.metric_grader_model_name == "openai/gpt-oss-safeguard-20b"
 
     def test_get_benchmark_test_by_id_sg_fact_check_sets_aaj_fields(
         self, benchmark_service, mock_benchmark_repository, mock_dataset_repository, sample_dataset_entity
