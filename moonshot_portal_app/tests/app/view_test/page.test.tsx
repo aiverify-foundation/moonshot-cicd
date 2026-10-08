@@ -1,8 +1,11 @@
+import userEvent from '@testing-library/user-event';
 import { render, screen, waitFor } from '@/tests/utils/test-utils';
 import ViewTestApp from '@/app/view_test/components/ViewTestApp';
 import type { Bundle } from '@/lib/api';
+import { FeatureFlagNames } from '@/lib/featureFlags';
 
 const mockFetchBundles = jest.fn();
+const mockIsEnabled = jest.fn<boolean, [string]>(() => false);
 
 jest.mock('next/navigation', () => ({
   useSearchParams: jest.fn(),
@@ -10,6 +13,14 @@ jest.mock('next/navigation', () => ({
 
 jest.mock('@/lib/api', () => ({
   fetchBundles: (...args: unknown[]) => mockFetchBundles(...args),
+}));
+
+jest.mock('@/hooks/useFeatureFlags', () => ({
+  useFeatureFlags: () => ({
+    flags: {},
+    loading: false,
+    isEnabled: mockIsEnabled,
+  }),
 }));
 
 function getUseSearchParamsMock() {
@@ -33,6 +44,8 @@ const bundleWithDetails: Bundle[] = [
         requires_llm_aaj: true,
         metric_provider_system_name: 'together_adapter',
         metric_grader_model_name: 'meta-llama/Llama-Guard-4-12B',
+        metric_connector_pre_prompt: 'PRE PROMPT TEXT',
+        metric_connector_post_prompt: 'POST PROMPT TEXT',
         dataset: {
           id: 'ds-1',
           name: 'ds-1',
@@ -59,6 +72,8 @@ const bundleWithDetails: Bundle[] = [
 describe('ViewTestApp', () => {
   beforeEach(() => {
     mockFetchBundles.mockReset();
+    mockIsEnabled.mockReset();
+    mockIsEnabled.mockReturnValue(false);
     getUseSearchParamsMock().mockReturnValue({
       get: (key: string) => {
         if (key === 'test') return 'Sample Test';
@@ -85,6 +100,44 @@ describe('ViewTestApp', () => {
     expect(screen.getByText('API input text')).toBeInTheDocument();
     expect(screen.getByText('API response text')).toBeInTheDocument();
     expect(screen.getByText('safe')).toBeInTheDocument();
+  });
+
+  it('hides System Prompt UI when feature flag is off', async () => {
+    mockFetchBundles.mockResolvedValue(bundleWithDetails);
+
+    render(<ViewTestApp />);
+
+    await waitFor(() => {
+      expect(screen.getByRole('heading', { level: 1, name: 'Sample Test' })).toBeInTheDocument();
+    });
+
+    expect(screen.queryByTestId('view-test-system-prompt-label')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('view-test-system-prompt-info')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('system-prompt-sheet')).not.toBeInTheDocument();
+  });
+
+  it('shows System Prompt info sheet when feature flag is on', async () => {
+    mockIsEnabled.mockImplementation(
+      (name: string) => name === FeatureFlagNames.AIVET_OCT2026_MOON687,
+    );
+    mockFetchBundles.mockResolvedValue(bundleWithDetails);
+    const user = userEvent.setup();
+
+    render(<ViewTestApp />);
+
+    await waitFor(() => {
+      expect(screen.getByTestId('view-test-system-prompt-label')).toBeInTheDocument();
+    });
+
+    expect(screen.getByText('System Prompt')).toBeInTheDocument();
+    expect(screen.getByTestId('view-test-system-prompt-separator')).toBeInTheDocument();
+
+    await user.click(screen.getByTestId('view-test-system-prompt-info'));
+
+    expect(screen.getByTestId('system-prompt-sheet')).toBeInTheDocument();
+    expect(screen.getByTestId('system-prompt-sheet-title')).toHaveTextContent('Sample Test');
+    expect(screen.getByTestId('system-prompt-pre')).toHaveTextContent('PRE PROMPT TEXT');
+    expect(screen.getByTestId('system-prompt-post')).toHaveTextContent('POST PROMPT TEXT');
   });
 
   it('shows em dash for Model Name when no grader model is configured', async () => {

@@ -10,7 +10,7 @@ import SampleSizeCard, {
 import type { Bundle } from '@/lib/api';
 import { FeatureFlagNames } from '@/lib/featureFlags';
 
-const mockIsEnabled = jest.fn(() => false);
+const mockIsEnabled = jest.fn<boolean, [string]>(() => false);
 
 jest.mock('@/hooks/useFeatureFlags', () => ({
   useFeatureFlags: () => ({
