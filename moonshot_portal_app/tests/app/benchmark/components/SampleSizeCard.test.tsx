@@ -8,6 +8,17 @@ import SampleSizeCard, {
   hasTestsWithInsufficientPrompts,
 } from '@/app/benchmark/components/SampleSizeCard';
 import type { Bundle } from '@/lib/api';
+import { FeatureFlagNames } from '@/lib/featureFlags';
+
+const mockIsEnabled = jest.fn(() => false);
+
+jest.mock('@/hooks/useFeatureFlags', () => ({
+  useFeatureFlags: () => ({
+    flags: {},
+    loading: false,
+    isEnabled: mockIsEnabled,
+  }),
+}));
 
 const mockBundles: Bundle[] = [
   {
@@ -187,6 +198,10 @@ describe('SampleSizeCard', () => {
     Element.prototype.scrollIntoView = jest.fn();
   });
 
+  beforeEach(() => {
+    mockIsEnabled.mockImplementation(() => false);
+  });
+
   it('defaults to All prompts and allows selecting Calculated', async () => {
     const { store } = render(<SampleSizeCard />, {
       preloadedState: {
@@ -323,5 +338,62 @@ describe('SampleSizeCard', () => {
     expect(
       screen.getByRole('button', { name: /Calculated \(427\)/i })
     ).toBeInTheDocument();
+  });
+
+  it('hides Quick test toggle when feature flag is off', () => {
+    render(<SampleSizeCard />, {
+      preloadedState: {
+        bundles: { data: mockBundles, loading: false, error: null },
+        bundleSelection: { 'safety-bundle': true },
+        testSelection: { 'safety-bundle': { 'Test One': true } },
+      },
+    });
+
+    expect(screen.queryByRole('button', { name: /Quick test/i })).not.toBeInTheDocument();
+  });
+
+  it('shows Quick test toggle with selected test count when feature flag is on', () => {
+    mockIsEnabled.mockImplementation(
+      (name: string) => name === FeatureFlagNames.AIVET_OCT2026_MOON722
+    );
+
+    render(<SampleSizeCard />, {
+      preloadedState: {
+        bundles: { data: mockBundlesMultiTest, loading: false, error: null },
+        bundleSelection: { 'safety-bundle': true },
+        testSelection: {
+          'safety-bundle': { 'Test One': true, 'Test Two': true },
+        },
+      },
+    });
+
+    expect(
+      screen.getByRole('button', { name: /Quick test \(2\)/i })
+    ).toBeInTheDocument();
+  });
+
+  it('selects Quick test mode and shows warning', async () => {
+    mockIsEnabled.mockImplementation(
+      (name: string) => name === FeatureFlagNames.AIVET_OCT2026_MOON722
+    );
+
+    const { store } = render(<SampleSizeCard />, {
+      preloadedState: {
+        bundles: { data: mockBundles, loading: false, error: null },
+        bundleSelection: { 'safety-bundle': true },
+        testSelection: { 'safety-bundle': { 'Test One': true } },
+      },
+    });
+
+    const quickTestToggle = screen.getByRole('button', {
+      name: /Quick test \(1\)/i,
+    });
+    await userEvent.click(quickTestToggle);
+
+    expect(quickTestToggle).toHaveAttribute('data-state', 'on');
+    expect(store.getState().sampleSizeSelection.mode).toBe('quick');
+    expect(screen.getByTestId('sample-size-quick-test-warning')).toHaveTextContent(
+      'Only 1 prompt will be run for each test.'
+    );
   });
 });

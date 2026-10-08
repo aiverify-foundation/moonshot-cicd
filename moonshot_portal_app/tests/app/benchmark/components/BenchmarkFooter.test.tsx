@@ -107,4 +107,26 @@ describe('BenchmarkFooter', () => {
     const payload = mockStartBenchmarkRun.mock.calls[0][0] as Record<string, unknown>;
     expect(payload.prompts_by_test).toEqual({ 101: 385 });
   });
+
+  it('sends prompts_by_test of 1 per test when sample size mode is quick', async () => {
+    const user = userEvent.setup();
+    render(
+      <BenchmarkFooter currentPage="model-selection" setCurrentPage={jest.fn()} />,
+      {
+        preloadedState: {
+          ...basePreloadedState,
+          sampleSizeSelection: {
+            ...basePreloadedState.sampleSizeSelection,
+            mode: 'quick',
+          },
+        },
+      }
+    );
+
+    await user.click(screen.getByTestId('run-benchmark-tests'));
+
+    await waitFor(() => expect(mockStartBenchmarkRun).toHaveBeenCalledTimes(1));
+    const payload = mockStartBenchmarkRun.mock.calls[0][0] as Record<string, unknown>;
+    expect(payload.prompts_by_test).toEqual({ 101: 1 });
+  });
 });

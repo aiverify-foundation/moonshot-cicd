@@ -30,6 +30,8 @@ import {
   type TestSelectionState,
 } from '@/lib/benchmarkTestSelection';
 import type { Bundle } from '@/lib/api';
+import { useFeatureFlags } from '@/hooks/useFeatureFlags';
+import { FeatureFlagNames } from '@/lib/featureFlags';
 
 /**
  * Calculate the required sample size for a proportion.
@@ -171,6 +173,8 @@ export function hasTestsWithInsufficientPrompts(
 
 export default function SampleSizeCard() {
   const dispatch = useAppDispatch();
+  const { isEnabled } = useFeatureFlags();
+  const quickTestEnabled = isEnabled(FeatureFlagNames.AIVET_OCT2026_MOON722);
   const [populationMeanOpen, setPopulationMeanOpen] = React.useState(false);
   const [confidenceLevelOpen, setConfidenceLevelOpen] = React.useState(false);
   const [marginOfErrorOpen, setMarginOfErrorOpen] = React.useState(false);
@@ -265,24 +269,36 @@ export default function SampleSizeCard() {
     interpretationText,
   } = sampleSizeValues;
 
-  const sampleSizeToggleOptions = React.useMemo(
-    () =>
-      [
-        {
-          value: "calculated",
-          label: "Calculated",
-          count: `(${adjustedCalculatedSampleSize})`,
-          selectable: true,
-        },
-        {
-          value: "all",
-          label: "All prompts",
-          count: `(${totalPromptsFromSelectedTests})`,
-          selectable: true,
-        },
-      ],
-    [adjustedCalculatedSampleSize, totalPromptsFromSelectedTests]
-  );
+  const sampleSizeToggleOptions = React.useMemo(() => {
+    const options = [
+      {
+        value: "calculated",
+        label: "Calculated",
+        count: `(${adjustedCalculatedSampleSize})`,
+        selectable: true,
+      },
+      {
+        value: "all",
+        label: "All prompts",
+        count: `(${totalPromptsFromSelectedTests})`,
+        selectable: true,
+      },
+    ];
+    if (quickTestEnabled) {
+      options.push({
+        value: "quick",
+        label: "Quick test",
+        count: `(${numberOfSelectedTests})`,
+        selectable: true,
+      });
+    }
+    return options;
+  }, [
+    adjustedCalculatedSampleSize,
+    totalPromptsFromSelectedTests,
+    quickTestEnabled,
+    numberOfSelectedTests,
+  ]);
 
   // Handle toggle selection
   const handleToggleChange = (value: string) => {
@@ -549,6 +565,19 @@ export default function SampleSizeCard() {
                       <AlertDescription className="text-yellow-900">
                         Some test(s) contain fewer prompts than recommended. If you proceed, the full
                         prompt dataset for the affected test(s) will be used.
+                      </AlertDescription>
+                    </Alert>
+                  </div>
+                )}
+
+                {selectedToggleValue === "quick" && (
+                  <div className="mt-4">
+                    <Alert
+                      className="border-yellow-200 bg-yellow-50"
+                      data-testid="sample-size-quick-test-warning"
+                    >
+                      <AlertDescription className="text-yellow-900">
+                        Only 1 prompt will be run for each test.
                       </AlertDescription>
                     </Alert>
                   </div>

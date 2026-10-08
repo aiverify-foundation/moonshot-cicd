@@ -254,7 +254,7 @@ export const {
   clearAllEndpointStatuses 
 } = endpointStatusSlice.actions;
 
-export type SampleSizeMode = 'all' | 'calculated';
+export type SampleSizeMode = 'all' | 'calculated' | 'quick';
 
 export interface SampleSizeSelectionState {
   mode: SampleSizeMode;
