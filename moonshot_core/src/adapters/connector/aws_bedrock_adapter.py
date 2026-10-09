@@ -6,6 +6,9 @@ from typing import Any, Iterator
 import boto3
 from botocore.config import Config
 
+from application.services.provider_connector_env_key_service import (
+    ProviderConnectorEnvKeyService,
+)
 from domain.entities.connector_entity import ConnectorEntity
 from domain.entities.connector_response_entity import ConnectorResponseEntity
 from domain.ports.connector_port import ConnectorPort
@@ -94,7 +97,33 @@ class AWSBedrockAdapter(ConnectorPort):
         """
 
         self.connector_entity = connector_entity
-        params = self.connector_entity.params or {}
+        # YAML metric/attack connectors skip DatabaseConnectorConfigService defaults.
+        params = {
+            **type(self).DEFAULT_CONFIG_PAIRS,
+            **dict(self.connector_entity.params or {}),
+        }
+
+        # Same order as OpenAI/Together: params override → DB provider key → IAM/env.
+        system_name, version = type(self).require_system_name_and_version()
+        params_key = str(params.get("api_key") or "").strip()
+        if params_key:
+            logger.info(
+                "[AWSBedrockAdapter] API key resolved from connector params "
+                "(e.g. connection test override)"
+            )
+        else:
+            db_key = ProviderConnectorEnvKeyService().get_plain_api_key_for_provider_system_name(
+                provider_system_name=system_name,
+                version=version,
+            )
+            if db_key and db_key.strip():
+                params["api_key"] = db_key.strip()
+                logger.info(
+                    "[AWSBedrockAdapter] API key resolved from database "
+                    "(llm_provider system_name=%s, version=%s)",
+                    system_name,
+                    version,
+                )
 
         session_kwargs = self._build_session_kwargs(params)
         self._bedrock_api_key = self._resolve_bedrock_api_key(params, session_kwargs)

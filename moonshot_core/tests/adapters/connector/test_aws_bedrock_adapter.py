@@ -51,6 +51,18 @@ def bedrock_adapter():
     return AWSBedrockAdapter()
 
 
+@pytest.fixture(autouse=True)
+def mock_bedrock_provider_api_key():
+    """Default: no DB provider key (individual tests may override the return value)."""
+    with patch(
+        "adapters.connector.aws_bedrock_adapter.ProviderConnectorEnvKeyService"
+    ) as mock_svc_class:
+        mock_svc = MagicMock()
+        mock_svc.get_plain_api_key_for_provider_system_name.return_value = None
+        mock_svc_class.return_value = mock_svc
+        yield mock_svc
+
+
 # ================================
 # Test configure
 # ================================
@@ -201,7 +213,7 @@ def test_configure_client_endpoint_url_overrides_model_endpoint(bedrock_adapter,
 
 def test_configure_minimal_params(bedrock_adapter):
     """
-    Test configuration with minimal params.
+    Test configuration with minimal params applies DEFAULT_CONFIG_PAIRS region.
     
     Args:
         bedrock_adapter: AWS Bedrock adapter fixture.
@@ -221,11 +233,12 @@ def test_configure_minimal_params(bedrock_adapter):
         mock_client = MagicMock()
         mock_session_class.return_value = mock_session
         mock_session.client.return_value = mock_client
+        mock_session.get_credentials.return_value = MagicMock()
         
         bedrock_adapter.configure(minimal_entity)
         
-        # Verify session was created with empty kwargs
-        mock_session_class.assert_called_once_with()
+        # DEFAULT_CONFIG_PAIRS supplies region_name when params omit it (YAML metrics).
+        mock_session_class.assert_called_once_with(region_name="us-east-1")
         
         # Verify client was created with minimal params
         args, kwargs = mock_session.client.call_args
@@ -689,6 +702,36 @@ def test_configure_folds_flat_region_name_into_session(bedrock_adapter):
         mock_session_class.assert_called_once_with(region_name="ap-southeast-1")
 
 
+def test_configure_applies_default_region_for_yaml_style_entity(
+    bedrock_adapter, mock_bedrock_provider_api_key
+):
+    """Metric YAML connectors often omit params; default region must still be set."""
+    mock_bedrock_provider_api_key.get_plain_api_key_for_provider_system_name.return_value = (
+        "db-bedrock-api-key"
+    )
+    entity = ConnectorEntity(
+        connector_adapter="aws_bedrock_adapter",
+        model="openai.gpt-oss-20b-1:0",
+        model_endpoint="",
+        params={},
+        connector_pre_prompt="",
+        connector_post_prompt="",
+        system_prompt="",
+    )
+
+    with patch("adapters.connector.aws_bedrock_adapter.boto3.Session") as mock_session_class:
+        mock_session = MagicMock()
+        mock_client = MagicMock()
+        mock_session_class.return_value = mock_session
+        mock_session.client.return_value = mock_client
+        mock_session.get_credentials.return_value = None
+
+        bedrock_adapter.configure(entity)
+
+        mock_session_class.assert_called_once_with(region_name="us-east-1")
+        assert bedrock_adapter._bedrock_api_key == "db-bedrock-api-key"
+
+
 def test_configure_maps_api_key_token_to_secret_when_access_key_present(bedrock_adapter):
     entity = ConnectorEntity(
         connector_adapter="aws_bedrock_adapter",
@@ -749,7 +792,9 @@ def test_configure_uses_token_as_bedrock_api_key_without_access_key(bedrock_adap
         mock_session.client.assert_called_once()
 
 
-def test_configure_raises_when_no_credentials(bedrock_adapter):
+def test_configure_raises_when_no_credentials(
+    bedrock_adapter, mock_bedrock_provider_api_key
+):
     entity = ConnectorEntity(
         connector_adapter="aws_bedrock_adapter",
         model="anthropic.claude-3-haiku-20240307-v1:0",
@@ -767,6 +812,115 @@ def test_configure_raises_when_no_credentials(bedrock_adapter):
 
         with pytest.raises(ValueError, match="Unable to locate AWS credentials"):
             bedrock_adapter.configure(entity)
+
+    mock_bedrock_provider_api_key.get_plain_api_key_for_provider_system_name.assert_called_once_with(
+        provider_system_name=AWSBedrockAdapter.SYSTEM_NAME,
+        version=AWSBedrockAdapter.VERSION,
+    )
+
+
+def test_configure_prefers_db_api_key_as_bedrock_bearer(
+    bedrock_adapter, mock_bedrock_provider_api_key
+):
+    """Stored provider key becomes Bedrock bearer when params lack api_key / access key."""
+    mock_bedrock_provider_api_key.get_plain_api_key_for_provider_system_name.return_value = (
+        "db-bedrock-api-key"
+    )
+    entity = ConnectorEntity(
+        connector_adapter="aws_bedrock_adapter",
+        model="anthropic.claude-3-haiku-20240307-v1:0",
+        model_endpoint="",
+        params={"region_name": "us-east-1"},
+        connector_pre_prompt="",
+        connector_post_prompt="",
+        system_prompt="",
+    )
+
+    with patch("adapters.connector.aws_bedrock_adapter.boto3.Session") as mock_session_class:
+        mock_session = MagicMock()
+        mock_client = MagicMock()
+        mock_session_class.return_value = mock_session
+        mock_session.client.return_value = mock_client
+        mock_session.get_credentials.return_value = None
+
+        bedrock_adapter.configure(entity)
+
+        mock_session_class.assert_called_once_with(region_name="us-east-1")
+        assert bedrock_adapter._bedrock_api_key == "db-bedrock-api-key"
+        mock_bedrock_provider_api_key.get_plain_api_key_for_provider_system_name.assert_called_once_with(
+            provider_system_name=AWSBedrockAdapter.SYSTEM_NAME,
+            version=AWSBedrockAdapter.VERSION,
+        )
+
+
+def test_configure_prefers_db_api_key_as_iam_secret_when_access_key_present(
+    bedrock_adapter, mock_bedrock_provider_api_key
+):
+    """Stored provider key maps to IAM secret when aws_access_key_id is in params."""
+    mock_bedrock_provider_api_key.get_plain_api_key_for_provider_system_name.return_value = (
+        "db-secret-key"
+    )
+    entity = ConnectorEntity(
+        connector_adapter="aws_bedrock_adapter",
+        model="anthropic.claude-3-haiku-20240307-v1:0",
+        model_endpoint="",
+        params={
+            "region_name": "us-east-1",
+            "aws_access_key_id": "AKIATEST",
+        },
+        connector_pre_prompt="",
+        connector_post_prompt="",
+        system_prompt="",
+    )
+
+    with patch("adapters.connector.aws_bedrock_adapter.boto3.Session") as mock_session_class:
+        mock_session = MagicMock()
+        mock_client = MagicMock()
+        mock_session_class.return_value = mock_session
+        mock_session.client.return_value = mock_client
+        mock_session.get_credentials.return_value = MagicMock()
+
+        bedrock_adapter.configure(entity)
+
+        mock_session_class.assert_called_once_with(
+            region_name="us-east-1",
+            aws_access_key_id="AKIATEST",
+            aws_secret_access_key="db-secret-key",
+        )
+        assert bedrock_adapter._bedrock_api_key is None
+
+
+def test_configure_prefers_params_api_key_over_db(
+    bedrock_adapter, mock_bedrock_provider_api_key
+):
+    """Connection-test / explicit params api_key wins over the DB provider key."""
+    mock_bedrock_provider_api_key.get_plain_api_key_for_provider_system_name.return_value = (
+        "db-bedrock-api-key"
+    )
+    entity = ConnectorEntity(
+        connector_adapter="aws_bedrock_adapter",
+        model="anthropic.claude-3-haiku-20240307-v1:0",
+        model_endpoint="",
+        params={
+            "region_name": "us-east-1",
+            "api_key": "params-bedrock-api-key",
+        },
+        connector_pre_prompt="",
+        connector_post_prompt="",
+        system_prompt="",
+    )
+
+    with patch("adapters.connector.aws_bedrock_adapter.boto3.Session") as mock_session_class:
+        mock_session = MagicMock()
+        mock_client = MagicMock()
+        mock_session_class.return_value = mock_session
+        mock_session.client.return_value = mock_client
+        mock_session.get_credentials.return_value = None
+
+        bedrock_adapter.configure(entity)
+
+        assert bedrock_adapter._bedrock_api_key == "params-bedrock-api-key"
+        mock_bedrock_provider_api_key.get_plain_api_key_for_provider_system_name.assert_not_called()
 
 
 def test_configure_nested_session_region_overrides_flat(bedrock_adapter):

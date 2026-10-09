@@ -27,11 +27,13 @@ SYSTEM_NAME_TO_ADAPTER_MODULE: dict[str, str] = {
     "aws_bedrock_adapter": "aws_bedrock_adapter",
 }
 
+# These adapters load llm_provider_api_key inside configure() (params → DB → env).
 _ADAPTERS_THAT_RESOLVE_API_KEYS_INTERNALLY: frozenset[str] = frozenset(
     {
         "openai_adapter",
         "together_adapter",
         "openrouter_adapter",
+        "aws_bedrock_adapter",
     }
 )
 
@@ -124,7 +126,7 @@ class DatabaseConnectorConfigService:
             model_endpoint = str(merged.pop("base_url", "") or "").strip()
             model_name = str(model.name)
 
-        # OpenAI / Together / OpenRouter load API keys from llm_provider via
+        # OpenAI / Together / OpenRouter / Bedrock load API keys from llm_provider via
         # ConnectorPort SYSTEM_NAME / VERSION.
         if adapter_module not in _ADAPTERS_THAT_RESOLVE_API_KEYS_INTERNALLY:
             ProviderConnectorEnvKeyService(self._session_manager).ensure_provider_api_key_in_environment(

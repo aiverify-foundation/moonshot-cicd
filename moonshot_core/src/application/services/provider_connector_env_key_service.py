@@ -31,8 +31,8 @@ ADAPTER_MODULE_TO_ENV: dict[str, str] = {
 class ProviderConnectorEnvKeyService:
     """
     When running benchmarks against a DB-resolved connector, adapters that only read ``os.environ``
-    need the API key injected. ``OpenAIAdapter``, ``TogetherAdapter``, and ``OpenRouterAdapter``
-    resolve keys via ``llm_provider.system_name`` (see
+    need the API key injected. ``OpenAIAdapter``, ``TogetherAdapter``, ``OpenRouterAdapter``,
+    and ``AWSBedrockAdapter`` resolve keys via ``llm_provider.system_name`` (see
     ``ConnectorPort.require_system_name_and_version``); other adapters rely on env populated by
     ``ensure_provider_api_key_in_environment``.
 
