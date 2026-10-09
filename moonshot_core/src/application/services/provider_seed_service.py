@@ -2,11 +2,14 @@ from domain.services.logger import get_logger
 from typing import List, Optional
 
 from application.ports.provider_repository import ProviderRepository
+from adapters.connector.aws_bedrock_adapter import AWSBedrockAdapter
 from adapters.connector.openai_adapter import OpenAIAdapter
 from adapters.connector.openrouter_adapter import OpenRouterAdapter
 from adapters.connector.together_adapter import TogetherAdapter
 from adapters.driven.repository.sqlalchemy.llm_provider_adapter import LLMProviderAdapter
 from domain.entities.provider_entity import ProviderEntity
+from domain.services.enums.feature_flag_names import FeatureFlagNames
+from domain.services.feature_flags import FeatureFlags
 
 
 class ProviderSeedService:
@@ -27,11 +30,14 @@ class ProviderSeedService:
         """
         Build provider definitions from connector adapter class metadata.
         """
-        return [
+        definitions = [
             OpenAIAdapter.provider_seed_definition(),
             TogetherAdapter.provider_seed_definition(),
             OpenRouterAdapter.provider_seed_definition(),
         ]
+        if FeatureFlags().is_enabled(FeatureFlagNames.AIVET_OCT2026_MOON792):
+            definitions.append(AWSBedrockAdapter.provider_seed_definition())
+        return definitions
 
     def seed_hardcoded_providers(self) -> None:
         """Seed providers from adapter metadata with version-aware logic."""
@@ -92,4 +98,3 @@ class ProviderSeedService:
                     hardcoded_version,
                     max_existing_version,
                 )
-

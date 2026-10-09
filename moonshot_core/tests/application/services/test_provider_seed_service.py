@@ -1,8 +1,10 @@
 from typing import List
+from unittest.mock import MagicMock, patch
 
 import pytest
 from pathlib import Path
 
+from adapters.connector.aws_bedrock_adapter import AWSBedrockAdapter
 from adapters.connector.openai_adapter import OpenAIAdapter
 from adapters.connector.openrouter_adapter import OpenRouterAdapter
 from adapters.connector.together_adapter import TogetherAdapter
@@ -11,6 +13,15 @@ from adapters.driven.repository.sqlalchemy.llm_provider_models import LLMProvide
 from adapters.driven.repository.sqlalchemy.session_manager import SessionManager
 from application.services.provider_seed_service import ProviderSeedService
 from domain.entities.provider_entity import ProviderEntity
+from domain.services.enums.feature_flag_names import FeatureFlagNames
+from domain.services.feature_flags import FeatureFlags
+
+
+@pytest.fixture(autouse=True)
+def reset_feature_flags():
+    FeatureFlags.reset()
+    yield
+    FeatureFlags.reset()
 
 
 @pytest.fixture(scope="function")
@@ -79,6 +90,10 @@ def test_scenario_1_provider_does_not_exist(provider_seed_service):
     providers = _get_providers_for_system_name(OpenRouterAdapter.SYSTEM_NAME)
     assert len(providers) == 1
     assert providers[0].version == OpenRouterAdapter.VERSION
+
+    # Bedrock is flag-gated off by default
+    providers = _get_providers_for_system_name(AWSBedrockAdapter.SYSTEM_NAME)
+    assert len(providers) == 0
 
 
 def test_scenario_2_provider_exists_with_lower_version(provider_seed_service):
@@ -154,3 +169,23 @@ def test_scenario_5_service_run_multiple_times(provider_seed_service):
     providers = _get_providers_for_system_name(OpenRouterAdapter.SYSTEM_NAME)
     assert len(providers) == 1
     assert providers[0].version == OpenRouterAdapter.VERSION
+
+    # Bedrock remains unseeded when flag is off
+    providers = _get_providers_for_system_name(AWSBedrockAdapter.SYSTEM_NAME)
+    assert len(providers) == 0
+
+
+def test_seeds_aws_bedrock_when_moon792_enabled(provider_seed_service):
+    adapter = MagicMock()
+    adapter.load_flags.return_value = {FeatureFlagNames.AIVET_OCT2026_MOON792: True}
+
+    with patch(
+        "domain.services.feature_flags.FeatureFlagAdapterFactory.get_adapter",
+        return_value=adapter,
+    ):
+        provider_seed_service.seed_hardcoded_providers()
+
+    providers = _get_providers_for_system_name(AWSBedrockAdapter.SYSTEM_NAME)
+    assert len(providers) == 1
+    assert providers[0].version == AWSBedrockAdapter.VERSION
+    assert providers[0].name == AWSBedrockAdapter.PROVIDER_NAME

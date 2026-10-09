@@ -1,8 +1,11 @@
 import base64
+from unittest.mock import MagicMock, patch
+
 import pytest
 from datetime import datetime, timezone
 from pathlib import Path
 
+from adapters.connector.aws_bedrock_adapter import AWSBedrockAdapter
 from adapters.connector.openai_adapter import OpenAIAdapter
 from adapters.connector.together_adapter import TogetherAdapter
 from adapters.driven.repository.sqlalchemy.llm_provider_models import (
@@ -15,6 +18,15 @@ from adapters.driven.repository.sqlalchemy.llm_provider_models import (
 )
 from adapters.driven.repository.sqlalchemy.session_manager import SessionManager
 from application.services.provider_service import ProviderService
+from domain.services.enums.feature_flag_names import FeatureFlagNames
+from domain.services.feature_flags import FeatureFlags
+
+
+@pytest.fixture(autouse=True)
+def reset_feature_flags():
+    FeatureFlags.reset()
+    yield
+    FeatureFlags.reset()
 
 
 @pytest.fixture(scope="function")
@@ -338,4 +350,96 @@ class TestProviderServiceAdapterDefaults:
         assert details is not None
         assert details.provider.defaultConfigPairs == OpenAIAdapter.DEFAULT_CONFIG_PAIRS
         assert details.provider.defaultModel == OpenAIAdapter.DEFAULT_MODEL
+
+    def test_list_providers_hides_bedrock_when_flag_off(
+        self, provider_service: ProviderService
+    ):
+        session_manager = SessionManager.get_instance()
+        with session_manager.get_session() as session:
+            session.add(
+                LLMProviderModel(
+                    name="OpenAI",
+                    system_name=OpenAIAdapter.SYSTEM_NAME,
+                    version=1,
+                )
+            )
+            session.add(
+                LLMProviderModel(
+                    name=AWSBedrockAdapter.PROVIDER_NAME,
+                    system_name=AWSBedrockAdapter.SYSTEM_NAME,
+                    version=1,
+                )
+            )
+            session.commit()
+
+        flag_adapter = MagicMock()
+        flag_adapter.load_flags.return_value = {
+            FeatureFlagNames.AIVET_OCT2026_MOON792: False
+        }
+        with patch(
+            "domain.services.feature_flags.FeatureFlagAdapterFactory.get_adapter",
+            return_value=flag_adapter,
+        ):
+            rows = provider_service.list_providers()
+
+        system_names = {p.system_name for p in rows}
+        assert OpenAIAdapter.SYSTEM_NAME in system_names
+        assert AWSBedrockAdapter.SYSTEM_NAME not in system_names
+
+    def test_list_providers_includes_bedrock_when_flag_on(
+        self, provider_service: ProviderService
+    ):
+        session_manager = SessionManager.get_instance()
+        with session_manager.get_session() as session:
+            session.add(
+                LLMProviderModel(
+                    name=AWSBedrockAdapter.PROVIDER_NAME,
+                    system_name=AWSBedrockAdapter.SYSTEM_NAME,
+                    version=1,
+                )
+            )
+            session.commit()
+
+        flag_adapter = MagicMock()
+        flag_adapter.load_flags.return_value = {
+            FeatureFlagNames.AIVET_OCT2026_MOON792: True
+        }
+        with patch(
+            "domain.services.feature_flags.FeatureFlagAdapterFactory.get_adapter",
+            return_value=flag_adapter,
+        ):
+            rows = provider_service.list_providers()
+
+        by_sys = {p.system_name: p for p in rows}
+        assert AWSBedrockAdapter.SYSTEM_NAME in by_sys
+        bedrock = by_sys[AWSBedrockAdapter.SYSTEM_NAME]
+        assert bedrock.defaultModel == AWSBedrockAdapter.DEFAULT_MODEL
+        assert bedrock.defaultConfigPairs == AWSBedrockAdapter.DEFAULT_CONFIG_PAIRS
+
+    def test_latest_details_hides_bedrock_when_flag_off(
+        self, provider_service: ProviderService
+    ):
+        session_manager = SessionManager.get_instance()
+        with session_manager.get_session() as session:
+            session.add(
+                LLMProviderModel(
+                    name=AWSBedrockAdapter.PROVIDER_NAME,
+                    system_name=AWSBedrockAdapter.SYSTEM_NAME,
+                    version=1,
+                )
+            )
+            session.commit()
+
+        flag_adapter = MagicMock()
+        flag_adapter.load_flags.return_value = {
+            FeatureFlagNames.AIVET_OCT2026_MOON792: False
+        }
+        with patch(
+            "domain.services.feature_flags.FeatureFlagAdapterFactory.get_adapter",
+            return_value=flag_adapter,
+        ):
+            details = provider_service.get_latest_provider_details_by_system_name(
+                AWSBedrockAdapter.SYSTEM_NAME
+            )
+        assert details is None
 

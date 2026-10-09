@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from typing import Dict
 
+from adapters.connector.aws_bedrock_adapter import AWSBedrockAdapter
 from adapters.driven.repository.sqlalchemy.llm_provider_models import \
     LLMProviderModel
 from adapters.driven.repository.sqlalchemy.session_manager import \
@@ -16,7 +17,9 @@ from application.services.provider_connector_env_key_service import \
     ProviderConnectorEnvKeyService
 from domain.entities.connector_entity import ConnectorEntity
 from domain.ports.connector_port import ConnectorPort
+from domain.services.enums.feature_flag_names import FeatureFlagNames
 from domain.services.enums.module_types import ModuleTypes
+from domain.services.feature_flags import FeatureFlags
 from domain.services.loader.module_loader import ModuleLoader
 from domain.services.logger import configure_logger
 
@@ -24,6 +27,9 @@ logger = configure_logger(__name__)
 
 CONNECTION_TEST_PROMPT = "Reply with OK."
 RESPONSE_PREVIEW_MAX_CHARS = 500
+BEDROCK_PROVIDER_UNAVAILABLE = (
+    "AWS Bedrock provider is unavailable (feature flag AIVET_OCT2026_MOON792 is off)."
+)
 
 
 class LlmProviderConnectionTestService:
@@ -65,7 +71,7 @@ class LlmProviderConnectionTestService:
         adapter_module: str,
         model_name: str,
         saved_config_pairs: Dict[str, str],
-        api_key: str,
+        api_key: str | None,
     ) -> ConnectorEntity:
         try:
             adapter_instance, _ = ModuleLoader.load(
@@ -83,7 +89,8 @@ class LlmProviderConnectionTestService:
 
         merged: Dict[str, str] = {**default_pairs, **dict(saved_config_pairs)}
         model_endpoint = str(merged.pop("base_url", "") or "").strip()
-        merged["api_key"] = api_key
+        if api_key is not None:
+            merged["api_key"] = api_key
 
         return ConnectorEntity(
             connector_adapter=adapter_module,
@@ -106,13 +113,31 @@ class LlmProviderConnectionTestService:
         if not model_name:
             raise ValueError("A model name is required to test the connection.")
 
-        api_key = self._resolve_api_key(body)
         system_name = self._load_provider_system_name(body.llm_provider_id)
         adapter_module = SYSTEM_NAME_TO_ADAPTER_MODULE.get(system_name)
         if adapter_module is None:
             raise ValueError(
                 f"No connector adapter mapping for provider system_name={system_name!r}"
             )
+
+        is_bedrock = system_name == AWSBedrockAdapter.SYSTEM_NAME
+        if is_bedrock and not FeatureFlags().is_enabled(
+            FeatureFlagNames.AIVET_OCT2026_MOON792
+        ):
+            raise ValueError(BEDROCK_PROVIDER_UNAVAILABLE)
+
+        if is_bedrock:
+            # Optional: portal Token maps to aws_secret_access_key in the adapter.
+            # Do not require a key — env/profile credentials may still work.
+            api_key = (body.api_key or "").strip() or None
+            if api_key is None:
+                stored = self._env_key_service.get_plain_api_key_for_provider(
+                    body.llm_provider_id
+                )
+                if stored and stored.strip():
+                    api_key = stored.strip()
+        else:
+            api_key = self._resolve_api_key(body)
 
         entity = self._build_connector_entity(
             adapter_module=adapter_module,

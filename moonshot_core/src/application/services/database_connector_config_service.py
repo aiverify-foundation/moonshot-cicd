@@ -24,6 +24,7 @@ SYSTEM_NAME_TO_ADAPTER_MODULE: dict[str, str] = {
     "openai_adapter": "openai_adapter",
     "together_adapter": "together_adapter",
     "openrouter_adapter": "openrouter_adapter",
+    "aws_bedrock_adapter": "aws_bedrock_adapter",
 }
 
 _ADAPTERS_THAT_RESOLVE_API_KEYS_INTERNALLY: frozenset[str] = frozenset(
