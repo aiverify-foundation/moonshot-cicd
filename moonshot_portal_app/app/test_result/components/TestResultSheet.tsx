@@ -1,6 +1,6 @@
 "use client"
 import React, { useState, useEffect, useRef } from "react"
-import { ThumbsUp, ThumbsDown, Info } from "lucide-react"
+import { ThumbsUp, ThumbsDown, Info, Loader2, RefreshCw } from "lucide-react"
 import {
     Sheet,
     SheetContent,
@@ -14,6 +14,12 @@ import { Textarea } from "@/components/ui/textarea"
 import { TestResultTableRow } from "./TestResultTable"
 import { evaluationDisplayLabel } from "./evaluationDisplayHelpers"
 import PromptTemplateSheet from "@/components/PromptTemplateSheet"
+import { useFeatureFlags } from "@/hooks/useFeatureFlags"
+import { FeatureFlagNames } from "@/lib/featureFlags"
+import {
+    regenerateBenchmarkRunPrompt,
+    type BenchmarkRunTestPrompt,
+} from "@/lib/api"
 
 interface TestResultSheetProps {
     open: boolean
@@ -22,6 +28,7 @@ interface TestResultSheetProps {
     currentIndex: number
     onIndexChange: (index: number) => void
     onDataChange?: (id: string, updates: Partial<TestResultTableRow>) => void
+    onPromptRegenerated?: (updated: BenchmarkRunTestPrompt) => void
 }
 
 export default function TestResultSheet({
@@ -31,16 +38,21 @@ export default function TestResultSheet({
     currentIndex,
     onIndexChange,
     onDataChange,
+    onPromptRegenerated,
 }: TestResultSheetProps) {
     const currentRow = data[currentIndex] as TestResultTableRow
     const totalItems = data.length
     const currentItemNumber = currentIndex + 1
+    const { isEnabled } = useFeatureFlags()
+    const regenerateEnabled = isEnabled(FeatureFlagNames.AIVET_OCT2026_MOON793)
     
     // Local state for note to allow controlled input
     const [note, setNote] = useState(currentRow?.note || "")
     
     // State for prompt template sheet
     const [promptTemplateSheetOpen, setPromptTemplateSheetOpen] = useState(false)
+    const [isRegenerating, setIsRegenerating] = useState(false)
+    const [regenerateError, setRegenerateError] = useState<string | null>(null)
     
     // Refs for scrollable divs
     const promptScrollRef = useRef<HTMLDivElement>(null)
@@ -50,6 +62,11 @@ export default function TestResultSheet({
     useEffect(() => {
         setNote(currentRow?.note || "")
     }, [currentRow?.note, currentIndex])
+
+    useEffect(() => {
+        setRegenerateError(null)
+        setIsRegenerating(false)
+    }, [currentIndex, open])
     
     // Scroll prompt and response to top when index changes
     useEffect(() => {
@@ -70,6 +87,25 @@ export default function TestResultSheet({
     const handleNext = () => {
         if (currentIndex < totalItems - 1) {
             onIndexChange(currentIndex + 1)
+        }
+    }
+
+    const handleRegenerate = async () => {
+        if (currentRow?.benchmarkPromptId == null || isRegenerating) return
+        setIsRegenerating(true)
+        setRegenerateError(null)
+        try {
+            const updated = await regenerateBenchmarkRunPrompt(
+                currentRow.benchmarkPromptId
+            )
+            onPromptRegenerated?.(updated)
+        } catch (e) {
+            const message =
+                e instanceof Error ? e.message : "Failed to regenerate prompt"
+            setRegenerateError(message)
+            console.error("Failed to regenerate prompt:", e)
+        } finally {
+            setIsRegenerating(false)
         }
     }
 
@@ -160,9 +196,31 @@ export default function TestResultSheet({
 
                     {/* Response */}
                     <div className="flex flex-col gap-[6px]">
-                        <p className="font-medium text-[12px] leading-normal text-slate-700">
-                            Response
-                        </p>
+                        <div className="flex items-center justify-between gap-2">
+                            <p className="font-medium text-[12px] leading-normal text-slate-700">
+                                Response
+                            </p>
+                            {regenerateEnabled &&
+                                currentRow.benchmarkPromptId != null && (
+                                <Button
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={() => void handleRegenerate()}
+                                    disabled={isRegenerating}
+                                    className="bg-white border border-slate-200 rounded-[6px] px-2 py-1 h-auto"
+                                    aria-label="Regenerate response and evaluation"
+                                >
+                                    {isRegenerating ? (
+                                        <Loader2 className="size-3.5 animate-spin text-slate-500" />
+                                    ) : (
+                                        <RefreshCw className="size-3.5 text-slate-500" />
+                                    )}
+                                    <p className="font-semibold text-[12px] leading-none text-slate-700 whitespace-pre">
+                                        {isRegenerating ? "Regenerating…" : "Regenerate"}
+                                    </p>
+                                </Button>
+                            )}
+                        </div>
                         <div 
                             ref={responseScrollRef}
                             className="bg-white border border-slate-200 rounded-[6px] h-[80px] overflow-y-auto p-3"
@@ -171,6 +229,11 @@ export default function TestResultSheet({
                                 {currentRow.response}
                             </p>
                         </div>
+                        {regenerateError && (
+                            <p className="font-medium text-[12px] leading-normal text-red-600">
+                                {regenerateError}
+                            </p>
+                        )}
                     </div>
 
                     {/* Evaluator Information */}

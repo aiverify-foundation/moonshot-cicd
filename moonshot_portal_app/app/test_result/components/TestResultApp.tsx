@@ -4,7 +4,7 @@ import TestResultOverview, {
   ChartDataItem,
   OverviewBundleChart,
 } from "./TestResultOverview";
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { Badge } from "@/components/ui/badge";
@@ -200,6 +200,20 @@ export default function TestResultApp() {
       window.clearInterval(interval);
     };
   }, [benchmarkRunId, run?.status]);
+
+  const refreshResults = useCallback(async () => {
+    if (!benchmarkRunId) return;
+    try {
+      const res = await fetchBenchmarkRunResults(benchmarkRunId);
+      setRun(res.run);
+      setPrompts(res.prompts);
+      setResultBundles(res.bundles);
+      setTestMargins(res.test_margin_of_error ?? []);
+      setTestRunStatus(res.test_run_status ?? []);
+    } catch (e) {
+      console.error("Failed to refresh run results after regenerate:", e);
+    }
+  }, [benchmarkRunId]);
 
   useEffect(() => {
     if (isRunInProgress) {
@@ -623,6 +637,7 @@ export default function TestResultApp() {
             showMarginDebug={showMarginDebug}
             testRunStatus={testRunStatus}
             onAdjustedScoreChange={setAllTabScore}
+            onResultsRefresh={refreshResults}
           />
         </div>
       )}
@@ -648,6 +663,7 @@ export default function TestResultApp() {
                 [b.test_bundle_id]: score,
               }))
             }
+            onResultsRefresh={refreshResults}
           />
         </div>
       ))}

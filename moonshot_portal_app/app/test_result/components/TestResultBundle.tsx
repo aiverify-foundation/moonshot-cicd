@@ -77,42 +77,48 @@ export function polarityLabelsFromMetricScoreNames(
     }
 }
 
+export function promptToTableRow(
+    p: BenchmarkRunTestPrompt,
+    idx: number,
+    bundleDisplayName?: string | null
+): TestResultTableRow {
+    const isPromptError = p.status === "error"
+    const score = isPromptError ? 0 : scoreFromApiScore(p.score ?? null)
+    let yourVerdict: "agree" | "disagree" | null = null
+    if (p.user_evaluation === 1) yourVerdict = "agree"
+    else if (p.user_evaluation === 0) yourVerdict = "disagree"
+
+    const promptText = p.prompt_additional_info ?? "—"
+    const evalPrompt = p.evaluation_prompt ?? "—"
+    const response =
+        p.error_source === "connector" && p.error_message
+            ? p.error_message
+            : (p.prediction_result ?? "—")
+
+    return {
+        id: p.id != null ? `p-${p.id}` : `p-${p.run_test_id}-${p.prompt_id}-${idx}`,
+        benchmarkPromptId: p.id ?? null,
+        test_id: p.test_id ?? null,
+        test: p.test_name || "—",
+        prompt: promptText.length > 2000 ? `${promptText.slice(0, 2000)}…` : promptText,
+        target: p.target || "—",
+        response,
+        evaluation: isPromptError ? "error" : (p.evaluation_prediction_result ?? "—"),
+        score,
+        isPromptError,
+        errorSource: p.error_source ?? null,
+        yourVerdict,
+        note: p.user_notes ?? "",
+        bundle: bundleDisplayName?.trim() || p.test_name || "—",
+        graderLogic: evalPrompt.length > 500 ? `${evalPrompt.slice(0, 500)}…` : evalPrompt,
+    }
+}
+
 export function promptsToTableRows(
     prompts: BenchmarkRunTestPrompt[],
     bundleDisplayName?: string | null
 ): TestResultTableRow[] {
-    return prompts.map((p, idx) => {
-        const isPromptError = p.status === "error"
-        const score = isPromptError ? 0 : scoreFromApiScore(p.score ?? null)
-        let yourVerdict: "agree" | "disagree" | null = null
-        if (p.user_evaluation === 1) yourVerdict = "agree"
-        else if (p.user_evaluation === 0) yourVerdict = "disagree"
-
-        const promptText = p.prompt_additional_info ?? "—"
-        const evalPrompt = p.evaluation_prompt ?? "—"
-        const response =
-            p.error_source === "connector" && p.error_message
-                ? p.error_message
-                : (p.prediction_result ?? "—")
-
-        return {
-            id: p.id != null ? `p-${p.id}` : `p-${p.run_test_id}-${p.prompt_id}-${idx}`,
-            benchmarkPromptId: p.id ?? null,
-            test_id: p.test_id ?? null,
-            test: p.test_name || "—",
-            prompt: promptText.length > 2000 ? `${promptText.slice(0, 2000)}…` : promptText,
-            target: p.target || "—",
-            response,
-            evaluation: isPromptError ? "error" : (p.evaluation_prediction_result ?? "—"),
-            score,
-            isPromptError,
-            errorSource: p.error_source ?? null,
-            yourVerdict,
-            note: p.user_notes ?? "",
-            bundle: bundleDisplayName?.trim() || p.test_name || "—",
-            graderLogic: evalPrompt.length > 500 ? `${evalPrompt.slice(0, 500)}…` : evalPrompt,
-        }
-    })
+    return prompts.map((p, idx) => promptToTableRow(p, idx, bundleDisplayName))
 }
 
 function verdictToApi(
@@ -500,6 +506,8 @@ interface TestResultBundleProps {
     showMarginDebug?: boolean
     testRunStatus?: BenchmarkRunTestStatusSummary[]
     onAdjustedScoreChange?: (score: number) => void
+    /** Refetch run results after a prompt regenerate so parent statuses stay in sync. */
+    onResultsRefresh?: () => void | Promise<void>
 }
 
 export default function TestResultBundle({
@@ -512,6 +520,7 @@ export default function TestResultBundle({
     showMarginDebug = false,
     testRunStatus = [],
     onAdjustedScoreChange,
+    onResultsRefresh,
 }: TestResultBundleProps) {
     const [tableData, setTableData] = useState<TestResultTableRow[]>([])
     const [isLoading, setIsLoading] = useState(true)
@@ -769,6 +778,28 @@ export default function TestResultBundle({
             ) : (
                 <TestResultTable
                     data={tableData}
+                    onPromptRegenerated={(updated) => {
+                        setTableData((prevData) => {
+                            const next = prevData.map((row) => {
+                                if (
+                                    row.benchmarkPromptId == null ||
+                                    updated.id == null ||
+                                    row.benchmarkPromptId !== updated.id
+                                ) {
+                                    return row
+                                }
+                                const mapped = promptToTableRow(
+                                    updated,
+                                    0,
+                                    row.bundle
+                                )
+                                return { ...mapped, id: row.id }
+                            })
+                            tableDataRef.current = next
+                            return next
+                        })
+                        void onResultsRefresh?.()
+                    }}
                     onDataChange={(id, updates) => {
                         setTableData((prevData) => {
                             const next = prevData.map((row) =>

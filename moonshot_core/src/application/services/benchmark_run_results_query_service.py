@@ -190,7 +190,7 @@ class BenchmarkRunResultsQueryService:
             "test_id": run_test_to_test_id.get(entity.run_test_id),
             "metric_name": metric_name,
         }
-        if entity.id is not None:
+        if entity.id is not None and (entity.status or "").lower() == "error":
             error = errors_by_prompt_id.get(entity.id)
             if error is not None:
                 payload["error_message"] = error.error_message

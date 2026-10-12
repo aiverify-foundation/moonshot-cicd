@@ -74,7 +74,15 @@ from application.services.benchmark_execution_service import (
     BenchmarkExecutionService,
     BenchmarkRunTestSelectionError,
 )
+from application.services.benchmark_run_prompt_regeneration_service import (
+    BenchmarkRunPromptNotFoundError,
+    BenchmarkRunPromptRegenerationConflictError,
+    BenchmarkRunPromptRegenerationService,
+)
 from application.services.benchmark_run_prompt_service import BenchmarkRunPromptService
+from application.services.benchmark_run_status_refresh_service import (
+    BenchmarkRunStatusRefreshService,
+)
 from application.services.benchmark_run_results_export_service import (
     BenchmarkRunResultsExportError,
     BenchmarkRunResultsExportService,
@@ -130,6 +138,8 @@ from application.services.provider_seed_service import ProviderSeedService
 # Provider/model-config service & DTOs
 from application.services.provider_service import ProviderService
 from domain.services.app_config import AppConfig
+from domain.services.enums.feature_flag_names import FeatureFlagNames
+from domain.services.feature_flags import FeatureFlags
 
 # Comment out this import to disable CORS middleware ( This is used for local development only)
 from entrypoints.cors_middleware_setup import configure_cors_middleware
@@ -940,6 +950,49 @@ async def patch_benchmark_run_test_prompt_user_feedback(
         )
     run_id = status_entity.run_id
     return BenchmarkRunResultsQueryService().prompt_dto_for_entity(run_id, updated)
+
+
+@app.post(
+    "/api/benchmark-run-test-prompts/{prompt_id}/regenerate",
+    response_model=BenchmarkRunTestPromptResponseDTO,
+)
+async def regenerate_benchmark_run_test_prompt(
+    prompt_id: int,
+) -> BenchmarkRunTestPromptResponseDTO:
+    """
+    Re-run SUT response and metric (LLMAAJ) judgement for one prompt row.
+
+    Gated by feature flag AIVET_OCT2026_MOON793. Updates the existing
+    benchmark_run_test_prompt row in place (same processor path as a test run).
+    """
+    if not FeatureFlags().is_enabled(FeatureFlagNames.AIVET_OCT2026_MOON793):
+        raise HTTPException(
+            status_code=404,
+            detail=(
+                "Prompt regenerate is unavailable "
+                "(feature flag AIVET_OCT2026_MOON793 is off)."
+            ),
+        )
+    try:
+        dto = await BenchmarkRunPromptRegenerationService().regenerate(prompt_id)
+        BenchmarkRunStatusRefreshService().refresh_after_prompt_update(dto.run_test_id)
+        return dto
+    except BenchmarkRunPromptNotFoundError as e:
+        raise HTTPException(status_code=404, detail=str(e)) from e
+    except BenchmarkRunPromptRegenerationConflictError as e:
+        raise HTTPException(status_code=409, detail=str(e)) from e
+    except (
+        DatabaseConnectorConfigError,
+        DatabaseCustomAppConnectorConfigError,
+        ValueError,
+    ) as e:
+        raise HTTPException(status_code=400, detail=str(e)) from e
+    except Exception as e:
+        logger.error("Error regenerating prompt_id=%s: %s", prompt_id, e, exc_info=True)
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to regenerate prompt: {str(e)}",
+        ) from e
 
 
 @app.get(

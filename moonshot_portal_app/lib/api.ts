@@ -962,6 +962,45 @@ export async function patchBenchmarkRunPromptUserFeedback(
   }
 }
 
+/**
+ * Re-run SUT response and metric (LLMAAJ) judgement for one benchmark_run_test_prompt row.
+ * Gated by feature flag AIVET_OCT2026_MOON793 on the API.
+ */
+export async function regenerateBenchmarkRunPrompt(
+  promptId: number
+): Promise<BenchmarkRunTestPrompt> {
+  try {
+    const response = await fetch(
+      `${API_BASE_URL}/api/benchmark-run-test-prompts/${promptId}/regenerate`,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+      }
+    );
+    if (!response.ok) {
+      const errorText = await response.text().catch(() => 'Unknown error');
+      console.error(`API Error: ${response.status} - ${errorText}`);
+      const detail = parseErrorDetail(errorText);
+      throw new ApiError(
+        `Failed to regenerate prompt: ${detail}`,
+        response.status,
+        response.statusText
+      );
+    }
+    return response.json() as Promise<BenchmarkRunTestPrompt>;
+  } catch (error) {
+    if (error instanceof ApiError) throw error;
+    if (error instanceof TypeError && error.message.includes('fetch')) {
+      throw new ApiError(
+        `Cannot connect to API server at ${API_BASE_URL}. Please ensure the backend is running on port 8000.`
+      );
+    }
+    throw new ApiError(
+      `Network error: ${error instanceof Error ? error.message : 'Unknown error'}`
+    );
+  }
+}
+
 /** GET /api/custom-apps */
 export interface CustomAppDTO {
   id: number;

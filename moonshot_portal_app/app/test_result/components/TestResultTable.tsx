@@ -22,6 +22,7 @@ import {
     getFacetedFilterCounts,
     getGlobalFilterCounts,
 } from "./getFilterCounts"
+import type { BenchmarkRunTestPrompt } from "@/lib/api"
 
 export interface TestResultTableRow {
     id: string
@@ -54,9 +55,15 @@ interface TestResultTableProps {
     data: TestResultTableRow[]
     pageSize?: number
     onDataChange?: (id: string, updates: Partial<TestResultTableRow>) => void
+    onPromptRegenerated?: (updated: BenchmarkRunTestPrompt) => void
 }
 
-export default function TestResultTable({ data, pageSize = 10, onDataChange }: TestResultTableProps) {
+export default function TestResultTable({
+    data,
+    pageSize = 10,
+    onDataChange,
+    onPromptRegenerated,
+}: TestResultTableProps) {
     const [currentPage, setCurrentPage] = useState(1)
     const [sortColumn, setSortColumn] = useState<"evaluation" | null>("evaluation")
     const [sortDirection, setSortDirection] = useState<"asc" | "desc">("desc")
@@ -624,6 +631,7 @@ export default function TestResultTable({ data, pageSize = 10, onDataChange }: T
                 currentIndex={selectedRowIndex}
                 onIndexChange={handleSheetIndexChange}
                 onDataChange={onDataChange}
+                onPromptRegenerated={onPromptRegenerated}
             />
         </div>
     )

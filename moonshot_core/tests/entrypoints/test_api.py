@@ -37,7 +37,7 @@ def _benchmark_run_response_dto(entity: BenchmarkRunEntity) -> BenchmarkRunRespo
     return BenchmarkRunResponseDTO.model_validate(entity.model_dump())
 
 
-@patch('entrypoints.api.get_build_directory')
+@patch("entrypoints.api.get_build_directory")
 def test_root_endpoint(mock_get_build_dir):
     """Test the root endpoint."""
     # Mock the build directory to return a non-existent path so it returns JSON
@@ -46,14 +46,14 @@ def test_root_endpoint(mock_get_build_dir):
     mock_index_file.exists.return_value = False
     mock_build_dir.__truediv__.return_value = mock_index_file
     mock_get_build_dir.return_value = mock_build_dir
-    
+
     response = client.get("/")
     assert response.status_code == 200
     # Should return JSON message since index.html doesn't exist
     assert response.json() == {"message": "Welcome to Moonshot CI/CD API"}
 
 
-@patch('entrypoints.api.benchmark_service')
+@patch("entrypoints.api.benchmark_service")
 def test_bundles_endpoint(mock_benchmark_service):
     """Test the /api/bundles endpoint returns proper response structure."""
     # Mock the benchmark service to return test data
@@ -66,28 +66,28 @@ def test_bundles_endpoint(mock_benchmark_service):
                     "name": "test_1",
                     "metric": "accuracy_adapter",
                     "description": "Test description",
-                    "dataset": "test_dataset"
+                    "dataset": "test_dataset",
                 }
-            ]
+            ],
         }
     ]
     mock_benchmark_service.get_all_bundles.return_value = mock_bundles
-    
+
     response = client.get("/api/bundles")
     assert response.status_code == 200
-    
+
     data = response.json()
     assert "bundles" in data
     assert isinstance(data["bundles"], list)
     assert len(data["bundles"]) == 1
-    
+
     # Verify bundle structure
     bundle = data["bundles"][0]
     assert "name" in bundle
     assert "description" in bundle
     assert "tests" in bundle
     assert isinstance(bundle["tests"], list)
-    
+
     # Verify test structure
     test = bundle["tests"][0]
     assert "name" in test
@@ -261,12 +261,8 @@ def test_get_benchmark_run_test_bundles_returns_rows(mock_service_class):
     mock_svc = MagicMock()
     mock_service_class.return_value = mock_svc
     mock_svc.get_all_by_run_id.return_value = [
-        BenchmarkRunTestBundleEntity(
-            id=1, run_id=7, test_bundle_id=10, test_id=100
-        ),
-        BenchmarkRunTestBundleEntity(
-            id=2, run_id=7, test_bundle_id=10, test_id=101
-        ),
+        BenchmarkRunTestBundleEntity(id=1, run_id=7, test_bundle_id=10, test_id=100),
+        BenchmarkRunTestBundleEntity(id=2, run_id=7, test_bundle_id=10, test_id=101),
     ]
 
     response = client.get("/api/benchmark-runs/7/run-test-bundles")
@@ -394,21 +390,21 @@ def test_export_benchmark_run_incomplete_returns_409(
     assert "not completed" in response.json()["detail"]
 
 
-@patch('entrypoints.api.get_build_directory')
+@patch("entrypoints.api.get_build_directory")
 def test_static_files_with_referer(mock_get_build_dir):
     """Test that static files are served when accessed with proper referer header."""
     # Mock the build directory
     mock_build_dir = MagicMock()
     mock_build_dir.resolve.return_value = Path("/mock/build/dir")
     mock_get_build_dir.return_value = mock_build_dir
-    
+
     # Mock the requested file to not exist
     mock_requested_file = MagicMock()
     mock_requested_file.exists.return_value = False
     mock_requested_file.is_file.return_value = False
     mock_requested_file.is_dir.return_value = False
     mock_build_dir.__truediv__.return_value = mock_requested_file
-    
+
     # Simulate a request with referer header (as if coming from the main page)
     response = client.get("/test-file.js", headers={"referer": "http://testserver/"})
     # Should return 404 for non-existent file, but not 403 (access denied)
@@ -416,81 +412,87 @@ def test_static_files_with_referer(mock_get_build_dir):
     assert "File not found" in response.json()["detail"]
 
 
-@patch('entrypoints.api.get_build_directory')
+@patch("entrypoints.api.get_build_directory")
 def test_static_files_direct_access_blocked(mock_get_build_dir):
     """Test that direct access to static files is blocked."""
     # Mock the build directory
     mock_build_dir = MagicMock()
     mock_get_build_dir.return_value = mock_build_dir
-    
+
     # Request without referer header (direct access)
     response = client.get("/test-file.js")
     assert response.status_code == 403
     assert "Direct access to static files is not allowed" in response.json()["detail"]
 
 
-@patch('entrypoints.api.get_build_directory')
+@patch("entrypoints.api.get_build_directory")
 def test_static_files_cross_origin_blocked(mock_get_build_dir):
     """Test that cross-origin access to static files is blocked."""
     # Mock the build directory
     mock_build_dir = MagicMock()
     mock_get_build_dir.return_value = mock_build_dir
-    
+
     # Request with referer from different origin
-    response = client.get("/test-file.js", headers={"referer": "http://malicious-site.com/"})
+    response = client.get(
+        "/test-file.js", headers={"referer": "http://malicious-site.com/"}
+    )
     assert response.status_code == 403
     assert "Direct access to static files is not allowed" in response.json()["detail"]
 
 
-@patch('entrypoints.api.get_build_directory')
+@patch("entrypoints.api.get_build_directory")
 def test_static_files_path_traversal_blocked(mock_get_build_dir):
     """Test that path traversal attempts are blocked."""
     # Mock the build directory
     mock_build_dir = MagicMock()
     mock_get_build_dir.return_value = mock_build_dir
-    
-    # Test path traversal attempt with URL-encoded .. 
-    response = client.get("/test%2F..%2Fetc%2Fpasswd", headers={"referer": "http://testserver/"})
+
+    # Test path traversal attempt with URL-encoded ..
+    response = client.get(
+        "/test%2F..%2Fetc%2Fpasswd", headers={"referer": "http://testserver/"}
+    )
     assert response.status_code == 403
     assert "Access denied" in response.json()["detail"]
 
 
-@patch('entrypoints.api.get_build_directory')
+@patch("entrypoints.api.get_build_directory")
 def test_next_js_static_files_with_referer(mock_get_build_dir):
     """Test that Next.js static files are served with proper referer."""
     # Mock the build directory
     mock_build_dir = MagicMock()
     mock_build_dir.resolve.return_value = Path("/mock/build/dir")
     mock_get_build_dir.return_value = mock_build_dir
-    
+
     # Mock the requested file to not exist
     mock_requested_file = MagicMock()
     mock_requested_file.exists.return_value = False
     mock_requested_file.is_file.return_value = False
     mock_requested_file.is_dir.return_value = False
     mock_build_dir.__truediv__.return_value = mock_requested_file
-    
+
     # Test Next.js static file access with referer
-    response = client.get("/_next/static/test.js", headers={"referer": "http://testserver/"})
+    response = client.get(
+        "/_next/static/test.js", headers={"referer": "http://testserver/"}
+    )
     # Should return 404 for non-existent file, but not 403 (access denied)
     assert response.status_code == 404
     assert "File not found" in response.json()["detail"]
 
 
-@patch('entrypoints.api.get_build_directory')
+@patch("entrypoints.api.get_build_directory")
 def test_next_js_static_files_direct_access_blocked(mock_get_build_dir):
     """Test that direct access to Next.js static files is blocked."""
     # Mock the build directory
     mock_build_dir = MagicMock()
     mock_get_build_dir.return_value = mock_build_dir
-    
+
     # Direct access to Next.js static files without referer
     response = client.get("/_next/static/test.js")
     assert response.status_code == 403
     assert "Direct access to static files is not allowed" in response.json()["detail"]
 
 
-@patch('entrypoints.api.get_shared_config_seed_service')
+@patch("entrypoints.api.get_shared_config_seed_service")
 def test_seed_shared_config_if_changed_seeded(mock_get_seed_service):
     """POST /api/seed-shared-config-if-changed returns seeded=True when service runs."""
     mock_service = MagicMock()
@@ -505,7 +507,7 @@ def test_seed_shared_config_if_changed_seeded(mock_get_seed_service):
     mock_service.seed_if_test_file_changed.assert_called_once_with()
 
 
-@patch('entrypoints.api.get_shared_config_seed_service')
+@patch("entrypoints.api.get_shared_config_seed_service")
 def test_seed_shared_config_if_changed_skipped(mock_get_seed_service):
     """POST /api/seed-shared-config-if-changed returns seeded=False when file unchanged."""
     mock_service = MagicMock()
@@ -516,15 +518,19 @@ def test_seed_shared_config_if_changed_skipped(mock_get_seed_service):
     assert response.status_code == 200
     data = response.json()
     assert data["seeded"] is False
-    assert "skipped" in data["message"].lower() or "not changed" in data["message"].lower()
+    assert (
+        "skipped" in data["message"].lower() or "not changed" in data["message"].lower()
+    )
     mock_service.seed_if_test_file_changed.assert_called_once_with()
 
 
-@patch('entrypoints.api.get_shared_config_seed_service')
+@patch("entrypoints.api.get_shared_config_seed_service")
 def test_seed_shared_config_if_changed_404_when_file_not_found(mock_get_seed_service):
     """POST /api/seed-shared-config-if-changed returns 404 when config file not found."""
     mock_service = MagicMock()
-    mock_service.seed_if_test_file_changed.side_effect = FileNotFoundError("Config not found")
+    mock_service.seed_if_test_file_changed.side_effect = FileNotFoundError(
+        "Config not found"
+    )
     mock_get_seed_service.return_value = mock_service
 
     response = client.post("/api/seed-shared-config-if-changed")
@@ -532,7 +538,7 @@ def test_seed_shared_config_if_changed_404_when_file_not_found(mock_get_seed_ser
     assert "detail" in response.json()
 
 
-@patch('entrypoints.api.get_shared_config_seed_service')
+@patch("entrypoints.api.get_shared_config_seed_service")
 def test_seed_shared_config_if_changed_400_on_validation_error(mock_get_seed_service):
     """POST /api/seed-shared-config-if-changed returns 400 on ValueError."""
     mock_service = MagicMock()
@@ -713,7 +719,9 @@ def test_api_bundles_cors_preflight():
         },
     )
     assert response.status_code == 200
-    assert response.headers.get("access-control-allow-origin") == "http://localhost:3000"
+    assert (
+        response.headers.get("access-control-allow-origin") == "http://localhost:3000"
+    )
 
 
 @patch("entrypoints.api.custom_app_connection_test_service")
@@ -821,4 +829,85 @@ def test_configure_cors_middleware_respects_ms_cors_origins_env(monkeypatch):
         },
     )
     assert response.status_code == 200
-    assert response.headers.get("access-control-allow-origin") == "http://custom.test:9000"
+    assert (
+        response.headers.get("access-control-allow-origin") == "http://custom.test:9000"
+    )
+
+
+@patch("entrypoints.api.FeatureFlags")
+def test_regenerate_prompt_flag_off_returns_404(mock_feature_flags_class):
+    mock_feature_flags_class.return_value.is_enabled.return_value = False
+    response = client.post("/api/benchmark-run-test-prompts/42/regenerate")
+    assert response.status_code == 404
+    assert "AIVET_OCT2026_MOON793" in response.json()["detail"]
+
+
+@patch("entrypoints.api.BenchmarkRunStatusRefreshService")
+@patch("entrypoints.api.BenchmarkRunPromptRegenerationService")
+@patch("entrypoints.api.FeatureFlags")
+def test_regenerate_prompt_success(
+    mock_feature_flags_class,
+    mock_regen_service_class,
+    mock_status_refresh_class,
+):
+    from application.dto.run_bundle_dto import BenchmarkRunTestPromptResponseDTO
+
+    mock_feature_flags_class.return_value.is_enabled.return_value = True
+    dto = BenchmarkRunTestPromptResponseDTO(
+        id=42,
+        run_test_id=7,
+        prompt_id=3,
+        status="completed",
+        target="safe",
+        prediction_result="new response",
+        evaluation_prediction_result='{"score": 1, "evaluated_response": "Agree"}',
+        test_name="Safety",
+        test_id=99,
+    )
+    mock_regen_service_class.return_value.regenerate = AsyncMock(return_value=dto)
+
+    response = client.post("/api/benchmark-run-test-prompts/42/regenerate")
+    assert response.status_code == 200
+    body = response.json()
+    assert body["prediction_result"] == "new response"
+    assert body["score"] == 1.0
+    mock_regen_service_class.return_value.regenerate.assert_awaited_once_with(42)
+    mock_status_refresh_class.return_value.refresh_after_prompt_update.assert_called_once_with(
+        7
+    )
+
+
+@patch("entrypoints.api.BenchmarkRunPromptRegenerationService")
+@patch("entrypoints.api.FeatureFlags")
+def test_regenerate_prompt_not_found(
+    mock_feature_flags_class, mock_regen_service_class
+):
+    from application.services.benchmark_run_prompt_regeneration_service import (
+        BenchmarkRunPromptNotFoundError,
+    )
+
+    mock_feature_flags_class.return_value.is_enabled.return_value = True
+    mock_regen_service_class.return_value.regenerate = AsyncMock(
+        side_effect=BenchmarkRunPromptNotFoundError("prompt_id=99")
+    )
+    response = client.post("/api/benchmark-run-test-prompts/99/regenerate")
+    assert response.status_code == 404
+    assert "prompt_id=99" in response.json()["detail"]
+
+
+@patch("entrypoints.api.BenchmarkRunPromptRegenerationService")
+@patch("entrypoints.api.FeatureFlags")
+def test_regenerate_prompt_conflict(mock_feature_flags_class, mock_regen_service_class):
+    from application.services.benchmark_run_prompt_regeneration_service import (
+        BenchmarkRunPromptRegenerationConflictError,
+    )
+
+    mock_feature_flags_class.return_value.is_enabled.return_value = True
+    mock_regen_service_class.return_value.regenerate = AsyncMock(
+        side_effect=BenchmarkRunPromptRegenerationConflictError(
+            "Cannot regenerate while the benchmark run is still running."
+        )
+    )
+    response = client.post("/api/benchmark-run-test-prompts/42/regenerate")
+    assert response.status_code == 409
+    assert "still running" in response.json()["detail"]
