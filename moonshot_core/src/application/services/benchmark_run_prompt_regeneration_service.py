@@ -155,7 +155,7 @@ class BenchmarkRunPromptRegenerationService:
                 f"Benchmark run not found for prompt_id={prompt_row_id}"
             )
 
-        self._assert_not_conflicting(run, status_entity, entity, prompt_repo)
+        self._assert_not_conflicting(run, status_entity)
 
         _, _, metric_name = BenchmarkTestConfigAdapter().get_test_info(
             status_entity.test_id
@@ -549,8 +549,6 @@ class BenchmarkRunPromptRegenerationService:
     def _assert_not_conflicting(
         run: BenchmarkRunEntity,
         status_entity: BenchmarkRunTestStatusEntity,
-        entity: BenchmarkRunTestPromptEntity,
-        prompt_repo: SqlAlchemyBenchmarkRunTestPromptRepository,
     ) -> None:
         if (run.status or "").lower() in _ACTIVE_RUN_STATUSES:
             raise BenchmarkRunPromptRegenerationConflictError(
@@ -559,16 +557,6 @@ class BenchmarkRunPromptRegenerationService:
         if (status_entity.status or "").lower() in _ACTIVE_TEST_STATUSES:
             raise BenchmarkRunPromptRegenerationConflictError(
                 "Cannot regenerate while the test is still in progress."
-            )
-        # Target may already be running (retry / stuck row). Block only when a
-        # different sibling prompt in the same test is running.
-        siblings = prompt_repo.get_all_by_run_test_id(entity.run_test_id)
-        if any(
-            p.id != entity.id and (p.status or "").lower() == "running"
-            for p in siblings
-        ):
-            raise BenchmarkRunPromptRegenerationConflictError(
-                "Cannot regenerate while another prompt in this test is running."
             )
 
     @staticmethod

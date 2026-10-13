@@ -315,6 +315,22 @@ async def test_regenerate_allows_when_target_prompt_already_running(
 @pytest.mark.asyncio
 @patch(
     "application.services.benchmark_run_prompt_regeneration_service."
+    "BenchmarkRunResultsQueryService"
+)
+@patch(
+    "application.services.benchmark_run_prompt_regeneration_service."
+    "AsyncioPromptProcessor"
+)
+@patch(
+    "application.services.benchmark_run_prompt_regeneration_service."
+    "DatabaseConnectorConfigService"
+)
+@patch(
+    "application.services.benchmark_run_prompt_regeneration_service."
+    "BenchmarkTestConfigAdapter"
+)
+@patch(
+    "application.services.benchmark_run_prompt_regeneration_service."
     "BenchmarkRunService"
 )
 @patch(
@@ -325,25 +341,54 @@ async def test_regenerate_allows_when_target_prompt_already_running(
     "application.services.benchmark_run_prompt_regeneration_service."
     "SqlAlchemyBenchmarkRunTestPromptRepository"
 )
-async def test_regenerate_conflict_when_sibling_prompt_running(
+async def test_regenerate_allows_when_sibling_prompt_running(
     mock_prompt_repo_class,
     mock_status_repo_class,
     mock_run_service_class,
+    mock_test_config_class,
+    mock_connector_service_class,
+    mock_processor_class,
+    mock_query_service_class,
     service,
 ):
     entity = _prompt(prompt_id=42, status="error")
     sibling = _prompt(prompt_id=43, status="running")
+    updated = _prompt(prompt_id=42, status="completed")
     mock_prompt_repo = MagicMock()
-    mock_prompt_repo.get_by_id.return_value = entity
+    mock_prompt_repo.get_by_id.side_effect = [entity, updated]
     mock_prompt_repo.get_all_by_run_test_id.return_value = [entity, sibling]
+    mock_prompt_repo.update.side_effect = lambda e: e
     mock_prompt_repo_class.return_value = mock_prompt_repo
     mock_status_repo_class.return_value.get_by_id.return_value = _status()
     mock_run_service_class.return_value.get_run_by_id.return_value = _run()
+    mock_test_config_class.return_value.get_test_info.return_value = (
+        "Safety",
+        "ds",
+        "ailuminate_safety_classifier_adapter",
+    )
+    mock_connector_service_class.return_value.build_connector_entity.return_value = (
+        MagicMock(spec=ConnectorEntity)
+    )
+    mock_processor = MagicMock()
+    mock_processor.process_prompts = AsyncMock(return_value=([], {}))
+    mock_processor_class.return_value = mock_processor
+    mock_query_service_class.return_value.prompt_dto_for_entity.return_value = (
+        BenchmarkRunTestPromptResponseDTO(
+            id=42,
+            run_test_id=7,
+            prompt_id=3,
+            status="completed",
+            target="safe",
+            test_name="Safety",
+            test_id=99,
+        )
+    )
 
-    with pytest.raises(
-        BenchmarkRunPromptRegenerationConflictError, match="another prompt"
-    ):
-        await service.regenerate(42)
+    result = await service.regenerate(42)
+
+    assert result.status == "completed"
+    mock_processor.process_prompts.assert_awaited_once()
+    mock_prompt_repo.get_all_by_run_test_id.assert_not_called()
 
 
 @patch(
