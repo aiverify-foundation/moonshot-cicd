@@ -9,6 +9,7 @@ from application.services.benchmark_run_prompt_regeneration_service import (
     BenchmarkRunPromptNotFoundError,
     BenchmarkRunPromptRegenerationConflictError,
     BenchmarkRunPromptRegenerationService,
+    _RUNNING_EVALUATION_RESULT,
 )
 from domain.entities.benchmark_run_entity import BenchmarkRunEntity
 from domain.entities.benchmark_run_test_prompt_entity import (
@@ -165,6 +166,10 @@ async def test_regenerate_success_updates_and_returns_dto(
 
     assert result is dto
     assert result.score == 1.0
+    assert entity.status == "running"
+    assert entity.prediction_result is None
+    assert entity.evaluation_prediction_result == _RUNNING_EVALUATION_RESULT
+    assert entity.evaluation_accuracy == 0.0
     mock_processor.process_prompts.assert_awaited_once()
     call_kwargs = mock_processor.process_prompts.await_args
     assert call_kwargs.kwargs["write_to_db"] is True
@@ -231,6 +236,22 @@ async def test_regenerate_conflict_when_run_active(
 @pytest.mark.asyncio
 @patch(
     "application.services.benchmark_run_prompt_regeneration_service."
+    "BenchmarkRunResultsQueryService"
+)
+@patch(
+    "application.services.benchmark_run_prompt_regeneration_service."
+    "AsyncioPromptProcessor"
+)
+@patch(
+    "application.services.benchmark_run_prompt_regeneration_service."
+    "DatabaseConnectorConfigService"
+)
+@patch(
+    "application.services.benchmark_run_prompt_regeneration_service."
+    "BenchmarkTestConfigAdapter"
+)
+@patch(
+    "application.services.benchmark_run_prompt_regeneration_service."
     "BenchmarkRunService"
 )
 @patch(
@@ -241,22 +262,86 @@ async def test_regenerate_conflict_when_run_active(
     "application.services.benchmark_run_prompt_regeneration_service."
     "SqlAlchemyBenchmarkRunTestPromptRepository"
 )
-async def test_regenerate_conflict_when_prompt_running(
+async def test_regenerate_allows_when_target_prompt_already_running(
+    mock_prompt_repo_class,
+    mock_status_repo_class,
+    mock_run_service_class,
+    mock_test_config_class,
+    mock_connector_service_class,
+    mock_processor_class,
+    mock_query_service_class,
+    service,
+):
+    entity = _prompt(status="running")
+    updated = _prompt(status="completed")
+    mock_prompt_repo = MagicMock()
+    mock_prompt_repo.get_by_id.side_effect = [entity, updated]
+    mock_prompt_repo.get_all_by_run_test_id.return_value = [entity]
+    mock_prompt_repo.update.side_effect = lambda e: e
+    mock_prompt_repo_class.return_value = mock_prompt_repo
+    mock_status_repo_class.return_value.get_by_id.return_value = _status()
+    mock_run_service_class.return_value.get_run_by_id.return_value = _run()
+    mock_test_config_class.return_value.get_test_info.return_value = (
+        "Safety",
+        "ds",
+        "ailuminate_safety_classifier_adapter",
+    )
+    mock_connector_service_class.return_value.build_connector_entity.return_value = (
+        MagicMock(spec=ConnectorEntity)
+    )
+    mock_processor = MagicMock()
+    mock_processor.process_prompts = AsyncMock(return_value=([], {}))
+    mock_processor_class.return_value = mock_processor
+    mock_query_service_class.return_value.prompt_dto_for_entity.return_value = (
+        BenchmarkRunTestPromptResponseDTO(
+            id=42,
+            run_test_id=7,
+            prompt_id=3,
+            status="completed",
+            target="safe",
+            test_name="Safety",
+            test_id=99,
+        )
+    )
+
+    result = await service.regenerate(42)
+
+    assert result.status == "completed"
+    assert entity.evaluation_prediction_result == _RUNNING_EVALUATION_RESULT
+    assert entity.evaluation_accuracy == 0.0
+    mock_processor.process_prompts.assert_awaited_once()
+
+
+@pytest.mark.asyncio
+@patch(
+    "application.services.benchmark_run_prompt_regeneration_service."
+    "BenchmarkRunService"
+)
+@patch(
+    "application.services.benchmark_run_prompt_regeneration_service."
+    "SqlAlchemyBenchmarkRunTestStatusRepository"
+)
+@patch(
+    "application.services.benchmark_run_prompt_regeneration_service."
+    "SqlAlchemyBenchmarkRunTestPromptRepository"
+)
+async def test_regenerate_conflict_when_sibling_prompt_running(
     mock_prompt_repo_class,
     mock_status_repo_class,
     mock_run_service_class,
     service,
 ):
-    entity = _prompt(status="running")
+    entity = _prompt(prompt_id=42, status="error")
+    sibling = _prompt(prompt_id=43, status="running")
     mock_prompt_repo = MagicMock()
     mock_prompt_repo.get_by_id.return_value = entity
-    mock_prompt_repo.get_all_by_run_test_id.return_value = [entity]
+    mock_prompt_repo.get_all_by_run_test_id.return_value = [entity, sibling]
     mock_prompt_repo_class.return_value = mock_prompt_repo
     mock_status_repo_class.return_value.get_by_id.return_value = _status()
     mock_run_service_class.return_value.get_run_by_id.return_value = _run()
 
     with pytest.raises(
-        BenchmarkRunPromptRegenerationConflictError, match="this prompt"
+        BenchmarkRunPromptRegenerationConflictError, match="another prompt"
     ):
         await service.regenerate(42)
 
@@ -321,6 +406,10 @@ def test_prepare_regenerate_failed_marks_run_and_prompts_running(
     assert errored_b.status == "running"
     assert errored_a.prediction_result is None
     assert errored_b.prediction_result is None
+    assert errored_a.evaluation_prediction_result == _RUNNING_EVALUATION_RESULT
+    assert errored_b.evaluation_prediction_result == _RUNNING_EVALUATION_RESULT
+    assert errored_a.evaluation_accuracy == 0.0
+    assert errored_b.evaluation_accuracy == 0.0
     assert completed.status == "completed"
     assert completed.prediction_result == "old response"
     mock_run_service.update_run.assert_not_called()
@@ -428,9 +517,12 @@ def test_prepare_regenerate_failed_includes_unknown_evaluation(
     assert result.run_test_ids == [7, 8]
     assert unknown.status == "running"
     assert unknown.prediction_result is None
+    assert unknown.evaluation_prediction_result == _RUNNING_EVALUATION_RESULT
+    assert unknown.evaluation_accuracy == 0.0
     assert completed.status == "completed"
     assert completed.prediction_result == "old response"
     assert errored.status == "running"
+    assert errored.evaluation_prediction_result == _RUNNING_EVALUATION_RESULT
 
 
 def test_evaluated_response_is_unknown_accepts_bare_and_dict_blobs(service):

@@ -82,8 +82,11 @@ export function promptToTableRow(
     idx: number,
     bundleDisplayName?: string | null
 ): TestResultTableRow {
-    const isPromptError = p.status === "error"
-    const score = isPromptError ? 0 : scoreFromApiScore(p.score ?? null)
+    const status = p.status?.toLowerCase() ?? ""
+    const isPromptError = status === "error"
+    const isPromptRunning = status === "running" || status === "pending"
+    const score =
+        isPromptError || isPromptRunning ? 0 : scoreFromApiScore(p.score ?? null)
     let yourVerdict: "agree" | "disagree" | null = null
     if (p.user_evaluation === 1) yourVerdict = "agree"
     else if (p.user_evaluation === 0) yourVerdict = "disagree"
@@ -95,6 +98,10 @@ export function promptToTableRow(
             ? p.error_message
             : (p.prediction_result ?? "—")
 
+    let evaluation = p.evaluation_prediction_result ?? "—"
+    if (isPromptRunning) evaluation = "running"
+    else if (isPromptError) evaluation = "error"
+
     return {
         id: p.id != null ? `p-${p.id}` : `p-${p.run_test_id}-${p.prompt_id}-${idx}`,
         benchmarkPromptId: p.id ?? null,
@@ -103,9 +110,10 @@ export function promptToTableRow(
         prompt: promptText.length > 2000 ? `${promptText.slice(0, 2000)}…` : promptText,
         target: p.target || "—",
         response,
-        evaluation: isPromptError ? "error" : (p.evaluation_prediction_result ?? "—"),
+        evaluation,
         score,
         isPromptError,
+        isPromptRunning,
         errorSource: p.error_source ?? null,
         yourVerdict,
         note: p.user_notes ?? "",

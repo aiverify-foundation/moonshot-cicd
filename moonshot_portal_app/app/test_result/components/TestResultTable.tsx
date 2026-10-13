@@ -41,6 +41,8 @@ export interface TestResultTableRow {
     bundle: string
     /** True when benchmark_run_test_prompt.status is "error". */
     isPromptError?: boolean
+    /** True when prompt status is running or pending (e.g. regenerating). */
+    isPromptRunning?: boolean
     /** Latest per-prompt error source: "connector" or "metric". */
     errorSource?: string | null
     evaluatorInfo?: {
@@ -78,7 +80,14 @@ export default function TestResultTable({
     const evaluationDisplayLabelById = useMemo(() => {
         const m = new Map<string, string>()
         for (const row of data) {
-            m.set(row.id, evaluationDisplayLabel(row.evaluation, row.score, { isPromptError: row.isPromptError, errorSource: row.errorSource }))
+            m.set(
+                row.id,
+                evaluationDisplayLabel(row.evaluation, row.score, {
+                    isPromptError: row.isPromptError,
+                    isPromptRunning: row.isPromptRunning,
+                    errorSource: row.errorSource,
+                })
+            )
         }
         return m
     }, [data])
@@ -506,10 +515,18 @@ export default function TestResultTable({
                                 <TableCell className="px-0 py-2 align-top">
                                     <div className="flex gap-1.5 items-start">
                                         <div
-                                            className={`inline-flex items-center justify-center px-1 py-1 rounded-[6px] border ${row.score === 1 ? "bg-green-100 border-green-200" : "bg-red-100 border-red-200"}`}
+                                            className={`inline-flex items-center justify-center px-1 py-1 rounded-[6px] border ${
+                                                !row.isPromptRunning && row.score === 1
+                                                    ? "bg-green-100 border-green-200"
+                                                    : "bg-red-100 border-red-200"
+                                            }`}
                                         >
                                             <p
-                                                className={`font-semibold text-[12px] leading-normal whitespace-pre text-nowrap ${row.score === 1 ? "text-green-800" : "text-red-800"}`}
+                                                className={`font-semibold text-[12px] leading-normal whitespace-pre text-nowrap ${
+                                                    !row.isPromptRunning && row.score === 1
+                                                        ? "text-green-800"
+                                                        : "text-red-800"
+                                                }`}
                                             >
                                                 {evaluationDisplayLabelById.get(row.id)!}
                                             </p>

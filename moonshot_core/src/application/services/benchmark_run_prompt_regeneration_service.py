@@ -66,6 +66,8 @@ logger = configure_logger(__name__)
 _ACTIVE_RUN_STATUSES = frozenset({"running"})
 _ACTIVE_TEST_STATUSES = frozenset({"in_progress", "not_started"})
 _ACTIVE_PROMPT_STATUSES = frozenset({"running", "pending"})
+# While regenerating, persist score 0 so API/UI do not show a stale pass score.
+_RUNNING_EVALUATION_RESULT = str({"score": 0})
 
 BulkJobStatus = Literal["in_progress", "completed", "failed"]
 ProgressStatus = Literal["idle", "in_progress", "completed", "failed"]
@@ -167,6 +169,8 @@ class BenchmarkRunPromptRegenerationService:
 
         entity.status = "running"
         entity.prediction_result = None
+        entity.evaluation_prediction_result = _RUNNING_EVALUATION_RESULT
+        entity.evaluation_accuracy = 0.0
         prompt_repo.update(entity)
 
         prompt_entity = PromptEntity(
@@ -216,7 +220,8 @@ class BenchmarkRunPromptRegenerationService:
 
         Targets prompts with ``status=error`` or completed prompts whose
         ``evaluated_response`` is ``unknown``. Marks them ``running`` (and clears
-        stale prediction_result) but does **not** set the parent run to running.
+        stale prediction_result / evaluation) but does **not** set the parent run
+        to running.
         Registers a process-local job for progress polling. Returns a snapshot of
         prompt ids for the background worker. When there are no targets, leaves
         statuses unchanged and returns ``total=0``.
@@ -264,9 +269,10 @@ class BenchmarkRunPromptRegenerationService:
 
         for entity in targets:
             entity.status = "running"
-            # Clear stale SUT output so progress UI does not treat regenerating
-            # rows as completed via leftover prediction_result.
+            # Clear stale SUT output; pin evaluation score to 0 while regenerating.
             entity.prediction_result = None
+            entity.evaluation_prediction_result = _RUNNING_EVALUATION_RESULT
+            entity.evaluation_accuracy = 0.0
             prompt_repo.update(entity)
 
         prompt_ids = [p.id for p in targets if p.id is not None]
@@ -554,12 +560,13 @@ class BenchmarkRunPromptRegenerationService:
             raise BenchmarkRunPromptRegenerationConflictError(
                 "Cannot regenerate while the test is still in progress."
             )
-        if (entity.status or "").lower() in _ACTIVE_PROMPT_STATUSES:
-            raise BenchmarkRunPromptRegenerationConflictError(
-                "Cannot regenerate while this prompt is still running."
-            )
+        # Target may already be running (retry / stuck row). Block only when a
+        # different sibling prompt in the same test is running.
         siblings = prompt_repo.get_all_by_run_test_id(entity.run_test_id)
-        if any((p.status or "").lower() == "running" for p in siblings):
+        if any(
+            p.id != entity.id and (p.status or "").lower() == "running"
+            for p in siblings
+        ):
             raise BenchmarkRunPromptRegenerationConflictError(
                 "Cannot regenerate while another prompt in this test is running."
             )

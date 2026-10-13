@@ -256,6 +256,7 @@ export default function TestResultApp() {
       setBulkRegenTotal(started.total);
       setBulkRegenDone(0);
       setIsBulkRegenerating(true);
+      await refreshResults();
     } catch (e) {
       const message =
         e instanceof Error
@@ -271,6 +272,7 @@ export default function TestResultApp() {
     isStartingBulkRegen,
     isBulkRegenerating,
     isRunInProgress,
+    refreshResults,
   ]);
 
   useEffect(() => {
@@ -298,8 +300,8 @@ export default function TestResultApp() {
               `${progress.failed} of ${progress.total} failed to regenerate`
             );
           }
-          await refreshResults();
         }
+        await refreshResults();
       } catch (e) {
         if (cancelled) return;
         console.error("Failed to poll bulk regenerate progress:", e);

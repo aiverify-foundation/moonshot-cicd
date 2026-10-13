@@ -110,4 +110,28 @@ describe('promptsToTableRows', () => {
     expect(rows[0].isPromptError).toBe(false);
     expect(rows[0].errorSource).toBeNull();
   });
+
+  it('maps running prompts to Running evaluation and score 0', () => {
+    const rows = promptsToTableRows([
+      makePrompt({
+        id: 5,
+        run_test_id: 10,
+        prompt_id: 104,
+        status: 'running',
+        prediction_result: null,
+        evaluation_prediction_result: null,
+        score: 1,
+      }),
+    ]);
+
+    expect(rows[0].evaluation).toBe('running');
+    expect(rows[0].score).toBe(0);
+    expect(rows[0].isPromptRunning).toBe(true);
+    expect(rows[0].isPromptError).toBe(false);
+    expect(
+      evaluationDisplayLabel(rows[0].evaluation, rows[0].score, {
+        isPromptRunning: rows[0].isPromptRunning,
+      })
+    ).toBe('Running');
+  });
 });

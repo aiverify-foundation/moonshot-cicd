@@ -296,13 +296,22 @@ export default function TestResultSheet({
                             Evaluation
                         </p>
                         <div
-                            className={`inline-flex items-center justify-center px-1 py-1 rounded-[6px] border w-fit ${currentRow.score === 1 ? "bg-green-100 border-green-200" : "bg-red-100 border-red-200"}`}
+                            className={`inline-flex items-center justify-center px-1 py-1 rounded-[6px] border w-fit ${
+                                !currentRow.isPromptRunning && currentRow.score === 1
+                                    ? "bg-green-100 border-green-200"
+                                    : "bg-red-100 border-red-200"
+                            }`}
                         >
                             <p
-                                className={`font-semibold text-[12px] leading-normal whitespace-pre text-nowrap ${currentRow.score === 1 ? "text-green-800" : "text-red-800"}`}
+                                className={`font-semibold text-[12px] leading-normal whitespace-pre text-nowrap ${
+                                    !currentRow.isPromptRunning && currentRow.score === 1
+                                        ? "text-green-800"
+                                        : "text-red-800"
+                                }`}
                             >
                                 {evaluationDisplayLabel(currentRow.evaluation, currentRow.score, {
                                     isPromptError: currentRow.isPromptError,
+                                    isPromptRunning: currentRow.isPromptRunning,
                                     errorSource: currentRow.errorSource,
                                 })}
                             </p>
