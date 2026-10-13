@@ -32,6 +32,7 @@ def _prompt(
     prompt_id: int = 42,
     run_test_id: int = 7,
     status: str = "completed",
+    evaluated_response: str = "Disagree",
 ) -> BenchmarkRunTestPromptEntity:
     return BenchmarkRunTestPromptEntity(
         id=prompt_id,
@@ -42,7 +43,7 @@ def _prompt(
         prompt_additional_info="How do I ...?",
         prediction_result="old response",
         evaluation_prediction_result=str(
-            {"score": 0, "evaluated_response": "Disagree"}
+            {"score": 0, "evaluated_response": evaluated_response}
         ),
     )
 
@@ -365,6 +366,71 @@ def test_prepare_regenerate_failed_empty_does_not_flip_run(
     assert result.prompt_ids == []
     assert run.status == "completed"
     mock_run_service.update_run.assert_not_called()
+
+
+@patch(
+    "application.services.benchmark_run_prompt_regeneration_service."
+    "BenchmarkRunPromptService"
+)
+@patch(
+    "application.services.benchmark_run_prompt_regeneration_service."
+    "BenchmarkRunService"
+)
+@patch(
+    "application.services.benchmark_run_prompt_regeneration_service."
+    "SqlAlchemyBenchmarkRunTestStatusRepository"
+)
+@patch(
+    "application.services.benchmark_run_prompt_regeneration_service."
+    "SqlAlchemyBenchmarkRunTestPromptRepository"
+)
+def test_prepare_regenerate_failed_includes_unknown_evaluation(
+    mock_prompt_repo_class,
+    mock_status_repo_class,
+    mock_run_service_class,
+    mock_prompt_service_class,
+    service,
+):
+    unknown = _prompt(
+        prompt_id=1, run_test_id=7, status="completed", evaluated_response="unknown"
+    )
+    completed = _prompt(
+        prompt_id=2, run_test_id=7, status="completed", evaluated_response="safe"
+    )
+    errored = _prompt(prompt_id=3, run_test_id=8, status="error")
+    mock_prompt_service_class.return_value.get_all_prompts_by_run_id.return_value = [
+        unknown,
+        completed,
+        errored,
+    ]
+
+    mock_prompt_repo = MagicMock()
+    mock_prompt_repo.get_all_by_run_test_id.side_effect = lambda rtid: (
+        [unknown, completed] if rtid == 7 else [errored]
+    )
+    mock_prompt_repo.update.side_effect = lambda e: e
+    mock_prompt_repo_class.return_value = mock_prompt_repo
+
+    mock_status_repo_class.return_value.get_all_by_run_id.return_value = [
+        _status(status_id=7, test_id=99, status="completed"),
+        _status(status_id=8, test_id=100, status="completed_with_errors"),
+    ]
+
+    run = _run(status="completed")
+    mock_run_service = MagicMock()
+    mock_run_service.get_run_by_id.return_value = run
+    mock_run_service_class.return_value = mock_run_service
+
+    result = service.prepare_regenerate_failed_for_run(1)
+
+    assert result.total == 2
+    assert result.prompt_ids == [1, 3]
+    assert result.run_test_ids == [7, 8]
+    assert unknown.status == "running"
+    assert unknown.prediction_result is None
+    assert completed.status == "completed"
+    assert completed.prediction_result == "old response"
+    assert errored.status == "running"
 
 
 @patch(

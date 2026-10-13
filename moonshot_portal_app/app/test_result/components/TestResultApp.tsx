@@ -20,7 +20,7 @@ import {
 } from "./scorePercent";
 import {
   filterPromptsForFullyCompleteTests,
-  runHasPromptErrors,
+  runHasBulkRegenerateTargets,
   testStatusByTestId,
 } from "./testCompletion";
 import {
@@ -136,7 +136,7 @@ export default function TestResultApp() {
     regenerateEnabled &&
     !loading &&
     !isRunInProgress &&
-    (runHasPromptErrors(prompts) || isBulkRegenerating);
+    (runHasBulkRegenerateTargets(prompts) || isBulkRegenerating);
 
   useEffect(() => {
     setActiveTab(TAB_OVERVIEW);

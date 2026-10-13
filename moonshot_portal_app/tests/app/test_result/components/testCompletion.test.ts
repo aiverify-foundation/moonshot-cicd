@@ -1,7 +1,10 @@
 import {
   classifyTest,
   filterPromptsForFullyCompleteTests,
+  isPromptBulkRegeneratable,
   isPromptErrored,
+  isPromptUnknownEvaluation,
+  runHasBulkRegenerateTargets,
   runHasPromptErrors,
   testStatusByTestId,
 } from "@/app/test_result/components/testCompletion";
@@ -73,5 +76,53 @@ describe("runHasPromptErrors", () => {
     expect(isPromptErrored(prompt({ run_test_id: 1, prompt_id: 1, status: "error" }))).toBe(
       true
     );
+  });
+
+  it("does not treat completed unknown evaluation as an error", () => {
+    expect(
+      runHasPromptErrors([
+        prompt({
+          run_test_id: 1,
+          prompt_id: 1,
+          status: "completed",
+          evaluation_prediction_result:
+            '{"score": 0, "evaluated_response": "unknown"}',
+        }),
+      ])
+    ).toBe(false);
+  });
+});
+
+describe("runHasBulkRegenerateTargets", () => {
+  it("detects error prompts", () => {
+    expect(
+      isPromptBulkRegeneratable(
+        prompt({ run_test_id: 1, prompt_id: 1, status: "error" })
+      )
+    ).toBe(true);
+  });
+
+  it("detects completed unknown evaluations", () => {
+    const unknown = prompt({
+      run_test_id: 1,
+      prompt_id: 1,
+      status: "completed",
+      evaluation_prediction_result:
+        '{"score": 0, "evaluated_response": "unknown"}',
+    });
+    expect(isPromptUnknownEvaluation(unknown)).toBe(true);
+    expect(isPromptBulkRegeneratable(unknown)).toBe(true);
+    expect(runHasBulkRegenerateTargets([unknown])).toBe(true);
+  });
+
+  it("ignores completed non-unknown evaluations", () => {
+    const safe = prompt({
+      run_test_id: 1,
+      prompt_id: 1,
+      status: "completed",
+      evaluation_prediction_result: '{"score": 1, "evaluated_response": "safe"}',
+    });
+    expect(isPromptUnknownEvaluation(safe)).toBe(false);
+    expect(runHasBulkRegenerateTargets([safe])).toBe(false);
   });
 });

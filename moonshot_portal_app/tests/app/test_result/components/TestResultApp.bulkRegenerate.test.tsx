@@ -179,4 +179,30 @@ describe("TestResultApp bulk regenerate failed prompts", () => {
       screen.getByTestId("regenerate-failed-prompts-button")
     ).toHaveTextContent("Regenerate failed prompts");
   });
+
+  it("shows the button when the flag is on and prompts have unknown evaluations", async () => {
+    mockFetchBenchmarkRunResults.mockResolvedValue(
+      completedRunWithPrompts([
+        {
+          id: 1,
+          run_test_id: 1,
+          prompt_id: 1,
+          status: "completed",
+          test_id: 101,
+          test_name: "Hate",
+          score: 0,
+          evaluation_prediction_result:
+            '{"score": 0, "evaluated_response": "unknown"}',
+        },
+      ])
+    );
+
+    render(<TestResultApp />);
+
+    await waitFor(() => {
+      expect(
+        screen.getByTestId("regenerate-failed-prompts-button")
+      ).toBeInTheDocument();
+    });
+  });
 });

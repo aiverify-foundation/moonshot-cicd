@@ -2,11 +2,14 @@ import {
   BenchmarkRunTestPrompt,
   BenchmarkRunTestStatusSummary,
 } from "@/lib/api";
+import { extractEvaluatedResponse } from "./evaluationDisplayHelpers";
 
 export type TestCompletionState =
   | "fully_complete"
   | "completed_with_errors"
   | "incomplete";
+
+const ACTIVE_PROMPT_STATUSES = new Set(["pending", "running"]);
 
 export function testStatusByTestId(
   rows: BenchmarkRunTestStatusSummary[]
@@ -31,6 +34,25 @@ export function isPromptErrored(p: BenchmarkRunTestPrompt): boolean {
 
 export function runHasPromptErrors(prompts: BenchmarkRunTestPrompt[]): boolean {
   return prompts.some(isPromptErrored);
+}
+
+/** Completed (non-active) prompt whose metric evaluated_response is "unknown". */
+export function isPromptUnknownEvaluation(p: BenchmarkRunTestPrompt): boolean {
+  const status = p.status?.toLowerCase() ?? "";
+  if (status === "error" || ACTIVE_PROMPT_STATUSES.has(status)) return false;
+  const evaluated = extractEvaluatedResponse(p.evaluation_prediction_result);
+  return evaluated?.trim().toLowerCase() === "unknown";
+}
+
+/** Eligible for bulk regenerate: status=error or non-error unknown evaluation. */
+export function isPromptBulkRegeneratable(p: BenchmarkRunTestPrompt): boolean {
+  return isPromptErrored(p) || isPromptUnknownEvaluation(p);
+}
+
+export function runHasBulkRegenerateTargets(
+  prompts: BenchmarkRunTestPrompt[]
+): boolean {
+  return prompts.some(isPromptBulkRegeneratable);
 }
 
 export function classifyTest(

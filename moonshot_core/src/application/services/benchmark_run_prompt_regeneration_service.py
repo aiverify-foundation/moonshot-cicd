@@ -8,8 +8,9 @@ Single-prompt regenerate: parent test/run status refresh is handled by
 BenchmarkRunStatusRefreshService (called from the API after regenerate).
 
 Bulk regenerate: marks target prompts running (does not flip the parent run to
-running), processes errored prompts grouped by run_test_id, refreshes statuses
-once at the end, and exposes progress via a process-local job registry.
+running), processes error and unknown-evaluation prompts grouped by run_test_id,
+refreshes statuses once at the end, and exposes progress via a process-local
+job registry.
 """
 
 from __future__ import annotations
@@ -30,7 +31,10 @@ from adapters.driven.repository.sqlalchemy.benchmark_test_config_adapter import 
 from adapters.prompt_processor.asyncio_prompt_processor_adapter import (
     AsyncioPromptProcessor,
 )
-from application.dto.run_bundle_dto import BenchmarkRunTestPromptResponseDTO
+from application.dto.run_bundle_dto import (
+    BenchmarkRunTestPromptResponseDTO,
+    parse_evaluation_prediction_result,
+)
 from application.services.benchmark_run_prompt_service import BenchmarkRunPromptService
 from application.services.benchmark_run_results_query_service import (
     BenchmarkRunResultsQueryService,
@@ -53,6 +57,7 @@ from domain.entities.benchmark_run_test_status_entity import (
     BenchmarkRunTestStatusEntity,
 )
 from domain.entities.prompt_entity import PromptEntity
+from domain.ports.metric_port import MetricPort
 from domain.services.logger import configure_logger
 
 logger = configure_logger(__name__)
@@ -206,13 +211,14 @@ class BenchmarkRunPromptRegenerationService:
         self, run_id: int
     ) -> BulkRegenerateStartResult:
         """
-        Validate and prepare a bulk regenerate job for errored prompts.
+        Validate and prepare a bulk regenerate job for failed/unknown prompts.
 
-        Marks target prompts ``running`` (and clears stale prediction_result) but
-        does **not** set the parent run to running. Registers a process-local job
-        for progress polling. Returns a snapshot of prompt ids for the background
-        worker. When there are no errored prompts, leaves statuses unchanged and
-        returns ``total=0``.
+        Targets prompts with ``status=error`` or completed prompts whose
+        ``evaluated_response`` is ``unknown``. Marks them ``running`` (and clears
+        stale prediction_result) but does **not** set the parent run to running.
+        Registers a process-local job for progress polling. Returns a snapshot of
+        prompt ids for the background worker. When there are no targets, leaves
+        statuses unchanged and returns ``total=0``.
         """
         existing = _bulk_regen_jobs.get(run_id)
         if existing is not None and existing.status == "in_progress":
@@ -235,35 +241,35 @@ class BenchmarkRunPromptRegenerationService:
         prompt_repo = SqlAlchemyBenchmarkRunTestPromptRepository()
         status_repo = SqlAlchemyBenchmarkRunTestStatusRepository()
         all_prompts = BenchmarkRunPromptService().get_all_prompts_by_run_id(run_id)
-        errored = [
+        targets = [
             p
             for p in all_prompts
-            if p.id is not None and (p.status or "").lower() == "error"
+            if p.id is not None and self._is_bulk_regenerate_target(p)
         ]
-        if not errored:
+        if not targets:
             return BulkRegenerateStartResult(
                 run_id=run_id, total=0, prompt_ids=[], run_test_ids=[]
             )
 
-        target_ids = {p.id for p in errored}
+        target_ids = {p.id for p in targets}
         statuses_by_id: dict[int, BenchmarkRunTestStatusEntity] = {}
         for status_entity in status_repo.get_all_by_run_id(run_id):
             if status_entity.id is not None:
                 statuses_by_id[status_entity.id] = status_entity
 
         self._assert_bulk_not_conflicting(
-            errored, statuses_by_id, prompt_repo, target_ids
+            targets, statuses_by_id, prompt_repo, target_ids
         )
 
-        for entity in errored:
+        for entity in targets:
             entity.status = "running"
             # Clear stale SUT output so progress UI does not treat regenerating
             # rows as completed via leftover prediction_result.
             entity.prediction_result = None
             prompt_repo.update(entity)
 
-        prompt_ids = [p.id for p in errored if p.id is not None]
-        run_test_ids = sorted({p.run_test_id for p in errored})
+        prompt_ids = [p.id for p in targets if p.id is not None]
+        run_test_ids = sorted({p.run_test_id for p in targets})
         _bulk_regen_jobs[run_id] = BulkRegenerateJobState(
             prompt_ids=list(prompt_ids),
             total=len(prompt_ids),
@@ -461,13 +467,31 @@ class BenchmarkRunPromptRegenerationService:
         _bulk_regen_jobs.clear()
 
     @staticmethod
+    def _is_bulk_regenerate_target(prompt: BenchmarkRunTestPromptEntity) -> bool:
+        """True for status=error or completed prompts with evaluated_response unknown."""
+        status = (prompt.status or "").lower()
+        if status == "error":
+            return True
+        if status in _ACTIVE_PROMPT_STATUSES:
+            return False
+        parsed = parse_evaluation_prediction_result(
+            prompt.evaluation_prediction_result
+        )
+        if not isinstance(parsed, dict):
+            return False
+        evaluated = parsed.get("evaluated_response")
+        if not isinstance(evaluated, str):
+            return False
+        return evaluated.strip().lower() == MetricPort.RESULT_UNKNOWN.lower()
+
+    @staticmethod
     def _assert_bulk_not_conflicting(
-        errored: list[BenchmarkRunTestPromptEntity],
+        targets: list[BenchmarkRunTestPromptEntity],
         statuses_by_id: dict[int, BenchmarkRunTestStatusEntity],
         prompt_repo: SqlAlchemyBenchmarkRunTestPromptRepository,
         target_ids: set[int],
     ) -> None:
-        for entity in errored:
+        for entity in targets:
             status_entity = statuses_by_id.get(entity.run_test_id)
             if status_entity is None:
                 raise BenchmarkRunPromptNotFoundError(
@@ -479,7 +503,7 @@ class BenchmarkRunPromptRegenerationService:
                 )
 
         checked_run_tests: set[int] = set()
-        for entity in errored:
+        for entity in targets:
             if entity.run_test_id in checked_run_tests:
                 continue
             checked_run_tests.add(entity.run_test_id)
