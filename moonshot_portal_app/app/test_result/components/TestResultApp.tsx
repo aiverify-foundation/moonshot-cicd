@@ -7,7 +7,7 @@ import TestResultOverview, {
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
-import { Loader2, RefreshCw } from "lucide-react";
+import { Loader2, Play, RefreshCw } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
@@ -21,6 +21,7 @@ import {
 import {
   filterPromptsForFullyCompleteTests,
   runHasBulkRegenerateTargets,
+  runHasIncompleteWork,
   testStatusByTestId,
 } from "./testCompletion";
 import {
@@ -37,6 +38,7 @@ import {
   downloadBenchmarkRunResults,
   fetchBenchmarkRunResults,
   fetchRegenerateFailedPromptsProgress,
+  resumeBenchmarkRun,
   startRegenerateFailedBenchmarkRunPrompts,
 } from "@/lib/api";
 import { useFeatureFlags } from "@/hooks/useFeatureFlags";
@@ -107,6 +109,7 @@ export default function TestResultApp() {
   const { isEnabled } = useFeatureFlags();
   const useAivetBranding = isEnabled(FeatureFlagNames.AIVET_OCT2026_MOON771);
   const regenerateEnabled = isEnabled(FeatureFlagNames.AIVET_OCT2026_MOON793);
+  const resumeEnabled = isEnabled(FeatureFlagNames.AIVET_OCT2026_MOON796);
 
   const [run, setRun] = useState<BenchmarkRun | null>(null);
   const [prompts, setPrompts] = useState<BenchmarkRunTestPrompt[]>([]);
@@ -130,6 +133,8 @@ export default function TestResultApp() {
   const [bulkRegenTotal, setBulkRegenTotal] = useState(0);
   const [bulkRegenDone, setBulkRegenDone] = useState(0);
   const [bulkRegenError, setBulkRegenError] = useState<string | null>(null);
+  const [isResuming, setIsResuming] = useState(false);
+  const [resumeError, setResumeError] = useState<string | null>(null);
 
   const isRunInProgress = run?.status?.toLowerCase() === "running";
   const showBulkRegenerate =
@@ -137,12 +142,16 @@ export default function TestResultApp() {
     !loading &&
     !isRunInProgress &&
     (runHasBulkRegenerateTargets(prompts) || isBulkRegenerating);
+  const hasIncompleteWork = runHasIncompleteWork(prompts, testRunStatus);
+  const showResume =
+    resumeEnabled && !loading && hasIncompleteWork && !isBulkRegenerating;
 
   useEffect(() => {
     setActiveTab(TAB_OVERVIEW);
     setBundleTabScores({});
     setAllTabScore(null);
     setDownloadError(null);
+    setResumeError(null);
   }, [benchmarkRunId]);
 
   useEffect(() => {
@@ -274,6 +283,30 @@ export default function TestResultApp() {
     isRunInProgress,
     refreshResults,
   ]);
+
+  const handleResume = useCallback(async () => {
+    if (!benchmarkRunId || isResuming || isBulkRegenerating) {
+      return;
+    }
+
+    setIsResuming(true);
+    setResumeError(null);
+    try {
+      await resumeBenchmarkRun(benchmarkRunId);
+      setRun((prev) =>
+        prev ? { ...prev, status: "running", end_time: null } : prev
+      );
+      setActiveTab(TAB_OVERVIEW);
+      await refreshResults();
+    } catch (e) {
+      const message =
+        e instanceof Error ? e.message : "Failed to resume benchmark run";
+      setResumeError(message);
+      console.error("Failed to resume benchmark run:", e);
+    } finally {
+      setIsResuming(false);
+    }
+  }, [benchmarkRunId, isResuming, isBulkRegenerating, refreshResults]);
 
   useEffect(() => {
     if (!benchmarkRunId || !isBulkRegenerating) return;
@@ -540,6 +573,22 @@ export default function TestResultApp() {
             <span className="text-sm text-slate-500">Run #{benchmarkRunId}</span>
           </div>
           <div className="flex items-center gap-2 flex-wrap justify-end">
+            {showResume && (
+              <Button
+                variant="outline"
+                className="font-extrabold text-[14px]"
+                data-testid="resume-run-button"
+                disabled={isResuming || loading || isBulkRegenerating}
+                onClick={() => void handleResume()}
+              >
+                {isResuming ? (
+                  <Loader2 className="size-3.5 animate-spin" />
+                ) : (
+                  <Play className="size-3.5" />
+                )}
+                {isResuming ? "Resuming…" : "Resume"}
+              </Button>
+            )}
             {showBulkRegenerate && (
               <Button
                 variant="outline"
@@ -619,6 +668,15 @@ export default function TestResultApp() {
         {bulkRegenError && (
           <div className="mt-4 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-800">
             <p>{bulkRegenError}</p>
+          </div>
+        )}
+
+        {resumeError && (
+          <div
+            className="mt-4 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-800"
+            data-testid="resume-run-error"
+          >
+            <p>{resumeError}</p>
           </div>
         )}
 

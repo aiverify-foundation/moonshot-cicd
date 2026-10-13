@@ -63,6 +63,7 @@ from application.dto.run_bundle_dto import (
     BenchmarkRunTestPromptResponseDTO,
     CheckBenchmarkRunNameResponseDTO,
     PatchBenchmarkRunTestPromptUserDTO,
+    ResumeBenchmarkRunResponseDTO,
     StartBenchmarkRunRequestDTO,
     StartBenchmarkRunResponseDTO,
     RegenerateFailedPromptsProgressDTO,
@@ -80,6 +81,12 @@ from application.services.benchmark_run_prompt_regeneration_service import (
     BenchmarkRunPromptNotFoundError,
     BenchmarkRunPromptRegenerationConflictError,
     BenchmarkRunPromptRegenerationService,
+)
+from application.services.benchmark_run_resume_service import (
+    BenchmarkRunResumeBadRequestError,
+    BenchmarkRunResumeConflictError,
+    BenchmarkRunResumeNotFoundError,
+    BenchmarkRunResumeService,
 )
 from application.services.benchmark_run_prompt_service import BenchmarkRunPromptService
 from application.services.benchmark_run_status_refresh_service import (
@@ -1110,6 +1117,49 @@ async def get_regenerate_failed_prompts_progress(
         done=progress.done,
         failed=progress.failed,
     )
+
+
+@app.post(
+    "/api/benchmark-runs/{run_id}/resume",
+    response_model=ResumeBenchmarkRunResponseDTO,
+)
+async def resume_benchmark_run(run_id: int) -> ResumeBenchmarkRunResponseDTO:
+    """
+    Resume an incomplete benchmark run (re-spawn workers for unfinished tests).
+
+    Gated by AIVET_OCT2026_MOON796. Sets the parent run to ``running`` so the
+    results UI shows the in-progress loading bars, resets interrupted tests /
+    stuck prompts, and starts background bundle execution for incomplete tests.
+    """
+    if not FeatureFlags().is_enabled(FeatureFlagNames.AIVET_OCT2026_MOON796):
+        raise HTTPException(
+            status_code=404,
+            detail=(
+                "Benchmark run resume is unavailable "
+                "(feature flag AIVET_OCT2026_MOON796 is off)."
+            ),
+        )
+    try:
+        result = BenchmarkRunResumeService().resume(run_id)
+        return ResumeBenchmarkRunResponseDTO(
+            message=result.message,
+            run_id=result.run_id,
+            resumed_test_count=result.resumed_test_count,
+        )
+    except BenchmarkRunResumeNotFoundError as e:
+        raise HTTPException(status_code=404, detail=str(e)) from e
+    except BenchmarkRunResumeConflictError as e:
+        raise HTTPException(status_code=409, detail=str(e)) from e
+    except BenchmarkRunResumeBadRequestError as e:
+        raise HTTPException(status_code=400, detail=str(e)) from e
+    except Exception as e:
+        logger.error(
+            "Error resuming benchmark run_id=%s: %s", run_id, e, exc_info=True
+        )
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to resume benchmark run: {str(e)}",
+        ) from e
 
 
 @app.get(

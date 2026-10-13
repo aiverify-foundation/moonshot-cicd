@@ -181,34 +181,37 @@ class TaskManager:
                     from application.services.benchmark_run_test_status_service import (  # noqa: WPS433
                         BenchmarkRunTestStatusService,
                     )
-                    from domain.entities.benchmark_run_test_status_entity import (  # noqa: WPS433
-                        BenchmarkRunTestStatusEntity,
-                    )
 
                     status_repo = SqlAlchemyBenchmarkRunTestStatusRepository()
                     existing_status = status_repo.get_by_run_and_test(
                         db_run_id, effective_test_id
                     )
-                    if (
-                        existing_status is not None
-                        and existing_status.status == "not_started"
-                    ):
+                    # Accept not_started (first run) and in_progress (resume after interrupt).
+                    if existing_status is not None and (
+                        existing_status.status or ""
+                    ).lower() in ("not_started", "in_progress"):
                         saved_benchmark_run_test_status = existing_status
-                        saved_benchmark_run_test_status.status = "in_progress"
-                        saved_benchmark_run_test_status.start_dt = start_time
+                        if (
+                            saved_benchmark_run_test_status.status or ""
+                        ).lower() != "in_progress":
+                            saved_benchmark_run_test_status.status = "in_progress"
+                        if saved_benchmark_run_test_status.start_dt is None:
+                            saved_benchmark_run_test_status.start_dt = start_time
                         BenchmarkRunTestStatusService().update_run_test_status(
                             saved_benchmark_run_test_status
                         )
-                    # else throw error
 
             # Generate prompts: from DB run_test_prompts when write_to_db and run_test exists, else from dataset
             run_test_id = getattr(saved_benchmark_run_test_status, "id", None)
             if write_to_db and run_test_id is not None:
-                prompts = self._generate_prompts_from_run_test_id(run_test_id)
+                prompts = self._generate_prompts_from_run_test_id(
+                    run_test_id, incomplete_only=True
+                )
             else:
                 prompts = self._generate_prompts(dataset_entity)
             logger.info(self.INFO_PROMPTS_COUNT.format(count=len(prompts)))
-            # Process the prompts and get results
+            # Process the prompts and get results (may be empty on resume when
+            # all remaining rows are already completed/error).
             prompts_with_results, evaluation_summary = await prompt_processor_instance[
                 0
             ].process_prompts(
@@ -245,9 +248,21 @@ class TaskManager:
 
             if write_to_db and saved_benchmark_run_test_status is not None:
                 saved_benchmark_run_test_status.end_dt = end_time
+                # Prefer DB sibling statuses so resume that skips completed/error
+                # prompts still reflects prior errors on the test row.
                 has_errors = any(
                     p.state == TaskManagerStatus.ERROR for p in prompts_with_results
                 )
+                if run_test_id is not None:
+                    from adapters.driven.repository.sqlalchemy.benchmark_run_test_prompt_adapter import (  # noqa: WPS433
+                        SqlAlchemyBenchmarkRunTestPromptRepository,
+                    )
+
+                    prompt_repo = SqlAlchemyBenchmarkRunTestPromptRepository()
+                    sibling_prompts = prompt_repo.get_all_by_run_test_id(run_test_id)
+                    has_errors = has_errors or any(
+                        (p.status or "").lower() == "error" for p in sibling_prompts
+                    )
                 saved_benchmark_run_test_status.status = (
                     "completed_with_errors" if has_errors else "completed"
                 )
@@ -591,7 +606,7 @@ class TaskManager:
         )
 
     def _generate_prompts_from_run_test_id(
-        self, run_test_id: int
+        self, run_test_id: int, incomplete_only: bool = False
     ) -> list[PromptEntity]:
         """
         Generate a list of PromptEntity instances from seeded benchmark_run_test_prompt rows.
@@ -601,6 +616,8 @@ class TaskManager:
 
         Args:
             run_test_id: The benchmark_run_test_status.id to load run test prompts for.
+            incomplete_only: When True, skip prompts already ``completed`` or ``error``
+                so resume/re-run does not re-call the model for finished rows.
 
         Returns:
             list[PromptEntity]: The list of prompt entities with benchmark_run_test_prompt_id set.
@@ -612,6 +629,13 @@ class TaskManager:
         logger.info(self.INFO_GENERATING_PROMPTS)
         repo = SqlAlchemyBenchmarkRunTestPromptRepository()
         run_test_prompts = repo.get_all_by_run_test_id(run_test_id)
+        if incomplete_only:
+            skip = frozenset({"completed", "error"})
+            run_test_prompts = [
+                e
+                for e in run_test_prompts
+                if (e.status or "").lower() not in skip
+            ]
         return [
             PromptEntity(
                 index=index,

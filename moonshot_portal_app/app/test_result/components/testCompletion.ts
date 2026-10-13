@@ -67,6 +67,29 @@ export function runHasBulkRegenerateTargets(
   return prompts.some(isPromptBulkRegeneratable);
 }
 
+const NON_TERMINAL_TEST_STATUSES = new Set([
+  "not_started",
+  "in_progress",
+  "running",
+]);
+
+/** True when the run still has unfinished tests or pending/running prompts. */
+export function runHasIncompleteWork(
+  prompts: BenchmarkRunTestPrompt[],
+  testRunStatus: BenchmarkRunTestStatusSummary[]
+): boolean {
+  if (
+    prompts.some((p) =>
+      ACTIVE_PROMPT_STATUSES.has(p.status?.toLowerCase() ?? "")
+    )
+  ) {
+    return true;
+  }
+  return testRunStatus.some((t) =>
+    NON_TERMINAL_TEST_STATUSES.has(t.status?.toLowerCase() ?? "")
+  );
+}
+
 export function classifyTest(
   testPrompts: BenchmarkRunTestPrompt[],
   testStatus?: string | null

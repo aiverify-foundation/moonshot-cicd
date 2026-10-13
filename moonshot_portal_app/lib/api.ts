@@ -1081,6 +1081,53 @@ export async function fetchRegenerateFailedPromptsProgress(
   }
 }
 
+/** Response from POST /api/benchmark-runs/{runId}/resume */
+export interface ResumeBenchmarkRunResponse {
+  message: string;
+  run_id: number;
+  resumed_test_count: number;
+}
+
+/**
+ * Resume an incomplete benchmark run (re-spawn workers for unfinished tests).
+ * Sets the parent run to running so the results UI shows in-progress loading bars.
+ * Gated by feature flag AIVET_OCT2026_MOON796 on the API.
+ */
+export async function resumeBenchmarkRun(
+  runId: number
+): Promise<ResumeBenchmarkRunResponse> {
+  try {
+    const response = await fetch(
+      `${API_BASE_URL}/api/benchmark-runs/${runId}/resume`,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+      }
+    );
+    if (!response.ok) {
+      const errorText = await response.text().catch(() => 'Unknown error');
+      console.error(`API Error: ${response.status} - ${errorText}`);
+      const detail = parseErrorDetail(errorText);
+      throw new ApiError(
+        `Failed to resume benchmark run: ${detail}`,
+        response.status,
+        response.statusText
+      );
+    }
+    return response.json() as Promise<ResumeBenchmarkRunResponse>;
+  } catch (error) {
+    if (error instanceof ApiError) throw error;
+    if (error instanceof TypeError && error.message.includes('fetch')) {
+      throw new ApiError(
+        `Cannot connect to API server at ${API_BASE_URL}. Please ensure the backend is running on port 8000.`
+      );
+    }
+    throw new ApiError(
+      `Network error: ${error instanceof Error ? error.message : 'Unknown error'}`
+    );
+  }
+}
+
 /** GET /api/custom-apps */
 export interface CustomAppDTO {
   id: number;

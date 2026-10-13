@@ -809,3 +809,57 @@ async def test_run_test_input(
                 write_result=True
             )
             assert result == expected_result
+
+
+def test_generate_prompts_from_run_test_id_incomplete_only_skips_terminal():
+    """Resume path should not re-queue completed/error prompt rows."""
+    from domain.entities.benchmark_run_test_prompt_entity import (
+        BenchmarkRunTestPromptEntity,
+    )
+
+    task_manager = TaskManager()
+    rows = [
+        BenchmarkRunTestPromptEntity(
+            id=1,
+            run_test_id=7,
+            prompt_id=10,
+            status="completed",
+            target="t",
+            prompt_additional_info="done",
+        ),
+        BenchmarkRunTestPromptEntity(
+            id=2,
+            run_test_id=7,
+            prompt_id=11,
+            status="error",
+            target="t",
+            prompt_additional_info="err",
+        ),
+        BenchmarkRunTestPromptEntity(
+            id=3,
+            run_test_id=7,
+            prompt_id=12,
+            status="pending",
+            target="t",
+            prompt_additional_info="todo",
+        ),
+        BenchmarkRunTestPromptEntity(
+            id=4,
+            run_test_id=7,
+            prompt_id=13,
+            status="running",
+            target="t",
+            prompt_additional_info="stuck",
+        ),
+    ]
+    with patch(
+        "adapters.driven.repository.sqlalchemy.benchmark_run_test_prompt_adapter."
+        "SqlAlchemyBenchmarkRunTestPromptRepository"
+    ) as mock_repo_class:
+        mock_repo_class.return_value.get_all_by_run_test_id.return_value = rows
+        prompts = task_manager._generate_prompts_from_run_test_id(
+            7, incomplete_only=True
+        )
+
+    assert [p.benchmark_run_test_prompt_id for p in prompts] == [3, 4]
+    assert [p.prompt for p in prompts] == ["todo", "stuck"]

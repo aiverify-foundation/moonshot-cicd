@@ -132,6 +132,21 @@ class StartRegenerateFailedPromptsResponseDTO(BaseModel):
     total: int
 
 
+class ResumeBenchmarkRunResponseDTO(BaseModel):
+    """
+    Response after starting a resume of an incomplete benchmark run.
+
+    Attributes:
+        message: Human-readable start acknowledgement.
+        run_id: Benchmark run id that was resumed.
+        resumed_test_count: Number of incomplete tests re-queued for execution.
+    """
+
+    message: str
+    run_id: int
+    resumed_test_count: int
+
+
 class RegenerateFailedPromptsProgressDTO(BaseModel):
     """
     Progress for a bulk regenerate job (polled by the results UI).

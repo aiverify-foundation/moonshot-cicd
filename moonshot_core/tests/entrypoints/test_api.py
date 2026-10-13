@@ -1007,3 +1007,74 @@ def test_regenerate_failed_progress_success(
     assert body["total"] == 5
     assert body["done"] == 2
     assert body["failed"] == 0
+
+
+@patch("entrypoints.api.FeatureFlags")
+def test_resume_benchmark_run_flag_off_returns_404(mock_feature_flags_class):
+    mock_feature_flags_class.return_value.is_enabled.return_value = False
+    response = client.post("/api/benchmark-runs/12/resume")
+    assert response.status_code == 404
+    assert "AIVET_OCT2026_MOON796" in response.json()["detail"]
+
+
+@patch("entrypoints.api.BenchmarkRunResumeService")
+@patch("entrypoints.api.FeatureFlags")
+def test_resume_benchmark_run_success(
+    mock_feature_flags_class, mock_resume_service_class
+):
+    from application.services.benchmark_run_resume_service import (
+        ResumeBenchmarkRunResult,
+    )
+
+    mock_feature_flags_class.return_value.is_enabled.return_value = True
+    mock_resume_service_class.return_value.resume.return_value = (
+        ResumeBenchmarkRunResult(
+            run_id=12,
+            message="Benchmark run resume started.",
+            resumed_test_count=3,
+        )
+    )
+
+    response = client.post("/api/benchmark-runs/12/resume")
+    assert response.status_code == 200
+    body = response.json()
+    assert body["run_id"] == 12
+    assert body["resumed_test_count"] == 3
+    assert "resume started" in body["message"].lower()
+    mock_resume_service_class.return_value.resume.assert_called_once_with(12)
+
+
+@patch("entrypoints.api.BenchmarkRunResumeService")
+@patch("entrypoints.api.FeatureFlags")
+def test_resume_benchmark_run_conflict(
+    mock_feature_flags_class, mock_resume_service_class
+):
+    from application.services.benchmark_run_resume_service import (
+        BenchmarkRunResumeConflictError,
+    )
+
+    mock_feature_flags_class.return_value.is_enabled.return_value = True
+    mock_resume_service_class.return_value.resume.side_effect = (
+        BenchmarkRunResumeConflictError("Nothing to resume")
+    )
+    response = client.post("/api/benchmark-runs/12/resume")
+    assert response.status_code == 409
+    assert "Nothing to resume" in response.json()["detail"]
+
+
+@patch("entrypoints.api.BenchmarkRunResumeService")
+@patch("entrypoints.api.FeatureFlags")
+def test_resume_benchmark_run_not_found(
+    mock_feature_flags_class, mock_resume_service_class
+):
+    from application.services.benchmark_run_resume_service import (
+        BenchmarkRunResumeNotFoundError,
+    )
+
+    mock_feature_flags_class.return_value.is_enabled.return_value = True
+    mock_resume_service_class.return_value.resume.side_effect = (
+        BenchmarkRunResumeNotFoundError("Benchmark run not found: id=99")
+    )
+    response = client.post("/api/benchmark-runs/99/resume")
+    assert response.status_code == 404
+    assert "id=99" in response.json()["detail"]
