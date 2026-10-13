@@ -115,6 +115,19 @@ describe("runHasBulkRegenerateTargets", () => {
     expect(runHasBulkRegenerateTargets([unknown])).toBe(true);
   });
 
+  it("detects unknown from Python dict-repr evaluation blobs", () => {
+    const unknown = prompt({
+      run_test_id: 1,
+      prompt_id: 1,
+      status: "completed",
+      score: 0,
+      evaluation_prediction_result:
+        "{'score': 0.0, 'evaluated_response': 'unknown', 'accuracy': False}",
+    });
+    expect(isPromptUnknownEvaluation(unknown)).toBe(true);
+    expect(runHasBulkRegenerateTargets([unknown])).toBe(true);
+  });
+
   it("ignores completed non-unknown evaluations", () => {
     const safe = prompt({
       run_test_id: 1,

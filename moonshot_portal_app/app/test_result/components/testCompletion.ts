@@ -2,7 +2,10 @@ import {
   BenchmarkRunTestPrompt,
   BenchmarkRunTestStatusSummary,
 } from "@/lib/api";
-import { extractEvaluatedResponse } from "./evaluationDisplayHelpers";
+import {
+  evaluationDisplayLabel,
+  extractEvaluatedResponse,
+} from "./evaluationDisplayHelpers";
 
 export type TestCompletionState =
   | "fully_complete"
@@ -36,12 +39,21 @@ export function runHasPromptErrors(prompts: BenchmarkRunTestPrompt[]): boolean {
   return prompts.some(isPromptErrored);
 }
 
-/** Completed (non-active) prompt whose metric evaluated_response is "unknown". */
+/** Completed (non-active) prompt whose metric evaluation displays as unknown. */
 export function isPromptUnknownEvaluation(p: BenchmarkRunTestPrompt): boolean {
   const status = p.status?.toLowerCase() ?? "";
   if (status === "error" || ACTIVE_PROMPT_STATUSES.has(status)) return false;
+
   const evaluated = extractEvaluatedResponse(p.evaluation_prediction_result);
-  return evaluated?.trim().toLowerCase() === "unknown";
+  if (evaluated?.trim().toLowerCase() === "unknown") return true;
+
+  // Align with the Evaluation column so odd blob shapes still count.
+  const label = evaluationDisplayLabel(
+    p.evaluation_prediction_result ?? "",
+    p.score ?? 0,
+    { isPromptError: false, errorSource: p.error_source }
+  );
+  return label.trim().toLowerCase() === "unknown";
 }
 
 /** Eligible for bulk regenerate: status=error or non-error unknown evaluation. */

@@ -433,6 +433,20 @@ def test_prepare_regenerate_failed_includes_unknown_evaluation(
     assert errored.status == "running"
 
 
+def test_evaluated_response_is_unknown_accepts_bare_and_dict_blobs(service):
+    assert service._evaluated_response_is_unknown("unknown")
+    assert service._evaluated_response_is_unknown(
+        str({"score": 0.0, "evaluated_response": "unknown"})
+    )
+    assert service._evaluated_response_is_unknown(
+        '{"score": 0, "evaluated_response": "Unknown"}'
+    )
+    assert not service._evaluated_response_is_unknown(
+        str({"score": 1.0, "evaluated_response": "safe"})
+    )
+    assert not service._evaluated_response_is_unknown(None)
+
+
 @patch(
     "application.services.benchmark_run_prompt_regeneration_service."
     "BenchmarkRunPromptService"

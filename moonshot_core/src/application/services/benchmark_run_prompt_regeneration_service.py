@@ -15,6 +15,7 @@ job registry.
 
 from __future__ import annotations
 
+import re
 from collections import defaultdict
 from dataclasses import dataclass
 from typing import Literal
@@ -467,22 +468,44 @@ class BenchmarkRunPromptRegenerationService:
         _bulk_regen_jobs.clear()
 
     @staticmethod
-    def _is_bulk_regenerate_target(prompt: BenchmarkRunTestPromptEntity) -> bool:
+    def _evaluated_response_is_unknown(raw: str | None) -> bool:
+        """True when evaluation blob's evaluated_response is metric unknown."""
+        if raw is None:
+            return False
+        text = str(raw).strip()
+        if not text:
+            return False
+        if text.lower() == MetricPort.RESULT_UNKNOWN.lower():
+            return True
+
+        parsed = parse_evaluation_prediction_result(text)
+        if isinstance(parsed, dict):
+            evaluated = parsed.get("evaluated_response")
+            if (
+                isinstance(evaluated, str)
+                and evaluated.strip().lower() == MetricPort.RESULT_UNKNOWN.lower()
+            ):
+                return True
+
+        # Fallback for blobs parse_evaluation_prediction_result cannot load.
+        match = re.search(
+            r"""\bevaluated_response['"]?\s*:\s*['"]([^'"]*)['"]""",
+            text,
+            flags=re.IGNORECASE,
+        )
+        if match is None:
+            return False
+        return match.group(1).strip().lower() == MetricPort.RESULT_UNKNOWN.lower()
+
+    @classmethod
+    def _is_bulk_regenerate_target(cls, prompt: BenchmarkRunTestPromptEntity) -> bool:
         """True for status=error or completed prompts with evaluated_response unknown."""
         status = (prompt.status or "").lower()
         if status == "error":
             return True
         if status in _ACTIVE_PROMPT_STATUSES:
             return False
-        parsed = parse_evaluation_prediction_result(
-            prompt.evaluation_prediction_result
-        )
-        if not isinstance(parsed, dict):
-            return False
-        evaluated = parsed.get("evaluated_response")
-        if not isinstance(evaluated, str):
-            return False
-        return evaluated.strip().lower() == MetricPort.RESULT_UNKNOWN.lower()
+        return cls._evaluated_response_is_unknown(prompt.evaluation_prediction_result)
 
     @staticmethod
     def _assert_bulk_not_conflicting(
