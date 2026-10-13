@@ -7,6 +7,7 @@ from botocore.auth import SigV4Auth
 from botocore.awsrequest import AWSRequest
 from botocore.session import Session
 
+from adapters.connector.api_failure_dump import dump_api_failure
 from domain.entities.connector_entity import ConnectorEntity
 from domain.entities.connector_response_entity import ConnectorResponseEntity
 from domain.ports.connector_port import ConnectorPort
@@ -106,6 +107,8 @@ class AWSSageMakerAdapter(ConnectorPort):
             ValueError: If the prompt is invalid or configuration is missing
             aiohttp.ClientError: If there is a network or HTTP error
         """
+        payload: dict | None = None
+        aws_sagemaker_endpoint_url: str | None = None
         try:
             logger.info(self.LOG_PREPARING_REQUEST)
             if not prompt:
@@ -163,9 +166,31 @@ class AWSSageMakerAdapter(ConnectorPort):
                         response=await self._process_response(response)
                     )
         except (ValueError, aiohttp.ClientError) as e:
+            dump_api_failure(
+                adapter_name="AWSSageMakerAdapter",
+                request=payload,
+                error=e,
+                model=getattr(self, "aws_model", None),
+                extra=(
+                    {"url": aws_sagemaker_endpoint_url}
+                    if aws_sagemaker_endpoint_url
+                    else None
+                ),
+            )
             logger.error(self.ERROR_GET_RESPONSE.format(str(e)))
             raise
         except Exception as e:
+            dump_api_failure(
+                adapter_name="AWSSageMakerAdapter",
+                request=payload,
+                error=e,
+                model=getattr(self, "aws_model", None),
+                extra=(
+                    {"url": aws_sagemaker_endpoint_url}
+                    if aws_sagemaker_endpoint_url
+                    else None
+                ),
+            )
             logger.error(self.ERROR_UNEXPECTED.format(str(e)))
             raise
 

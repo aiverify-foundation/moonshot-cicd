@@ -3,6 +3,7 @@ from typing import Any
 
 from openai import AsyncOpenAI, BadRequestError
 
+from adapters.connector.api_failure_dump import dump_api_failure
 from adapters.connector.strip_connector_chat_kwargs import (
     coerce_numeric_string_chat_params,
     strip_connector_keys_for_chat_completion)
@@ -139,6 +140,12 @@ class OpenRouterAdapter(ConnectorPort):
                 response=await self._process_response(response)
             )
         except TypeError as e:
+            dump_api_failure(
+                adapter_name="OpenRouterAdapter",
+                request=create_kwargs,
+                error=e,
+                model=self.connector_entity.model,
+            )
             if "unexpected keyword argument" in str(e).lower():
                 param_keys = sorted(self.connector_entity.params)
                 logger.error(
@@ -149,9 +156,21 @@ class OpenRouterAdapter(ConnectorPort):
                 logger.error(f"{self.ERROR_PROCESSING_PROMPT} {e}")
             raise
         except BadRequestError as e:
+            dump_api_failure(
+                adapter_name="OpenRouterAdapter",
+                request=create_kwargs,
+                error=e,
+                model=self.connector_entity.model,
+            )
             logger.error(f"{self.LOG_API_REJECTED_CHAT}: {e}")
             raise
         except Exception as e:
+            dump_api_failure(
+                adapter_name="OpenRouterAdapter",
+                request=create_kwargs,
+                error=e,
+                model=self.connector_entity.model,
+            )
             logger.error(f"{self.ERROR_PROCESSING_PROMPT} {e}")
             raise
 

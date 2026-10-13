@@ -6,6 +6,7 @@ from typing import Any
 
 from anthropic import AsyncAnthropic
 
+from adapters.connector.api_failure_dump import dump_api_failure
 from domain.entities.connector_entity import ConnectorEntity
 from domain.entities.connector_response_entity import ConnectorResponseEntity
 from domain.ports.connector_port import ConnectorPort
@@ -73,14 +74,14 @@ class AnthropicAdapter(ConnectorPort):
         connector_prompt = self.connector_entity.connector_pre_prompt + prompt \
             + self.connector_entity.connector_post_prompt
 
-        try:
-            func_params = {
-                **self.connector_entity.params,
-                self.PARAM_MODEL: self.connector_entity.model,
-                self.PARAM_SYSTEM_PROMPT: self.connector_entity.system_prompt,
-                self.PARAM_MESSAGES: [{"role": "user", "content": connector_prompt}]
-            }
+        func_params = {
+            **self.connector_entity.params,
+            self.PARAM_MODEL: self.connector_entity.model,
+            self.PARAM_SYSTEM_PROMPT: self.connector_entity.system_prompt,
+            self.PARAM_MESSAGES: [{"role": "user", "content": connector_prompt}]
+        }
 
+        try:
             assert self._is_all_required_params_present(given_params=func_params,
                                                         required_params=self.REQUIRED_PARAMETERS), \
                 " [AnthropicAdapter].[get_response] Required parameters are missing."
@@ -92,6 +93,12 @@ class AnthropicAdapter(ConnectorPort):
             return ConnectorResponseEntity(response="\n\n".join(text_parts))
 
         except anthropic.APIConnectionError as e:
+            dump_api_failure(
+                adapter_name="AnthropicAdapter",
+                request=func_params,
+                error=e,
+                model=self.connector_entity.model,
+            )
             logger.error("[AnthropicAdapter].[get_response] The server could not be reached, cause: \"%s\", "
                          + "stack trace: \"%s\"", e.__cause__, traceback.format_exc())
             raise e
@@ -103,12 +110,24 @@ class AnthropicAdapter(ConnectorPort):
                 anthropic.UnprocessableEntityError,
                 anthropic.RateLimitError,
                 anthropic.InternalServerError) as e:
+            dump_api_failure(
+                adapter_name="AnthropicAdapter",
+                request=func_params,
+                error=e,
+                model=self.connector_entity.model,
+            )
             logger.error("[AnthropicAdapter].[get_response] Error getting a reponse from Anthropic, "
                          + "status code: \"%s\", response: \"%s\", stack trace: \"%s\"",
                          e.status_code, e.response, traceback.format_exc())
             raise e
 
         except Exception as e:
+            dump_api_failure(
+                adapter_name="AnthropicAdapter",
+                request=func_params,
+                error=e,
+                model=self.connector_entity.model,
+            )
             logger.error("[AnthropicAdapter].[get_response] Error processing prompt, stack trace: %s",
                          traceback.format_exc())
             raise e

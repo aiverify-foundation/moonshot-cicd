@@ -7,6 +7,7 @@ import aiohttp
 from jsonpath_ng.ext import parse
 from jsonpath_ng.exceptions import JsonPathParserError
 
+from adapters.connector.api_failure_dump import dump_api_failure
 from domain.entities.connector_entity import ConnectorEntity
 from domain.entities.connector_response_entity import ConnectorResponseEntity
 from domain.ports.connector_port import ConnectorPort
@@ -237,21 +238,55 @@ class CustomApiConnectorAdapter(ConnectorPort):
     async def get_response(self, prompt: Any) -> ConnectorResponseEntity:
         headers = self._build_request_headers()
         body = self._build_request_body(prompt)
+        request_dump = {
+            "method": self.api_type,
+            "url": self.api_url,
+            "headers": headers,
+            "body": body,
+        }
         logger.info(
             self.INFO_MAKING_REQUEST.format(method=self.api_type, url=self.api_url)
         )
 
-        async with aiohttp.ClientSession() as session:
-            async with session.request(
-                method=self.api_type,
-                url=self.api_url,
-                headers=headers,
-                json=body,
-            ) as response:
-                response.raise_for_status()
-                return ConnectorResponseEntity(
-                    response=await self._process_response(response)
-                )
+        try:
+            async with aiohttp.ClientSession() as session:
+                async with session.request(
+                    method=self.api_type,
+                    url=self.api_url,
+                    headers=headers,
+                    json=body,
+                ) as response:
+                    try:
+                        response.raise_for_status()
+                    except aiohttp.ClientResponseError as http_error:
+                        error_text: str | None = None
+                        try:
+                            error_text = await response.text()
+                        except Exception:
+                            pass
+                        dump_api_failure(
+                            adapter_name="CustomApiConnectorAdapter",
+                            request=request_dump,
+                            error=http_error,
+                            extra=(
+                                {"response_body": error_text}
+                                if error_text is not None
+                                else None
+                            ),
+                        )
+                        raise
+                    return ConnectorResponseEntity(
+                        response=await self._process_response(response)
+                    )
+        except aiohttp.ClientResponseError:
+            raise
+        except Exception as e:
+            dump_api_failure(
+                adapter_name="CustomApiConnectorAdapter",
+                request=request_dump,
+                error=e,
+            )
+            raise
 
     def _extract_response_value(self, json_response: Any) -> str:
         if json_response is None or json_response == "":

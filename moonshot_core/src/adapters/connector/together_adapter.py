@@ -3,6 +3,7 @@ from typing import Any
 
 from together import AsyncTogether
 
+from adapters.connector.api_failure_dump import dump_api_failure
 from adapters.connector.strip_connector_chat_kwargs import (
     coerce_numeric_string_chat_params,
     strip_connector_keys_for_chat_completion)
@@ -198,6 +199,13 @@ class TogetherAdapter(ConnectorPort):
                 response=await self._process_response(response)
             )
         except Exception as e:
+            dump_api_failure(
+                adapter_name="TogetherAdapter",
+                request=new_params,
+                error=e,
+                model=self.connector_entity.model,
+                extra={"endpoint": endpoint},
+            )
             # Enhanced error logging with exception type and details
             error_type = type(e).__name__
             error_message = str(e)

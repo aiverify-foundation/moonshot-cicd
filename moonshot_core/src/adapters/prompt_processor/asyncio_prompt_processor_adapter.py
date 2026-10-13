@@ -86,7 +86,7 @@ class AsyncioPromptProcessor(PromptProcessorPort):
             except Exception as e:
                 prompt_entity.state = TaskManagerStatus.ERROR
                 prompt_entity.additional_info["error_source"] = "metric"
-                logger.error(f"{self.ERROR_PROCESSING_PROMPT} {e}")
+                logger.error(f"{self.ERROR_PROCESSING_PROMPT} {e}", exc_info=True)
                 raise
 
             metric_entity.evaluated_result = evaluated_result
@@ -98,7 +98,7 @@ class AsyncioPromptProcessor(PromptProcessorPort):
             if prompt_entity.state != TaskManagerStatus.ERROR:
                 prompt_entity.state = TaskManagerStatus.ERROR
                 prompt_entity.additional_info["error_source"] = "connector"
-            logger.error(f"{self.ERROR_PROCESSING_PROMPT} {e}")
+            logger.error(f"{self.ERROR_PROCESSING_PROMPT} {e}", exc_info=True)
             raise
 
         return prompt_entity

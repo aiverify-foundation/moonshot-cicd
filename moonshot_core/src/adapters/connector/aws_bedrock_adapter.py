@@ -6,6 +6,7 @@ from typing import Any, Iterator
 import boto3
 from botocore.config import Config
 
+from adapters.connector.api_failure_dump import dump_api_failure
 from application.services.provider_connector_env_key_service import (
     ProviderConnectorEnvKeyService,
 )
@@ -365,5 +366,11 @@ class AWSBedrockAdapter(ConnectorPort):
                 )
             )
         except Exception as e:
+            dump_api_failure(
+                adapter_name="AWSBedrockAdapter",
+                request=req_params,
+                error=e,
+                model=self.connector_entity.model,
+            )
             logger.error(f"{self.ERROR_PROCESSING_PROMPT} {e}")
             raise
