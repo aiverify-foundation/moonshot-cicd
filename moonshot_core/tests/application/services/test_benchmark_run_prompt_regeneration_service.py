@@ -22,7 +22,9 @@ from domain.entities.connector_entity import ConnectorEntity
 
 @pytest.fixture
 def service():
-    return BenchmarkRunPromptRegenerationService()
+    BenchmarkRunPromptRegenerationService.clear_bulk_jobs_for_tests()
+    yield BenchmarkRunPromptRegenerationService()
+    BenchmarkRunPromptRegenerationService.clear_bulk_jobs_for_tests()
 
 
 def _prompt(
@@ -256,3 +258,276 @@ async def test_regenerate_conflict_when_prompt_running(
         BenchmarkRunPromptRegenerationConflictError, match="this prompt"
     ):
         await service.regenerate(42)
+
+
+@patch(
+    "application.services.benchmark_run_prompt_regeneration_service."
+    "BenchmarkRunPromptService"
+)
+@patch(
+    "application.services.benchmark_run_prompt_regeneration_service."
+    "BenchmarkRunService"
+)
+@patch(
+    "application.services.benchmark_run_prompt_regeneration_service."
+    "SqlAlchemyBenchmarkRunTestStatusRepository"
+)
+@patch(
+    "application.services.benchmark_run_prompt_regeneration_service."
+    "SqlAlchemyBenchmarkRunTestPromptRepository"
+)
+def test_prepare_regenerate_failed_marks_run_and_prompts_running(
+    mock_prompt_repo_class,
+    mock_status_repo_class,
+    mock_run_service_class,
+    mock_prompt_service_class,
+    service,
+):
+    errored_a = _prompt(prompt_id=1, run_test_id=7, status="error")
+    errored_b = _prompt(prompt_id=2, run_test_id=8, status="error")
+    completed = _prompt(prompt_id=3, run_test_id=7, status="completed")
+    mock_prompt_service_class.return_value.get_all_prompts_by_run_id.return_value = [
+        errored_a,
+        errored_b,
+        completed,
+    ]
+
+    mock_prompt_repo = MagicMock()
+    mock_prompt_repo.get_all_by_run_test_id.side_effect = lambda rtid: (
+        [errored_a, completed] if rtid == 7 else [errored_b]
+    )
+    mock_prompt_repo.update.side_effect = lambda e: e
+    mock_prompt_repo_class.return_value = mock_prompt_repo
+
+    mock_status_repo_class.return_value.get_all_by_run_id.return_value = [
+        _status(status_id=7, test_id=99, status="completed_with_errors"),
+        _status(status_id=8, test_id=100, status="failed"),
+    ]
+
+    run = _run(status="completed")
+    mock_run_service = MagicMock()
+    mock_run_service.get_run_by_id.return_value = run
+    mock_run_service.update_run.side_effect = lambda e: e
+    mock_run_service_class.return_value = mock_run_service
+
+    result = service.prepare_regenerate_failed_for_run(1)
+
+    assert result.total == 2
+    assert result.prompt_ids == [1, 2]
+    assert result.run_test_ids == [7, 8]
+    assert run.status == "completed"
+    assert errored_a.status == "running"
+    assert errored_b.status == "running"
+    assert errored_a.prediction_result is None
+    assert errored_b.prediction_result is None
+    assert completed.status == "completed"
+    assert completed.prediction_result == "old response"
+    mock_run_service.update_run.assert_not_called()
+    progress = service.get_regenerate_failed_progress(1)
+    assert progress.status == "in_progress"
+    assert progress.total == 2
+
+
+@patch(
+    "application.services.benchmark_run_prompt_regeneration_service."
+    "BenchmarkRunPromptService"
+)
+@patch(
+    "application.services.benchmark_run_prompt_regeneration_service."
+    "BenchmarkRunService"
+)
+@patch(
+    "application.services.benchmark_run_prompt_regeneration_service."
+    "SqlAlchemyBenchmarkRunTestStatusRepository"
+)
+@patch(
+    "application.services.benchmark_run_prompt_regeneration_service."
+    "SqlAlchemyBenchmarkRunTestPromptRepository"
+)
+def test_prepare_regenerate_failed_empty_does_not_flip_run(
+    mock_prompt_repo_class,
+    mock_status_repo_class,
+    mock_run_service_class,
+    mock_prompt_service_class,
+    service,
+):
+    mock_prompt_service_class.return_value.get_all_prompts_by_run_id.return_value = [
+        _prompt(status="completed")
+    ]
+    run = _run(status="completed")
+    mock_run_service = MagicMock()
+    mock_run_service.get_run_by_id.return_value = run
+    mock_run_service_class.return_value = mock_run_service
+
+    result = service.prepare_regenerate_failed_for_run(1)
+
+    assert result.total == 0
+    assert result.prompt_ids == []
+    assert run.status == "completed"
+    mock_run_service.update_run.assert_not_called()
+
+
+@patch(
+    "application.services.benchmark_run_prompt_regeneration_service."
+    "BenchmarkRunPromptService"
+)
+@patch(
+    "application.services.benchmark_run_prompt_regeneration_service."
+    "BenchmarkRunService"
+)
+@patch(
+    "application.services.benchmark_run_prompt_regeneration_service."
+    "SqlAlchemyBenchmarkRunTestStatusRepository"
+)
+@patch(
+    "application.services.benchmark_run_prompt_regeneration_service."
+    "SqlAlchemyBenchmarkRunTestPromptRepository"
+)
+def test_prepare_regenerate_failed_conflict_when_run_active(
+    mock_prompt_repo_class,
+    mock_status_repo_class,
+    mock_run_service_class,
+    mock_prompt_service_class,
+    service,
+):
+    mock_run_service_class.return_value.get_run_by_id.return_value = _run(
+        status="running"
+    )
+    with pytest.raises(
+        BenchmarkRunPromptRegenerationConflictError, match="still running"
+    ):
+        service.prepare_regenerate_failed_for_run(1)
+    mock_prompt_service_class.return_value.get_all_prompts_by_run_id.assert_not_called()
+
+
+@pytest.mark.asyncio
+@patch(
+    "application.services.benchmark_run_prompt_regeneration_service."
+    "BenchmarkRunStatusRefreshService"
+)
+@patch(
+    "application.services.benchmark_run_prompt_regeneration_service."
+    "AsyncioPromptProcessor"
+)
+@patch(
+    "application.services.benchmark_run_prompt_regeneration_service."
+    "DatabaseConnectorConfigService"
+)
+@patch(
+    "application.services.benchmark_run_prompt_regeneration_service."
+    "BenchmarkTestConfigAdapter"
+)
+@patch(
+    "application.services.benchmark_run_prompt_regeneration_service."
+    "BenchmarkRunPromptService"
+)
+@patch(
+    "application.services.benchmark_run_prompt_regeneration_service."
+    "BenchmarkRunService"
+)
+@patch(
+    "application.services.benchmark_run_prompt_regeneration_service."
+    "SqlAlchemyBenchmarkRunTestStatusRepository"
+)
+@patch(
+    "application.services.benchmark_run_prompt_regeneration_service."
+    "SqlAlchemyBenchmarkRunTestPromptRepository"
+)
+async def test_regenerate_failed_for_run_groups_and_refreshes_once(
+    mock_prompt_repo_class,
+    mock_status_repo_class,
+    mock_run_service_class,
+    mock_prompt_service_class,
+    mock_test_config_class,
+    mock_connector_service_class,
+    mock_processor_class,
+    mock_refresh_class,
+    service,
+):
+    a = _prompt(prompt_id=1, run_test_id=7, status="running")
+    b = _prompt(prompt_id=2, run_test_id=7, status="running")
+    c = _prompt(prompt_id=3, run_test_id=8, status="running")
+
+    mock_prompt_repo = MagicMock()
+    mock_prompt_repo.get_by_id.side_effect = lambda pid: {1: a, 2: b, 3: c}.get(pid)
+    mock_prompt_repo_class.return_value = mock_prompt_repo
+
+    mock_status_repo = MagicMock()
+    mock_status_repo.get_by_id.side_effect = lambda rtid: (
+        _status(status_id=rtid, test_id=90 + rtid, status="completed_with_errors")
+    )
+    mock_status_repo_class.return_value = mock_status_repo
+
+    run = _run(status="completed")
+    mock_run_service = MagicMock()
+    mock_run_service.get_run_by_id.return_value = run
+    mock_run_service_class.return_value = mock_run_service
+
+    mock_test_config_class.return_value.get_test_info.return_value = (
+        "Safety",
+        "ds",
+        "ailuminate_safety_classifier_adapter",
+    )
+    mock_connector_service_class.return_value.build_connector_entity.return_value = (
+        MagicMock(spec=ConnectorEntity)
+    )
+    mock_processor = MagicMock()
+    mock_processor.process_prompts = AsyncMock(return_value=([], {}))
+    mock_processor_class.return_value = mock_processor
+
+    # Register a job so progress status can flip to completed.
+    from application.services.benchmark_run_prompt_regeneration_service import (
+        BulkRegenerateJobState,
+        _bulk_regen_jobs,
+    )
+
+    _bulk_regen_jobs[1] = BulkRegenerateJobState(
+        prompt_ids=[1, 2, 3], total=3, status="in_progress"
+    )
+
+    await service.regenerate_failed_for_run(1, [1, 2, 3])
+
+    assert mock_processor.process_prompts.await_count == 2
+    mock_refresh_class.return_value.refresh_after_bulk_prompt_updates.assert_called_once_with(
+        1, [7, 8]
+    )
+    assert service.get_regenerate_failed_progress(1).status == "completed"
+
+
+def test_get_regenerate_failed_progress_idle(service):
+    progress = service.get_regenerate_failed_progress(99)
+    assert progress.status == "idle"
+    assert progress.total == 0
+    assert progress.done == 0
+    assert progress.failed == 0
+
+
+@patch(
+    "application.services.benchmark_run_prompt_regeneration_service."
+    "SqlAlchemyBenchmarkRunTestPromptRepository"
+)
+def test_get_regenerate_failed_progress_counts_done(
+    mock_prompt_repo_class, service
+):
+    from application.services.benchmark_run_prompt_regeneration_service import (
+        BulkRegenerateJobState,
+        _bulk_regen_jobs,
+    )
+
+    running = _prompt(prompt_id=1, status="running")
+    completed = _prompt(prompt_id=2, status="completed")
+    errored = _prompt(prompt_id=3, status="error")
+    mock_prompt_repo_class.return_value.get_by_id.side_effect = lambda pid: {
+        1: running,
+        2: completed,
+        3: errored,
+    }.get(pid)
+    _bulk_regen_jobs[5] = BulkRegenerateJobState(
+        prompt_ids=[1, 2, 3], total=3, status="in_progress"
+    )
+
+    progress = service.get_regenerate_failed_progress(5)
+    assert progress.status == "in_progress"
+    assert progress.total == 3
+    assert progress.done == 2
+    assert progress.failed == 1

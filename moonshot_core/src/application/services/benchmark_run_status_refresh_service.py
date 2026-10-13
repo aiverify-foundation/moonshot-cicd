@@ -2,11 +2,12 @@
 Refresh parent benchmark_run_test_status and benchmark_run after a prompt change.
 
 Used by the regenerate API after BenchmarkRunPromptRegenerationService updates
-a single prompt row.
+a single prompt row, and by bulk regenerate after the full batch finishes.
 """
 
 from __future__ import annotations
 
+from collections.abc import Iterable
 from datetime import datetime, timezone
 
 from adapters.driven.repository.sqlalchemy.benchmark_run_test_prompt_adapter import (
@@ -57,6 +58,32 @@ class BenchmarkRunStatusRefreshService:
 
         self._refresh_run_test_status(status_entity, prompt_repo)
         self._refresh_run_status(status_entity.run_id, prompt_repo, status_repo)
+
+    def refresh_after_bulk_prompt_updates(
+        self, run_id: int, run_test_ids: Iterable[int]
+    ) -> None:
+        """
+        Refresh each affected ``benchmark_run_test_status``, then the parent run once.
+        """
+        status_repo = SqlAlchemyBenchmarkRunTestStatusRepository()
+        prompt_repo = SqlAlchemyBenchmarkRunTestPromptRepository()
+
+        seen: set[int] = set()
+        for run_test_id in run_test_ids:
+            if run_test_id in seen:
+                continue
+            seen.add(run_test_id)
+            status_entity = status_repo.get_by_id(run_test_id)
+            if status_entity is None:
+                logger.warning(
+                    "[BenchmarkRunStatusRefreshService] No run_test_status for "
+                    "run_test_id=%s; skipping test refresh.",
+                    run_test_id,
+                )
+                continue
+            self._refresh_run_test_status(status_entity, prompt_repo)
+
+        self._refresh_run_status(run_id, prompt_repo, status_repo)
 
     @staticmethod
     def _refresh_run_test_status(

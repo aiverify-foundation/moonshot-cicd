@@ -911,3 +911,99 @@ def test_regenerate_prompt_conflict(mock_feature_flags_class, mock_regen_service
     response = client.post("/api/benchmark-run-test-prompts/42/regenerate")
     assert response.status_code == 409
     assert "still running" in response.json()["detail"]
+
+
+@patch("entrypoints.api.FeatureFlags")
+def test_regenerate_failed_prompts_flag_off_returns_404(mock_feature_flags_class):
+    mock_feature_flags_class.return_value.is_enabled.return_value = False
+    response = client.post("/api/benchmark-runs/12/regenerate-failed-prompts")
+    assert response.status_code == 404
+    assert "AIVET_OCT2026_MOON793" in response.json()["detail"]
+
+
+@patch("entrypoints.api.BenchmarkRunPromptRegenerationService")
+@patch("entrypoints.api.FeatureFlags")
+def test_regenerate_failed_prompts_starts_background_job(
+    mock_feature_flags_class, mock_regen_service_class
+):
+    from application.services.benchmark_run_prompt_regeneration_service import (
+        BulkRegenerateStartResult,
+    )
+
+    mock_feature_flags_class.return_value.is_enabled.return_value = True
+    mock_regen_service_class.return_value.prepare_regenerate_failed_for_run.return_value = (
+        BulkRegenerateStartResult(
+            run_id=12, total=2, prompt_ids=[1, 2], run_test_ids=[7]
+        )
+    )
+    mock_regen_service_class.return_value.regenerate_failed_for_run = AsyncMock()
+
+    response = client.post("/api/benchmark-runs/12/regenerate-failed-prompts")
+    assert response.status_code == 200
+    body = response.json()
+    assert body["total"] == 2
+    assert body["message"] == "Regeneration started."
+    mock_regen_service_class.return_value.prepare_regenerate_failed_for_run.assert_called_once_with(
+        12
+    )
+
+
+@patch("entrypoints.api.BenchmarkRunPromptRegenerationService")
+@patch("entrypoints.api.FeatureFlags")
+def test_regenerate_failed_prompts_empty(
+    mock_feature_flags_class, mock_regen_service_class
+):
+    from application.services.benchmark_run_prompt_regeneration_service import (
+        BulkRegenerateStartResult,
+    )
+
+    mock_feature_flags_class.return_value.is_enabled.return_value = True
+    mock_regen_service_class.return_value.prepare_regenerate_failed_for_run.return_value = (
+        BulkRegenerateStartResult(
+            run_id=12, total=0, prompt_ids=[], run_test_ids=[]
+        )
+    )
+
+    response = client.post("/api/benchmark-runs/12/regenerate-failed-prompts")
+    assert response.status_code == 200
+    body = response.json()
+    assert body["total"] == 0
+    assert "No errored prompts" in body["message"]
+
+
+@patch("entrypoints.api.FeatureFlags")
+def test_regenerate_failed_progress_flag_off_returns_404(mock_feature_flags_class):
+    mock_feature_flags_class.return_value.is_enabled.return_value = False
+    response = client.get("/api/benchmark-runs/12/regenerate-failed-prompts/progress")
+    assert response.status_code == 404
+    assert "AIVET_OCT2026_MOON793" in response.json()["detail"]
+
+
+@patch("entrypoints.api.BenchmarkRunPromptRegenerationService")
+@patch("entrypoints.api.FeatureFlags")
+def test_regenerate_failed_progress_success(
+    mock_feature_flags_class, mock_regen_service_class
+):
+    from application.services.benchmark_run_prompt_regeneration_service import (
+        BulkRegenerateProgress,
+    )
+
+    mock_feature_flags_class.return_value.is_enabled.return_value = True
+    mock_regen_service_class.return_value.get_regenerate_failed_progress.return_value = (
+        BulkRegenerateProgress(
+            run_id=12,
+            status="in_progress",
+            total=5,
+            done=2,
+            failed=0,
+        )
+    )
+
+    response = client.get("/api/benchmark-runs/12/regenerate-failed-prompts/progress")
+    assert response.status_code == 200
+    body = response.json()
+    assert body["run_id"] == 12
+    assert body["status"] == "in_progress"
+    assert body["total"] == 5
+    assert body["done"] == 2
+    assert body["failed"] == 0

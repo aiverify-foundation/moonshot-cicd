@@ -10,7 +10,7 @@ from pathlib import Path
 from urllib.parse import urlparse
 
 import uvicorn
-from fastapi import FastAPI, HTTPException, Request, Response
+from fastapi import BackgroundTasks, FastAPI, HTTPException, Request, Response
 from fastapi.responses import FileResponse, Response
 
 from domain.services.logger import configure_logger
@@ -65,6 +65,8 @@ from application.dto.run_bundle_dto import (
     PatchBenchmarkRunTestPromptUserDTO,
     StartBenchmarkRunRequestDTO,
     StartBenchmarkRunResponseDTO,
+    RegenerateFailedPromptsProgressDTO,
+    StartRegenerateFailedPromptsResponseDTO,
 )
 from application.dto.seed_dto import SeedSharedConfigResponseDTO
 from application.services.benchmark import BenchmarkService
@@ -993,6 +995,121 @@ async def regenerate_benchmark_run_test_prompt(
             status_code=500,
             detail=f"Failed to regenerate prompt: {str(e)}",
         ) from e
+
+
+async def _run_bulk_regenerate_failed_prompts(
+    run_id: int, prompt_ids: list[int]
+) -> None:
+    """Background worker for bulk regenerate of errored prompts."""
+    try:
+        await BenchmarkRunPromptRegenerationService().regenerate_failed_for_run(
+            run_id, prompt_ids
+        )
+    except Exception as e:
+        logger.error(
+            "Background bulk regenerate failed for run_id=%s: %s",
+            run_id,
+            e,
+            exc_info=True,
+        )
+
+
+@app.post(
+    "/api/benchmark-runs/{run_id}/regenerate-failed-prompts",
+    response_model=StartRegenerateFailedPromptsResponseDTO,
+)
+async def regenerate_failed_benchmark_run_prompts(
+    run_id: int,
+    background_tasks: BackgroundTasks,
+) -> StartRegenerateFailedPromptsResponseDTO:
+    """
+    Start regenerating all errored prompts for a benchmark run.
+
+    Gated by AIVET_OCT2026_MOON793. Marks target prompts running (does not flip
+    the parent run to running), returns immediately, and processes the batch in
+    a background task. Progress is available via GET
+    ``.../regenerate-failed-prompts/progress``. Parent test/run statuses are
+    refreshed once when the batch finishes.
+    """
+    if not FeatureFlags().is_enabled(FeatureFlagNames.AIVET_OCT2026_MOON793):
+        raise HTTPException(
+            status_code=404,
+            detail=(
+                "Prompt regenerate is unavailable "
+                "(feature flag AIVET_OCT2026_MOON793 is off)."
+            ),
+        )
+    try:
+        started = BenchmarkRunPromptRegenerationService().prepare_regenerate_failed_for_run(
+            run_id
+        )
+        if started.total > 0:
+            background_tasks.add_task(
+                _run_bulk_regenerate_failed_prompts,
+                started.run_id,
+                started.prompt_ids,
+            )
+            return StartRegenerateFailedPromptsResponseDTO(
+                message="Regeneration started.",
+                total=started.total,
+            )
+        return StartRegenerateFailedPromptsResponseDTO(
+            message="No errored prompts to regenerate.",
+            total=0,
+        )
+    except BenchmarkRunPromptNotFoundError as e:
+        raise HTTPException(status_code=404, detail=str(e)) from e
+    except BenchmarkRunPromptRegenerationConflictError as e:
+        raise HTTPException(status_code=409, detail=str(e)) from e
+    except (
+        DatabaseConnectorConfigError,
+        DatabaseCustomAppConnectorConfigError,
+        ValueError,
+    ) as e:
+        raise HTTPException(status_code=400, detail=str(e)) from e
+    except Exception as e:
+        logger.error(
+            "Error starting bulk regenerate for run_id=%s: %s",
+            run_id,
+            e,
+            exc_info=True,
+        )
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to start regenerating failed prompts: {str(e)}",
+        ) from e
+
+
+@app.get(
+    "/api/benchmark-runs/{run_id}/regenerate-failed-prompts/progress",
+    response_model=RegenerateFailedPromptsProgressDTO,
+)
+async def get_regenerate_failed_prompts_progress(
+    run_id: int,
+) -> RegenerateFailedPromptsProgressDTO:
+    """
+    Poll progress for a bulk regenerate job on a benchmark run.
+
+    Gated by AIVET_OCT2026_MOON793. Returns idle when no job is registered.
+    """
+    if not FeatureFlags().is_enabled(FeatureFlagNames.AIVET_OCT2026_MOON793):
+        raise HTTPException(
+            status_code=404,
+            detail=(
+                "Prompt regenerate is unavailable "
+                "(feature flag AIVET_OCT2026_MOON793 is off)."
+            ),
+        )
+    progress = BenchmarkRunPromptRegenerationService().get_regenerate_failed_progress(
+        run_id
+    )
+    return RegenerateFailedPromptsProgressDTO(
+        run_id=progress.run_id,
+        status=progress.status,
+        total=progress.total,
+        done=progress.done,
+        failed=progress.failed,
+    )
 
 
 @app.get(

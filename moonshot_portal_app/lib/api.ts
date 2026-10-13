@@ -1001,6 +1001,86 @@ export async function regenerateBenchmarkRunPrompt(
   }
 }
 
+/** Response from POST /api/benchmark-runs/{runId}/regenerate-failed-prompts */
+export interface StartRegenerateFailedPromptsResponse {
+  message: string;
+  total: number;
+}
+
+/** Response from GET /api/benchmark-runs/{runId}/regenerate-failed-prompts/progress */
+export interface RegenerateFailedPromptsProgress {
+  run_id: number;
+  status: 'idle' | 'in_progress' | 'completed' | 'failed' | string;
+  total: number;
+  done: number;
+  failed: number;
+}
+
+/**
+ * Start regenerating all errored prompts for a run (background job).
+ * Does not flip the parent run to running; poll progress separately.
+ * Gated by feature flag AIVET_OCT2026_MOON793 on the API.
+ */
+export async function startRegenerateFailedBenchmarkRunPrompts(
+  runId: number
+): Promise<StartRegenerateFailedPromptsResponse> {
+  try {
+    const response = await fetch(
+      `${API_BASE_URL}/api/benchmark-runs/${runId}/regenerate-failed-prompts`,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+      }
+    );
+    if (!response.ok) {
+      const errorText = await response.text().catch(() => 'Unknown error');
+      console.error(`API Error: ${response.status} - ${errorText}`);
+      const detail = parseErrorDetail(errorText);
+      throw new ApiError(
+        `Failed to start regenerating failed prompts: ${detail}`,
+        response.status,
+        response.statusText
+      );
+    }
+    return response.json() as Promise<StartRegenerateFailedPromptsResponse>;
+  } catch (error) {
+    if (error instanceof ApiError) throw error;
+    if (error instanceof TypeError && error.message.includes('fetch')) {
+      throw new ApiError(
+        `Cannot connect to API server at ${API_BASE_URL}. Please ensure the backend is running on port 8000.`
+      );
+    }
+    throw new ApiError(
+      `Network error: ${error instanceof Error ? error.message : 'Unknown error'}`
+    );
+  }
+}
+
+/**
+ * Poll progress for a bulk regenerate job.
+ * Gated by feature flag AIVET_OCT2026_MOON793 on the API.
+ */
+export async function fetchRegenerateFailedPromptsProgress(
+  runId: number
+): Promise<RegenerateFailedPromptsProgress> {
+  try {
+    return await handleJsonGet<RegenerateFailedPromptsProgress>(
+      `${API_BASE_URL}/api/benchmark-runs/${runId}/regenerate-failed-prompts/progress`,
+      'fetch regenerate-failed prompts progress'
+    );
+  } catch (error) {
+    if (error instanceof ApiError) throw error;
+    if (error instanceof TypeError && error.message.includes('fetch')) {
+      throw new ApiError(
+        `Cannot connect to API server at ${API_BASE_URL}. Please ensure the backend is running on port 8000.`
+      );
+    }
+    throw new ApiError(
+      `Network error: ${error instanceof Error ? error.message : 'Unknown error'}`
+    );
+  }
+}
+
 /** GET /api/custom-apps */
 export interface CustomAppDTO {
   id: number;

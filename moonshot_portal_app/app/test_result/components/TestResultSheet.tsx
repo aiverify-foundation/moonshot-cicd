@@ -29,6 +29,7 @@ interface TestResultSheetProps {
     onIndexChange: (index: number) => void
     onDataChange?: (id: string, updates: Partial<TestResultTableRow>) => void
     onPromptRegenerated?: (updated: BenchmarkRunTestPrompt) => void
+    isBulkRegenerating?: boolean
 }
 
 export default function TestResultSheet({
@@ -39,6 +40,7 @@ export default function TestResultSheet({
     onIndexChange,
     onDataChange,
     onPromptRegenerated,
+    isBulkRegenerating = false,
 }: TestResultSheetProps) {
     const currentRow = data[currentIndex] as TestResultTableRow
     const totalItems = data.length
@@ -91,7 +93,12 @@ export default function TestResultSheet({
     }
 
     const handleRegenerate = async () => {
-        if (currentRow?.benchmarkPromptId == null || isRegenerating) return
+        if (
+            currentRow?.benchmarkPromptId == null ||
+            isRegenerating ||
+            isBulkRegenerating
+        )
+            return
         setIsRegenerating(true)
         setRegenerateError(null)
         try {
@@ -206,7 +213,7 @@ export default function TestResultSheet({
                                     variant="outline"
                                     size="sm"
                                     onClick={() => void handleRegenerate()}
-                                    disabled={isRegenerating}
+                                    disabled={isRegenerating || isBulkRegenerating}
                                     className="bg-white border border-slate-200 rounded-[6px] px-2 py-1 h-auto"
                                     aria-label="Regenerate response and evaluation"
                                 >

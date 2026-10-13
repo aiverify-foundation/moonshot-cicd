@@ -180,3 +180,54 @@ def test_refresh_skips_when_run_test_missing(
 
     mock_status_service_class.return_value.update_run_test_status.assert_not_called()
     mock_run_service_class.return_value.update_run.assert_not_called()
+
+
+@patch(
+    "application.services.benchmark_run_status_refresh_service." "BenchmarkRunService"
+)
+@patch(
+    "application.services.benchmark_run_status_refresh_service."
+    "BenchmarkRunTestStatusService"
+)
+@patch(
+    "application.services.benchmark_run_status_refresh_service."
+    "SqlAlchemyBenchmarkRunTestStatusRepository"
+)
+@patch(
+    "application.services.benchmark_run_status_refresh_service."
+    "SqlAlchemyBenchmarkRunTestPromptRepository"
+)
+def test_refresh_after_bulk_updates_each_test_then_run_once(
+    mock_prompt_repo_class,
+    mock_status_repo_class,
+    mock_status_service_class,
+    mock_run_service_class,
+):
+    status_a = _status(status_id=7, test_id=99, status="completed_with_errors")
+    status_b = _status(status_id=8, test_id=100, status="failed")
+    mock_status_repo = MagicMock()
+    mock_status_repo.get_by_id.side_effect = lambda rtid: {
+        7: status_a,
+        8: status_b,
+    }.get(rtid)
+    mock_status_repo.get_all_by_run_id.return_value = [status_a, status_b]
+    mock_status_repo_class.return_value = mock_status_repo
+
+    mock_prompt_repo = MagicMock()
+    mock_prompt_repo.get_all_by_run_test_id.side_effect = lambda rtid: (
+        [_prompt(prompt_id=1, run_test_id=rtid, status="completed")]
+        if rtid == 7
+        else [_prompt(prompt_id=2, run_test_id=rtid, status="completed")]
+    )
+    mock_prompt_repo_class.return_value = mock_prompt_repo
+
+    run = _run(status="running")
+    mock_run_service = MagicMock()
+    mock_run_service.get_run_by_id.return_value = run
+    mock_run_service_class.return_value = mock_run_service
+
+    BenchmarkRunStatusRefreshService().refresh_after_bulk_prompt_updates(1, [7, 8, 7])
+
+    assert mock_status_service_class.return_value.update_run_test_status.call_count == 2
+    assert run.status == "completed"
+    mock_run_service.update_run.assert_called_once()

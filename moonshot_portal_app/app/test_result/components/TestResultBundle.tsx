@@ -508,6 +508,8 @@ interface TestResultBundleProps {
     onAdjustedScoreChange?: (score: number) => void
     /** Refetch run results after a prompt regenerate so parent statuses stay in sync. */
     onResultsRefresh?: () => void | Promise<void>
+    /** Disable per-prompt regenerate while a run-level bulk regen is in flight. */
+    isBulkRegenerating?: boolean
 }
 
 export default function TestResultBundle({
@@ -521,6 +523,7 @@ export default function TestResultBundle({
     testRunStatus = [],
     onAdjustedScoreChange,
     onResultsRefresh,
+    isBulkRegenerating = false,
 }: TestResultBundleProps) {
     const [tableData, setTableData] = useState<TestResultTableRow[]>([])
     const [isLoading, setIsLoading] = useState(true)
@@ -778,6 +781,7 @@ export default function TestResultBundle({
             ) : (
                 <TestResultTable
                     data={tableData}
+                    isBulkRegenerating={isBulkRegenerating}
                     onPromptRegenerated={(updated) => {
                         setTableData((prevData) => {
                             const next = prevData.map((row) => {

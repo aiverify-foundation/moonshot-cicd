@@ -56,6 +56,7 @@ interface TestResultTableProps {
     pageSize?: number
     onDataChange?: (id: string, updates: Partial<TestResultTableRow>) => void
     onPromptRegenerated?: (updated: BenchmarkRunTestPrompt) => void
+    isBulkRegenerating?: boolean
 }
 
 export default function TestResultTable({
@@ -63,6 +64,7 @@ export default function TestResultTable({
     pageSize = 10,
     onDataChange,
     onPromptRegenerated,
+    isBulkRegenerating = false,
 }: TestResultTableProps) {
     const [currentPage, setCurrentPage] = useState(1)
     const [sortColumn, setSortColumn] = useState<"evaluation" | null>("evaluation")
@@ -632,6 +634,7 @@ export default function TestResultTable({
                 onIndexChange={handleSheetIndexChange}
                 onDataChange={onDataChange}
                 onPromptRegenerated={onPromptRegenerated}
+                isBulkRegenerating={isBulkRegenerating}
             />
         </div>
     )

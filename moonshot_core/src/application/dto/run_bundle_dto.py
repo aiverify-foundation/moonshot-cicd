@@ -119,6 +119,38 @@ class StartBenchmarkRunResponseDTO(BaseModel):
     message: str
 
 
+class StartRegenerateFailedPromptsResponseDTO(BaseModel):
+    """
+    Response after starting a bulk regenerate of errored prompts for a run.
+
+    Attributes:
+        message: Human-readable start acknowledgement.
+        total: Number of errored prompts queued for regeneration.
+    """
+
+    message: str
+    total: int
+
+
+class RegenerateFailedPromptsProgressDTO(BaseModel):
+    """
+    Progress for a bulk regenerate job (polled by the results UI).
+
+    Attributes:
+        run_id: Benchmark run id.
+        status: idle | in_progress | completed | failed.
+        total: Snapshot size of prompts queued for regeneration.
+        done: Prompts among the snapshot that left running/pending.
+        failed: Prompts among the snapshot currently in error.
+    """
+
+    run_id: int
+    status: str
+    total: int
+    done: int
+    failed: int
+
+
 class CheckBenchmarkRunNameResponseDTO(BaseModel):
     """
     Response DTO for benchmark run name availability check.
