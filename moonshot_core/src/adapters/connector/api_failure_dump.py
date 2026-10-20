@@ -9,11 +9,16 @@ from pathlib import Path
 from typing import Any
 
 from domain.services.ga_results_formatter import SECRET_PARAM_KEYS
-from domain.services.logger import configure_logger
+from domain.services.logger import configure_file_logger, configure_logger
 
 logger = configure_logger(__name__)
 
+# Dedicated, non-propagating logger (own FileHandler, no ms.log/console
+# duplication) — see domain.services.logger.configure_file_logger.
+API_FAILURE_LOGGER_NAME = f"{__name__}.file"
+
 DEFAULT_API_FAILURE_LOG_PATH = "data/results/api_failures.log"
+API_FAILURE_LOG_FILENAME = "api_failures.log"
 MAX_BODY_CHARS = 32_768
 _REDACTED = "***REDACTED***"
 
@@ -35,8 +40,21 @@ _SECRET_HEADER_KEYS = frozenset(
 
 
 def resolve_api_failure_log_path() -> Path:
-    """Resolve dump file path from MS_API_FAILURE_LOG_PATH (default under data/results/)."""
-    log_path = os.getenv("MS_API_FAILURE_LOG_PATH", DEFAULT_API_FAILURE_LOG_PATH)
+    """
+    Resolve the dump file path.
+
+    Precedence: ``MS_API_FAILURE_LOG_PATH`` override, then
+    ``$MOONSHOT_BENCHMARK_RESULTS_DIR/api_failures.log`` (in Docker this is
+    ``/var/lib/moonshot/results/api_failures.log``, on the mounted volume),
+    then ``data/results/api_failures.log``.
+    """
+    explicit_path = os.getenv("MS_API_FAILURE_LOG_PATH")
+    if explicit_path:
+        log_path: str | Path = explicit_path
+    elif results_dir := os.getenv("MOONSHOT_BENCHMARK_RESULTS_DIR"):
+        log_path = Path(results_dir) / API_FAILURE_LOG_FILENAME
+    else:
+        log_path = DEFAULT_API_FAILURE_LOG_PATH
     file_path = Path(log_path)
     if file_path.suffix == "":
         file_path = file_path.with_suffix(".log")
@@ -175,7 +193,6 @@ def dump_api_failure(
         if extra:
             record["extra"] = _safe_serialize(redact_for_dump(extra))
 
-        path = resolve_api_failure_log_path()
         block = (
             "\n"
             + "=" * 72
@@ -183,8 +200,10 @@ def dump_api_failure(
             + json.dumps(record, indent=2, ensure_ascii=False, default=str)
             + "\n"
         )
-        with path.open("a", encoding="utf-8") as handle:
-            handle.write(block)
+        failure_logger = configure_file_logger(
+            API_FAILURE_LOGGER_NAME, resolve_api_failure_log_path()
+        )
+        failure_logger.error(block)
     except Exception as dump_error:
         logger.warning(
             "[api_failure_dump] Failed to write API failure dump for %s: %s",

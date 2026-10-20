@@ -82,6 +82,59 @@ def _ensure_root_logging() -> None:
     _ROOT_LOGGING_CONFIGURED = True
 
 
+def configure_file_logger(name: str, file_path: Path) -> logging.Logger:
+    """
+    Return a dedicated logger writing only to ``file_path``.
+
+    Unlike :func:`configure_logger`, handlers are attached to the named
+    logger itself (not root) and ``propagate`` is disabled, so records do
+    not also reach the console or ``ms.log``. The message-only formatter
+    keeps the file content exactly as emitted by the caller.
+
+    Repeated calls are idempotent: exactly one ``FileHandler`` for the
+    resolved path is kept. If the path changed since the last call (e.g.
+    an env var was re-pointed), the stale handler is closed and replaced.
+
+    The logger/handler levels are intentionally not gated by
+    ``MS_LOG_LEVEL``: callers emit explicitly (e.g. one record per API
+    failure), so a ``WARNING`` main-log setting must not drop them.
+    """
+    if not name or not isinstance(name, str):
+        name = Path(__file__).stem
+
+    resolved_path = Path(file_path)
+    resolved_path.parent.mkdir(parents=True, exist_ok=True)
+    resolved_path = resolved_path.resolve()
+    target = os.path.abspath(str(resolved_path))
+
+    logger = logging.getLogger(name)
+    logger.propagate = False
+    logger.setLevel(logging.DEBUG)
+
+    kept_handler: logging.FileHandler | None = None
+    for handler in logger.handlers[:]:
+        if (
+            kept_handler is None
+            and isinstance(handler, logging.FileHandler)
+            and os.path.abspath(handler.baseFilename) == target
+        ):
+            kept_handler = handler
+            continue
+        logger.removeHandler(handler)
+        handler.close()
+
+    if kept_handler is None:
+        file_handler = logging.FileHandler(str(resolved_path), encoding="utf-8")
+        file_handler.setLevel(logging.INFO)
+        file_handler.setFormatter(logging.Formatter("%(message)s"))
+        logger.addHandler(file_handler)
+    else:
+        kept_handler.setLevel(logging.INFO)
+        kept_handler.setFormatter(logging.Formatter("%(message)s"))
+
+    return logger
+
+
 def get_logger(name: str) -> logging.Logger:
     """
     Return a named logger after ensuring root handlers are configured.
