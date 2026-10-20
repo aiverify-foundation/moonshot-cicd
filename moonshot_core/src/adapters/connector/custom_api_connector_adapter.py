@@ -276,16 +276,21 @@ class CustomApiConnectorAdapter(ConnectorPort):
                         )
                         raise
                     return ConnectorResponseEntity(
-                        response=await self._process_response(response)
+                        response=await self._process_response(
+                            response, request=request_dump
+                        )
                     )
         except aiohttp.ClientResponseError:
             raise
         except Exception as e:
-            dump_api_failure(
-                adapter_name="CustomApiConnectorAdapter",
-                request=request_dump,
-                error=e,
-            )
+            # _process_response already dumped failures it handled; avoid a
+            # second, poorer record for the same error.
+            if not getattr(e, "_api_failure_dumped", False):
+                dump_api_failure(
+                    adapter_name="CustomApiConnectorAdapter",
+                    request=request_dump,
+                    error=e,
+                )
             raise
 
     def _extract_response_value(self, json_response: Any) -> str:
@@ -307,13 +312,36 @@ class CustomApiConnectorAdapter(ConnectorPort):
             return value
         return json.dumps(value)
 
-    async def _process_response(self, response: aiohttp.ClientResponse) -> str:
+    async def _process_response(
+        self, response: aiohttp.ClientResponse, request: Any = None
+    ) -> str:
+        # Stage 1: parse the body as JSON. Split from extraction because
+        # json.JSONDecodeError is a ValueError subclass, so a single
+        # ``except ValueError`` would conflate a malformed body with a
+        # response_path miss. Dump here, while the raw body still exists.
         try:
             json_response = await response.json()
-            return self._extract_response_value(json_response)
-        except ValueError:
-            raise
         except Exception as exc:
+            raw_text: str | None = None
+            try:
+                # aiohttp caches the body after the first read, so this is
+                # safe after a failed json() call; guard regardless so a
+                # text() failure cannot mask the original parse error.
+                raw_text = await response.text()
+            except Exception:
+                pass
+            dump_api_failure(
+                adapter_name="CustomApiConnectorAdapter",
+                request=request,
+                error=exc,
+                extra={
+                    "http_status": getattr(response, "status", None),
+                    "response_path": self.response_path,
+                    "content_type": getattr(response, "content_type", None),
+                    "response_text": raw_text,
+                },
+            )
+            self._mark_dumped(exc)
             logger.error(
                 "%s Exception type: %s, Error: %s",
                 self.ERROR_PROCESSING_RESPONSE,
@@ -321,3 +349,29 @@ class CustomApiConnectorAdapter(ConnectorPort):
                 exc,
             )
             raise
+
+        # Stage 2: extract the model reply via the configured JSONPath.
+        try:
+            return self._extract_response_value(json_response)
+        except ValueError as exc:
+            dump_api_failure(
+                adapter_name="CustomApiConnectorAdapter",
+                request=request,
+                error=exc,
+                extra={
+                    "http_status": getattr(response, "status", None),
+                    "response_path": self.response_path,
+                    "content_type": getattr(response, "content_type", None),
+                    "response_json": json_response,
+                },
+            )
+            self._mark_dumped(exc)
+            raise
+
+    @staticmethod
+    def _mark_dumped(exc: BaseException) -> None:
+        """Tag an exception whose failure has already been dumped."""
+        try:
+            setattr(exc, "_api_failure_dumped", True)
+        except Exception:
+            pass
