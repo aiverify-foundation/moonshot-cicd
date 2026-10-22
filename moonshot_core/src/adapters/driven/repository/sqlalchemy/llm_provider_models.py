@@ -6,6 +6,7 @@ from sqlalchemy import (
     DateTime,
     Float,
     ForeignKey,
+    Index,
     Integer,
     String,
     Text,
@@ -641,6 +642,10 @@ class BenchmarkRunTestPromptModel(Base):
         "BenchmarkRunTestErrorModel",
         back_populates="run_test_prompt",
     )
+    metric_reasonings = relationship(
+        "BenchmarkRunTestPromptMetricReasoningModel",
+        back_populates="run_test_prompt",
+    )
 
     def __repr__(self) -> str:
         return f"<BenchmarkRunTestPromptModel(id={self.id}, run_test_id={self.run_test_id}, prompt_id={self.prompt_id})>"
@@ -669,6 +674,42 @@ class BenchmarkRunTestErrorModel(Base):
     def __repr__(self) -> str:
         return (
             f"<BenchmarkRunTestErrorModel(id={self.id}, "
+            f"benchmark_run_test_prompt_id={self.benchmark_run_test_prompt_id})>"
+        )
+
+
+class BenchmarkRunTestPromptMetricReasoningModel(Base):
+    """
+    SQLAlchemy model for the benchmark_run_test_prompt_metric_reasoning table.
+
+    Append-only reasoning produced by a metric (the evaluator) for one
+    benchmark_run_test_prompt. This is not the tested model's reasoning.
+    The current reasoning for a prompt is the row with the highest id.
+    """
+
+    __tablename__ = "benchmark_run_test_prompt_metric_reasoning"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    benchmark_run_test_prompt_id = Column(
+        Integer, ForeignKey("benchmark_run_test_prompt.id"), nullable=False
+    )
+    reasoning = Column(Text, nullable=False)
+    create_dt = Column(DateTime, nullable=False, server_default=func.now())
+
+    __table_args__ = (
+        Index(
+            "ix_benchmark_run_test_prompt_metric_reasoning_prompt_id",
+            "benchmark_run_test_prompt_id",
+        ),
+    )
+
+    run_test_prompt = relationship(
+        "BenchmarkRunTestPromptModel", back_populates="metric_reasonings"
+    )
+
+    def __repr__(self) -> str:
+        return (
+            f"<BenchmarkRunTestPromptMetricReasoningModel(id={self.id}, "
             f"benchmark_run_test_prompt_id={self.benchmark_run_test_prompt_id})>"
         )
 
