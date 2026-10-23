@@ -536,3 +536,10 @@ metrics:
       system_prompt: ""
     params:
       categorise_result: True
+  - name: contradiction_judge_approx5_adapter
+    connector_configurations:
+      connector_adapter: openai_adapter
+      model: gpt-4o
+      system_prompt: ""
+    params:
+      categorise_result: True

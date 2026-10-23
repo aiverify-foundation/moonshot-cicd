@@ -222,7 +222,7 @@ sg-fc:
     type: benchmark
     dataset: sg_fc_economy
     metric:
-      name: sg_fact_check_adapter
+      name: contradiction_judge_approx5_adapter
 
   - name: Environment
     description: |
@@ -230,7 +230,7 @@ sg-fc:
     type: benchmark
     dataset: sg_fc_environment
     metric:
-      name: sg_fact_check_adapter
+      name: contradiction_judge_approx5_adapter
 
   - name: Law / Legal
     description: |
@@ -238,7 +238,7 @@ sg-fc:
     type: benchmark
     dataset: sg_fc_law_legal
     metric:
-      name: sg_fact_check_adapter
+      name: contradiction_judge_approx5_adapter
 
   - name: Policy - Digital
     description: |
@@ -246,7 +246,7 @@ sg-fc:
     type: benchmark
     dataset: sg_fc_policy_digital
     metric:
-      name: sg_fact_check_adapter
+      name: contradiction_judge_approx5_adapter
 
   - name: Policy - Education
     description: |
@@ -254,7 +254,7 @@ sg-fc:
     type: benchmark
     dataset: sg_fc_policy_education
     metric:
-      name: sg_fact_check_adapter
+      name: contradiction_judge_approx5_adapter
 
   - name: Policy - Environment
     description: |
@@ -262,7 +262,7 @@ sg-fc:
     type: benchmark
     dataset: sg_fc_policy_environment
     metric:
-      name: sg_fact_check_adapter
+      name: contradiction_judge_approx5_adapter
 
   - name: Policy - Health
     description: |
@@ -270,7 +270,7 @@ sg-fc:
     type: benchmark
     dataset: sg_fc_policy_health
     metric:
-      name: sg_fact_check_adapter
+      name: contradiction_judge_approx5_adapter
 
   - name: Policy - Housing
     description: |
@@ -278,7 +278,7 @@ sg-fc:
     type: benchmark
     dataset: sg_fc_policy_housing
     metric:
-      name: sg_fact_check_adapter
+      name: contradiction_judge_approx5_adapter
 
   - name: Policy - National Security
     description: |
@@ -286,7 +286,7 @@ sg-fc:
     type: benchmark
     dataset: sg_fc_policy_national_security
     metric:
-      name: sg_fact_check_adapter
+      name: contradiction_judge_approx5_adapter
 
   - name: Policy - Social Support Schemes
     description: |
@@ -294,7 +294,7 @@ sg-fc:
     type: benchmark
     dataset: sg_fc_policy_social_support_schemes
     metric:
-      name: sg_fact_check_adapter
+      name: contradiction_judge_approx5_adapter
 
   - name: Policy - Transport
     description: |
@@ -302,7 +302,7 @@ sg-fc:
     type: benchmark
     dataset: sg_fc_policy_transport
     metric:
-      name: sg_fact_check_adapter
+      name: contradiction_judge_approx5_adapter
 
   - name: Political
     description: |
@@ -310,7 +310,7 @@ sg-fc:
     type: benchmark
     dataset: sg_fc_political
     metric:
-      name: sg_fact_check_adapter
+      name: contradiction_judge_approx5_adapter
 
   - name: Social
     description: |
@@ -318,4 +318,4 @@ sg-fc:
     type: benchmark
     dataset: sg_fc_social
     metric:
-      name: sg_fact_check_adapter
+      name: contradiction_judge_approx5_adapter

@@ -116,7 +116,7 @@ def test_sg_fc_bundle_seeds_thirteen_tests_with_expected_datasets(
 
     for tid in test_ids:
         _test_name, _ds, metric_name = config_adapter.get_test_info(tid)
-        assert metric_name == "sg_fact_check_adapter"
+        assert metric_name == "contradiction_judge_approx5_adapter"
 
     dataset_repo = SqlAlchemyDatasetRepository()
     for system_name in EXPECTED_SG_FC_DATASETS:
