@@ -1,6 +1,8 @@
 name: Dev Docker + E2E + Pytest + Portal Jest
 
 on:
+  push:
+    branches: [dev_main]
   workflow_dispatch:
     inputs:
       promote_to_staging:
@@ -96,7 +98,7 @@ jobs:
       contents: read
 
   promote-to-staging:
-    if: ${{ inputs.promote_to_staging && needs.assert-dev-main.outputs.on_dev_main == 'true' }}
+    if: ${{ (github.event_name == 'push' || inputs.promote_to_staging) && needs.assert-dev-main.outputs.on_dev_main == 'true' }}
     needs: [assert-dev-main, build-dev-docker, e2e-on-docker, pre-build-checks, portal-jest]
     uses: ./.github/workflows/moonshot-tag-docker-staging.yaml
     with:

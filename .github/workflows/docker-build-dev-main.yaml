@@ -1,8 +1,6 @@
 name: dev_main Docker build and push
 
 on:
-  push:
-    branches: [ "dev_main" ]
   workflow_dispatch:
   workflow_call:
     inputs:
