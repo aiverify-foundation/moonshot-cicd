@@ -16,9 +16,11 @@ import {
   setBenchmarkRunFks,
   updateConfigValidity,
 } from "@/store";
-import { decodeCustomAppProviderId } from "../constants/customAppConfig";
+import { decodeCustomAppProviderId, isBedrockApiCustomApp } from "../constants/customAppConfig";
+import { getModelAppConfigInfo } from "./customApplicationSheetShared";
 import EditModelSheet from "./EditModelSheet";
 import EditCustomApplicationSheet from "./EditCustomApplicationSheet";
+import EditBedrockApplicationSheet from "./EditBedrockApplicationSheet";
 
 interface SelectAppOrModelCardProps {
   // Raw data
@@ -57,6 +59,13 @@ export default function SelectAppOrModelCard({
   const [editingDatabaseConfigId, setEditingDatabaseConfigId] = useState<string | null>(null);
   const [customSheetOpen, setCustomSheetOpen] = useState(false);
   const [editingConfig, setEditingConfig] = useState<string>("");
+
+  const editingModelApp = useMemo(() => {
+    if (!editingConfig) return undefined;
+    return getModelAppConfigInfo(editingConfig, custom_connectors, configs).currentModelApp;
+  }, [editingConfig, custom_connectors, configs]);
+
+  const isBedrockEditing = isBedrockApiCustomApp(editingModelApp?.name);
   
   // Track config validity when selections change
   useEffect(() => {
@@ -455,15 +464,25 @@ export default function SelectAppOrModelCard({
       onSaved={onModelsSaved}
     />
     
-    {/* Edit Custom Application Sheet */}
-    <EditCustomApplicationSheet
-      open={customSheetOpen}
-      onOpenChange={setCustomSheetOpen}
-      editingConfig={editingConfig}
-      modelApps={custom_connectors}
-      configs={configs}
-      onSaved={onConfigsSaved}
-    />
+    {isBedrockEditing ? (
+      <EditBedrockApplicationSheet
+        open={customSheetOpen}
+        onOpenChange={setCustomSheetOpen}
+        editingConfig={editingConfig}
+        modelApps={custom_connectors}
+        configs={configs}
+        onSaved={onConfigsSaved}
+      />
+    ) : (
+      <EditCustomApplicationSheet
+        open={customSheetOpen}
+        onOpenChange={setCustomSheetOpen}
+        editingConfig={editingConfig}
+        modelApps={custom_connectors}
+        configs={configs}
+        onSaved={onConfigsSaved}
+      />
+    )}
   </>
   );
 }

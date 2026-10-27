@@ -47,7 +47,9 @@ function getTestCustomAppConnectionMock() {
 }
 
 const customProviderId = encodeCustomAppProviderId(1);
-const modelApps: ModelApp[] = [{ id: customProviderId, name: 'Together API', type: 'custom' }];
+const modelApps: ModelApp[] = [
+  { id: customProviderId, name: 'Together API', type: 'custom' },
+];
 
 function getParametersSection() {
   const heading = screen.getByText('Parameters');

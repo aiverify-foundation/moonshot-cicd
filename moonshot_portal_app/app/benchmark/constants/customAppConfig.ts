@@ -74,7 +74,61 @@ export const DEFAULT_CUSTOM_API_BODY = `{
   ]
 }`;
 export const DEFAULT_CONNECTOR_ADAPTER = 'custom_api_connector_adapter';
+export const AWS_BEDROCK_API_APP_NAME = 'AWS Bedrock API Connector';
+export const BEDROCK_API_CONNECTOR_ADAPTER = 'bedrock_api_connector_adapter';
+
+export function isBedrockApiCustomApp(appName: string | undefined): boolean {
+  return appName === AWS_BEDROCK_API_APP_NAME;
+}
+export const DEFAULT_BEDROCK_API_URL =
+  'https://bedrock-runtime.us-east-1.amazonaws.com/model/openai.gpt-oss-20b-1:0/converse';
+export const DEFAULT_BEDROCK_RESPONSE_PATH = 'output.message.content[0].text';
+/** Bedrock Converse request body; {{prompt}} is replaced per benchmark prompt. */
+export const DEFAULT_BEDROCK_API_BODY = `{
+  "messages": [
+    {
+      "role": "user",
+      "content": [
+        {
+          "text": "{{prompt}}"
+        }
+      ]
+    }
+  ]
+}`;
 export const CUSTOM_APP_PROVIDER_PREFIX = 'custom-app:';
+
+export type CustomAppConnectorDefaults = {
+  connectorAdapter: string;
+  apiType: string;
+  apiUrl: string;
+  apiBody: string;
+  responsePath: string;
+  apiKeyAuthScheme: ApiKeyAuthScheme;
+};
+
+export function getCustomAppConnectorDefaults(
+  appName: string | undefined
+): CustomAppConnectorDefaults {
+  if (appName === AWS_BEDROCK_API_APP_NAME) {
+    return {
+      connectorAdapter: BEDROCK_API_CONNECTOR_ADAPTER,
+      apiType: DEFAULT_CUSTOM_API_TYPE,
+      apiUrl: DEFAULT_BEDROCK_API_URL,
+      apiBody: DEFAULT_BEDROCK_API_BODY,
+      responsePath: DEFAULT_BEDROCK_RESPONSE_PATH,
+      apiKeyAuthScheme: 'bearer',
+    };
+  }
+  return {
+    connectorAdapter: DEFAULT_CONNECTOR_ADAPTER,
+    apiType: DEFAULT_CUSTOM_API_TYPE,
+    apiUrl: DEFAULT_CUSTOM_API_URL,
+    apiBody: DEFAULT_CUSTOM_API_BODY,
+    responsePath: DEFAULT_RESPONSE_PATH,
+    apiKeyAuthScheme: DEFAULT_API_KEY_AUTH_SCHEME,
+  };
+}
 
 export function encodeCustomAppProviderId(appId: number | string): string {
   return `${CUSTOM_APP_PROVIDER_PREFIX}${String(appId)}`;

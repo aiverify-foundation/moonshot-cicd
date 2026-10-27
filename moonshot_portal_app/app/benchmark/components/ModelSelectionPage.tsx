@@ -7,6 +7,8 @@ import TestNameCard from "./TestNameCard";
 import SelectAppOrModelCard from "./SelectAppOrModelCard";
 import type { Provider, ModelConfig, Config, ModelApp } from "../types/modelSelection";
 import { useAppDispatch, useAppSelector } from "@/hooks/reduxHooks";
+import { useFeatureFlags } from "@/hooks/useFeatureFlags";
+import { FeatureFlagNames } from "@/lib/featureFlags";
 import {
   fetchProviders,
   fetchProviderLatestDetails,
@@ -19,6 +21,7 @@ import {
   type CustomAppConfigDTO,
 } from "@/lib/api";
 import {
+  AWS_BEDROCK_API_APP_NAME,
   encodeCustomAppProviderId,
   decodeCustomAppProviderId,
   hydrateConfigPairsFromSavedPairs,
@@ -116,6 +119,8 @@ function getSelectionValueForSavedConfig(savedConfig: DatabaseModelConfigDTO): s
 
 export default function ModelSelectionPage() {
   const dispatch = useAppDispatch();
+  const { isEnabled } = useFeatureFlags();
+  const bedrockCustomAppEnabled = isEnabled(FeatureFlagNames.AIVET_OCT2026_MOON803);
   const { selectedProvider, selectedModel, selectedConfig, isTestNameValid } =
     useAppSelector((state) => state.modelSelection);
 
@@ -145,11 +150,16 @@ export default function ModelSelectionPage() {
         if (!cancelled) {
           setApiProviders(providerDtos.map(mapLlmProviderDtoToProvider));
           setCustomApps(
-            appDtos.map((app) => ({
-              id: encodeCustomAppProviderId(app.id),
-              name: app.name,
-              type: 'custom',
-            }))
+            appDtos
+              .filter(
+                (app) =>
+                  bedrockCustomAppEnabled || app.name !== AWS_BEDROCK_API_APP_NAME
+              )
+              .map((app) => ({
+                id: encodeCustomAppProviderId(app.id),
+                name: app.name,
+                type: 'custom',
+              }))
           );
         }
       } catch (e) {
@@ -169,7 +179,7 @@ export default function ModelSelectionPage() {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [bedrockCustomAppEnabled]);
 
   const isCustomConnector = customApps.some(
     (connector) => connector.id === selectedProvider

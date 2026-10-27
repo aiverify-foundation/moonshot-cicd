@@ -23,6 +23,9 @@ from application.ports.custom_app_repository import CustomAppRepository
 from application.services.custom_app_config_secret_service import (
     CustomAppConfigSecretService,
 )
+from application.services.custom_app_seed_service import AWS_BEDROCK_API_APP_NAME
+from domain.services.enums.feature_flag_names import FeatureFlagNames
+from domain.services.feature_flags import FeatureFlags
 
 
 class DatabaseCustomAppConfigNotFoundError(Exception):
@@ -49,9 +52,13 @@ class DatabaseCustomAppService:
         self._logger = get_logger(__name__)
 
     def list_apps(self) -> list[CustomAppResponseDTO]:
+        bedrock_app_visible = FeatureFlags().is_enabled(
+            FeatureFlagNames.AIVET_OCT2026_MOON803
+        )
         return [
             CustomAppResponseDTO.model_validate(e.model_dump())
             for e in self._repository.list_all()
+            if e.name != AWS_BEDROCK_API_APP_NAME or bedrock_app_visible
         ]
 
     def create_app(self, body: CreateCustomAppBody) -> CustomAppResponseDTO:
