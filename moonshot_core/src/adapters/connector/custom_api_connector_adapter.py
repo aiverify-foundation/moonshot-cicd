@@ -219,23 +219,9 @@ class CustomApiConnectorAdapter(ConnectorPort):
             headers[header_name] = header_value
         return headers
 
-    async def probe(self, prompt: Any) -> tuple[int, str]:
-        headers = self._build_request_headers()
-        body = self._build_request_body(prompt)
-        logger.info(
-            self.INFO_MAKING_REQUEST.format(method=self.api_type, url=self.api_url)
-        )
-
-        async with aiohttp.ClientSession() as session:
-            async with session.request(
-                method=self.api_type,
-                url=self.api_url,
-                headers=headers,
-                json=body,
-            ) as response:
-                return response.status, await response.text()
-
-    async def get_response(self, prompt: Any) -> ConnectorResponseEntity:
+    def _prepare_request(
+        self, prompt: Any
+    ) -> tuple[dict[str, str], dict[str, Any], dict[str, Any]]:
         headers = self._build_request_headers()
         body = self._build_request_body(prompt)
         request_dump = {
@@ -244,6 +230,55 @@ class CustomApiConnectorAdapter(ConnectorPort):
             "headers": headers,
             "body": body,
         }
+        return headers, body, request_dump
+
+    async def probe(self, prompt: Any) -> tuple[int, str]:
+        headers, body, request_dump = self._prepare_request(prompt)
+        adapter_name = type(self).__name__
+        logger.info(
+            self.INFO_MAKING_REQUEST.format(method=self.api_type, url=self.api_url)
+        )
+
+        try:
+            async with aiohttp.ClientSession() as session:
+                async with session.request(
+                    method=self.api_type,
+                    url=self.api_url,
+                    headers=headers,
+                    json=body,
+                ) as response:
+                    text = await response.text()
+                    status = response.status
+                    if not (200 <= status < 300):
+                        http_error = RuntimeError(f"HTTP {status}")
+                        http_error.status_code = status  # type: ignore[attr-defined]
+                        dump_api_failure(
+                            adapter_name=adapter_name,
+                            request=request_dump,
+                            error=http_error,
+                            extra={
+                                "http_status": status,
+                                "response_body": text,
+                            },
+                        )
+                    return status, text
+        except aiohttp.ClientError as exc:
+            dump_api_failure(
+                adapter_name=adapter_name,
+                request=request_dump,
+                error=exc,
+            )
+            raise
+        except Exception as exc:
+            dump_api_failure(
+                adapter_name=adapter_name,
+                request=request_dump,
+                error=exc,
+            )
+            raise
+
+    async def get_response(self, prompt: Any) -> ConnectorResponseEntity:
+        headers, body, request_dump = self._prepare_request(prompt)
         logger.info(
             self.INFO_MAKING_REQUEST.format(method=self.api_type, url=self.api_url)
         )

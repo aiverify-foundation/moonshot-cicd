@@ -142,6 +142,41 @@ class TestBedrockApiConnectorAdapter:
         assert call_kwargs["url"] == BedrockApiConnectorAdapter.DEFAULT_CONFIG_PAIRS["api_url"]
         assert call_kwargs["headers"]["Authorization"] == "Bearer sk-test"
 
+    @pytest.mark.asyncio
+    async def test_probe_http_error_dumps_bedrock_adapter_name(
+        self, tmp_path, monkeypatch
+    ):
+        log_path = tmp_path / "api_failures.log"
+        monkeypatch.setenv("MS_API_FAILURE_LOG_PATH", str(log_path))
+
+        adapter = _configured_adapter(api_key="bedrock-bearer-secret")
+        error_body = json.dumps({"message": "The security token included in the request is invalid."})
+        mock_response = AsyncMock()
+        mock_response.status = 403
+        mock_response.text = AsyncMock(return_value=error_body)
+
+        mock_request_ctx = MagicMock()
+        mock_request_ctx.__aenter__ = AsyncMock(return_value=mock_response)
+        mock_request_ctx.__aexit__ = AsyncMock(return_value=None)
+
+        mock_session = MagicMock()
+        mock_session.request = MagicMock(return_value=mock_request_ctx)
+        mock_session.__aenter__ = AsyncMock(return_value=mock_session)
+        mock_session.__aexit__ = AsyncMock(return_value=None)
+
+        with patch(
+            "adapters.connector.custom_api_connector_adapter.aiohttp.ClientSession",
+            return_value=mock_session,
+        ):
+            status, body = await adapter.probe("connection test prompt")
+
+        assert status == 403
+        assert body == error_body
+        text = log_path.read_text(encoding="utf-8")
+        record = json.loads(text.split("=" * 72, 1)[1].strip())
+        assert record["adapter"] == "BedrockApiConnectorAdapter"
+        assert "bedrock-bearer-secret" not in text
+
     def test_extract_response_value_single_text_block_non_reasoning(self):
         adapter = _configured_adapter()
         payload = _converse_payload([{"text": "Hello from Bedrock"}])

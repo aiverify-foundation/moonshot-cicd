@@ -2,6 +2,7 @@ import json
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
+from aiohttp import ClientConnectorError
 
 from adapters.connector.custom_api_connector_adapter import CustomApiConnectorAdapter
 
@@ -189,6 +190,63 @@ class TestCustomApiConnectorAdapter:
         assert (
             request_kwargs["json"]["messages"][0]["content"] == CONNECTION_TEST_PROMPT
         )
+
+    @pytest.mark.asyncio
+    async def test_probe_http_error_dumps_redacted_failure(self, tmp_path, monkeypatch):
+        log_path = tmp_path / "api_failures.log"
+        monkeypatch.setenv("MS_API_FAILURE_LOG_PATH", str(log_path))
+
+        adapter = _configured_adapter(
+            api_key="sk-secret-probe",
+            api_url="https://bedrock-runtime.us-east-1.amazonaws.com/model/foo/converse",
+        )
+
+        error_body = json.dumps(
+            {"message": "Forbidden", "__type": "AccessDeniedException"}
+        )
+        mock_response = AsyncMock()
+        mock_response.status = 403
+        mock_response.text = AsyncMock(return_value=error_body)
+
+        with patch(
+            "adapters.connector.custom_api_connector_adapter.aiohttp.ClientSession",
+            return_value=_mock_client_session(mock_response),
+        ):
+            status, body = await adapter.probe(CONNECTION_TEST_PROMPT)
+
+        assert status == 403
+        assert body == error_body
+        text = log_path.read_text(encoding="utf-8")
+        assert "CustomApiConnectorAdapter" in text
+        assert "sk-secret-probe" not in text
+        assert "***REDACTED***" in text
+        record = json.loads(text.split("=" * 72, 1)[1].strip())
+        assert record["adapter"] == "CustomApiConnectorAdapter"
+        assert record["error"]["status_code"] == 403
+        assert record["extra"]["http_status"] == 403
+
+    @pytest.mark.asyncio
+    async def test_probe_transport_error_dumps_and_raises(self, tmp_path, monkeypatch):
+        log_path = tmp_path / "api_failures.log"
+        monkeypatch.setenv("MS_API_FAILURE_LOG_PATH", str(log_path))
+
+        adapter = _configured_adapter(api_key="sk-test")
+        connector_error = ClientConnectorError(MagicMock(), OSError("Connection refused"))
+
+        mock_session = MagicMock()
+        mock_session.__aenter__ = AsyncMock(return_value=mock_session)
+        mock_session.__aexit__ = AsyncMock(return_value=None)
+        mock_session.request = MagicMock(side_effect=connector_error)
+
+        with patch(
+            "adapters.connector.custom_api_connector_adapter.aiohttp.ClientSession",
+            return_value=mock_session,
+        ):
+            with pytest.raises(ClientConnectorError):
+                await adapter.probe(CONNECTION_TEST_PROMPT)
+
+        text = log_path.read_text(encoding="utf-8")
+        assert "CustomApiConnectorAdapter" in text
 
     def test_extract_response_value_default_path(self):
         adapter = _configured_adapter()
