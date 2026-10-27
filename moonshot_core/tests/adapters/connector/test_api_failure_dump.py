@@ -71,6 +71,22 @@ def test_extract_error_details_reads_status_and_body():
     assert details["body"] == {"error": {"message": "invalid"}}
 
 
+def test_dump_api_failure_includes_caller_location(tmp_path: Path, monkeypatch):
+    log_path = tmp_path / "api_failures.log"
+    monkeypatch.setenv("MS_API_FAILURE_LOG_PATH", str(log_path))
+
+    def invoke_dump():
+        dump_api_failure(adapter_name="TestAdapter", error=RuntimeError("x"))
+
+    invoke_dump()
+
+    text = log_path.read_text(encoding="utf-8")
+    record = json.loads(text.split("=" * 72, 1)[1].strip())
+    assert record["caller_file"] == "test_api_failure_dump.py"
+    assert record["caller_function"] == "invoke_dump"
+    assert isinstance(record["caller_line"], int)
+
+
 def test_dump_api_failure_writes_redacted_json(tmp_path: Path, monkeypatch):
     log_path = tmp_path / "api_failures.log"
     monkeypatch.setenv("MS_API_FAILURE_LOG_PATH", str(log_path))

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import inspect
 import json
 import os
 from datetime import datetime, timezone
@@ -165,6 +166,24 @@ def extract_error_details(error: BaseException) -> dict[str, Any]:
     return details
 
 
+def _resolve_caller_location() -> dict[str, Any]:
+    """First stack frame outside this module (the direct ``dump_api_failure`` caller)."""
+    this_file = Path(__file__).resolve()
+    for frame_info in inspect.stack()[1:]:
+        try:
+            frame_path = Path(frame_info.filename).resolve()
+        except OSError:
+            continue
+        if frame_path == this_file:
+            continue
+        return {
+            "caller_file": frame_path.name,
+            "caller_line": frame_info.lineno,
+            "caller_function": frame_info.function,
+        }
+    return {}
+
+
 def dump_api_failure(
     *,
     adapter_name: str,
@@ -183,6 +202,7 @@ def dump_api_failure(
         record: dict[str, Any] = {
             "timestamp": datetime.now(timezone.utc).isoformat(),
             "adapter": adapter_name,
+            **_resolve_caller_location(),
         }
         if model is not None:
             record["model"] = model
