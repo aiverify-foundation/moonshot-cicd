@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from typing import Optional
 
+from adapters.feature_flag.env_feature_flag_adapter import EnvFeatureFlagAdapter
 from domain.services.enums.feature_flag_names import FeatureFlagNames
 from domain.services.loader.factory.feature_flag_adapter_factory import (
     FeatureFlagAdapterFactory,
@@ -17,7 +18,8 @@ __all__ = ["FeatureFlagNames", "FeatureFlags"]
 
 class FeatureFlags:
     """
-    Loads feature flags via FeatureFlagAdapterFactory (file today; env/DynamoDB later).
+    Loads feature flags from the configured base adapter (file today), then applies
+    environment overrides from EnvFeatureFlagAdapter for keys present in the base load result.
     """
 
     LOG_ERROR_LOADING = "[FeatureFlags] Error loading feature flags: {error}"
@@ -57,14 +59,27 @@ class FeatureFlags:
         if FeatureFlags._flags is not None:
             return FeatureFlags._flags
         try:
-            adapter = FeatureFlagAdapterFactory.get_adapter()
-            data = adapter.load_flags()
-            if not isinstance(data, dict):
+            base_data = FeatureFlagAdapterFactory.get_adapter().load_flags()
+            if not isinstance(base_data, dict):
                 FeatureFlags._flags = {}
                 return FeatureFlags._flags
-            FeatureFlags._flags = {str(key): bool(value) for key, value in data.items()}
+            base_flags = {str(key): bool(value) for key, value in base_data.items()}
+            env_data = EnvFeatureFlagAdapter().load_flags()
+            FeatureFlags._flags = self._apply_env_overrides(base_flags, env_data)
             return FeatureFlags._flags
         except Exception as error:
             logger.error(self.LOG_ERROR_LOADING.format(error=error))
             FeatureFlags._flags = {}
             return FeatureFlags._flags
+
+    @staticmethod
+    def _apply_env_overrides(
+        base_flags: dict[str, bool], env_flags: dict[str, bool]
+    ) -> dict[str, bool]:
+        merged = dict(base_flags)
+        if not isinstance(env_flags, dict):
+            return merged
+        for name in merged:
+            if name in env_flags:
+                merged[name] = env_flags[name]
+        return merged

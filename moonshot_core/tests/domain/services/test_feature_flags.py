@@ -17,6 +17,13 @@ def reset_feature_flags():
     FeatureFlags.reset()
 
 
+@pytest.fixture(autouse=True)
+def empty_env_overrides():
+    with patch("domain.services.feature_flags.EnvFeatureFlagAdapter") as mock_env_cls:
+        mock_env_cls.return_value.load_flags.return_value = {}
+        yield mock_env_cls
+
+
 def test_is_enabled_true_from_loaded_flags():
     adapter = MagicMock()
     adapter.load_flags.return_value = {FeatureFlagNames.AIVET_Q42026_MOON774: True}
@@ -123,6 +130,41 @@ def test_get_all_returns_empty_on_load_failure():
         side_effect=RuntimeError("boom"),
     ):
         assert FeatureFlags().get_all() == {}
+
+
+def test_env_override_false_over_file_true(empty_env_overrides):
+    name = FeatureFlagNames.AIVET_OCT2026_MOON771
+    base = MagicMock()
+    base.load_flags.return_value = {name: True}
+    empty_env_overrides.return_value.load_flags.return_value = {str(name): False}
+
+    with patch(
+        "domain.services.feature_flags.FeatureFlagAdapterFactory.get_adapter",
+        return_value=base,
+    ):
+        flags = FeatureFlags()
+        assert flags.is_enabled(name) is False
+        assert flags.get_all() == {str(name): False}
+
+
+def test_env_override_ignored_for_flag_not_in_base(empty_env_overrides):
+    name = FeatureFlagNames.AIVET_OCT2026_MOON771
+    base = MagicMock()
+    base.load_flags.return_value = {"OTHER": True}
+    empty_env_overrides.return_value.load_flags.return_value = {str(name): True}
+
+    with patch(
+        "domain.services.feature_flags.FeatureFlagAdapterFactory.get_adapter",
+        return_value=base,
+    ):
+        assert FeatureFlags().get_all() == {"OTHER": True}
+
+
+def test_apply_env_overrides_static():
+    assert FeatureFlags._apply_env_overrides(
+        {"A": True, "B": False},
+        {"A": False, "C": True},
+    ) == {"A": False, "B": False}
 
 
 def test_factory_returns_txt_adapter_for_default_source():
