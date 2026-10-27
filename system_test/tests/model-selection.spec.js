@@ -337,14 +337,11 @@ test.describe('Model Selection Page Integration Tests', () => {
       const selectedModelText = await modelCombobox.textContent();
       await expect(selectedModelText).not.toContain('Select model configuration');
       
-      // Change provider
-      await page.click('[data-testid="provider-combobox-trigger"]');
-      await page.waitForSelector('[data-testid^="provider-option-"]', { timeout: 5000 });
-      const secondProvider = page.locator('[data-testid^="provider-option-"]').nth(1);
-      await secondProvider.click();
-      await page.waitForTimeout(500);
-      
-      // Verify model selection is reset
+      // Switch to a different standard provider (not the same row — re-selecting clears provider)
+      await selectProviderByName(page, /OpenRouter/i);
+
+      // Verify model selection is reset while a provider remains selected
+      await expect(modelCombobox).toBeVisible();
       await expect(modelCombobox).toContainText('Select model configuration');
     });
   });
