@@ -46,19 +46,32 @@ export function resolveModelNameLabel(
   return model && model.length > 0 ? model : '—';
 }
 
-/** Unique metric-side provider system_names for tests that require LLM-as-judge. */
-export function collectAajProviderSystemNames(
+/** AAJ tests grouped by metric_provider_system_name → display names for UI lists. */
+export function groupAajTestsByProviderSystemName(
   tests: BundleTest[] | undefined
-): string[] {
-  if (!tests?.length) return [];
-  const names = new Set<string>();
+): Map<string, Set<string>> {
+  const bySystem = new Map<string, Set<string>>();
+  if (!tests?.length) return bySystem;
   for (const test of tests) {
     if (!test.requires_llm_aaj || !test.metric_provider_system_name?.trim()) {
       continue;
     }
-    names.add(test.metric_provider_system_name.trim());
+    const sn = test.metric_provider_system_name.trim();
+    if (!bySystem.has(sn)) {
+      bySystem.set(sn, new Set());
+    }
+    bySystem.get(sn)!.add(test.name);
   }
-  return Array.from(names).sort((a, b) => a.localeCompare(b));
+  return bySystem;
+}
+
+/** Unique metric-side provider system_names for tests that require LLM-as-judge. */
+export function collectAajProviderSystemNames(
+  tests: BundleTest[] | undefined
+): string[] {
+  return Array.from(groupAajTestsByProviderSystemName(tests).keys()).sort((a, b) =>
+    a.localeCompare(b)
+  );
 }
 
 /** Provider display names required by a bundle's tests (for summary UI). */

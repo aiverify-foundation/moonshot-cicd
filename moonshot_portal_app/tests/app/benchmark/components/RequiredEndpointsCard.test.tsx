@@ -70,6 +70,7 @@ describe('RequiredEndpointsCard', () => {
     tests: [
       {
         name: 'Recipe A',
+        benchmark_test_id: 101,
         requires_llm_aaj: true,
         metric_provider_system_name: 'together_adapter',
         dataset: {
@@ -89,7 +90,7 @@ describe('RequiredEndpointsCard', () => {
       error: null,
     },
     bundleSelection: { bundle_one: true },
-    testSelection: { bundle_one: { 'Recipe A': true } },
+    testSelection: { bundle_one: { '101': true } },
   };
 
   const renderCard = (preloadedState?: Record<string, unknown>) =>
@@ -178,6 +179,7 @@ describe('RequiredEndpointsCard', () => {
       tests: [
         {
           name: 'CyberSecEval Prompt Injections',
+          benchmark_test_id: 201,
           requires_llm_aaj: true,
           metric_provider_system_name: 'openai_adapter',
           dataset: {
@@ -194,7 +196,7 @@ describe('RequiredEndpointsCard', () => {
       preloadedState: {
         bundles: { data: [bundleWithRefusal], loading: false, error: null },
         bundleSelection: { bundle_refusal: true },
-        testSelection: { bundle_refusal: { 'CyberSecEval Prompt Injections': true } },
+        testSelection: { bundle_refusal: { '201': true } },
       },
     });
 
@@ -313,5 +315,92 @@ describe('RequiredEndpointsCard', () => {
       );
     });
     expect(mockSetLlmProviderApiKey).not.toHaveBeenCalled();
+  });
+
+  it('ignores duplicate test names in unselected bundles', async () => {
+    mockFetchProviders.mockResolvedValue([
+      {
+        id: '42',
+        name: 'Together AI',
+        system_name: 'together_adapter',
+        version: 1,
+      },
+      {
+        id: '1',
+        name: 'OpenAI',
+        system_name: 'openai_adapter',
+        version: 1,
+      },
+    ]);
+    mockFetchProviderLatestDetails.mockImplementation(async (systemName: string) => ({
+      api_key_configured: false,
+      database_model_configs: [],
+      models: [],
+      provider: {
+        id: systemName === 'openai_adapter' ? '1' : '42',
+        name: systemName === 'openai_adapter' ? 'OpenAI' : 'Together AI',
+        system_name: systemName,
+      },
+    }));
+
+    const sharedDisplayName = 'Same Name';
+    const bundleSelected: Bundle = {
+      id: 'bundle_selected',
+      name: 'Selected',
+      description: '',
+      category: 'cat',
+      tests: [
+        {
+          name: sharedDisplayName,
+          benchmark_test_id: 10,
+          requires_llm_aaj: true,
+          metric_provider_system_name: 'together_adapter',
+          dataset: {
+            id: 'ds-a',
+            name: 'DS A',
+            description: '',
+            num_of_dataset_prompts: 1,
+          },
+        },
+      ],
+    };
+    const bundleOther: Bundle = {
+      id: 'bundle_other',
+      name: 'Other',
+      description: '',
+      category: 'cat',
+      tests: [
+        {
+          name: sharedDisplayName,
+          benchmark_test_id: 20,
+          requires_llm_aaj: true,
+          metric_provider_system_name: 'openai_adapter',
+          dataset: {
+            id: 'ds-b',
+            name: 'DS B',
+            description: '',
+            num_of_dataset_prompts: 1,
+          },
+        },
+      ],
+    };
+
+    render(<RequiredEndpointsCard />, {
+      preloadedState: {
+        bundles: { data: [bundleSelected, bundleOther], loading: false, error: null },
+        bundleSelection: { bundle_selected: true, bundle_other: true },
+        testSelection: {
+          bundle_selected: { '10': true },
+          bundle_other: { '20': false },
+        },
+      },
+    });
+
+    await waitFor(() => {
+      expect(screen.getByText('Together AI (LLM judge)')).toBeInTheDocument();
+    });
+    expect(screen.queryByText('OpenAI (LLM judge)')).not.toBeInTheDocument();
+    expect(mockFetchProviderLatestDetails).toHaveBeenCalledWith('together_adapter');
+    expect(mockFetchProviderLatestDetails).not.toHaveBeenCalledWith('openai_adapter');
   });
 });
