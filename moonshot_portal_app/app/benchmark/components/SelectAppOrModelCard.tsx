@@ -6,6 +6,8 @@ import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, Command
 import { Card, CardContent, CardDescription, CardTitle } from "@/components/ui/card";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { Check, ChevronsUpDown, Edit, Plus, CircleAlert, CircleCheckBig } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+import { isBedrockWebSearchProvider } from "@/lib/bedrockWebSearch";
 import type { Provider, ModelConfig, Config, ModelApp } from "../types/modelSelection";
 import type { CustomAppConfigDTO, DatabaseModelConfigDTO } from "@/lib/api";
 import { useAppDispatch, useAppSelector } from "@/hooks/reduxHooks";
@@ -203,7 +205,14 @@ export default function SelectAppOrModelCard({
                               <Check
                                 className={`mr-2 h-4 w-4 ${selectedProvider === provider.id ? "opacity-100" : "opacity-0"}`}
                               />
-                              {provider.name}
+                              <span className="flex items-center gap-2">
+                                {provider.name}
+                                {isBedrockWebSearchProvider(provider.system_name) && (
+                                  <Badge variant="secondary" className="text-[10px] px-1 py-0">
+                                    Web search enabled
+                                  </Badge>
+                                )}
+                              </span>
                             </CommandItem>
                           ))}
                           {!showAllStandardProviders && providers.length > 3 && (

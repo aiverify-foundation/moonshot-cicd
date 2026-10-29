@@ -3,6 +3,7 @@ from typing import List, Optional
 
 from application.ports.provider_repository import ProviderRepository
 from adapters.connector.aws_bedrock_adapter import AWSBedrockAdapter
+from adapters.connector.bedrock_mantle_web_search_adapter import BedrockMantleWebSearchAdapter
 from adapters.connector.openai_adapter import OpenAIAdapter
 from adapters.connector.openrouter_adapter import OpenRouterAdapter
 from adapters.connector.together_adapter import TogetherAdapter
@@ -37,6 +38,8 @@ class ProviderSeedService:
         ]
         if FeatureFlags().is_enabled(FeatureFlagNames.AIVET_OCT2026_MOON792):
             definitions.append(AWSBedrockAdapter.provider_seed_definition())
+        if FeatureFlags().is_enabled(FeatureFlagNames.AIVET_OCT2026_MOON812):
+            definitions.append(BedrockMantleWebSearchAdapter.provider_seed_definition())
         return definitions
 
     def seed_hardcoded_providers(self) -> None:

@@ -5,6 +5,7 @@ from __future__ import annotations
 from typing import Dict
 
 from adapters.connector.aws_bedrock_adapter import AWSBedrockAdapter
+from adapters.connector.bedrock_mantle_web_search_adapter import BedrockMantleWebSearchAdapter
 from adapters.driven.repository.sqlalchemy.llm_provider_models import \
     LLMProviderModel
 from adapters.driven.repository.sqlalchemy.session_manager import \
@@ -29,6 +30,9 @@ CONNECTION_TEST_PROMPT = "Reply with OK."
 RESPONSE_PREVIEW_MAX_CHARS = 500
 BEDROCK_PROVIDER_UNAVAILABLE = (
     "AWS Bedrock provider is unavailable (feature flag AIVET_OCT2026_MOON792 is off)."
+)
+BEDROCK_WEB_SEARCH_PROVIDER_UNAVAILABLE = (
+    "Bedrock Web Search provider is unavailable (feature flag AIVET_OCT2026_MOON812 is off)."
 )
 
 
@@ -121,10 +125,15 @@ class LlmProviderConnectionTestService:
             )
 
         is_bedrock = system_name == AWSBedrockAdapter.SYSTEM_NAME
+        is_bedrock_web_search = system_name == BedrockMantleWebSearchAdapter.SYSTEM_NAME
         if is_bedrock and not FeatureFlags().is_enabled(
             FeatureFlagNames.AIVET_OCT2026_MOON792
         ):
             raise ValueError(BEDROCK_PROVIDER_UNAVAILABLE)
+        if is_bedrock_web_search and not FeatureFlags().is_enabled(
+            FeatureFlagNames.AIVET_OCT2026_MOON812
+        ):
+            raise ValueError(BEDROCK_WEB_SEARCH_PROVIDER_UNAVAILABLE)
 
         if is_bedrock:
             # Optional: portal Token maps to aws_secret_access_key in the adapter.

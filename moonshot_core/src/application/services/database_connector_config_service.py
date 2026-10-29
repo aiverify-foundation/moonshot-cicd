@@ -25,6 +25,7 @@ SYSTEM_NAME_TO_ADAPTER_MODULE: dict[str, str] = {
     "together_adapter": "together_adapter",
     "openrouter_adapter": "openrouter_adapter",
     "aws_bedrock_adapter": "aws_bedrock_adapter",
+    "bedrock_mantle_web_search": "bedrock_mantle_web_search_adapter",
 }
 
 # These adapters load llm_provider_api_key inside configure() (params → DB → env).
@@ -34,6 +35,7 @@ _ADAPTERS_THAT_RESOLVE_API_KEYS_INTERNALLY: frozenset[str] = frozenset(
         "together_adapter",
         "openrouter_adapter",
         "aws_bedrock_adapter",
+        "bedrock_mantle_web_search_adapter",
     }
 )
 

@@ -7,6 +7,7 @@ from typing import Dict, List, Optional, Type
 from datetime import datetime
 
 from adapters.connector.aws_bedrock_adapter import AWSBedrockAdapter
+from adapters.connector.bedrock_mantle_web_search_adapter import BedrockMantleWebSearchAdapter
 from adapters.connector.openai_adapter import OpenAIAdapter
 from adapters.connector.openrouter_adapter import OpenRouterAdapter
 from adapters.connector.together_adapter import TogetherAdapter
@@ -42,6 +43,7 @@ _ADAPTER_BY_SYSTEM_NAME: Dict[str, Type[ConnectorPort]] = {
     TogetherAdapter.SYSTEM_NAME: TogetherAdapter,
     OpenRouterAdapter.SYSTEM_NAME: OpenRouterAdapter,
     AWSBedrockAdapter.SYSTEM_NAME: AWSBedrockAdapter,
+    BedrockMantleWebSearchAdapter.SYSTEM_NAME: BedrockMantleWebSearchAdapter,
 }
 
 
@@ -49,10 +51,16 @@ def _is_bedrock_portal_provider_enabled() -> bool:
     return FeatureFlags().is_enabled(FeatureFlagNames.AIVET_OCT2026_MOON792)
 
 
+def _is_bedrock_web_search_portal_provider_enabled() -> bool:
+    return FeatureFlags().is_enabled(FeatureFlagNames.AIVET_OCT2026_MOON812)
+
+
 def _is_portal_visible_provider_system_name(system_name: str) -> bool:
     """Hide AWS Bedrock from portal APIs when AIVET_OCT2026_MOON792 is off."""
     if system_name == AWSBedrockAdapter.SYSTEM_NAME:
         return _is_bedrock_portal_provider_enabled()
+    if system_name == BedrockMantleWebSearchAdapter.SYSTEM_NAME:
+        return _is_bedrock_web_search_portal_provider_enabled()
     return True
 
 
