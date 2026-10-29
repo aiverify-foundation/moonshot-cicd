@@ -1,5 +1,6 @@
 """Unit tests for SharedConfigSeedService (adapter mocked)."""
 
+import json
 from pathlib import Path
 from unittest.mock import MagicMock
 
@@ -162,3 +163,39 @@ class TestSharedConfigSeedService:
             category="",
             visible=False,
         )
+
+    def test_seed_from_data_logs_duplicate_names_but_still_seeds(
+        self, service, mock_adapter, tmp_path, monkeypatch
+    ):
+        log_path = tmp_path / "startup_config_warnings.log"
+        monkeypatch.setenv("MS_STARTUP_CONFIG_WARNINGS_LOG_PATH", str(log_path))
+        mock_adapter.get_or_create_metric.return_value = 1
+        mock_adapter.get_bundle_id.return_value = None
+        mock_adapter.insert_bundle.side_effect = [1, 2]
+        mock_adapter.get_dataset_id_by_system_name_latest.return_value = 42
+        mock_adapter.get_test_id.return_value = None
+        mock_adapter.insert_test.side_effect = [10, 11]
+        mock_adapter.grouping_exists.return_value = False
+
+        data = {
+            "bundle-one": {
+                "name": "One",
+                "tests": [
+                    {"name": "Same Name", "dataset": "ds1", "metric": {"name": "m1"}},
+                ],
+            },
+            "bundle-two": {
+                "name": "Two",
+                "tests": [
+                    {"name": "Same Name", "dataset": "ds1", "metric": {"name": "m1"}},
+                ],
+            },
+        }
+        service.seed_from_data(data, config_path=Path("/cfg/shared.yaml"))
+
+        assert mock_adapter.insert_test.call_count == 2
+        log_text = log_path.read_text(encoding="utf-8")
+        payload = json.loads(log_text.split("=" * 72 + "\n")[1].strip())
+        assert payload["issue"] == "duplicate_test_display_name"
+        assert payload["test_name"] == "Same Name"
+        assert payload["config_source"] == "/cfg/shared.yaml"

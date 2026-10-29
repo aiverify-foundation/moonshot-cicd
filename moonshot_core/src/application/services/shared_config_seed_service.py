@@ -24,6 +24,9 @@ from application.services.utils import get_application_root_path
 from adapters.driven.repository.sqlalchemy.benchmark_test_config_adapter import (
     BenchmarkTestConfigAdapter,
 )
+from application.services.startup_config_warnings import (
+    report_duplicate_test_display_names,
+)
 
 if TYPE_CHECKING:
     from application.ports.moonshot_config_repository import MoonshotConfigRepository
@@ -99,6 +102,19 @@ class SharedConfigSeedService:
             raise ValueError(f"Expected top-level dict in {config_path}, got {type(data).__name__}")
         return data
 
+    def _load_effective_shared_config(self, path: Path) -> dict[str, Any]:
+        """Return parsed shared config for seeding (future: merge benchmark-extensions)."""
+        if self._shared_config_repo is not None:
+            return self._shared_config_repo.get_config(path)
+        return self._load_config(path)
+
+    def _report_duplicate_test_names(
+        self,
+        config: dict[str, Any],
+        config_path: Optional[Path],
+    ) -> None:
+        report_duplicate_test_display_names(config, config_path)
+
     def seed_from_config(
         self,
         config_path: Optional[Path] = None,
@@ -120,7 +136,7 @@ class SharedConfigSeedService:
         """
         path = config_path or self._default_config_path()
         self.logger.info("Seeding shared config from %s", path)
-        data = self._load_config(path)
+        data = self._load_effective_shared_config(path)
         self._seed_from_data(data, path, version)
 
     def seed_from_data(
@@ -203,7 +219,7 @@ class SharedConfigSeedService:
                 return False
 
         self.logger.info("Test config file changed or first run, seeding from %s", path)
-        config = self._shared_config_repo.get_config(path)
+        config = self._load_effective_shared_config(path)
 
         version_entity = self._moonshot_config.get_by_key(SHARED_CONFIG_SEED_VERSION_KEY)
         if version_entity and version_entity.value is not None and version_entity.value.strip():
@@ -238,6 +254,8 @@ class SharedConfigSeedService:
         version: int,
     ) -> None:
         """Common logic: metrics, then bundles, tests, and groupings from data."""
+        self._report_duplicate_test_names(data, config_path)
+
         # Collect all unique metric names and ensure metrics exist
         metric_names: set[str] = set()
         for bundle_key, bundle_data in data.items():

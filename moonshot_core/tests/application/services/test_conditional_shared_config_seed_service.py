@@ -1,7 +1,7 @@
 """Unit tests for SharedConfigSeedService.seed_if_test_file_changed (all dependencies mocked)."""
 
 from pathlib import Path
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, patch
 
 import pytest
 
@@ -201,3 +201,62 @@ class TestSharedConfigSeedServiceSeedIfTestFileChanged:
             dataset_seed_service_mock.seed_benchmark_dataset.call_args_list[1][0][0],
         ]
         assert calls == ["aaa", "bbb"]
+
+    def test_reports_duplicate_names_when_seeding(
+        self,
+        service,
+        moonshot_config_mock,
+        shared_config_repo_mock,
+        mock_adapter,
+        config_path,
+    ):
+        moonshot_config_mock.get_by_key.return_value = None
+        shared_config_repo_mock.get_last_modified.return_value = 400.0
+        config = {
+            "b1": {
+                "tests": [
+                    {"name": "Dup", "dataset": "ds", "metric": {"name": "m1"}},
+                ],
+            },
+            "b2": {
+                "tests": [
+                    {"name": "Dup", "dataset": "ds", "metric": {"name": "m1"}},
+                ],
+            },
+        }
+        shared_config_repo_mock.get_config.return_value = config
+        mock_adapter.get_or_create_metric.return_value = 1
+        mock_adapter.get_bundle_id.return_value = None
+        mock_adapter.insert_bundle.side_effect = [1, 2]
+        mock_adapter.get_dataset_id_by_system_name_latest.return_value = 42
+        mock_adapter.get_test_id.return_value = None
+        mock_adapter.insert_test.side_effect = [10, 11]
+        mock_adapter.grouping_exists.return_value = False
+
+        with patch(
+            "application.services.shared_config_seed_service.report_duplicate_test_display_names"
+        ) as report_mock:
+            result = service.seed_if_test_file_changed(config_path=config_path)
+
+        assert result is True
+        report_mock.assert_called_once_with(config, config_path)
+
+    def test_skips_duplicate_report_when_file_unchanged(
+        self,
+        service,
+        moonshot_config_mock,
+        shared_config_repo_mock,
+        config_path,
+    ):
+        shared_config_repo_mock.get_last_modified.return_value = 100.0
+        moonshot_config_mock.get_by_key.return_value = MoonshotConfigEntity(
+            id=1, key=TEST_FILE_LAST_MODIFIED_KEY, value="150"
+        )
+
+        with patch(
+            "application.services.shared_config_seed_service.report_duplicate_test_display_names"
+        ) as report_mock:
+            result = service.seed_if_test_file_changed(config_path=config_path)
+
+        assert result is False
+        report_mock.assert_not_called()
