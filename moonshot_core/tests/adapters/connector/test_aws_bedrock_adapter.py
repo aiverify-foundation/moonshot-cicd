@@ -675,7 +675,7 @@ def test_adapter_connector_port_metadata():
     assert AWSBedrockAdapter.SYSTEM_NAME == "aws_bedrock_adapter"
     assert AWSBedrockAdapter.VERSION == 1
     assert AWSBedrockAdapter.DEFAULT_MODEL
-    assert "temperature" in AWSBedrockAdapter.DEFAULT_CONFIG_PAIRS
+    assert "temperature" not in AWSBedrockAdapter.DEFAULT_CONFIG_PAIRS
     assert "region_name" in AWSBedrockAdapter.DEFAULT_CONFIG_PAIRS
 
 

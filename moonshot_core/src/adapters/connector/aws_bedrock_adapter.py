@@ -65,7 +65,6 @@ class AWSBedrockAdapter(ConnectorPort):
         "Enter an AWS Bedrock model ID, e.g. openai.gpt-oss-20b-1:0"
     )
     DEFAULT_CONFIG_PAIRS = {
-        "temperature": "1.0",
         "region_name": "us-east-1",
     }
 
