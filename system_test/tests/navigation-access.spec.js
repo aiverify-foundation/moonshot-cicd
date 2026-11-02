@@ -1,4 +1,8 @@
 const { test, expect } = require('@playwright/test');
+const {
+  goToLandingWithFlags,
+  headerLink,
+} = require('../utils/featureFlags');
 
 const WIKI_URL = 'https://github.com/aiverify-foundation/moonshot-cicd/wiki';
 const ISSUES_URL = 'https://github.com/aiverify-foundation/moonshot-cicd/issues';
@@ -18,11 +22,6 @@ const CTA_SUBTEXTS = {
   starterKit: "Follow IMDA's guidance for safety testing",
 };
 
-async function goToLanding(page) {
-  await page.goto('/');
-  await page.waitForLoadState('networkidle');
-}
-
 async function assertExternalLinkOpens(page, link, expectedUrl) {
   await expect(link).toHaveAttribute('href', expectedUrl);
   await expect(link).toHaveAttribute('target', '_blank');
@@ -40,9 +39,9 @@ async function assertExternalLinkOpens(page, link, expectedUrl) {
 
 test.describe('MOON-548 Navigation and Access', { tag: '@happy-path' }, () => {
   test('Header renders logo, product name, and version', async ({ page }) => {
-    await goToLanding(page);
+    const { productName: expectedName } = await goToLandingWithFlags(page);
 
-    const productName = page.locator('h1', { hasText: 'AI Verify Evals Toolkit' });
+    const productName = page.locator('h1', { hasText: expectedName });
     await expect(productName).toBeVisible();
 
     const logoSection = page.locator('div.flex.items-center.gap-2').filter({ has: productName });
@@ -56,7 +55,7 @@ test.describe('MOON-548 Navigation and Access', { tag: '@happy-path' }, () => {
   });
 
   test('Primary CTA buttons render with correct subtext', async ({ page }) => {
-    await goToLanding(page);
+    await goToLandingWithFlags(page);
 
     const runCta = page.getByRole('link', { name: new RegExp(CTA_LABELS.run) });
     await expect(runCta).toBeVisible();
@@ -72,7 +71,7 @@ test.describe('MOON-548 Navigation and Access', { tag: '@happy-path' }, () => {
   });
 
   test('Landing shows exactly three primary CTA buttons', async ({ page }) => {
-    await goToLanding(page);
+    await goToLandingWithFlags(page);
 
     const runCta = page.getByRole('link', { name: new RegExp(CTA_LABELS.run) });
     const howToCta = page.getByRole('link', { name: new RegExp(CTA_LABELS.howTo) });
@@ -87,52 +86,52 @@ test.describe('MOON-548 Navigation and Access', { tag: '@happy-path' }, () => {
   });
 
   test('How-to guide button links to the user guide wiki', async ({ page }) => {
-    await goToLanding(page);
+    await goToLandingWithFlags(page);
 
     const howToCta = page.getByRole('link', { name: new RegExp(CTA_LABELS.howTo) });
     await assertExternalLinkOpens(page, howToCta, WIKI_URL);
   });
 
   test('IMDA Starter Kit button links to the PDF', async ({ page }) => {
-    await goToLanding(page);
+    await goToLandingWithFlags(page);
 
     const starterKitCta = page.getByRole('link', { name: new RegExp(CTA_LABELS.starterKit) });
     await assertExternalLinkOpens(page, starterKitCta, STARTER_KIT_PDF_URL);
   });
 
   test('Connector control is absent from the DOM', async ({ page }) => {
-    await goToLanding(page);
+    await goToLandingWithFlags(page);
 
     await expect(page.getByText(/Connector/i)).toHaveCount(0);
     await expect(page.locator('[data-testid="sidebar-connectors-button"]')).toHaveCount(0);
   });
 
   test('Header help icon opens the AI Verify Evals Toolkit wiki', async ({ page }) => {
-    await goToLanding(page);
+    const { productName } = await goToLandingWithFlags(page);
 
-    const help = page.getByLabel('Open AI Verify Evals Toolkit wiki');
+    const help = headerLink(page, productName, 'wiki');
     await expect(help).toBeVisible();
     await assertExternalLinkOpens(page, help, WIKI_URL);
   });
 
   test('Header issues icon opens the GitHub issues page', async ({ page }) => {
-    await goToLanding(page);
+    const { productName } = await goToLandingWithFlags(page);
 
-    const issues = page.getByLabel('Open AI Verify Evals Toolkit issues');
+    const issues = headerLink(page, productName, 'issues');
     await expect(issues).toBeVisible();
     await assertExternalLinkOpens(page, issues, ISSUES_URL);
   });
 
   test('Header GitHub icon opens the repository', async ({ page }) => {
-    await goToLanding(page);
+    const { productName } = await goToLandingWithFlags(page);
 
-    const github = page.getByLabel('Open AI Verify Evals Toolkit GitHub repository');
+    const github = headerLink(page, productName, 'GitHub repository');
     await expect(github).toBeVisible();
     await assertExternalLinkOpens(page, github, REPO_URL);
   });
 
   test('Sidebar shows Home and History, not Connectors', async ({ page }) => {
-    await goToLanding(page);
+    await goToLandingWithFlags(page);
 
     await expect(page.locator('[data-testid="sidebar-back-to-home-button"]')).toBeVisible();
     await expect(page.locator('[data-testid="sidebar-history-button"]')).toBeVisible();
@@ -140,7 +139,7 @@ test.describe('MOON-548 Navigation and Access', { tag: '@happy-path' }, () => {
   });
 
   test('Clicking "Run a benchmark test" navigates to the benchmark entry route', async ({ page }) => {
-    await goToLanding(page);
+    await goToLandingWithFlags(page);
 
     await page.click('[data-testid="benchmark-link"]');
     await page.waitForLoadState('networkidle');
@@ -152,7 +151,7 @@ test.describe('MOON-548 Navigation and Access', { tag: '@happy-path' }, () => {
   });
 
   test('"Run a benchmark test" CTA is an in-app link to /benchmark', async ({ page }) => {
-    await goToLanding(page);
+    await goToLandingWithFlags(page);
 
     const runLink = page.locator('[data-testid="benchmark-link"]');
     await expect(runLink).toHaveAttribute('href', /\/benchmark\/?$/);
@@ -160,7 +159,7 @@ test.describe('MOON-548 Navigation and Access', { tag: '@happy-path' }, () => {
   });
 
   test('Back to Home Page from benchmark returns to landing', async ({ page }) => {
-    await goToLanding(page);
+    await goToLandingWithFlags(page);
 
     await page.click('[data-testid="benchmark-link"]');
     await page.waitForLoadState('networkidle');
@@ -174,7 +173,7 @@ test.describe('MOON-548 Navigation and Access', { tag: '@happy-path' }, () => {
   });
 
   test('Sidebar Home from benchmark returns to landing', async ({ page }) => {
-    await goToLanding(page);
+    await goToLandingWithFlags(page);
 
     await page.click('[data-testid="benchmark-link"]');
     await page.waitForLoadState('networkidle');
@@ -188,7 +187,7 @@ test.describe('MOON-548 Navigation and Access', { tag: '@happy-path' }, () => {
   });
 
   test('Sidebar History from landing navigates to history', async ({ page }) => {
-    await goToLanding(page);
+    await goToLandingWithFlags(page);
 
     await page.click('[data-testid="sidebar-history-button"]');
     await page.waitForLoadState('networkidle');
