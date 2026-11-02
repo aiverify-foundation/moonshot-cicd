@@ -29,8 +29,10 @@ on:
         type: string
         default: ''
 
+# Do not use github.workflow here: under workflow_call it resolves to the caller's
+# name and collides with dev-docker-e2e-and-pytest.yml (concurrency deadlock).
 concurrency:
-  group: ${{ github.repository }}-${{ github.workflow }}
+  group: ${{ github.repository }}-v1-pre-build-checks-core-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true
 
 jobs:
