@@ -10,6 +10,7 @@ ENV FEATURE_FLAGS_TXT=/flags/feature_flags.txt \
     FEATURE_FLAGS_PY_OUT=/tmp/feature_flag_names.py \
     FEATURE_FLAGS_TS_OUT=/portal/lib/featureFlags.ts
 
+# hadolint ignore=DL3008
 RUN apt-get update \
     && apt-get install -y --no-install-recommends python3 \
     && rm -rf /var/lib/apt/lists/*
