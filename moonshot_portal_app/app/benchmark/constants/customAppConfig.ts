@@ -24,6 +24,7 @@ export type ApiKeyAuthScheme =
   | 'authorization_api_key'
   | 'x_api_key'
   | 'x_api_key_lower'
+  | 'x_goog_api_key'
   | 'custom';
 
 export const DEFAULT_API_KEY_AUTH_SCHEME: ApiKeyAuthScheme = 'bearer';
@@ -36,8 +37,34 @@ export const API_KEY_AUTH_SCHEME_OPTIONS: Array<{
   { value: 'authorization_api_key', label: 'Authorization: ApiKey' },
   { value: 'x_api_key', label: 'X-API-Key' },
   { value: 'x_api_key_lower', label: 'x-api-key (Anthropic)' },
+  {
+    value: 'x_goog_api_key',
+    label: 'x-goog-api-key (Google Gemini)',
+  },
   { value: 'custom', label: 'Custom header' },
 ];
+
+/**
+ * Native Gemini REST generateContent defaults (Custom API connector).
+ * If connection test still returns 401 with API_KEY_SERVICE_BLOCKED after using
+ * x_goog_api_key auth only: enable Generative Language API in Google Cloud,
+ * allow that API on the key, and set application restrictions to None for
+ * server-side Moonshot.
+ */
+export const DEFAULT_GEMINI_API_URL =
+  'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent';
+export const DEFAULT_GEMINI_RESPONSE_PATH = 'candidates[0].content.parts[0].text';
+export const DEFAULT_GEMINI_API_BODY = `{
+  "contents": [
+    {
+      "parts": [
+        {
+          "text": "{{prompt}}"
+        }
+      ]
+    }
+  ]
+}`;
 
 export function parseApiKeyAuthScheme(value: string | undefined): ApiKeyAuthScheme {
   const normalized = (value ?? '').trim().toLowerCase();
@@ -46,6 +73,7 @@ export function parseApiKeyAuthScheme(value: string | undefined): ApiKeyAuthSche
     normalized === 'authorization_api_key' ||
     normalized === 'x_api_key' ||
     normalized === 'x_api_key_lower' ||
+    normalized === 'x_goog_api_key' ||
     normalized === 'custom'
   ) {
     return normalized;

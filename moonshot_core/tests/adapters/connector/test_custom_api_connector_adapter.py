@@ -112,6 +112,7 @@ class TestCustomApiConnectorAdapter:
             ("authorization_api_key", "", ("Authorization", "ApiKey sk-test")),
             ("x_api_key", "", ("X-API-Key", "sk-test")),
             ("x_api_key_lower", "", ("x-api-key", "sk-test")),
+            ("x_goog_api_key", "", ("x-goog-api-key", "sk-test")),
             ("custom", "X-Auth-Token", ("X-Auth-Token", "sk-test")),
         ],
     )
@@ -154,6 +155,25 @@ class TestCustomApiConnectorAdapter:
         assert headers["Accept"] == "application/json"
         assert headers["X-Custom"] == "value"
         assert headers["Authorization"] == "Bearer sk-test"
+
+    def test_build_request_headers_x_goog_api_key_strips_duplicate_auth_headers(self):
+        adapter = _configured_adapter(
+            api_key="AQ.test-key",
+            api_key_auth_scheme="x_goog_api_key",
+            headers=json.dumps(
+                {
+                    "Authorization": "Bearer AQ.test-key",
+                    "X-goog-api-key": "AQ.test-key",
+                    "Accept": "application/json",
+                }
+            ),
+        )
+        headers = adapter._build_request_headers()
+
+        assert headers["Accept"] == "application/json"
+        assert headers["x-goog-api-key"] == "AQ.test-key"
+        assert "Authorization" not in headers
+        assert "X-goog-api-key" not in headers
 
     @pytest.mark.asyncio
     async def test_probe_returns_raw_status_and_body(self):

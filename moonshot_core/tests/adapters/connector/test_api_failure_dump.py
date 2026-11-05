@@ -42,6 +42,7 @@ def test_redact_for_dump_scrubs_secret_keys():
         "headers": {
             "Authorization": "Bearer sk-secret",
             "X-API-Key": "secret",
+            "x-goog-api-key": "AQ.secret",
             "Content-Type": "application/json",
         },
         "aws_secret_access_key": "aws-secret",
@@ -53,6 +54,7 @@ def test_redact_for_dump_scrubs_secret_keys():
     assert redacted["api_key"] == "***REDACTED***"
     assert redacted["headers"]["Authorization"] == "***REDACTED***"
     assert redacted["headers"]["X-API-Key"] == "***REDACTED***"
+    assert redacted["headers"]["x-goog-api-key"] == "***REDACTED***"
     assert redacted["headers"]["Content-Type"] == "application/json"
     assert redacted["aws_secret_access_key"] == "***REDACTED***"
 

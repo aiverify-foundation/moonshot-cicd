@@ -27,6 +27,7 @@ DEFAULT_API_BODY = json.dumps(
 )
 DEFAULT_API_SECRET_ENV = "TOGETHER_API_KEY"
 DEFAULT_API_KEY_AUTH_SCHEME = "bearer"
+GOOGLE_GEMINI_API_KEY_HEADER = "x-goog-api-key"
 DEFAULT_RESPONSE_PATH = "choices[0].message.content"
 PROMPT_PLACEHOLDER = "{{prompt}}"
 
@@ -38,8 +39,11 @@ class CustomApiConnectorAdapter(ConnectorPort):
     Configuration is read from ConnectorEntity.params (populated from
     custom_app_config_parameters and custom_app_config_secrets in the DB).
     Supported param keys: api_type, api_url, api_body, response_path, api_key,
-    api_key_auth_scheme, api_key_auth_custom_header, headers (JSON object of extra
-    request headers).
+    api_key_auth_scheme (including ``x_goog_api_key`` for Google Gemini native REST),
+    api_key_auth_custom_header, headers (JSON object of extra request headers).
+
+    For Gemini, use ``x_goog_api_key`` and do not send ``Authorization: Bearer``;
+    duplicate auth headers in ``headers`` are stripped when using ``x_goog_api_key``.
 
     ``response_path`` is a JSONPath expression used to read the model reply from
     the API JSON response (default: ``choices[0].message.content``).
@@ -207,12 +211,39 @@ class CustomApiConnectorAdapter(ConnectorPort):
                 )
                 return None
             return header_name, self.api_secret
+        if scheme == "x_goog_api_key":
+            return GOOGLE_GEMINI_API_KEY_HEADER, self.api_secret
 
         return "Authorization", f"Bearer {self.api_secret}"
 
+    def _filtered_custom_headers(self) -> dict[str, str]:
+        """Drop auth headers from extras when the API key secret supplies auth."""
+        if not self.api_secret:
+            return dict(self._custom_headers)
+
+        scheme = self.api_key_auth_scheme or DEFAULT_API_KEY_AUTH_SCHEME
+        strip_lower = set()
+        auth_header = self._build_auth_header()
+        if auth_header:
+            strip_lower.add(auth_header[0].lower())
+
+        if scheme == "x_goog_api_key":
+            strip_lower.update({"authorization", GOOGLE_GEMINI_API_KEY_HEADER})
+        elif scheme == "custom":
+            custom_name = self.api_key_auth_custom_header.lstrip().lower()
+            if custom_name == GOOGLE_GEMINI_API_KEY_HEADER:
+                strip_lower.add("authorization")
+
+        filtered: dict[str, str] = {}
+        for key, value in self._custom_headers.items():
+            if key.lower() in strip_lower:
+                continue
+            filtered[key] = value
+        return filtered
+
     def _build_request_headers(self) -> dict[str, str]:
         headers = {"Content-Type": "application/json"}
-        headers.update(self._custom_headers)
+        headers.update(self._filtered_custom_headers())
         auth_header = self._build_auth_header()
         if auth_header:
             header_name, header_value = auth_header

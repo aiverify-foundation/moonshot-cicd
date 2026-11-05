@@ -27,6 +27,8 @@ _REDACTED = "***REDACTED***"
 _SECRET_HEADER_KEYS = frozenset(
     {
         "authorization",
+        "x-goog-api-key",
+        "x_api_key",
         "x-api-key",
         "api-key",
         "api_key",

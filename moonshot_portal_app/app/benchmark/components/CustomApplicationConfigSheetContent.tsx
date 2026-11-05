@@ -194,7 +194,9 @@ export default function CustomApplicationConfigSheetContent({
                           ? 'Sends X-API-Key: <secret>'
                           : apiKeyAuthScheme === 'x_api_key_lower'
                             ? 'Sends x-api-key: <secret>'
-                            : 'Enter a custom header name below; the secret is sent as the header value.'}
+                            : apiKeyAuthScheme === 'x_goog_api_key'
+                              ? 'Sends x-goog-api-key: <secret> for native Gemini REST. Do not add Authorization or duplicate x-goog-api-key in Extra headers.'
+                              : 'Enter a custom header name below; the secret is sent as the header value.'}
                   </p>
                 </div>
 
