@@ -1,5 +1,6 @@
 import React from 'react';
 import { Text, View } from '@react-pdf/renderer';
+import { getReportProductName } from '@/lib/productBranding';
 import { styles } from '../styles';
 import type { HazardSection } from '../types';
 
@@ -14,9 +15,7 @@ export default function HazardScope({
   showSectionHeader,
   useAivetBranding,
 }: HazardScopeProps) {
-  const productName = useAivetBranding
-    ? 'AI Verify Evals Toolkit'
-    : 'Project Moonshot';
+  const productName = getReportProductName(useAivetBranding);
 
   return (
     <View style={styles.card}>

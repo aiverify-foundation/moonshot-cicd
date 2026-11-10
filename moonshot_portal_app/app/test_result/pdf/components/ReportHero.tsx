@@ -9,7 +9,7 @@ import {
   Text,
   View,
 } from '@react-pdf/renderer';
-import { REPORT_METADATA } from '../constants';
+import { getTestToolReportLines } from '@/lib/productBranding';
 import { brand, styles } from '../styles';
 
 type ReportHeroProps = {
@@ -65,15 +65,12 @@ export default function ReportHero({
   reportDate,
   useAivetBranding,
 }: ReportHeroProps) {
-  const testTool = useAivetBranding
-    ? REPORT_METADATA.testToolAivet
-    : REPORT_METADATA.testTool;
-  const fields = [
+  const [testToolName, testToolVersion] = getTestToolReportLines(useAivetBranding);
+  const fieldsLeading = [
     { label: 'Model / App Configuration Name', value: companyName },
     { label: 'Test Run Name', value: testRunName },
-    { label: 'Test Tool', value: testTool },
-    { label: 'Issued', value: reportDate },
   ];
+  const issuedField = { label: 'Issued', value: reportDate };
 
   return (
     <View style={styles.hero} wrap={false}>
@@ -88,12 +85,21 @@ export default function ReportHero({
         </Text>
         <View style={styles.heroDivider} />
         <View style={styles.heroMetaRow}>
-          {fields.map((f) => (
+          {fieldsLeading.map((f) => (
             <View key={f.label} style={styles.heroMetaField}>
               <Text style={styles.heroMetaLabel}>{f.label}</Text>
               <Text style={styles.heroMetaValue}>{f.value}</Text>
             </View>
           ))}
+          <View style={styles.heroMetaField}>
+            <Text style={styles.heroMetaLabel}>Test Tool</Text>
+            <Text style={styles.heroMetaValue}>{testToolName}</Text>
+            <Text style={styles.heroMetaValue}>{testToolVersion}</Text>
+          </View>
+          <View style={styles.heroMetaField}>
+            <Text style={styles.heroMetaLabel}>{issuedField.label}</Text>
+            <Text style={styles.heroMetaValue}>{issuedField.value}</Text>
+          </View>
         </View>
       </View>
     </View>

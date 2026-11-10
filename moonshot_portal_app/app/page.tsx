@@ -5,6 +5,10 @@ import { HelpCircle, Bug, Github } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useFeatureFlags } from "@/hooks/useFeatureFlags";
 import { FeatureFlagNames } from "@/lib/featureFlags";
+import {
+  formatLandingVersion,
+  getHeaderProductName,
+} from "@/lib/productBranding";
 
 function QuickStartButton() {
   return (
@@ -63,9 +67,7 @@ function IMDAStarterKitButton() {
 export default function Home() {
   const { isEnabled } = useFeatureFlags();
   const useAivetBranding = isEnabled(FeatureFlagNames.AIVET_OCT2026_MOON771);
-  const productName = useAivetBranding
-    ? "AI Verify Evals Toolkit"
-    : "Moonshot";
+  const productName = getHeaderProductName(useAivetBranding);
 
   return (
     <div className="min-h-screen w-[1200px]">
@@ -88,7 +90,7 @@ export default function Home() {
               {productName}
             </h1>
             <p className="text-xs font-medium text-slate-500 leading-tight">
-              2.0.0
+              {formatLandingVersion()}
             </p>
           </div>
         </div>

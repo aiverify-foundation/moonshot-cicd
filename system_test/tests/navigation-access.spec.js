@@ -51,6 +51,7 @@ test.describe('MOON-548 Navigation and Access', { tag: '@happy-path' }, () => {
     await expect(version).toBeVisible();
     const versionText = (await version.textContent())?.trim() ?? '';
     expect(versionText).toMatch(/^\d+\.\d+\.\d+$/);
+    expect(versionText).toBe('1.0.0');
     expect(versionText).not.toContain('Beta');
   });
 
