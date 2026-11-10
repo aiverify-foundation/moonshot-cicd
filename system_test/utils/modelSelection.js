@@ -162,6 +162,8 @@ async function mockCustomAppsForViewAll(page, count = 4) {
 /**
  * Route-mock GET /api/providers with enough rows for View All Standard Providers.
  * E2E seed only creates OpenAI + Together, so View All never appears without a mock.
+ * Also mocks GET /api/custom-apps as [] so Bedrock rows (MOON-803) do not inflate
+ * provider-option counts in the model-providers group.
  * Call before navigating to model selection.
  */
 async function mockProvidersForViewAll(page, count = 4) {
@@ -186,6 +188,20 @@ async function mockProvidersForViewAll(page, count = 4) {
       status: 200,
       contentType: 'application/json',
       body: JSON.stringify(providers),
+    });
+  });
+  await page.route('**/api/custom-apps**', async (route) => {
+    const url = new URL(route.request().url());
+    const isList =
+      route.request().method() === 'GET' && /\/api\/custom-apps\/?$/.test(url.pathname);
+    if (!isList) {
+      await route.continue();
+      return;
+    }
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify([]),
     });
   });
   return providers;

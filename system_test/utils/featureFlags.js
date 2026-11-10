@@ -2,7 +2,8 @@ const { expect } = require('@playwright/test');
 
 const MOON771_FLAG = 'AIVET_OCT2026_MOON771';
 
-const PRODUCT_NAME_AIVET = 'AI Verify Evals Toolkit';
+// Keep in sync with moonshot_portal_app/lib/productBranding.ts (getHeaderProductName).
+const PRODUCT_NAME_AIVET_HEADER = 'Evals Toolkit';
 const PRODUCT_NAME_LEGACY = 'Moonshot';
 
 /**
@@ -10,7 +11,7 @@ const PRODUCT_NAME_LEGACY = 'Moonshot';
  * @returns {string}
  */
 function productNameFromFlags(flags) {
-  return flags?.[MOON771_FLAG] === true ? PRODUCT_NAME_AIVET : PRODUCT_NAME_LEGACY;
+  return flags?.[MOON771_FLAG] === true ? PRODUCT_NAME_AIVET_HEADER : PRODUCT_NAME_LEGACY;
 }
 
 /**

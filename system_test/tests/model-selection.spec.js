@@ -372,6 +372,7 @@ test.describe('Model Selection Page Integration Tests', () => {
         await expect(providerOptions).toHaveCount(3);
       } finally {
         await page.unroute('**/api/providers**');
+        await page.unroute('**/api/custom-apps**');
       }
     });
 
