@@ -1,8 +1,4 @@
-"""
-Resume an interrupted benchmark run: mark it running and re-spawn incomplete work.
-
-Used by POST /api/benchmark-runs/{run_id}/resume (feature flag AIVET_OCT2026_MOON796).
-"""
+"""Resume an interrupted benchmark run: mark it running and re-spawn incomplete work."""
 
 from __future__ import annotations
 
