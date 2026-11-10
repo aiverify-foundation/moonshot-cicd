@@ -8,7 +8,6 @@ from enum import StrEnum
 class FeatureFlagNames(StrEnum):
     """Known feature flag names (values match feature_flags.txt keys)."""
 
-    AIVET_Q42026_MOON774 = "AIVET_Q42026_MOON774"
     AIVET_OCT2026_MOON771 = "AIVET_OCT2026_MOON771"
     AIVET_OCT2026_MOON722 = "AIVET_OCT2026_MOON722"
     AIVET_OCT2026_MOON792 = "AIVET_OCT2026_MOON792"

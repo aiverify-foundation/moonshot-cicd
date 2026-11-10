@@ -14,14 +14,9 @@ import { Button } from "@/components/ui/button"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Input } from "@/components/ui/input"
-import { useFeatureFlags } from "@/hooks/useFeatureFlags"
-import { FeatureFlagNames } from "@/lib/featureFlags"
 import TestResultSheet from "./TestResultSheet"
 import { evaluationDisplayLabel } from "./evaluationDisplayHelpers"
-import {
-    getFacetedFilterCounts,
-    getGlobalFilterCounts,
-} from "./getFilterCounts"
+import { getFacetedFilterCounts } from "./getFilterCounts"
 import type { BenchmarkRunTestPrompt } from "@/lib/api"
 
 export interface TestResultTableRow {
@@ -74,9 +69,6 @@ export default function TestResultTable({
     const [sheetOpen, setSheetOpen] = useState(false)
     const [selectedRowIndex, setSelectedRowIndex] = useState(0)
     const [searchTerm, setSearchTerm] = useState("")
-    const { isEnabled } = useFeatureFlags()
-    const facetedCountsEnabled = isEnabled(FeatureFlagNames.AIVET_Q42026_MOON774)
-
     const evaluationDisplayLabelById = useMemo(() => {
         const m = new Map<string, string>()
         for (const row of data) {
@@ -269,21 +261,13 @@ export default function TestResultTable({
 
     const filterCounts = useMemo(
         () =>
-            facetedCountsEnabled
-                ? getFacetedFilterCounts(
-                      data,
-                      filters,
-                      searchTerm,
-                      evaluationDisplayLabelById
-                  )
-                : getGlobalFilterCounts(data, evaluationDisplayLabelById),
-        [
-            facetedCountsEnabled,
-            data,
-            filters,
-            searchTerm,
-            evaluationDisplayLabelById,
-        ]
+            getFacetedFilterCounts(
+                data,
+                filters,
+                searchTerm,
+                evaluationDisplayLabelById
+            ),
+        [data, filters, searchTerm, evaluationDisplayLabelById]
     )
 
     // Filter dropdown component

@@ -1,6 +1,5 @@
 import {
   getFacetedFilterCounts,
-  getGlobalFilterCounts,
   type FilterState,
 } from "@/app/test_result/components/getFilterCounts"
 import type { TestResultTableRow } from "@/app/test_result/components/TestResultTable"
@@ -51,9 +50,9 @@ describe("getFilterCounts", () => {
     adjusted: new Set(["adjusted", "not adjusted"]),
   }
 
-  describe("getGlobalFilterCounts", () => {
-    it("counts over all rows regardless of filters", () => {
-      const counts = getGlobalFilterCounts(data, evalLabels)
+  describe("getFacetedFilterCounts", () => {
+    it("counts all rows when every filter option is selected", () => {
+      const counts = getFacetedFilterCounts(data, allSelected, "", evalLabels)
 
       expect(counts.testCounts.get("TestA")).toBe(2)
       expect(counts.testCounts.get("TestB")).toBe(2)
@@ -63,18 +62,6 @@ describe("getFilterCounts", () => {
       expect(counts.yourVerdictCounts.get("disagree")).toBe(1)
       expect(counts.adjustedCounts.get("adjusted")).toBe(1)
       expect(counts.adjustedCounts.get("not adjusted")).toBe(3)
-    })
-  })
-
-  describe("getFacetedFilterCounts", () => {
-    it("matches global counts when all options are selected", () => {
-      const faceted = getFacetedFilterCounts(data, allSelected, "", evalLabels)
-      const global = getGlobalFilterCounts(data, evalLabels)
-
-      expect(faceted.testCounts).toEqual(global.testCounts)
-      expect(faceted.evaluationCounts).toEqual(global.evaluationCounts)
-      expect(faceted.yourVerdictCounts).toEqual(global.yourVerdictCounts)
-      expect(faceted.adjustedCounts).toEqual(global.adjustedCounts)
     })
 
     it("updates Evaluation counts when Test selection is narrowed", () => {

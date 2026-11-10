@@ -26,14 +26,14 @@ def empty_env_overrides():
 
 def test_is_enabled_true_from_loaded_flags():
     adapter = MagicMock()
-    adapter.load_flags.return_value = {FeatureFlagNames.AIVET_Q42026_MOON774: True}
+    adapter.load_flags.return_value = {FeatureFlagNames.AIVET_OCT2026_MOON771: True}
 
     with patch(
         "domain.services.feature_flags.FeatureFlagAdapterFactory.get_adapter",
         return_value=adapter,
     ) as mock_get:
         assert (
-            FeatureFlags().is_enabled(FeatureFlagNames.AIVET_Q42026_MOON774) is True
+            FeatureFlags().is_enabled(FeatureFlagNames.AIVET_OCT2026_MOON771) is True
         )
         mock_get.assert_called_once_with()
         adapter.load_flags.assert_called_once_with()
@@ -48,7 +48,7 @@ def test_is_enabled_false_for_missing_key():
         return_value=adapter,
     ):
         assert (
-            FeatureFlags().is_enabled(FeatureFlagNames.AIVET_Q42026_MOON774) is False
+            FeatureFlags().is_enabled(FeatureFlagNames.AIVET_OCT2026_MOON771) is False
         )
 
 
@@ -61,7 +61,7 @@ def test_is_enabled_false_when_load_returns_empty():
         return_value=adapter,
     ):
         assert (
-            FeatureFlags().is_enabled(FeatureFlagNames.AIVET_Q42026_MOON774) is False
+            FeatureFlags().is_enabled(FeatureFlagNames.AIVET_OCT2026_MOON771) is False
         )
 
 
@@ -74,21 +74,21 @@ def test_is_enabled_false_when_load_returns_non_dict():
         return_value=adapter,
     ):
         assert (
-            FeatureFlags().is_enabled(FeatureFlagNames.AIVET_Q42026_MOON774) is False
+            FeatureFlags().is_enabled(FeatureFlagNames.AIVET_OCT2026_MOON771) is False
         )
 
 
 def test_flags_are_cached_after_first_load():
     adapter = MagicMock()
-    adapter.load_flags.return_value = {FeatureFlagNames.AIVET_Q42026_MOON774: True}
+    adapter.load_flags.return_value = {FeatureFlagNames.AIVET_OCT2026_MOON771: True}
 
     with patch(
         "domain.services.feature_flags.FeatureFlagAdapterFactory.get_adapter",
         return_value=adapter,
     ) as mock_get:
         flags = FeatureFlags()
-        assert flags.is_enabled(FeatureFlagNames.AIVET_Q42026_MOON774) is True
-        assert flags.is_enabled(FeatureFlagNames.AIVET_Q42026_MOON774) is True
+        assert flags.is_enabled(FeatureFlagNames.AIVET_OCT2026_MOON771) is True
+        assert flags.is_enabled(FeatureFlagNames.AIVET_OCT2026_MOON771) is True
         mock_get.assert_called_once()
         adapter.load_flags.assert_called_once()
 
@@ -102,7 +102,7 @@ def test_load_exception_is_treated_as_disabled():
         patch("domain.services.feature_flags.logger") as mock_logger,
     ):
         assert (
-            FeatureFlags().is_enabled(FeatureFlagNames.AIVET_Q42026_MOON774) is False
+            FeatureFlags().is_enabled(FeatureFlagNames.AIVET_OCT2026_MOON771) is False
         )
         mock_logger.error.assert_called_once()
 
@@ -110,7 +110,7 @@ def test_load_exception_is_treated_as_disabled():
 def test_get_all_returns_loaded_flags():
     adapter = MagicMock()
     adapter.load_flags.return_value = {
-        FeatureFlagNames.AIVET_Q42026_MOON774: True,
+        FeatureFlagNames.AIVET_OCT2026_MOON771: True,
         "OTHER": False,
     }
 
@@ -119,7 +119,7 @@ def test_get_all_returns_loaded_flags():
         return_value=adapter,
     ):
         assert FeatureFlags().get_all() == {
-            str(FeatureFlagNames.AIVET_Q42026_MOON774): True,
+            str(FeatureFlagNames.AIVET_OCT2026_MOON771): True,
             "OTHER": False,
         }
 

@@ -141,12 +141,12 @@ def test_feature_flags_endpoint(mock_service):
     from application.dto.feature_flags_dto import FeatureFlagsResponseDTO
 
     mock_service.get_flags.return_value = FeatureFlagsResponseDTO(
-        flags={"AIVET_Q42026_MOON774": True}
+        flags={"AIVET_OCT2026_MOON771": True}
     )
 
     response = client.get("/api/feature-flags")
     assert response.status_code == 200
-    assert response.json() == {"flags": {"AIVET_Q42026_MOON774": True}}
+    assert response.json() == {"flags": {"AIVET_OCT2026_MOON771": True}}
     mock_service.get_flags.assert_called_once_with()
 
 

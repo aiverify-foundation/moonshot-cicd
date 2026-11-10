@@ -25,13 +25,13 @@ describe("useFeatureFlags", () => {
 
   it("returns loading then enables known flags", async () => {
     mockGetFeatureFlags.mockResolvedValue({
-      flags: { [FeatureFlagNames.AIVET_Q42026_MOON774]: true },
+      flags: { [FeatureFlagNames.AIVET_OCT2026_MOON771]: true },
     })
 
     const { result } = renderHook(() => useFeatureFlags())
 
     expect(result.current.loading).toBe(true)
-    expect(result.current.isEnabled(FeatureFlagNames.AIVET_Q42026_MOON774)).toBe(
+    expect(result.current.isEnabled(FeatureFlagNames.AIVET_OCT2026_MOON771)).toBe(
       false
     )
 
@@ -39,14 +39,14 @@ describe("useFeatureFlags", () => {
       expect(result.current.loading).toBe(false)
     })
 
-    expect(result.current.isEnabled(FeatureFlagNames.AIVET_Q42026_MOON774)).toBe(
+    expect(result.current.isEnabled(FeatureFlagNames.AIVET_OCT2026_MOON771)).toBe(
       true
     )
   })
 
   it("fails closed when flag is false", async () => {
     mockGetFeatureFlags.mockResolvedValue({
-      flags: { [FeatureFlagNames.AIVET_Q42026_MOON774]: false },
+      flags: { [FeatureFlagNames.AIVET_OCT2026_MOON771]: false },
     })
 
     const { result } = renderHook(() => useFeatureFlags())
@@ -55,7 +55,7 @@ describe("useFeatureFlags", () => {
       expect(result.current.loading).toBe(false)
     })
 
-    expect(result.current.isEnabled(FeatureFlagNames.AIVET_Q42026_MOON774)).toBe(
+    expect(result.current.isEnabled(FeatureFlagNames.AIVET_OCT2026_MOON771)).toBe(
       false
     )
   })
@@ -70,7 +70,7 @@ describe("useFeatureFlags", () => {
     })
 
     expect(result.current.flags).toEqual({})
-    expect(result.current.isEnabled(FeatureFlagNames.AIVET_Q42026_MOON774)).toBe(
+    expect(result.current.isEnabled(FeatureFlagNames.AIVET_OCT2026_MOON771)).toBe(
       false
     )
   })
@@ -84,7 +84,7 @@ describe("useFeatureFlags", () => {
       expect(result.current.loading).toBe(false)
     })
 
-    expect(result.current.isEnabled(FeatureFlagNames.AIVET_Q42026_MOON774)).toBe(
+    expect(result.current.isEnabled(FeatureFlagNames.AIVET_OCT2026_MOON771)).toBe(
       false
     )
   })

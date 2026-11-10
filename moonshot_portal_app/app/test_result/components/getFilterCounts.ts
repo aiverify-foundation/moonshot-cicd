@@ -78,37 +78,6 @@ function emptyCounts(): FilterCounts {
   }
 }
 
-function incrementCounts(
-  counts: FilterCounts,
-  row: TestResultTableRow,
-  evalLabel: string
-): void {
-  counts.testCounts.set(row.test, (counts.testCounts.get(row.test) || 0) + 1)
-  counts.evaluationCounts.set(
-    evalLabel,
-    (counts.evaluationCounts.get(evalLabel) || 0) + 1
-  )
-  counts.yourVerdictCounts.set(
-    row.yourVerdict,
-    (counts.yourVerdictCounts.get(row.yourVerdict) || 0) + 1
-  )
-  const key = adjustedKey(row)
-  counts.adjustedCounts.set(key, (counts.adjustedCounts.get(key) || 0) + 1)
-}
-
-/** Histogram over all rows (legacy behavior; ignores active filters). */
-export function getGlobalFilterCounts(
-  rows: TestResultTableRow[],
-  evalLabels: Map<string, string>
-): FilterCounts {
-  const counts = emptyCounts()
-  for (const row of rows) {
-    const evalLabel = evalLabels.get(row.id) ?? ""
-    incrementCounts(counts, row, evalLabel)
-  }
-  return counts
-}
-
 /**
  * Amazon-style faceted counts: for each dimension D, count options over rows
  * that match all active filters except D (plus search).
