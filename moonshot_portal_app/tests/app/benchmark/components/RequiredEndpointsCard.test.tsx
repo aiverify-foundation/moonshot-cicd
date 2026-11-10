@@ -207,6 +207,66 @@ describe('RequiredEndpointsCard', () => {
     expect(mockFetchProviderLatestDetails).toHaveBeenCalledWith('openai_adapter');
   });
 
+  it('shows AWS Bedrock judge card and enabled Configure when metric requires aws_bedrock_adapter', async () => {
+    mockFetchProviders.mockResolvedValue([
+      {
+        id: '99',
+        name: 'AWS Bedrock',
+        system_name: 'aws_bedrock_adapter',
+        version: 1,
+      },
+    ]);
+    mockFetchProviderLatestDetails.mockResolvedValue({
+      api_key_configured: false,
+      database_model_configs: [],
+      models: [],
+      provider: {
+        id: '99',
+        name: 'AWS Bedrock',
+        system_name: 'aws_bedrock_adapter',
+      },
+    });
+
+    const bundleWithBedrockAaj: Bundle = {
+      id: 'bundle_bedrock_aaj',
+      name: 'Bedrock AAJ',
+      description: '',
+      category: 'cat',
+      tests: [
+        {
+          name: 'Contradiction Judge',
+          benchmark_test_id: 301,
+          requires_llm_aaj: true,
+          metric_provider_system_name: 'aws_bedrock_adapter',
+          dataset: {
+            id: 'ds3',
+            name: 'DS3',
+            description: '',
+            num_of_dataset_prompts: 1,
+          },
+        },
+      ],
+    };
+
+    render(<RequiredEndpointsCard />, {
+      preloadedState: {
+        bundles: { data: [bundleWithBedrockAaj], loading: false, error: null },
+        bundleSelection: { bundle_bedrock_aaj: true },
+        testSelection: { bundle_bedrock_aaj: { '301': true } },
+      },
+    });
+
+    await waitFor(() => {
+      expect(screen.getByText('AWS Bedrock (LLM judge)')).toBeInTheDocument();
+    });
+
+    const configureButton = screen.getByTestId(
+      'required-endpoint-connect-aws_bedrock_adapter'
+    );
+    expect(configureButton).toBeEnabled();
+    expect(mockFetchProviderLatestDetails).toHaveBeenCalledWith('aws_bedrock_adapter');
+  });
+
   it('shows green indicator and configured badge when DB key exists only', async () => {
     mockFetchProviderLatestDetails.mockResolvedValue({
       api_key_configured: true,
