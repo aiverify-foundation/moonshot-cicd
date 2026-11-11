@@ -35,9 +35,8 @@ class ProviderSeedService:
             OpenAIAdapter.provider_seed_definition(),
             TogetherAdapter.provider_seed_definition(),
             OpenRouterAdapter.provider_seed_definition(),
+            AWSBedrockAdapter.provider_seed_definition(),
         ]
-        if FeatureFlags().is_enabled(FeatureFlagNames.AIVET_OCT2026_MOON792):
-            definitions.append(AWSBedrockAdapter.provider_seed_definition())
         if FeatureFlags().is_enabled(FeatureFlagNames.AIVET_OCT2026_MOON812):
             definitions.append(BedrockMantleWebSearchAdapter.provider_seed_definition())
         return definitions

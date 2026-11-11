@@ -1,5 +1,4 @@
 from typing import List
-from unittest.mock import MagicMock, patch
 
 import pytest
 from pathlib import Path
@@ -13,7 +12,6 @@ from adapters.driven.repository.sqlalchemy.llm_provider_models import LLMProvide
 from adapters.driven.repository.sqlalchemy.session_manager import SessionManager
 from application.services.provider_seed_service import ProviderSeedService
 from domain.entities.provider_entity import ProviderEntity
-from domain.services.enums.feature_flag_names import FeatureFlagNames
 from domain.services.feature_flags import FeatureFlags
 
 
@@ -68,24 +66,13 @@ def _insert_provider_raw(system_name: str, version: int) -> None:
         session.flush()
 
 
-def _patch_moon792(enabled: bool):
-    """Isolate seed tests from real feature_flags.txt for Bedrock gating."""
-    adapter = MagicMock()
-    adapter.load_flags.return_value = {FeatureFlagNames.AIVET_OCT2026_MOON792: enabled}
-    return patch(
-        "domain.services.feature_flags.FeatureFlagAdapterFactory.get_adapter",
-        return_value=adapter,
-    )
-
-
 def test_scenario_1_provider_does_not_exist(provider_seed_service):
     """
     Scenario 1: Provider does not exist in the database.
     When the service runs and no matching system_name is found,
     a new row is inserted for that provider.
     """
-    with _patch_moon792(False):
-        provider_seed_service.seed_hardcoded_providers()
+    provider_seed_service.seed_hardcoded_providers()
 
     # OpenAI
     providers = _get_providers_for_system_name(OpenAIAdapter.SYSTEM_NAME)
@@ -102,9 +89,11 @@ def test_scenario_1_provider_does_not_exist(provider_seed_service):
     assert len(providers) == 1
     assert providers[0].version == OpenRouterAdapter.VERSION
 
-    # Bedrock is flag-gated off when MOON792 is disabled
+    # AWS Bedrock
     providers = _get_providers_for_system_name(AWSBedrockAdapter.SYSTEM_NAME)
-    assert len(providers) == 0
+    assert len(providers) == 1
+    assert providers[0].version == AWSBedrockAdapter.VERSION
+    assert providers[0].name == AWSBedrockAdapter.PROVIDER_NAME
 
 
 def test_scenario_2_provider_exists_with_lower_version(provider_seed_service):
@@ -117,8 +106,7 @@ def test_scenario_2_provider_exists_with_lower_version(provider_seed_service):
 
     _insert_provider_raw(system_name=system_name, version=hardcoded_version - 1)
 
-    with _patch_moon792(False):
-        provider_seed_service.seed_hardcoded_providers()
+    provider_seed_service.seed_hardcoded_providers()
 
     providers = _get_providers_for_system_name(system_name)
     versions = sorted(p.version for p in providers)
@@ -135,8 +123,7 @@ def test_scenario_3_provider_exists_with_same_version(provider_seed_service):
 
     _insert_provider_raw(system_name=system_name, version=hardcoded_version)
 
-    with _patch_moon792(False):
-        provider_seed_service.seed_hardcoded_providers()
+    provider_seed_service.seed_hardcoded_providers()
 
     providers = _get_providers_for_system_name(system_name)
     assert len(providers) == 1
@@ -153,8 +140,7 @@ def test_scenario_4_provider_exists_with_higher_version(provider_seed_service):
 
     _insert_provider_raw(system_name=system_name, version=hardcoded_version + 1)
 
-    with _patch_moon792(False):
-        provider_seed_service.seed_hardcoded_providers()
+    provider_seed_service.seed_hardcoded_providers()
 
     providers = _get_providers_for_system_name(system_name)
     assert len(providers) == 1
@@ -166,9 +152,8 @@ def test_scenario_5_service_run_multiple_times(provider_seed_service):
     Scenario 5: Service is run multiple times with no changes to hardcoded data.
     No duplicate rows are created and no errors are thrown.
     """
-    with _patch_moon792(False):
-        provider_seed_service.seed_hardcoded_providers()
-        provider_seed_service.seed_hardcoded_providers()
+    provider_seed_service.seed_hardcoded_providers()
+    provider_seed_service.seed_hardcoded_providers()
 
     # OpenAI
     providers = _get_providers_for_system_name(OpenAIAdapter.SYSTEM_NAME)
@@ -185,16 +170,7 @@ def test_scenario_5_service_run_multiple_times(provider_seed_service):
     assert len(providers) == 1
     assert providers[0].version == OpenRouterAdapter.VERSION
 
-    # Bedrock remains unseeded when flag is off
-    providers = _get_providers_for_system_name(AWSBedrockAdapter.SYSTEM_NAME)
-    assert len(providers) == 0
-
-
-def test_seeds_aws_bedrock_when_moon792_enabled(provider_seed_service):
-    with _patch_moon792(True):
-        provider_seed_service.seed_hardcoded_providers()
-
+    # AWS Bedrock
     providers = _get_providers_for_system_name(AWSBedrockAdapter.SYSTEM_NAME)
     assert len(providers) == 1
     assert providers[0].version == AWSBedrockAdapter.VERSION
-    assert providers[0].name == AWSBedrockAdapter.PROVIDER_NAME

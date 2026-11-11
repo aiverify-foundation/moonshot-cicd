@@ -9,7 +9,6 @@ from application.services.llm_provider_connection_test_service import (
     LlmProviderConnectionTestService,
 )
 from domain.entities.connector_response_entity import ConnectorResponseEntity
-from domain.services.enums.feature_flag_names import FeatureFlagNames
 from domain.services.feature_flags import FeatureFlags
 
 
@@ -172,14 +171,10 @@ async def test_test_connection_rejects_unmapped_provider():
 
 
 @pytest.mark.asyncio
-async def test_test_connection_bedrock_allows_missing_api_key_when_flag_on():
+async def test_test_connection_bedrock_allows_missing_api_key():
     env_key_service = MagicMock()
     env_key_service.get_plain_api_key_for_provider.return_value = None
     mock_adapter = _make_adapter(default_pairs={"temperature": "1.0"})
-    flag_adapter = MagicMock()
-    flag_adapter.load_flags.return_value = {
-        FeatureFlagNames.AIVET_OCT2026_MOON792: True
-    }
 
     body = TestLlmProviderConnectionBody(
         llm_provider_id=3,
@@ -189,10 +184,6 @@ async def test_test_connection_bedrock_allows_missing_api_key_when_flag_on():
 
     service = LlmProviderConnectionTestService(env_key_service=env_key_service)
     with (
-        patch(
-            "domain.services.feature_flags.FeatureFlagAdapterFactory.get_adapter",
-            return_value=flag_adapter,
-        ),
         patch.object(
             service,
             "_load_provider_system_name",
@@ -219,10 +210,6 @@ async def test_test_connection_bedrock_passes_token_as_api_key():
     mock_adapter = _make_adapter(
         default_pairs={"temperature": "1.0", "aws_access_key_id": ""}
     )
-    flag_adapter = MagicMock()
-    flag_adapter.load_flags.return_value = {
-        FeatureFlagNames.AIVET_OCT2026_MOON792: True
-    }
 
     body = TestLlmProviderConnectionBody(
         llm_provider_id=3,
@@ -236,10 +223,6 @@ async def test_test_connection_bedrock_passes_token_as_api_key():
 
     service = LlmProviderConnectionTestService(env_key_service=env_key_service)
     with (
-        patch(
-            "domain.services.feature_flags.FeatureFlagAdapterFactory.get_adapter",
-            return_value=flag_adapter,
-        ),
         patch.object(
             service,
             "_load_provider_system_name",
@@ -257,32 +240,3 @@ async def test_test_connection_bedrock_passes_token_as_api_key():
     configured_entity = mock_adapter.configure.call_args.args[0]
     assert configured_entity.params["api_key"] == "secret-from-token-field"
     assert configured_entity.params["aws_access_key_id"] == "AKIATEST"
-
-
-@pytest.mark.asyncio
-async def test_test_connection_bedrock_rejected_when_flag_off():
-    env_key_service = MagicMock()
-    flag_adapter = MagicMock()
-    flag_adapter.load_flags.return_value = {
-        FeatureFlagNames.AIVET_OCT2026_MOON792: False
-    }
-
-    service = LlmProviderConnectionTestService(env_key_service=env_key_service)
-    with (
-        patch(
-            "domain.services.feature_flags.FeatureFlagAdapterFactory.get_adapter",
-            return_value=flag_adapter,
-        ),
-        patch.object(
-            service,
-            "_load_provider_system_name",
-            return_value=AWSBedrockAdapter.SYSTEM_NAME,
-        ),
-        pytest.raises(ValueError, match="unavailable"),
-    ):
-        await service.test_connection(
-            TestLlmProviderConnectionBody(
-                llm_provider_id=3,
-                model_name="anthropic.claude-3-haiku-20240307-v1:0",
-            )
-        )

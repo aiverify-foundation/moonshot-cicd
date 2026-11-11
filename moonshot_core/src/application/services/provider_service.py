@@ -47,18 +47,12 @@ _ADAPTER_BY_SYSTEM_NAME: Dict[str, Type[ConnectorPort]] = {
 }
 
 
-def _is_bedrock_portal_provider_enabled() -> bool:
-    return FeatureFlags().is_enabled(FeatureFlagNames.AIVET_OCT2026_MOON792)
-
-
 def _is_bedrock_web_search_portal_provider_enabled() -> bool:
     return FeatureFlags().is_enabled(FeatureFlagNames.AIVET_OCT2026_MOON812)
 
 
 def _is_portal_visible_provider_system_name(system_name: str) -> bool:
-    """Hide AWS Bedrock from portal APIs when AIVET_OCT2026_MOON792 is off."""
-    if system_name == AWSBedrockAdapter.SYSTEM_NAME:
-        return _is_bedrock_portal_provider_enabled()
+    """Hide Bedrock Web Search from portal APIs when AIVET_OCT2026_MOON812 is off."""
     if system_name == BedrockMantleWebSearchAdapter.SYSTEM_NAME:
         return _is_bedrock_web_search_portal_provider_enabled()
     return True
