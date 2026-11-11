@@ -29,10 +29,14 @@ ERROR_SMOLAGENTS_MISSING = (
 ERROR_EMPTY_AGENT_ANSWER = "The web search agent did not return an answer."
 REDACTED_SECRET = "***REDACTED***"
 LOG_ORIGINAL_PROMPT = "[CustomApiWebSearch] Original prompt: {prompt}"
-LOG_TOOL_CALLED = "[CustomApiWebSearch] Tool called: {called}"
-LOG_QUERY = "[CustomApiWebSearch] web_search query: {query}"
-LOG_OBSERVATION = "[CustomApiWebSearch] Observation: {observation}"
-LOG_FINAL_RESPONSE = "[CustomApiWebSearch] Final model response: {response}"
+LOG_TOOL_CALLED = "[CustomApiWebSearch] Step {step}/{max_steps} Tool called: {called}"
+LOG_QUERY = "[CustomApiWebSearch] Step {step}/{max_steps} web_search query: {query}"
+LOG_OBSERVATION = (
+    "[CustomApiWebSearch] Step {step}/{max_steps} Observation: {observation}"
+)
+LOG_FINAL_RESPONSE = (
+    "[CustomApiWebSearch] Step {step}/{max_steps} Final model response: {response}"
+)
 
 
 def render_agent_messages(messages: list[Any]) -> str:
@@ -86,16 +90,35 @@ def run_custom_api_web_search(task: str, complete: Callable[[str], str]) -> str:
             query_text = (
                 query if filter_year is None else f"{query} (year={filter_year})"
             )
-            logger.info(LOG_TOOL_CALLED.format(called="true"))
-            logger.info(LOG_QUERY.format(query=_redact_serpapi_key(query_text)))
+            step = _agent_step_number(agent)
+            logger.info(
+                LOG_TOOL_CALLED.format(
+                    step=step, max_steps=MAX_AGENT_STEPS, called="true"
+                )
+            )
+            logger.info(
+                LOG_QUERY.format(
+                    step=step,
+                    max_steps=MAX_AGENT_STEPS,
+                    query=_redact_serpapi_key(query_text),
+                )
+            )
             try:
                 result = super().forward(query=query, filter_year=filter_year)
             except Exception as exc:
                 redacted = _redact_serpapi_key(str(exc))
-                logger.info(LOG_OBSERVATION.format(observation=redacted))
+                logger.info(
+                    LOG_OBSERVATION.format(
+                        step=step, max_steps=MAX_AGENT_STEPS, observation=redacted
+                    )
+                )
                 raise RuntimeError(redacted) from None
             result = _redact_serpapi_key(result)
-            logger.info(LOG_OBSERVATION.format(observation=result))
+            logger.info(
+                LOG_OBSERVATION.format(
+                    step=step, max_steps=MAX_AGENT_STEPS, observation=result
+                )
+            )
             return result
 
     agent = ToolCallingAgent(
@@ -122,7 +145,7 @@ def run_custom_api_web_search(task: str, complete: Callable[[str], str]) -> str:
         answer_text = _redact_serpapi_key(answer)
         return answer_text
     finally:
-        _log_web_search_trace(search_called, answer_text)
+        _log_web_search_trace(agent, search_called, answer_text)
 
 
 def _build_agent_model(complete: Callable[[str], str]):
@@ -155,12 +178,43 @@ def _build_agent_model(complete: Callable[[str], str]):
     return CustomApiAgentModel()
 
 
-def _log_web_search_trace(search_called: bool, final_response: str | None) -> None:
+def _agent_step_number(agent: Any) -> int:
+    """1-based Smolagents step in progress, within ``MAX_AGENT_STEPS``."""
+    step = getattr(agent, "step_number", None)
+    if isinstance(step, int) and step >= 1:
+        return min(step, MAX_AGENT_STEPS)
+    return 1
+
+
+def _final_step_number(agent: Any) -> int:
+    """Step that produced the answer, or the last action step."""
+    steps = getattr(getattr(agent, "memory", None), "steps", []) or []
+    action_steps = [
+        step for step in steps if isinstance(getattr(step, "step_number", None), int)
+    ]
+    for step in reversed(action_steps):
+        if getattr(step, "is_final_answer", False):
+            return min(int(step.step_number), MAX_AGENT_STEPS)
+    if action_steps:
+        return min(int(action_steps[-1].step_number), MAX_AGENT_STEPS)
+    return _agent_step_number(agent)
+
+
+def _log_web_search_trace(
+    agent: Any, search_called: bool, final_response: str | None
+) -> None:
     """Log a skipped search and the final answer. Tool calls are logged as they run."""
+    step = _final_step_number(agent)
     if not search_called:
-        logger.info(LOG_TOOL_CALLED.format(called="false"))
+        logger.info(
+            LOG_TOOL_CALLED.format(step=step, max_steps=MAX_AGENT_STEPS, called="false")
+        )
     if final_response is not None:
-        logger.info(LOG_FINAL_RESPONSE.format(response=final_response))
+        logger.info(
+            LOG_FINAL_RESPONSE.format(
+                step=step, max_steps=MAX_AGENT_STEPS, response=final_response
+            )
+        )
 
 
 def _redact_serpapi_key(text: str) -> str:
