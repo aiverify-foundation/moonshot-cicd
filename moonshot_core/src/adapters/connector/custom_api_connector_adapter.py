@@ -1,16 +1,23 @@
+import asyncio
 import copy
 import json
 import os
 from typing import Any
 
 import aiohttp
-from jsonpath_ng.ext import parse
 from jsonpath_ng.exceptions import JsonPathParserError
+from jsonpath_ng.ext import parse
 
 from adapters.connector.api_failure_dump import dump_api_failure
+from application.services.custom_api_web_search_service import (
+    SERPAPI_API_KEY_ENV,
+    run_custom_api_web_search,
+)
 from domain.entities.connector_entity import ConnectorEntity
 from domain.entities.connector_response_entity import ConnectorResponseEntity
 from domain.ports.connector_port import ConnectorPort
+from domain.services.enums.feature_flag_names import FeatureFlagNames
+from domain.services.feature_flags import FeatureFlags
 from domain.services.logger import configure_logger
 
 logger = configure_logger(__name__)
@@ -51,6 +58,13 @@ class CustomApiConnectorAdapter(ConnectorPort):
     ``api_body`` must be a JSON object containing the ``{{prompt}}`` placeholder.
     On each request, every ``{{prompt}}`` in the template is replaced with the
     benchmark prompt (including optional pre/post prompts).
+
+    When ``FeatureFlagNames.AIVET_OCT2026_MOON820`` is enabled, ``get_response``
+    runs a Hugging Face Smolagents tool-calling agent around this HTTP completion.
+    The agent can search the web through SerpApi. The SerpApi token is read from
+    the ``SERPAPI_API_KEY`` environment variable. ``probe`` stays a single direct
+    HTTP call so connection tests do not start the agent. Subclasses do not
+    inherit the agent path.
     """
 
     PROVIDER_NAME = "Custom API"
@@ -70,11 +84,13 @@ class CustomApiConnectorAdapter(ConnectorPort):
     INFO_CONFIGURED = (
         "[CustomApiConnectorAdapter] Configured with method: {method}, url: {url}"
     )
-    INFO_API_SECRET_PRESENT = (
-        "[CustomApiConnectorAdapter] API secret is present (length: {length} characters)"
-    )
+    INFO_API_SECRET_PRESENT = "[CustomApiConnectorAdapter] API secret is present (length: {length} characters)"
     INFO_MAKING_REQUEST = (
         "[CustomApiConnectorAdapter] Making API request: {method} {url}"
+    )
+    INFO_WEB_SEARCH_ENABLED = (
+        "[CustomApiConnectorAdapter] Web search agent enabled via {flag}. "
+        "SerpApi token is read from {env_name}."
     )
     ERROR_PROCESSING_RESPONSE = (
         "[CustomApiConnectorAdapter] Failed to process API response."
@@ -87,9 +103,7 @@ class CustomApiConnectorAdapter(ConnectorPort):
         "'{{prompt}}' placeholder."
     )
     ERROR_EMPTY_RESPONSE = "The API did not return any response."
-    ERROR_INVALID_RESPONSE_PATH = (
-        "[CustomApiConnectorAdapter] response_path must be a non-empty JSONPath expression."
-    )
+    ERROR_INVALID_RESPONSE_PATH = "[CustomApiConnectorAdapter] response_path must be a non-empty JSONPath expression."
     ERROR_RESPONSE_PATH_NOT_FOUND = (
         "No value found at response_path '{path}' in the API response."
     )
@@ -183,8 +197,14 @@ class CustomApiConnectorAdapter(ConnectorPort):
             return [self._inject_prompt(item, prompt_text) for item in value]
         return value
 
-    def _build_request_body(self, prompt: Any) -> dict[str, Any]:
-        connector_prompt = self._connector_prompt(prompt)
+    def _build_request_body(
+        self, prompt: Any, *, apply_connector_prompts: bool = True
+    ) -> dict[str, Any]:
+        connector_prompt = (
+            self._connector_prompt(prompt)
+            if apply_connector_prompts
+            else ("" if prompt is None else str(prompt))
+        )
         body = copy.deepcopy(self._body_template)
         injected = self._inject_prompt(body, connector_prompt)
         if not isinstance(injected, dict):
@@ -251,10 +271,12 @@ class CustomApiConnectorAdapter(ConnectorPort):
         return headers
 
     def _prepare_request(
-        self, prompt: Any
+        self, prompt: Any, *, apply_connector_prompts: bool = True
     ) -> tuple[dict[str, str], dict[str, Any], dict[str, Any]]:
         headers = self._build_request_headers()
-        body = self._build_request_body(prompt)
+        body = self._build_request_body(
+            prompt, apply_connector_prompts=apply_connector_prompts
+        )
         request_dump = {
             "method": self.api_type,
             "url": self.api_url,
@@ -262,6 +284,12 @@ class CustomApiConnectorAdapter(ConnectorPort):
             "body": body,
         }
         return headers, body, request_dump
+
+    def _web_search_enabled(self) -> bool:
+        """Agent web search applies only to this adapter, not subclasses."""
+        if type(self) is not CustomApiConnectorAdapter:
+            return False
+        return FeatureFlags().is_enabled(FeatureFlagNames.AIVET_OCT2026_MOON820)
 
     async def probe(self, prompt: Any) -> tuple[int, str]:
         headers, body, request_dump = self._prepare_request(prompt)
@@ -309,7 +337,48 @@ class CustomApiConnectorAdapter(ConnectorPort):
             raise
 
     async def get_response(self, prompt: Any) -> ConnectorResponseEntity:
-        headers, body, request_dump = self._prepare_request(prompt)
+        if self._web_search_enabled():
+            return await self._get_web_search_response(prompt)
+        return ConnectorResponseEntity(response=await self._execute_request(prompt))
+
+    async def _get_web_search_response(self, prompt: Any) -> ConnectorResponseEntity:
+        task = self._connector_prompt(prompt)
+        logger.info(
+            self.INFO_WEB_SEARCH_ENABLED.format(
+                flag=FeatureFlagNames.AIVET_OCT2026_MOON820,
+                env_name=SERPAPI_API_KEY_ENV,
+            )
+        )
+        try:
+            text = await asyncio.to_thread(self._run_web_search_agent, task)
+        except Exception as exc:
+            if not self._failure_already_dumped(exc):
+                dump_api_failure(
+                    adapter_name="CustomApiConnectorAdapter",
+                    request={
+                        "method": self.api_type,
+                        "url": self.api_url,
+                        "prompt": task,
+                    },
+                    error=exc,
+                )
+            raise
+        return ConnectorResponseEntity(response=text)
+
+    def _run_web_search_agent(self, task: str) -> str:
+        return run_custom_api_web_search(
+            task,
+            complete=lambda prompt_text: asyncio.run(
+                self._execute_request(prompt_text, apply_connector_prompts=False)
+            ),
+        )
+
+    async def _execute_request(
+        self, prompt: Any, *, apply_connector_prompts: bool = True
+    ) -> str:
+        headers, body, request_dump = self._prepare_request(
+            prompt, apply_connector_prompts=apply_connector_prompts
+        )
         logger.info(
             self.INFO_MAKING_REQUEST.format(method=self.api_type, url=self.api_url)
         )
@@ -340,12 +409,9 @@ class CustomApiConnectorAdapter(ConnectorPort):
                                 else None
                             ),
                         )
+                        self._mark_dumped(http_error)
                         raise
-                    return ConnectorResponseEntity(
-                        response=await self._process_response(
-                            response, request=request_dump
-                        )
-                    )
+                    return await self._process_response(response, request=request_dump)
         except aiohttp.ClientResponseError:
             raise
         except Exception as e:
@@ -441,3 +507,19 @@ class CustomApiConnectorAdapter(ConnectorPort):
             setattr(exc, "_api_failure_dumped", True)
         except Exception:
             pass
+
+    @staticmethod
+    def _failure_already_dumped(exc: BaseException) -> bool:
+        """True when this error, or an error it wraps, was already dumped."""
+        current: BaseException | None = exc
+        seen: set[int] = set()
+        while current is not None and id(current) not in seen:
+            if getattr(current, "_api_failure_dumped", False):
+                return True
+            seen.add(id(current))
+            current = (
+                current.__cause__
+                if current.__cause__ is not None
+                else current.__context__
+            )
+        return False

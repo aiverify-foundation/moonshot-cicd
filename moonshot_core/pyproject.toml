@@ -49,6 +49,7 @@ cryptography = "^44.0.0"
 numpy = "^2.4.4"
 scipy = "^1.17.1"
 jsonpath-ng = "^1.8.0"
+smolagents = "^1.26.0"
 
 [tool.poetry.group.dev.dependencies]
 anybadge = "^1.14.0"
