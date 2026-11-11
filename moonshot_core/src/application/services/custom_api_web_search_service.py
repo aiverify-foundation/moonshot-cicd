@@ -10,6 +10,10 @@ from __future__ import annotations
 import os
 from typing import Any, Callable
 
+from domain.services.logger import configure_logger
+
+logger = configure_logger(__name__)
+
 SERPAPI_API_KEY_ENV = "SERPAPI_API_KEY"
 MAX_AGENT_STEPS = 6
 WEB_SEARCH_INSTRUCTIONS = (
@@ -24,6 +28,11 @@ ERROR_SMOLAGENTS_MISSING = (
 )
 ERROR_EMPTY_AGENT_ANSWER = "The web search agent did not return an answer."
 REDACTED_SECRET = "***REDACTED***"
+LOG_ORIGINAL_PROMPT = "[CustomApiWebSearch] Original prompt: {prompt}"
+LOG_TOOL_CALLED = "[CustomApiWebSearch] Tool called: {called}"
+LOG_QUERY = "[CustomApiWebSearch] web_search query: {query}"
+LOG_OBSERVATION = "[CustomApiWebSearch] Observation: {observation}"
+LOG_FINAL_RESPONSE = "[CustomApiWebSearch] Final model response: {response}"
 
 
 def render_agent_messages(messages: list[Any]) -> str:
@@ -59,20 +68,35 @@ def run_custom_api_web_search(task: str, complete: Callable[[str], str]) -> str:
     if not (os.getenv(SERPAPI_API_KEY_ENV) or "").strip():
         raise ValueError(ERROR_MISSING_SERPAPI_KEY.format(env_name=SERPAPI_API_KEY_ENV))
 
+    logger.info(LOG_ORIGINAL_PROMPT.format(prompt=_redact_serpapi_key(task)))
+
     try:
         from smolagents import GoogleSearchTool, LogLevel, ToolCallingAgent
     except ImportError as exc:
         raise RuntimeError(ERROR_SMOLAGENTS_MISSING) from exc
 
+    search_called = False
+
     class SerpApiSearchTool(GoogleSearchTool):
         """SerpApi search that never returns the API token to the model."""
 
         def forward(self, query: str, filter_year: int | None = None) -> str:
+            nonlocal search_called
+            search_called = True
+            query_text = (
+                query if filter_year is None else f"{query} (year={filter_year})"
+            )
+            logger.info(LOG_TOOL_CALLED.format(called="true"))
+            logger.info(LOG_QUERY.format(query=_redact_serpapi_key(query_text)))
             try:
                 result = super().forward(query=query, filter_year=filter_year)
             except Exception as exc:
-                raise RuntimeError(_redact_serpapi_key(str(exc))) from None
-            return _redact_serpapi_key(result)
+                redacted = _redact_serpapi_key(str(exc))
+                logger.info(LOG_OBSERVATION.format(observation=redacted))
+                raise RuntimeError(redacted) from None
+            result = _redact_serpapi_key(result)
+            logger.info(LOG_OBSERVATION.format(observation=result))
+            return result
 
     agent = ToolCallingAgent(
         tools=[SerpApiSearchTool(provider="serpapi")],
@@ -82,18 +106,23 @@ def run_custom_api_web_search(task: str, complete: Callable[[str], str]) -> str:
         add_base_tools=False,
         verbosity_level=LogLevel.ERROR,
     )
+    answer_text: str | None = None
     try:
-        answer = agent.run(task)
-    except Exception as exc:
-        redacted = _redact_serpapi_key(str(exc))
-        if redacted != str(exc):
-            raise RuntimeError(redacted) from None
-        raise
-    if answer is None:
-        raise ValueError(ERROR_EMPTY_AGENT_ANSWER)
-    if not isinstance(answer, str):
-        answer = str(answer)
-    return _redact_serpapi_key(answer)
+        try:
+            answer = agent.run(task)
+        except Exception as exc:
+            redacted = _redact_serpapi_key(str(exc))
+            if redacted != str(exc):
+                raise RuntimeError(redacted) from None
+            raise
+        if answer is None:
+            raise ValueError(ERROR_EMPTY_AGENT_ANSWER)
+        if not isinstance(answer, str):
+            answer = str(answer)
+        answer_text = _redact_serpapi_key(answer)
+        return answer_text
+    finally:
+        _log_web_search_trace(search_called, answer_text)
 
 
 def _build_agent_model(complete: Callable[[str], str]):
@@ -124,6 +153,14 @@ def _build_agent_model(complete: Callable[[str], str]):
             )
 
     return CustomApiAgentModel()
+
+
+def _log_web_search_trace(search_called: bool, final_response: str | None) -> None:
+    """Log a skipped search and the final answer. Tool calls are logged as they run."""
+    if not search_called:
+        logger.info(LOG_TOOL_CALLED.format(called="false"))
+    if final_response is not None:
+        logger.info(LOG_FINAL_RESPONSE.format(response=final_response))
 
 
 def _redact_serpapi_key(text: str) -> str:
