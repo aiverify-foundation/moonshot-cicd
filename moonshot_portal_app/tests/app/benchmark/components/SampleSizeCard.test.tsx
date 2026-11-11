@@ -8,17 +8,6 @@ import SampleSizeCard, {
   hasTestsWithInsufficientPrompts,
 } from '@/app/benchmark/components/SampleSizeCard';
 import type { Bundle } from '@/lib/api';
-import { FeatureFlagNames } from '@/lib/featureFlags';
-
-const mockIsEnabled = jest.fn<boolean, [string]>(() => false);
-
-jest.mock('@/hooks/useFeatureFlags', () => ({
-  useFeatureFlags: () => ({
-    flags: {},
-    loading: false,
-    isEnabled: mockIsEnabled,
-  }),
-}));
 
 const mockBundles: Bundle[] = [
   {
@@ -198,10 +187,6 @@ describe('SampleSizeCard', () => {
     Element.prototype.scrollIntoView = jest.fn();
   });
 
-  beforeEach(() => {
-    mockIsEnabled.mockImplementation(() => false);
-  });
-
   it('defaults to All prompts and allows selecting Calculated', async () => {
     const { store } = render(<SampleSizeCard />, {
       preloadedState: {
@@ -340,23 +325,7 @@ describe('SampleSizeCard', () => {
     ).toBeInTheDocument();
   });
 
-  it('hides Quick test toggle when feature flag is off', () => {
-    render(<SampleSizeCard />, {
-      preloadedState: {
-        bundles: { data: mockBundles, loading: false, error: null },
-        bundleSelection: { 'safety-bundle': true },
-        testSelection: { 'safety-bundle': { 'Test One': true } },
-      },
-    });
-
-    expect(screen.queryByRole('button', { name: /Quick test/i })).not.toBeInTheDocument();
-  });
-
-  it('shows Quick test toggle with selected test count when feature flag is on', () => {
-    mockIsEnabled.mockImplementation(
-      (name: string) => name === FeatureFlagNames.AIVET_OCT2026_MOON722
-    );
-
+  it('shows Quick test toggle with selected test count', () => {
     render(<SampleSizeCard />, {
       preloadedState: {
         bundles: { data: mockBundlesMultiTest, loading: false, error: null },
@@ -373,10 +342,6 @@ describe('SampleSizeCard', () => {
   });
 
   it('selects Quick test mode and shows warning', async () => {
-    mockIsEnabled.mockImplementation(
-      (name: string) => name === FeatureFlagNames.AIVET_OCT2026_MOON722
-    );
-
     const { store } = render(<SampleSizeCard />, {
       preloadedState: {
         bundles: { data: mockBundles, loading: false, error: null },
