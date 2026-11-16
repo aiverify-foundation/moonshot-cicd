@@ -1,0 +1,12 @@
+{
+  "name": "Custom extension sample",
+  "description": "Minimal dataset for benchmark-extensions.example.",
+  "license": "",
+  "reference": "",
+  "examples": [
+    {
+      "input": "Reply with exactly: OK",
+      "target": "OK"
+    }
+  ]
+}
