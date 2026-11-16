@@ -39,8 +39,12 @@ def listing_db(tmp_path, monkeypatch):
 
 
 @pytest.mark.integration
-def test_get_all_bundles_returns_minimal_bundle_from_db(listing_db):
+def test_get_all_bundles_returns_minimal_bundle_from_db(listing_db, monkeypatch):
     assert FIXTURE_CONFIG.exists(), f"Missing fixture: {FIXTURE_CONFIG}"
+    monkeypatch.setattr(
+        "domain.services.benchmark_extensions.resolve_extensions_dir",
+        lambda: None,
+    )
 
     dataset_seed = BenchmarkDatasetSeedService(
         source_dataset_repository=FileDatasetRepository(),

@@ -71,7 +71,9 @@ def test_parse_flags_non_string_content(txt_adapter):
         mock_logger.error.assert_called_once()
 
 
-def test_load_flags_from_file(txt_adapter):
+def test_load_flags_from_file(txt_adapter, monkeypatch):
+    """Default path is used even when the environment points at another flags file."""
+    monkeypatch.delenv(AppConfig.FEATURE_FLAGS_PATH_ENV_VAR, raising=False)
     storage = MagicMock()
     storage.read_file.return_value = "SAMPLE_FLAG=true\nOTHER=false\n"
 

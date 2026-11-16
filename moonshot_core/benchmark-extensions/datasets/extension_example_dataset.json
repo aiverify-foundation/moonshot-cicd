@@ -1,6 +1,6 @@
 {
     "name": "Extension example dataset",
-    "description": "Minimal dataset for the benchmark-extensions.example template.",
+    "description": "Minimal dataset for the benchmark-extensions overlay template.",
     "license": "",
     "reference": "",
     "examples": [

@@ -1026,6 +1026,10 @@ class TestBenchmarkService:
 
         db_path = tmp_path / "null_details.db"
         monkeypatch.setenv("MOONSHOT_DB_PATH", str(db_path))
+        monkeypatch.setattr(
+            "domain.services.benchmark_extensions.resolve_extensions_dir",
+            lambda: None,
+        )
         SessionManager.reset_instance()
         try:
             minimal_config = (

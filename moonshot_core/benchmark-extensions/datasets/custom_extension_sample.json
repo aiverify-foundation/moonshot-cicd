@@ -1,6 +1,6 @@
 {
   "name": "Custom extension sample",
-  "description": "Minimal dataset for benchmark-extensions.example.",
+  "description": "Minimal dataset for the benchmark-extensions overlay.",
   "license": "",
   "reference": "",
   "examples": [

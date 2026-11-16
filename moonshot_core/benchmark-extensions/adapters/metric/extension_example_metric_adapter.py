@@ -14,7 +14,7 @@ class ExtensionExampleMetricAdapter(MetricPort):
     """
     Example extension metric: exact string match between model output and target.
 
-    Used by benchmark-extensions.example; no judge connector required.
+    Used by the benchmark-extensions overlay; no judge connector required.
     """
 
     ERROR_INIT_MSG = "[ExtensionExampleMetricAdapter] Error initializing adapter: {}"
