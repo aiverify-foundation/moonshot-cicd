@@ -220,7 +220,7 @@ export default function TestResultSheet({
                         </div>
                     )}
 
-                    {/* Evaluation */}
+                    {/* Evaluation
                     <div className="flex flex-col gap-[6px]">
                         <p className="font-medium text-[12px] leading-normal text-slate-700">
                             Evaluation
@@ -237,7 +237,27 @@ export default function TestResultSheet({
                                 })}
                             </p>
                         </div>
-                    </div>
+                    </div> */}
+                    
+                    {/* Evaluation*/}
+                    <div className="flex flex-col gap-[6px]">
+                        <p className="font-medium text-[12px] leading-normal text-slate-700">
+                            Evaluation
+                        </p>
+                        <div
+                            className={`border rounded-[6px] h-[80px] overflow-y-auto p-3 ${currentRow.score === 1 ? "bg-green-100 border-green-200" : "bg-red-100 border-red-200"}`}
+                        >
+                            <p
+                                className={`font-semibold text-[12px] leading-normal whitespace-pre-wrap break-words ${currentRow.score === 1 ? "text-green-800" : "text-red-800"}`}
+                            >
+                                {evaluationDisplayLabel(currentRow.evaluation, currentRow.score, {
+                                    isPromptError: currentRow.isPromptError,
+                                    errorSource: currentRow.errorSource,
+                                })}
+                            </p>
+                        </div>
+                    </div> 
+
 
                     {/* Your Verdict */}
                     <div className="flex flex-col gap-[6px]">
