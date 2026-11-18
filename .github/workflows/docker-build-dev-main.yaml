@@ -11,10 +11,10 @@ on:
         default: ''
     outputs:
       image_tag:
-        description: 'Generated moonshot-dev image tag'
+        description: 'Generated aiverify-evaluation-toolkit-dev image tag'
         value: ${{ jobs.dev-main-build-test-push.outputs.image_tag }}
       moonshot_image:
-        description: 'Full GHCR ref for the moonshot-dev image'
+        description: 'Full GHCR ref for the aiverify-evaluation-toolkit-dev image'
         value: ${{ jobs.dev-main-build-test-push.outputs.moonshot_image }}
 
 jobs:
@@ -31,7 +31,7 @@ jobs:
     env:
       GHCR_REGISTRY: ghcr.io
       GHCR_NAMESPACE: aiverify-foundation
-      IMAGE_NAME_MS: moonshot
+      IMAGE_NAME_MS: aiverify-evaluation-toolkit
       IMAGE_NAME_PC: process_checks
 
     steps:
@@ -49,7 +49,7 @@ jobs:
         GIT_BRANCH="$(git branch --show-current)"
         GIT_BRANCH="${GIT_BRANCH:-${GITHUB_REF_NAME}}"
         IMAGE_TAG="dev_$(TZ=Asia/Singapore date +%Y%m%d_%H%M%S)_${GIT_COMMIT:0:7}"
-        MOONSHOT_IMAGE="ghcr.io/${GHCR_NAMESPACE}/moonshot-dev:${IMAGE_TAG}"
+        MOONSHOT_IMAGE="ghcr.io/${GHCR_NAMESPACE}/${IMAGE_NAME_MS}-dev:${IMAGE_TAG}"
         echo "GIT_COMMIT=${GIT_COMMIT}" >> "$GITHUB_ENV"
         echo "GIT_BRANCH=${GIT_BRANCH}" >> "$GITHUB_ENV"
         echo "IMAGE_TAG=${IMAGE_TAG}" >> "$GITHUB_ENV"
@@ -81,7 +81,7 @@ jobs:
         provenance: false
         sbom: false
         tags: |
-          ghcr.io/${{ env.GHCR_NAMESPACE }}/moonshot-dev:${{ env.IMAGE_TAG }}
+          ghcr.io/${{ env.GHCR_NAMESPACE }}/${{ env.IMAGE_NAME_MS }}-dev:${{ env.IMAGE_TAG }}
         labels: |
           git.commit=${{ env.GIT_COMMIT }}
           git.branch=${{ env.GIT_BRANCH }}

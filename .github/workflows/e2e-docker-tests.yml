@@ -61,7 +61,7 @@ jobs:
             echo "moonshot-e2e-web source: BUILDING from docker/moonshot.Dockerfile (no moonshot_image input)"
             unset MOONSHOT_E2E_WEB_IMAGE
           elif [[ "$RAW" =~ ^sha256:[0-9a-fA-F]+$ ]]; then
-            export MOONSHOT_E2E_WEB_IMAGE="ghcr.io/aiverify-foundation/moonshot-dev@${RAW}"
+            export MOONSHOT_E2E_WEB_IMAGE="ghcr.io/aiverify-foundation/aivet-dev@${RAW}"
             echo "moonshot-e2e-web source: resolved bare digest to ${MOONSHOT_E2E_WEB_IMAGE}"
           else
             export MOONSHOT_E2E_WEB_IMAGE="$RAW"

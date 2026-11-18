@@ -4,18 +4,18 @@ on:
   workflow_dispatch:
     inputs:
       moonshot_dev_tag:
-        description: 'Existing tag of the moonshot-dev image to promote'
+        description: 'Existing tag of the aiverify-evaluation-toolkit-dev image to promote'
         required: true
         type: string
   workflow_call:
     inputs:
       moonshot_dev_tag:
-        description: 'Existing tag of the moonshot-dev image to promote'
+        description: 'Existing tag of the aiverify-evaluation-toolkit-dev image to promote'
         required: true
         type: string
 
 jobs:
-  promote-moonshot-dev-to-staging:
+  promote-aiverify-evaluation-toolkit-dev-to-staging:
     if: github.event_name == 'workflow_dispatch' || github.event_name == 'workflow_call'
     permissions:
       id-token: write
@@ -25,7 +25,7 @@ jobs:
 
     env:
       GHCR_REGISTRY: ghcr.io
-      SOURCE_IMAGE_REPO: ghcr.io/aiverify-foundation/moonshot-dev
+      SOURCE_IMAGE_REPO: ghcr.io/aiverify-foundation/aiverify-evaluation-toolkit-dev
 
     steps:
     - name: Set up crane
@@ -38,7 +38,7 @@ jobs:
         username: ${{ github.actor }}
         password: ${{ secrets.GITHUB_TOKEN }}
 
-    - name: Add staging tag to moonshot-dev image
+    - name: Add staging tag to aiverify-evaluation-toolkit-dev image
       run: |
         STAGING_TAG="staging_$(TZ=Asia/Singapore date +%Y%m%d_%H%M%S)"
         SOURCE_IMAGE="${SOURCE_IMAGE_REPO}:${{ inputs.moonshot_dev_tag }}"
