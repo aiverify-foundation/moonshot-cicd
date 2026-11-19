@@ -217,6 +217,8 @@ class ContradictionJudgeApprox5Adapter(MetricPort):
         if contradict not in (0, 1):
             raise ValueError(f"Invalid contradict value: {contradict!r}")
         reason = str(parsed.get("reason", "")).strip()
+        if not reason:
+            reason = f"[ContradictionJudgeApprox5Adapter] reason is absent: {parsed}"
         return int(contradict), reason
 
     async def _extract_ground_truth_facts(self, answer: str) -> list[str]:

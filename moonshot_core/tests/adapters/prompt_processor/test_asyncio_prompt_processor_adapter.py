@@ -3,12 +3,10 @@ from unittest.mock import AsyncMock, MagicMock, Mock, patch
 
 import pytest
 
-from adapters.prompt_processor.asyncio_prompt_processor_adapter import (
-    AsyncioPromptProcessor,
-)
-from domain.entities.benchmark_run_test_prompt_entity import (
-    BenchmarkRunTestPromptEntity,
-)
+from adapters.prompt_processor.asyncio_prompt_processor_adapter import \
+    AsyncioPromptProcessor
+from domain.entities.benchmark_run_test_prompt_entity import \
+    BenchmarkRunTestPromptEntity
 from domain.entities.connector_entity import ConnectorEntity
 from domain.entities.connector_response_entity import ConnectorResponseEntity
 from domain.entities.metric_individual_entity import MetricIndividualEntity
@@ -844,4 +842,107 @@ async def test_process_prompts_saves_metric_reason(
         )
 
     assert processed[0].state == TaskManagerStatus.COMPLETED
+    mock_reasoning_service.save_if_present.assert_called_once_with(10, evaluated)
+
+
+@pytest.mark.asyncio
+async def test_process_prompts_saves_reason_when_another_prompt_fails(
+    asyncio_processor, connector_entity, metric_config
+):
+    """A prompt's reason is stored even when a sibling prompt errors."""
+    prompts = [
+        PromptEntity(
+            index=1,
+            prompt="ok",
+            target="t1",
+            benchmark_run_test_prompt_id=10,
+        ),
+        PromptEntity(
+            index=2,
+            prompt="fail-metric",
+            target="t2",
+            benchmark_run_test_prompt_id=11,
+        ),
+    ]
+    evaluated = {"score": 1.0, "reason": "within tolerance"}
+
+    mock_connector_instance = Mock(spec=ConnectorPort)
+    mock_connector_instance.configure = Mock()
+    mock_connector_instance.get_response = AsyncMock(
+        return_value=ConnectorResponseEntity(response="ok-response", context=[])
+    )
+
+    mock_metric_instance = Mock(spec=MetricPort)
+
+    async def get_individual_result_side_effect(metric_entity):
+        if metric_entity.prompt == "fail-metric":
+            raise RuntimeError("metric failed")
+        return evaluated
+
+    mock_metric_instance.get_individual_result = AsyncMock(
+        side_effect=get_individual_result_side_effect
+    )
+    mock_metric_instance.get_results = AsyncMock(return_value={})
+    mock_metric_instance.update_metric_params = Mock()
+
+    mock_metric_cfg = Mock()
+    mock_metric_cfg.params = {}
+
+    stored_prompts = {
+        10: BenchmarkRunTestPromptEntity(
+            id=10, run_test_id=1, prompt_id=1, status="pending", target="t1"
+        ),
+        11: BenchmarkRunTestPromptEntity(
+            id=11, run_test_id=1, prompt_id=2, status="pending", target="t2"
+        ),
+    }
+    mock_prompt_repo = MagicMock()
+    mock_prompt_repo.get_all_by_run_test_id.return_value = list(stored_prompts.values())
+    mock_prompt_repo.update.side_effect = lambda entity: entity
+
+    mock_reasoning_service = MagicMock()
+
+    with (
+        patch(
+            "adapters.prompt_processor.asyncio_prompt_processor_adapter.ModuleLoader.load"
+        ) as mock_load,
+        patch(
+            "adapters.prompt_processor.asyncio_prompt_processor_adapter.AppConfig"
+        ) as mock_app_config_class,
+        patch(
+            "adapters.driven.repository.sqlalchemy.benchmark_run_test_prompt_adapter."
+            "SqlAlchemyBenchmarkRunTestPromptRepository",
+            return_value=mock_prompt_repo,
+        ),
+        patch(
+            "adapters.driven.repository.sqlalchemy.benchmark_run_test_error_adapter."
+            "SqlAlchemyBenchmarkRunTestErrorRepository",
+        ),
+        patch(
+            "adapters.prompt_processor.asyncio_prompt_processor_adapter."
+            "BenchmarkRunTestPromptMetricReasoningService",
+            return_value=mock_reasoning_service,
+        ),
+    ):
+        mock_load.side_effect = [
+            (mock_connector_instance, "connector_id"),
+            (mock_metric_instance, "metric_id"),
+        ]
+        mock_app_config = Mock()
+        mock_app_config.get_metric_config.return_value = mock_metric_cfg
+        mock_app_config.get_common_config.return_value = 5
+        mock_app_config_class.return_value = mock_app_config
+        asyncio_processor.app_config = mock_app_config
+
+        processed, _summary = await asyncio_processor.process_prompts(
+            prompts,
+            connector_entity,
+            metric_config,
+            write_to_db=True,
+            run_test_id=1,
+        )
+
+    states = {prompt.benchmark_run_test_prompt_id: prompt.state for prompt in processed}
+    assert states[10] == TaskManagerStatus.COMPLETED
+    assert states[11] == TaskManagerStatus.ERROR
     mock_reasoning_service.save_if_present.assert_called_once_with(10, evaluated)

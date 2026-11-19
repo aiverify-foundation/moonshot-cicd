@@ -1,10 +1,10 @@
 import asyncio
 from typing import Callable
 
-from application.services.benchmark_run_test_prompt_metric_reasoning_service import (
-    BenchmarkRunTestPromptMetricReasoningService,
-)
-from domain.entities.benchmark_run_test_error_entity import BenchmarkRunTestErrorEntity
+from application.services.benchmark_run_test_prompt_metric_reasoning_service import \
+    BenchmarkRunTestPromptMetricReasoningService
+from domain.entities.benchmark_run_test_error_entity import \
+    BenchmarkRunTestErrorEntity
 from domain.entities.connector_entity import ConnectorEntity
 from domain.entities.metric_individual_entity import MetricIndividualEntity
 from domain.entities.prompt_entity import PromptEntity
@@ -16,11 +16,9 @@ from domain.services.enums.module_types import ModuleTypes
 from domain.services.enums.task_manager_status import TaskManagerStatus
 from domain.services.loader.module_loader import ModuleLoader
 from domain.services.logger import configure_logger
-from domain.services.prompt_error_evaluation import (
-    FAILED_EVALUATED_RESULT,
-    entities_for_aggregation,
-    synthetic_error_entity,
-)
+from domain.services.prompt_error_evaluation import (FAILED_EVALUATED_RESULT,
+                                                     entities_for_aggregation,
+                                                     synthetic_error_entity)
 
 # Initialize a logger for this module
 logger = configure_logger(__name__)
@@ -136,12 +134,10 @@ class AsyncioPromptProcessor(PromptProcessorPort):
         error_repo = None
         if write_to_db and run_test_id is not None:
             try:
-                from adapters.driven.repository.sqlalchemy.benchmark_run_test_error_adapter import (
-                    SqlAlchemyBenchmarkRunTestErrorRepository,
-                )
-                from adapters.driven.repository.sqlalchemy.benchmark_run_test_prompt_adapter import (
-                    SqlAlchemyBenchmarkRunTestPromptRepository,
-                )
+                from adapters.driven.repository.sqlalchemy.benchmark_run_test_error_adapter import \
+                    SqlAlchemyBenchmarkRunTestErrorRepository
+                from adapters.driven.repository.sqlalchemy.benchmark_run_test_prompt_adapter import \
+                    SqlAlchemyBenchmarkRunTestPromptRepository
 
                 prompt_repo = SqlAlchemyBenchmarkRunTestPromptRepository()
                 error_repo = SqlAlchemyBenchmarkRunTestErrorRepository()
@@ -240,6 +236,34 @@ class AsyncioPromptProcessor(PromptProcessorPort):
 
                 completed_count += 1
 
+                evaluated = None
+                if error_message is None:
+                    metric_entity = result.evaluation_result
+                    evaluated = (
+                        metric_entity.evaluated_result if metric_entity else None
+                    )
+
+                # Persist this prompt's reasoning before its row update. A later
+                # prompt failure or test-level error does not roll this back.
+                if (
+                    write_to_db
+                    and error_message is None
+                    and result.benchmark_run_test_prompt_id is not None
+                ):
+                    try:
+                        BenchmarkRunTestPromptMetricReasoningService().save_if_present(
+                            result.benchmark_run_test_prompt_id,
+                            evaluated,
+                        )
+                    except Exception as reasoning_error:
+                        logger.error(
+                            "[AsyncioPromptProcessor] Failed to save "
+                            "metric reasoning for prompt id=%s: %s",
+                            result.benchmark_run_test_prompt_id,
+                            reasoning_error,
+                            exc_info=True,
+                        )
+
                 # Update existing benchmark_run_test_prompt row by id when set (no insert)
                 if (
                     write_to_db
@@ -265,12 +289,6 @@ class AsyncioPromptProcessor(PromptProcessorPort):
                             elif result.model_prediction is not None:
                                 entity.prediction_result = str(result.model_prediction)
                             if error_message is None:
-                                metric_entity = result.evaluation_result
-                                evaluated = (
-                                    metric_entity.evaluated_result
-                                    if metric_entity
-                                    else None
-                                )
                                 entity.evaluation_prediction_result = (
                                     str(evaluated) if evaluated is not None else None
                                 )
@@ -285,21 +303,7 @@ class AsyncioPromptProcessor(PromptProcessorPort):
                                 )
                                 entity.evaluation_accuracy = 0.0
                             prompt_repo.update(entity)
-                            if error_message is None:
-                                try:
-                                    BenchmarkRunTestPromptMetricReasoningService().save_if_present(
-                                        result.benchmark_run_test_prompt_id,
-                                        evaluated,
-                                    )
-                                except Exception as reasoning_error:
-                                    logger.error(
-                                        "[AsyncioPromptProcessor] Failed to save "
-                                        "metric reasoning for prompt id=%s: %s",
-                                        result.benchmark_run_test_prompt_id,
-                                        reasoning_error,
-                                        exc_info=True,
-                                    )
-                            elif error_repo is not None:
+                            if error_message is not None and error_repo is not None:
                                 error_repo.save(
                                     BenchmarkRunTestErrorEntity(
                                         benchmark_run_test_prompt_id=result.benchmark_run_test_prompt_id,

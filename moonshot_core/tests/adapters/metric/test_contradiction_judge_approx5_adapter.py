@@ -3,9 +3,8 @@ from pathlib import Path
 
 import pytest
 
-from adapters.metric.contradiction_judge_approx5_adapter import (
-    ContradictionJudgeApprox5Adapter,
-)
+from adapters.metric.contradiction_judge_approx5_adapter import \
+    ContradictionJudgeApprox5Adapter
 from domain.entities.connector_entity import ConnectorEntity
 from domain.entities.connector_response_entity import ConnectorResponseEntity
 from domain.entities.metric_config_entity import MetricConfigEntity
@@ -168,6 +167,20 @@ class TestContradictionJudgeApprox5Adapter:
             ContradictionJudgeApprox5Adapter._parse_contradiction_response(
                 '{"contradict": 2, "reason": "bad"}'
             )
+
+    def test_parse_blank_reason_is_replaced_with_parsed_object(self):
+        """A missing or blank reason becomes a note that includes the JSON."""
+        contradict, reason = (
+            ContradictionJudgeApprox5Adapter._parse_contradiction_response(
+                '{"contradict": 0, "explanation": "consistent"}'
+            )
+        )
+
+        assert contradict == 0
+        assert reason == (
+            "[ContradictionJudgeApprox5Adapter] reason is absent: "
+            "{'contradict': 0, 'explanation': 'consistent'}"
+        )
 
     @pytest.mark.asyncio
     async def test_get_individual_result_no_contradiction(self):
