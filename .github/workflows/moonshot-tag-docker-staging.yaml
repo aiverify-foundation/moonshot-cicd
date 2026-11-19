@@ -15,8 +15,10 @@ on:
         type: string
 
 jobs:
+  # A called workflow inherits the caller's event, so workflow_call is never set
+  # here. A dev_main push arrives as "push"; a manual run arrives as "workflow_dispatch".
   promote-aiverify-evaluation-toolkit-dev-to-staging:
-    if: github.event_name == 'workflow_dispatch' || github.event_name == 'workflow_call'
+    if: github.event_name == 'workflow_dispatch' || github.event_name == 'push'
     permissions:
       id-token: write
       contents: read
