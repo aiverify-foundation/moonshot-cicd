@@ -8,10 +8,10 @@
   A dashboard-first safety testing suite to benchmark LLM applications, built by the <a href="https://aiverifyfoundation.sg/">AI Verify Foundation</a> and <a href="https://www.imda.gov.sg/">IMDA</a>.
 </p>
 <p align="center">
-  <a href="https://github.com/aiverify-foundation/moonshot-cicd/blob/main/LICENSE"><img src="https://img.shields.io/badge/license-Apache%202.0-blue.svg" alt="License: Apache 2.0"></a>
+  <a href="https://github.com/aiverify-foundation/aiverify-evals-toolkit/blob/main/LICENSE"><img src="https://img.shields.io/badge/license-Apache%202.0-blue.svg" alt="License: Apache 2.0"></a>
   <img src="https://img.shields.io/badge/python-3.12-blue.svg" alt="Python 3.12">
-  <a href="https://github.com/aiverify-foundation/moonshot-cicd/releases"><img src="https://img.shields.io/github/v/release/aiverify-foundation/moonshot-cicd" alt="Latest release"></a>
-  <a href="https://github.com/aiverify-foundation/moonshot-cicd/wiki"><img src="https://img.shields.io/badge/docs-wiki-informational" alt="Docs"></a>
+  <a href="https://github.com/aiverify-foundation/aiverify-evals-toolkit/releases"><img src="https://img.shields.io/github/v/release/aiverify-foundation/moonshot-cicd" alt="Latest release"></a>
+  <a href="https://github.com/aiverify-foundation/aiverify-evals-toolkit/wiki"><img src="https://img.shields.io/badge/docs-wiki-informational" alt="Docs"></a>
 </p>
 <!--
   TODO(highest priority): replace this comment with a screenshot or short GIF of the
@@ -36,7 +36,7 @@ This repository contains **three products** built on a shared evaluation engine,
 
 Run benchmark tests through a guided, step-by-step workflow. Review flagged results, and override erroneous automated verdicts to generate high-quality testing reports. Confidence intervals tell you how much to trust a result, not just what the score was.
  
-**[→ Start here](https://github.com/aiverify-foundation/moonshot-cicd/wiki/AI-Verify-Evals-Toolkit-User-Guide)**
+**[→ Start here](https://github.com/aiverify-foundation/aiverify-evals-toolkit/wiki/AI-Verify-Evals-Toolkit-User-Guide)**
  
 </td>
 <td width="33%" valign="top">
@@ -47,7 +47,7 @@ Run benchmark tests through a guided, step-by-step workflow. Review flagged resu
  
 The CLI and automation engine underneath the toolkit. Run benchmark + red-team suites as a pipeline step, gate merges on results, and store output natively in S3. Ships with a GitHub Actions example and an AWS CodeBuild CloudFormation template.
  
-**[→ CI/CD quick start](https://github.com/aiverify-foundation/moonshot-cicd/wiki/Onboarding-Guide-for-CI-CD-Deployment)**
+**[→ CI/CD quick start](https://github.com/aiverify-foundation/aiverify-evals-toolkit/wiki/Onboarding-Guide-for-CI-CD-Deployment)**
  
 </td>
 <td width="33%" valign="top">
@@ -58,7 +58,7 @@ The CLI and automation engine underneath the toolkit. Run benchmark + red-team s
  
 A web app that maps test evidence from this toolkit against 11 internationally recognized AI governance principles for audit and regulatory review.
  
-**[→ Process Checks guide](https://github.com/aiverify-foundation/moonshot-cicd/wiki/Process-Checks-Onboarding-Guide)**
+**[→ Process Checks guide](https://github.com/aiverify-foundation/aiverify-evals-toolkit/wiki/Process-Checks-Onboarding-Guide)**
  
 </td>
 </tr>
@@ -80,7 +80,7 @@ Lood the homepage via `localhost:8000`
  
 | If you are a... | Start here |
 |---|---|
-| **Business/product/risk reviewer** running a benchmark test and analyzing qualitative and quantitive insights |[Installation Guide](https://github.com/aiverify-foundation/moonshot-cicd/wiki/AI-Verify-Evals-Toolkit-Installation-Guide) · [User Guide](https://github.com/aiverify-foundation/moonshot-cicd/wiki/AI-Verify-Evals-Toolkit-User-Guide) |
-| **Developer** wiring this into CI/CD pipelines| [Onboarding Guide for CI/CD Deployment](https://github.com/aiverify-foundation/moonshot-cicd/wiki/Onboarding-Guide-for-CI-CD-Deployment) |
-| **Test developer** building custom tests | [Create Custom Moonshot Tests](https://github.com/aiverify-foundation/moonshot-cicd/wiki/Create-Custom-Moonshot-Tests) · [Custom Evaluation Metrics](https://github.com/aiverify-foundation/moonshot-cicd/wiki/Create-Custom-Evaluation-Metrics) · [Custom Connectors](https://github.com/aiverify-foundation/moonshot-cicd/wiki/Create-Custom-Connectors) |
-| **Governance/compliance** consuming results as evidence | [Process Checks Quick Start Guide](https://github.com/aiverify-foundation/moonshot-cicd/wiki/Process-Checks-Quick-Start-Guide) |- **Comprehensive Test Result** in the widely-accepted `.json` format for easy read/write. Moonshot's result files are also compatible with the [AI Verify Testing Framework](https://aiverifyfoundation.sg/what-is-ai-verify/) and can be used to generate a business-ready summary report for internal compliance.
+| **Business/product/risk reviewer** running a benchmark test and analyzing qualitative and quantitive insights |[Installation Guide](https://github.com/aiverify-foundation/aiverify-evals-toolkit/wiki/AI-Verify-Evals-Toolkit-Installation-Guide) · [User Guide](https://github.com/aiverify-foundation/aiverify-evals-toolkit/wiki/AI-Verify-Evals-Toolkit-User-Guide) |
+| **Developer** wiring this into CI/CD pipelines| [Onboarding Guide for CI/CD Deployment](https://github.com/aiverify-foundation/aiverify-evals-toolkit/wiki/Onboarding-Guide-for-CI-CD-Deployment) |
+| **Test developer** building custom tests | [Create Custom Moonshot Tests](https://github.com/aiverify-foundation/aiverify-evals-toolkit/wiki/Create-Custom-Moonshot-Tests) · [Custom Evaluation Metrics](https://github.com/aiverify-foundation/aiverify-evals-toolkit/wiki/Create-Custom-Evaluation-Metrics) · [Custom Connectors](https://github.com/aiverify-foundation/aiverify-evals-toolkit/wiki/Create-Custom-Connectors) |
+| **Governance/compliance** consuming results as evidence | [Process Checks Quick Start Guide](https://github.com/aiverify-foundation/aiverify-evals-toolkit/wiki/Process-Checks-Quick-Start-Guide) |- **Comprehensive Test Result** in the widely-accepted `.json` format for easy read/write. Moonshot's result files are also compatible with the [AI Verify Testing Framework](https://aiverifyfoundation.sg/what-is-ai-verify/) and can be used to generate a business-ready summary report for internal compliance.
