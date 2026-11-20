@@ -6,7 +6,7 @@ on:
   workflow_dispatch:
     inputs:
       promote_to_staging:
-        description: 'Promote aiverify-evaluation-toolkit-dev to staging after tests pass'
+        description: 'Promote aiverify-evals-toolkit-dev to staging after tests pass'
         type: boolean
         default: true
       commit_sha:

@@ -11,10 +11,10 @@ on:
         default: ''
     outputs:
       image_tag:
-        description: 'Generated aiverify-evaluation-toolkit-dev image tag'
+        description: 'Generated aiverify-evals-toolkit-dev image tag'
         value: ${{ jobs.dev-main-build-test-push.outputs.image_tag }}
       moonshot_image:
-        description: 'Full GHCR ref for the aiverify-evaluation-toolkit-dev image'
+        description: 'Full GHCR ref for the aiverify-evals-toolkit-dev image'
         value: ${{ jobs.dev-main-build-test-push.outputs.moonshot_image }}
 
 jobs:
@@ -31,7 +31,7 @@ jobs:
     env:
       GHCR_REGISTRY: ghcr.io
       GHCR_NAMESPACE: aiverify-foundation
-      IMAGE_NAME_MS: aiverify-evaluation-toolkit
+      IMAGE_NAME_MS: aiverify-evals-toolkit
       IMAGE_NAME_PC: process_checks
 
     steps:
