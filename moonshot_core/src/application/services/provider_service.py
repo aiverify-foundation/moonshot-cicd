@@ -6,6 +6,8 @@ from domain.services.logger import get_logger
 from typing import Dict, List, Optional, Type
 from datetime import datetime
 
+from adapters.connector.aws_bedrock_adapter import AWSBedrockAdapter
+from adapters.connector.bedrock_mantle_web_search_adapter import BedrockMantleWebSearchAdapter
 from adapters.connector.openai_adapter import OpenAIAdapter
 from adapters.connector.openrouter_adapter import OpenRouterAdapter
 from adapters.connector.together_adapter import TogetherAdapter
@@ -33,25 +35,27 @@ from application.dto.model_config_dto import (
 )
 from application.services.sqlite_adapter import SQLiteAdapter
 from domain.ports.connector_port import ConnectorPort
-from domain.services.feature_flags import (
-    OPENROUTER_ADAPTER_SYSTEM_NAME,
-    is_openrouter_enabled,
-)
+from domain.services.enums.feature_flag_names import FeatureFlagNames
+from domain.services.feature_flags import FeatureFlags
+
+_ADAPTER_BY_SYSTEM_NAME: Dict[str, Type[ConnectorPort]] = {
+    OpenAIAdapter.SYSTEM_NAME: OpenAIAdapter,
+    TogetherAdapter.SYSTEM_NAME: TogetherAdapter,
+    OpenRouterAdapter.SYSTEM_NAME: OpenRouterAdapter,
+    AWSBedrockAdapter.SYSTEM_NAME: AWSBedrockAdapter,
+    BedrockMantleWebSearchAdapter.SYSTEM_NAME: BedrockMantleWebSearchAdapter,
+}
 
 
-def get_adapter_by_system_name() -> Dict[str, Type[ConnectorPort]]:
-    """Map llm_provider.system_name to ConnectorPort class (OpenRouter gated by feature flag)."""
-    mapping: Dict[str, Type[ConnectorPort]] = {
-        OpenAIAdapter.SYSTEM_NAME: OpenAIAdapter,
-        TogetherAdapter.SYSTEM_NAME: TogetherAdapter,
-    }
-    if is_openrouter_enabled():
-        mapping[OpenRouterAdapter.SYSTEM_NAME] = OpenRouterAdapter
-    return mapping
+def _is_bedrock_web_search_portal_provider_enabled() -> bool:
+    return FeatureFlags().is_enabled(FeatureFlagNames.AIVET_OCT2026_MOON812)
 
 
-# Backward-compatible name; prefer get_adapter_by_system_name() for flag-aware lookups.
-_ADAPTER_BY_SYSTEM_NAME: Dict[str, Type[ConnectorPort]] = get_adapter_by_system_name()
+def _is_portal_visible_provider_system_name(system_name: str) -> bool:
+    """Hide Bedrock Web Search from portal APIs when AIVET_OCT2026_MOON812 is off."""
+    if system_name == BedrockMantleWebSearchAdapter.SYSTEM_NAME:
+        return _is_bedrock_web_search_portal_provider_enabled()
+    return True
 
 
 class ProviderService:
@@ -91,7 +95,7 @@ class ProviderService:
         Fill defaultModel, modelTextboxExplanation, defaultConfigPairs, and modelToken from the
         matching ConnectorPort class metadata when DB-derived values are empty.
         """
-        adapter_cls = get_adapter_by_system_name().get(dto.system_name)
+        adapter_cls = _ADAPTER_BY_SYSTEM_NAME.get(dto.system_name)
         if adapter_cls is None:
             return dto
         seed = adapter_cls.provider_seed_definition()
@@ -214,8 +218,7 @@ class ProviderService:
         return [
             self._enrich_dto_with_adapter_defaults(self._provider_entity_to_dto(entity))
             for entity in entities
-            if is_openrouter_enabled()
-            or entity.system_name != OPENROUTER_ADAPTER_SYSTEM_NAME
+            if _is_portal_visible_provider_system_name(entity.system_name)
         ]
 
     def add_provider(self, provider: ProviderDTO) -> ProviderDTO:
@@ -317,6 +320,11 @@ class ProviderService:
         self.logger.info(
             "Fetching latest provider details for system_name=%s", system_name
         )
+        if not _is_portal_visible_provider_system_name(system_name):
+            self.logger.info(
+                "Provider system_name=%s is hidden by feature flag", system_name
+            )
+            return None
         try:
             with self._session_manager.get_session() as session:
                 provider_model: Optional[LLMProviderModel] = (
@@ -416,6 +424,8 @@ class ProviderService:
                 session.query(LLMProviderModel).order_by(LLMProviderModel.id).all()
             )
             for provider in providers:
+                if not _is_portal_visible_provider_system_name(provider.system_name):
+                    continue
                 config_dtos = self._database_model_config_dtos_for_provider(
                     session, provider
                 )

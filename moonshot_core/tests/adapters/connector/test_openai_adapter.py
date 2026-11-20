@@ -555,6 +555,7 @@ async def test_get_response_logs_on_bad_request_error(openai_adapter, connector_
         patch("adapters.connector.openai_adapter.os.getenv") as mock_getenv,
         patch("adapters.connector.openai_adapter.AsyncOpenAI") as mock_openai_class,
         patch("adapters.connector.openai_adapter.logger") as mock_logger,
+        patch("adapters.connector.openai_adapter.dump_api_failure") as mock_dump,
     ):
         mock_getenv.return_value = "test-api-key"
         mock_client = MagicMock()
@@ -569,6 +570,14 @@ async def test_get_response_logs_on_bad_request_error(openai_adapter, connector_
         logged = mock_logger.error.call_args.args[0]
         assert OpenAIAdapter.LOG_API_REJECTED_CHAT in logged
         assert "invalid parameter" in logged
+
+        mock_dump.assert_called_once()
+        dump_kwargs = mock_dump.call_args.kwargs
+        assert dump_kwargs["adapter_name"] == "OpenAIAdapter"
+        assert dump_kwargs["error"] is err
+        assert dump_kwargs["model"] == "gpt-4"
+        assert "messages" in dump_kwargs["request"]
+        assert dump_kwargs["request"]["model"] == "gpt-4"
 
 
 @pytest.mark.asyncio

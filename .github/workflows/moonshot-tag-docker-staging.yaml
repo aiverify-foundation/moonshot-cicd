@@ -4,13 +4,21 @@ on:
   workflow_dispatch:
     inputs:
       moonshot_dev_tag:
-        description: 'Existing tag of the moonshot-dev image to promote'
+        description: 'Existing tag of the aiverify-evals-toolkit-dev image to promote'
+        required: true
+        type: string
+  workflow_call:
+    inputs:
+      moonshot_dev_tag:
+        description: 'Existing tag of the aiverify-evals-toolkit-dev image to promote'
         required: true
         type: string
 
 jobs:
-  promote-moonshot-dev-to-staging:
-    if: github.event_name == 'workflow_dispatch'
+  # A called workflow inherits the caller's event, so workflow_call is never set
+  # here. A dev_main push arrives as "push"; a manual run arrives as "workflow_dispatch".
+  promote-aiverify-evals-toolkit-dev-to-staging:
+    if: github.event_name == 'workflow_dispatch' || github.event_name == 'push'
     permissions:
       id-token: write
       contents: read
@@ -19,7 +27,7 @@ jobs:
 
     env:
       GHCR_REGISTRY: ghcr.io
-      SOURCE_IMAGE_REPO: ghcr.io/aiverify-foundation/moonshot-dev
+      SOURCE_IMAGE_REPO: ghcr.io/aiverify-foundation/aiverify-evals-toolkit-dev
 
     steps:
     - name: Set up crane
@@ -32,7 +40,7 @@ jobs:
         username: ${{ github.actor }}
         password: ${{ secrets.GITHUB_TOKEN }}
 
-    - name: Add staging tag to moonshot-dev image
+    - name: Add staging tag to aiverify-evals-toolkit-dev image
       run: |
         STAGING_TAG="staging_$(TZ=Asia/Singapore date +%Y%m%d_%H%M%S)"
         SOURCE_IMAGE="${SOURCE_IMAGE_REPO}:${{ inputs.moonshot_dev_tag }}"
@@ -47,4 +55,3 @@ jobs:
           echo "Expected both tags to share the same digest"
           exit 1
         fi
-

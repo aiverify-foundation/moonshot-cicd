@@ -34,20 +34,29 @@ describe("parseApiUtcTimestamp", () => {
 });
 
 describe("formatRunTimestamp", () => {
-  it("formats naive UTC as local time in a fixed timezone", () => {
-    const formatted = formatRunTimestamp("2026-06-04T10:00:00", "completed");
-    const d = parseApiUtcTimestamp("2026-06-04T10:00:00")!;
-    const expected = `Completed ${d.toLocaleString("en-US", {
-      timeZone: "Asia/Singapore",
-      day: "numeric",
-      month: "short",
-      year: "numeric",
-      hour: "numeric",
-      minute: "2-digit",
-    })}`;
+  const localeOptions: Intl.DateTimeFormatOptions = {
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+  };
+
+  it("formats naive UTC as local wall time of the UTC instant", () => {
+    const iso = "2026-06-04T10:00:00";
+    const formatted = formatRunTimestamp(iso, "completed");
+    const d = parseApiUtcTimestamp(iso)!;
+    const expected = `Completed ${d.toLocaleString(undefined, localeOptions)}`;
     expect(formatted).toBe(expected);
-    expect(formatted).toContain("6:00");
-    expect(formatted).not.toContain("10:00");
+
+    // Regression: must not treat the naive API string as local wall time.
+    // (On UTC hosts the wrong and correct parses coincide, so skip there.)
+    const asLocalWall = new Date(iso);
+    if (asLocalWall.getTime() !== d.getTime()) {
+      expect(formatted).not.toBe(
+        `Completed ${asLocalWall.toLocaleString(undefined, localeOptions)}`
+      );
+    }
   });
 
   it("returns placeholder when iso is missing", () => {

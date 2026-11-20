@@ -131,7 +131,7 @@ class BenchmarkService:
             )
 
         requires_llm_aaj, metric_provider_system_name = metric_aaj_fields(
-            benchmark_test_entity.metric
+            benchmark_test_entity.metric, app_config=self._app_config
         )
         grader_model = metric_grader_model_name(
             benchmark_test_entity.metric, app_config=self._app_config

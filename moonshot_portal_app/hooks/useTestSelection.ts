@@ -20,26 +20,6 @@ import {
 } from '../lib/benchmarkTestSelection';
 
 /**
- * Get checked test names across selected bundles (union by name for endpoint grouping).
- */
-export function useCheckedTestNames(): string[] {
-  const testSelection = useAppSelector((state) => state.testSelection);
-  const bundles = useAppSelector((state) => state.bundles.data);
-  const bundleSelection = useAppSelector((state) => state.bundleSelection);
-
-  return useMemo(() => {
-    const names = new Set<string>();
-    bundles.forEach((bundle) => {
-      if (!bundleSelection[bundle.id]) return;
-      selectedTestsInBundle(testSelection, bundle.id, bundle.tests).forEach((test) => {
-        names.add(test.name);
-      });
-    });
-    return Array.from(names);
-  }, [testSelection, bundles, bundleSelection]);
-}
-
-/**
  * Check if a specific test is selected within a bundle.
  */
 export function useIsTestSelected(

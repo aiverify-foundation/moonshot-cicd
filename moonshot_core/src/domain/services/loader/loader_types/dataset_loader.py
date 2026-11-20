@@ -4,6 +4,7 @@ from typing import Any
 from domain.entities.dataset_entity import DatasetEntity
 from domain.ports.storage_provider_port import StorageProviderPort
 from domain.services.app_config import AppConfig
+from domain.services.benchmark_extensions import get_dataset_search_paths
 from domain.services.loader.factory.file_format_factory import FileFormatFactory
 from domain.services.loader.loader_types.loader import Loader
 from domain.services.logger import configure_logger
@@ -77,7 +78,9 @@ class DatasetLoader(Loader):
 
             file_content, complete_path = self._read_file_content_and_path(loader_name)
             json_data = self._deserialize_content(complete_path, file_content)
-            json_data["id"] = loader_name  # Use the filename as the ID, not the name field
+            json_data["id"] = (
+                loader_name  # Use the filename as the ID, not the name field
+            )
             json_data["num_of_dataset_prompts"] = len(json_data.get("examples", []))
 
             creation_datetime = self._get_creation_datetime(complete_path)
@@ -88,9 +91,19 @@ class DatasetLoader(Loader):
             logger.error(self.ERROR_READING_FILE.format(file_name=loader_name, error=e))
             raise
 
+    def _candidate_dataset_paths(self, file_name: str) -> list[str]:
+        """Return dataset file paths to try. Local storage searches extension datasets first."""
+        filename = f"{file_name}{self.DEFAULT_DATASET_FORMAT}"
+        if self.storage_adapter.PREFIX is None:
+            return [f"{prefix}{filename}" for prefix in get_dataset_search_paths()]
+        return [f"{self.FILE_PATH_PREFIX}{filename}"]
+
     def _read_file_content_and_path(self, file_name: str) -> tuple[Any, str]:
         """
         Read the content and path of a specified file using the storage adapter.
+
+        Local storage tries extension datasets before the built-in data/datasets
+        directory. Other storage providers keep a single prefix.
 
         Args:
             file_name (str): The name of the dataset module file to be read.
@@ -101,29 +114,26 @@ class DatasetLoader(Loader):
         Raises:
             FileNotFoundError: If no valid file is found for the specified file name.
         """
-        # Construct the complete path with the default dataset format
-        complete_path = (
-            f"{self.FILE_PATH_PREFIX}{file_name}{self.DEFAULT_DATASET_FORMAT}"
-        )
-        # Check if the file exists using the storage adapter
-        if self.storage_adapter.exists(complete_path):
+        searched: list[str] = []
+        for complete_path in self._candidate_dataset_paths(file_name):
+            searched.append(complete_path)
+            if not self.storage_adapter.exists(complete_path):
+                continue
             try:
-                # Attempt to read the file content
                 file_content = self.storage_adapter.read_file(complete_path)
                 if file_content:
                     return file_content, file_name
             except Exception as e:
-                # Log a warning if reading the file fails
                 logger.warning(
                     self.WARNING_FAILED_TO_READ_FILE.format(
                         complete_path=complete_path, error=e
                     )
                 )
 
-        # Raise an error if no valid file is found
         raise FileNotFoundError(
             self.ERROR_NO_VALID_FILE_FOUND.format(
-                file_name=file_name, directory_path=AppConfig.DEFAULT_DATASETS_PATH
+                file_name=file_name,
+                directory_path=", ".join(searched) or AppConfig.DEFAULT_DATASETS_PATH,
             )
         )
 
@@ -154,25 +164,35 @@ class DatasetLoader(Loader):
         """
         Get the creation datetime of the file.
 
+        Searches the same candidate paths as ``_read_file_content_and_path``.
+
         Args:
-            file_path (str): The complete path of the file.
+            file_path (str): Dataset id (filename stem) of the file.
 
         Returns:
             datetime: The creation datetime of the file.
         """
-        try:
-            complete_path = (
-                f"{self.FILE_PATH_PREFIX}{file_path}{self.DEFAULT_DATASET_FORMAT}"
-            )
-            timestamp = self.storage_adapter.get_creation_datetime(complete_path)
-            return datetime.fromtimestamp(timestamp)
-        except Exception as e:
-            logger.error(
-                self.ERROR_GETTING_CREATION_DATETIME.format(
-                    file_path=complete_path, error=e
+        last_error: Exception | None = None
+        for complete_path in self._candidate_dataset_paths(file_path):
+            try:
+                if not self.storage_adapter.exists(complete_path):
+                    continue
+                timestamp = self.storage_adapter.get_creation_datetime(complete_path)
+                return datetime.fromtimestamp(timestamp)
+            except Exception as e:
+                last_error = e
+                logger.error(
+                    self.ERROR_GETTING_CREATION_DATETIME.format(
+                        file_path=complete_path, error=e
+                    )
                 )
+        if last_error is not None:
+            raise last_error
+        raise FileNotFoundError(
+            self.ERROR_NO_VALID_FILE_FOUND.format(
+                file_name=file_path, directory_path=AppConfig.DEFAULT_DATASETS_PATH
             )
-            raise
+        )
 
     def set_dataset_prefix(self):
         """

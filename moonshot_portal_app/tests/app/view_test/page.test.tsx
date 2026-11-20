@@ -3,6 +3,7 @@ import ViewTestApp from '@/app/view_test/components/ViewTestApp';
 import type { Bundle } from '@/lib/api';
 
 const mockFetchBundles = jest.fn();
+const mockIsEnabled = jest.fn<boolean, [string]>(() => false);
 
 jest.mock('next/navigation', () => ({
   useSearchParams: jest.fn(),
@@ -10,6 +11,14 @@ jest.mock('next/navigation', () => ({
 
 jest.mock('@/lib/api', () => ({
   fetchBundles: (...args: unknown[]) => mockFetchBundles(...args),
+}));
+
+jest.mock('@/hooks/useFeatureFlags', () => ({
+  useFeatureFlags: () => ({
+    flags: {},
+    loading: false,
+    isEnabled: mockIsEnabled,
+  }),
 }));
 
 function getUseSearchParamsMock() {
@@ -59,6 +68,8 @@ const bundleWithDetails: Bundle[] = [
 describe('ViewTestApp', () => {
   beforeEach(() => {
     mockFetchBundles.mockReset();
+    mockIsEnabled.mockReset();
+    mockIsEnabled.mockReturnValue(false);
     getUseSearchParamsMock().mockReturnValue({
       get: (key: string) => {
         if (key === 'test') return 'Sample Test';
@@ -85,6 +96,20 @@ describe('ViewTestApp', () => {
     expect(screen.getByText('API input text')).toBeInTheDocument();
     expect(screen.getByText('API response text')).toBeInTheDocument();
     expect(screen.getByText('safe')).toBeInTheDocument();
+  });
+
+  it('hides System Prompt UI when feature flag is off', async () => {
+    mockFetchBundles.mockResolvedValue(bundleWithDetails);
+
+    render(<ViewTestApp />);
+
+    await waitFor(() => {
+      expect(screen.getByRole('heading', { level: 1, name: 'Sample Test' })).toBeInTheDocument();
+    });
+
+    expect(screen.queryByTestId('view-test-system-prompt-label')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('view-test-system-prompt-info')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('system-prompt-sheet')).not.toBeInTheDocument();
   });
 
   it('shows em dash for Model Name when no grader model is configured', async () => {

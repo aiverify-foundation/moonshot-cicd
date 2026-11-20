@@ -7,6 +7,8 @@ import TestNameCard from "./TestNameCard";
 import SelectAppOrModelCard from "./SelectAppOrModelCard";
 import type { Provider, ModelConfig, Config, ModelApp } from "../types/modelSelection";
 import { useAppDispatch, useAppSelector } from "@/hooks/reduxHooks";
+import { useFeatureFlags } from "@/hooks/useFeatureFlags";
+import { FeatureFlagNames } from "@/lib/featureFlags";
 import {
   fetchProviders,
   fetchProviderLatestDetails,
@@ -19,12 +21,19 @@ import {
   type CustomAppConfigDTO,
 } from "@/lib/api";
 import {
+  AWS_BEDROCK_API_APP_NAME,
   encodeCustomAppProviderId,
   decodeCustomAppProviderId,
   hydrateConfigPairsFromSavedPairs,
   hydrateHeaderPairsFromSavedPairs,
 } from "../constants/customAppConfig";
-import { setBenchmarkRunFks, setSelectedConfig, setSelectedModel } from "@/store";
+import { isSelectableModelUnderTestProvider } from "@/lib/modelUnderTestProviders";
+import {
+  setBenchmarkRunFks,
+  setSelectedConfig,
+  setSelectedModel,
+  setSelectedProvider,
+} from "@/store";
 
 function sortModelConfigRows(a: ModelConfig, b: ModelConfig): number {
   const primary = (id: string) => {
@@ -116,6 +125,8 @@ function getSelectionValueForSavedConfig(savedConfig: DatabaseModelConfigDTO): s
 
 export default function ModelSelectionPage() {
   const dispatch = useAppDispatch();
+  const { isEnabled } = useFeatureFlags();
+  const bedrockCustomAppEnabled = isEnabled(FeatureFlagNames.AIVET_OCT2026_MOON803);
   const { selectedProvider, selectedModel, selectedConfig, isTestNameValid } =
     useAppSelector((state) => state.modelSelection);
 
@@ -143,13 +154,22 @@ export default function ModelSelectionPage() {
           fetchCustomApps(),
         ]);
         if (!cancelled) {
-          setApiProviders(providerDtos.map(mapLlmProviderDtoToProvider));
+          setApiProviders(
+            providerDtos
+              .filter((dto) => isSelectableModelUnderTestProvider(dto.system_name))
+              .map(mapLlmProviderDtoToProvider)
+          );
           setCustomApps(
-            appDtos.map((app) => ({
-              id: encodeCustomAppProviderId(app.id),
-              name: app.name,
-              type: 'custom',
-            }))
+            appDtos
+              .filter(
+                (app) =>
+                  bedrockCustomAppEnabled || app.name !== AWS_BEDROCK_API_APP_NAME
+              )
+              .map((app) => ({
+                id: encodeCustomAppProviderId(app.id),
+                name: app.name,
+                type: 'custom',
+              }))
           );
         }
       } catch (e) {
@@ -169,7 +189,26 @@ export default function ModelSelectionPage() {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [bedrockCustomAppEnabled]);
+
+  useEffect(() => {
+    if (providersLoading || !selectedProvider) return;
+    if (decodeCustomAppProviderId(selectedProvider) !== null) return;
+    const stillVisible = apiProviders.some((p) => p.id === selectedProvider);
+    if (stillVisible) return;
+    dispatch(setSelectedProvider(""));
+    dispatch(setSelectedModel(""));
+    dispatch(setSelectedConfig(""));
+    dispatch(
+      setBenchmarkRunFks({
+        llm_provider_id: null,
+        llm_provider_model_id: null,
+        llm_provider_model_config_id: null,
+        custom_app_id: null,
+        custom_app_config_id: null,
+      })
+    );
+  }, [apiProviders, dispatch, providersLoading, selectedProvider]);
 
   const isCustomConnector = customApps.some(
     (connector) => connector.id === selectedProvider

@@ -34,6 +34,10 @@ class AppConfig:
     DEFAULT_RESULTS_PATH = f"{DEFAULT_DATA_PATH}/results"
     DEFAULT_TEST_CONFIGS_PATH = f"{DEFAULT_DATA_PATH}/test_configs"
     DEFAULT_TEST_DETAILS_PATH = f"{DEFAULT_DATA_PATH}/test_details"
+    DEFAULT_FEATURE_FLAGS_PATH = f"{DEFAULT_DATA_PATH}/feature_flags.txt"
+    FEATURE_FLAGS_PATH_ENV_VAR = "AIVET_FEATURE_FLAGS_PATH"
+    DEFAULT_FEATURE_FLAGS_SOURCE = "file"
+    FEATURE_FLAGS_SOURCE_ENV_VAR = "AIVET_FEATURE_FLAGS_SOURCE"
     DEFAULT_ADAPTERS_PATH = "src/adapters"
     DEFAULT_TEMP_PATH = "src/temp"
 
@@ -55,7 +59,6 @@ class AppConfig:
     )
     FILE_NOT_FOUND_ERROR = "[AppConfig] File not found: {file_name}"
     BENCHMARK_SOURCE_ENV_VAR = f"{DEFAULT_DATA_PATH}/test_configs"
-
 
     _instance: Optional[AppConfig] = None
     _config: Optional[AppConfigEntity] = None

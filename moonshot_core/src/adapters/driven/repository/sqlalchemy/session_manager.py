@@ -93,11 +93,12 @@ class SessionManager:
 
         # Use StaticPool for SQLite to ensure thread-safety
         # check_same_thread=False for FastAPI's multi-threaded async operations
-        # echo=True for SQL query logging
+        # timeout=20: seconds to wait on a locked database before raising
+        # (sqlite3 default is 5). Maps to PRAGMA busy_timeout = 20000.
         self.engine: Engine = create_engine(
             self.db_url,
             poolclass=StaticPool,
-            connect_args={"check_same_thread": False},
+            connect_args={"check_same_thread": False, "timeout": 20},
         )
 
         self.SessionLocal = sessionmaker(bind=self.engine)

@@ -356,3 +356,16 @@ class TestSgUcClassifierAdapter:
         result = await adapter.get_results([entity])
 
         assert result == {"Safety": {"safe_rate": 0.0}}
+
+    def test_score_result_labels(self):
+        """Metric owns safe/unsafe names for binary scores."""
+        adapter = SgUcClassifierAdapter.__new__(SgUcClassifierAdapter)
+
+        assert adapter.RESULT_PASS == "safe"
+        assert adapter.RESULT_FAIL == "unsafe"
+        assert adapter.RESULT_UNKNOWN == "unknown"
+        assert adapter.score_from_evaluated_response("safe") == 1.0
+        assert adapter.score_from_evaluated_response("unsafe") == 0.0
+        assert adapter.score_from_evaluated_response("unknown") == 0.0
+        assert adapter.result_name_for_score(1) == "safe"
+        assert adapter.result_name_for_score(0) == "unsafe"

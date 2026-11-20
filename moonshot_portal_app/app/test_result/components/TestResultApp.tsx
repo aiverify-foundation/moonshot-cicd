@@ -4,11 +4,13 @@ import TestResultOverview, {
   ChartDataItem,
   OverviewBundleChart,
 } from "./TestResultOverview";
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
+import { Loader2, RefreshCw } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Progress } from "@/components/ui/progress";
 import TestResultBundle from "./TestResultBundle";
 import { metricToPercentPoints } from "./metricToPercentPoints";
 import {
@@ -18,6 +20,7 @@ import {
 } from "./scorePercent";
 import {
   filterPromptsForFullyCompleteTests,
+  runHasBulkRegenerateTargets,
   testStatusByTestId,
 } from "./testCompletion";
 import {
@@ -33,7 +36,13 @@ import {
   BenchmarkRunTestStatusSummary,
   downloadBenchmarkRunResults,
   fetchBenchmarkRunResults,
+  fetchRegenerateFailedPromptsProgress,
+  startRegenerateFailedBenchmarkRunPrompts,
 } from "@/lib/api";
+import { useFeatureFlags } from "@/hooks/useFeatureFlags";
+import { FeatureFlagNames } from "@/lib/featureFlags";
+
+const BULK_REGEN_POLL_MS = 1500;
 
 const TAB_OVERVIEW = "overview";
 const tabBundleId = (id: number) => `bundle:${id}`;
@@ -95,6 +104,9 @@ export default function TestResultApp() {
   }, [searchParams]);
 
   const showMarginDebug = searchParams.get("debugMargin") === "1";
+  const { isEnabled } = useFeatureFlags();
+  const useAivetBranding = isEnabled(FeatureFlagNames.AIVET_OCT2026_MOON771);
+  const regenerateEnabled = isEnabled(FeatureFlagNames.AIVET_OCT2026_MOON793);
 
   const [run, setRun] = useState<BenchmarkRun | null>(null);
   const [prompts, setPrompts] = useState<BenchmarkRunTestPrompt[]>([]);
@@ -113,9 +125,18 @@ export default function TestResultApp() {
     Record<number, number | null>
   >({});
   const [allTabScore, setAllTabScore] = useState<number | null>(null);
+  const [isStartingBulkRegen, setIsStartingBulkRegen] = useState(false);
+  const [isBulkRegenerating, setIsBulkRegenerating] = useState(false);
+  const [bulkRegenTotal, setBulkRegenTotal] = useState(0);
+  const [bulkRegenDone, setBulkRegenDone] = useState(0);
+  const [bulkRegenError, setBulkRegenError] = useState<string | null>(null);
 
   const isRunInProgress = run?.status?.toLowerCase() === "running";
-
+  const showBulkRegenerate =
+    regenerateEnabled &&
+    !loading &&
+    !isRunInProgress &&
+    (runHasBulkRegenerateTargets(prompts) || isBulkRegenerating);
   useEffect(() => {
     setActiveTab(TAB_OVERVIEW);
     setBundleTabScores({});
@@ -197,11 +218,118 @@ export default function TestResultApp() {
     };
   }, [benchmarkRunId, run?.status]);
 
+  const refreshResults = useCallback(async () => {
+    if (!benchmarkRunId) return;
+    try {
+      const res = await fetchBenchmarkRunResults(benchmarkRunId);
+      setRun(res.run);
+      setPrompts(res.prompts);
+      setResultBundles(res.bundles);
+      setTestMargins(res.test_margin_of_error ?? []);
+      setTestRunStatus(res.test_run_status ?? []);
+    } catch (e) {
+      console.error("Failed to refresh run results after regenerate:", e);
+    }
+  }, [benchmarkRunId]);
+
+  const handleBulkRegenerate = useCallback(async () => {
+    if (
+      !benchmarkRunId ||
+      isStartingBulkRegen ||
+      isBulkRegenerating ||
+      isRunInProgress
+    ) {
+      return;
+    }
+
+    setIsStartingBulkRegen(true);
+    setBulkRegenError(null);
+    try {
+      const started = await startRegenerateFailedBenchmarkRunPrompts(
+        benchmarkRunId
+      );
+      if (started.total === 0) {
+        setBulkRegenError("No errored prompts to regenerate.");
+        return;
+      }
+      setBulkRegenTotal(started.total);
+      setBulkRegenDone(0);
+      setIsBulkRegenerating(true);
+      await refreshResults();
+    } catch (e) {
+      const message =
+        e instanceof Error
+          ? e.message
+          : "Failed to start regenerating failed prompts";
+      setBulkRegenError(message);
+      console.error("Failed to start bulk regenerate:", e);
+    } finally {
+      setIsStartingBulkRegen(false);
+    }
+  }, [
+    benchmarkRunId,
+    isStartingBulkRegen,
+    isBulkRegenerating,
+    isRunInProgress,
+    refreshResults,
+  ]);
+
+  useEffect(() => {
+    if (!benchmarkRunId || !isBulkRegenerating) return;
+
+    let cancelled = false;
+    const poll = async () => {
+      try {
+        const progress = await fetchRegenerateFailedPromptsProgress(
+          benchmarkRunId
+        );
+        if (cancelled) return;
+        setBulkRegenTotal(progress.total);
+        setBulkRegenDone(progress.done);
+        if (progress.status !== "in_progress") {
+          setIsBulkRegenerating(false);
+          if (progress.status === "failed") {
+            setBulkRegenError(
+              progress.failed > 0
+                ? `${progress.failed} of ${progress.total} failed to regenerate`
+                : "Bulk regenerate failed."
+            );
+          } else if (progress.failed > 0) {
+            setBulkRegenError(
+              `${progress.failed} of ${progress.total} failed to regenerate`
+            );
+          }
+        }
+        await refreshResults();
+      } catch (e) {
+        if (cancelled) return;
+        console.error("Failed to poll bulk regenerate progress:", e);
+      }
+    };
+
+    void poll();
+    const interval = window.setInterval(() => {
+      void poll();
+    }, BULK_REGEN_POLL_MS);
+    return () => {
+      cancelled = true;
+      window.clearInterval(interval);
+    };
+  }, [benchmarkRunId, isBulkRegenerating, refreshResults]);
+
   useEffect(() => {
     if (isRunInProgress) {
       setActiveTab(TAB_OVERVIEW);
     }
   }, [isRunInProgress]);
+
+  useEffect(() => {
+    setBulkRegenError(null);
+    setIsStartingBulkRegen(false);
+    setIsBulkRegenerating(false);
+    setBulkRegenTotal(0);
+    setBulkRegenDone(0);
+  }, [benchmarkRunId]);
 
   const marginPercentByTestId = useMemo(() => {
     const m = new Map<number, number>();
@@ -314,7 +442,8 @@ export default function TestResultApp() {
         run,
         resultBundles,
         prompts,
-        testMargins
+        testMargins,
+        useAivetBranding
       );
     } catch (e) {
       const detail =
@@ -409,7 +538,29 @@ export default function TestResultApp() {
             )}
             <span className="text-sm text-slate-500">Run #{benchmarkRunId}</span>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 flex-wrap justify-end">
+            {showBulkRegenerate && (
+              <Button
+                variant="outline"
+                className="font-extrabold text-[14px]"
+                data-testid="regenerate-failed-prompts-button"
+                disabled={
+                  isStartingBulkRegen || isBulkRegenerating || loading
+                }
+                onClick={() => void handleBulkRegenerate()}
+              >
+                {isStartingBulkRegen || isBulkRegenerating ? (
+                  <Loader2 className="size-3.5 animate-spin" />
+                ) : (
+                  <RefreshCw className="size-3.5" />
+                )}
+                {isStartingBulkRegen
+                  ? "Starting…"
+                  : isBulkRegenerating
+                    ? "Regenerating…"
+                    : "Regenerate failed prompts"}
+              </Button>
+            )}
             {/* PDF_PREVIEW_FEATURE_START — remove with app/test_result/preview/ */}
             <Button
               asChild
@@ -445,6 +596,30 @@ export default function TestResultApp() {
             </Button>
           </div>
         </div>
+
+        {isBulkRegenerating && (
+          <div
+            className="mt-4 flex flex-col gap-2"
+            data-testid="bulk-regenerate-progress"
+          >
+            <p className="text-sm font-medium text-slate-700">
+              Regenerating prompts… {bulkRegenDone} / {bulkRegenTotal}
+            </p>
+            <Progress
+              value={
+                bulkRegenTotal > 0
+                  ? (bulkRegenDone / bulkRegenTotal) * 100
+                  : 0
+              }
+            />
+          </div>
+        )}
+
+        {bulkRegenError && (
+          <div className="mt-4 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-800">
+            <p>{bulkRegenError}</p>
+          </div>
+        )}
 
         {downloadError && (
           <div className="mt-4 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-800">
@@ -618,6 +793,8 @@ export default function TestResultApp() {
             showMarginDebug={showMarginDebug}
             testRunStatus={testRunStatus}
             onAdjustedScoreChange={setAllTabScore}
+            onResultsRefresh={refreshResults}
+            isBulkRegenerating={isBulkRegenerating}
           />
         </div>
       )}
@@ -643,6 +820,8 @@ export default function TestResultApp() {
                 [b.test_bundle_id]: score,
               }))
             }
+            onResultsRefresh={refreshResults}
+            isBulkRegenerating={isBulkRegenerating}
           />
         </div>
       ))}

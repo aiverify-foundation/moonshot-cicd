@@ -1,0 +1,13 @@
+# Append-only bundle definitions (merged with shipped data/test_configs/shared.yaml).
+custom-extension-sample:
+  description: Example bundle seeded from benchmark-extensions.
+  category: Custom
+  name: Custom Extension Sample
+  visible: true
+  tests:
+    - name: Sample accuracy check
+      description: Uses the built-in accuracy metric on a small custom dataset.
+      type: benchmark
+      dataset: custom_extension_sample
+      metric:
+        name: accuracy_adapter

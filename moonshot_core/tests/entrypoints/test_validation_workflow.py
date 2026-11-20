@@ -264,6 +264,7 @@ async def test_validation_workflow_together_connector(
     await _run_validation_workflow_test("my-together-llama-8b", absolute_result_path)
 
 
+@pytest.mark.slow
 @pytest.mark.asyncio
 async def test_validation_workflow_openai_connector(
     seed_shared_config,

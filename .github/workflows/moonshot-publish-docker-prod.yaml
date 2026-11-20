@@ -4,16 +4,16 @@ on:
   workflow_dispatch:
     inputs:
       moonshot_dev_tag:
-        description: 'Existing tag of the moonshot-dev image to promote'
+        description: 'Existing tag of the aiverify-evals-toolkit-dev image to promote'
         required: true
         type: string
       moonshot_semver_tag:
-        description: 'New semver tag for the moonshot image (e.g. 1.2.3, 1.2.3-rc1)'
+        description: 'New semver tag for the aiverify-evals-toolkit image (e.g. 1.2.3, 1.2.3-rc1)'
         required: true
         type: string
 
 jobs:
-  promote-moonshot-dev-to-moonshot:
+  promote-aiverify-evals-toolkit-dev-to-aiverify-evals-toolkit:
     if: github.event_name == 'workflow_dispatch'
     permissions:
       id-token: write
@@ -23,8 +23,8 @@ jobs:
 
     env:
       GHCR_REGISTRY: ghcr.io
-      SOURCE_IMAGE_REPO: ghcr.io/aiverify-foundation/moonshot-dev
-      TARGET_IMAGE_REPO: ghcr.io/aiverify-foundation/moonshot
+      SOURCE_IMAGE_REPO: ghcr.io/aiverify-foundation/aiverify-evals-toolkit-dev
+      TARGET_IMAGE_REPO: ghcr.io/aiverify-foundation/aiverify-evals-toolkit
 
     steps:
     - name: Validate semver tag
@@ -48,11 +48,11 @@ jobs:
         username: ${{ github.actor }}
         password: ${{ secrets.GITHUB_TOKEN }}
 
-    - name: Promote moonshot-dev image to moonshot
+    - name: Promote aiverify-evals-toolkit-dev image to aiverify-evals-toolkit
       run: |
         SOURCE_IMAGE_WITH_TAG="${SOURCE_IMAGE_REPO}:${{ inputs.moonshot_dev_tag }}"
 
-        # add semver tag to existing moonshot-dev image on GHCR
+        # add semver tag to existing aiverify-evals-toolkit-dev image on GHCR
         crane tag "${SOURCE_IMAGE_WITH_TAG}" "${{ inputs.moonshot_semver_tag }}"
 
         SOURCE_WITH_STAGING_TAG_DIGEST="$(crane digest "${SOURCE_IMAGE_WITH_TAG}")"
@@ -65,7 +65,7 @@ jobs:
           exit 1
         fi
 
-        # publish moonshot-dev image as moonshot image with semver and latest tags
+        # publish aiverify-evals-toolkit-dev image as aiverify-evals-toolkit image with semver and latest tags
         docker buildx imagetools create \
           --tag "${TARGET_IMAGE_REPO}:${{ inputs.moonshot_semver_tag }}" \
           --tag "${TARGET_IMAGE_REPO}:latest" \

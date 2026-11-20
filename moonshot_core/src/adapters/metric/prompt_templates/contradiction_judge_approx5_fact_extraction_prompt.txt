@@ -1,0 +1,12 @@
+Extract up to 20 atomic factual claims from the text below. Each claim must be a single, self-contained statement that can be verified independently.
+
+Rules:
+- Output only factual claims, not opinions or questions.
+- Preserve numbers, dates, names, and Singapore-specific context.
+- Do not duplicate claims.
+- If the text is a chunk of a longer document, extract facts from this chunk only.
+- Return valid JSON only, with this exact shape:
+{"facts": ["claim one", "claim two"]}
+
+Text:
+{text}

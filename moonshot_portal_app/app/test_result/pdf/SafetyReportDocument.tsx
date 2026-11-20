@@ -18,6 +18,7 @@ export default function SafetyReportDocument({
   reportDate,
   bundles,
   hazardSections,
+  useAivetBranding,
 }: SafetyReportPdfProps) {
   const chunks = paginateScoreBreakdown(bundles);
   const hazardPages = paginateHazardSections(hazardSections);
@@ -35,6 +36,7 @@ export default function SafetyReportDocument({
           companyName={companyName}
           testRunName={testRunName}
           reportDate={reportDate}
+          useAivetBranding={useAivetBranding}
         />
 
         <ScoreBreakdown rows={chunks[0] ?? []} showSectionHeader />
@@ -56,6 +58,7 @@ export default function SafetyReportDocument({
           <HazardScope
             hazardSections={pageSections}
             showSectionHeader={index === 0}
+            useAivetBranding={useAivetBranding}
           />
           {index === lastHazardPageIndex && <ReportFooter />}
         </Page>

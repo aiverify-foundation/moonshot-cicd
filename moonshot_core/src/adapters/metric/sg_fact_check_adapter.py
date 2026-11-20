@@ -30,9 +30,8 @@ class SgFactCheckAdapter(MetricPort):
         "Ground truth: {ground_truth}"
     )
 
-    RESULT_TRUE = "True"
-    RESULT_FALSE = "False"
-    RESULT_UNKNOWN = "unknown"
+    RESULT_PASS = "True"
+    RESULT_FAIL = "False"
 
     ERROR_INIT_MSG = (
         "[SgFactCheckAdapter] There was an error initializing the "
@@ -143,10 +142,10 @@ class SgFactCheckAdapter(MetricPort):
         if not response:
             return SgFactCheckAdapter.RESULT_UNKNOWN
         response_lower = response.strip().lower()
-        if "false" in response_lower:
-            return SgFactCheckAdapter.RESULT_FALSE
-        if "true" in response_lower:
-            return SgFactCheckAdapter.RESULT_TRUE
+        if SgFactCheckAdapter.RESULT_FAIL.lower() in response_lower:
+            return SgFactCheckAdapter.RESULT_FAIL
+        if SgFactCheckAdapter.RESULT_PASS.lower() in response_lower:
+            return SgFactCheckAdapter.RESULT_PASS
         return SgFactCheckAdapter.RESULT_UNKNOWN
 
     async def get_individual_result(self, entity: MetricIndividualEntity) -> dict:
@@ -195,8 +194,8 @@ class SgFactCheckAdapter(MetricPort):
             if temp_prompt_argument.model_prediction:
                 raw_response = temp_prompt_argument.model_prediction.response or ""
                 evaluated_response = self._normalise_judge_response(raw_response)
-                accuracy = evaluated_response == self.RESULT_TRUE
-                score = 1.0 if accuracy else 0.0
+                score = self.score_from_evaluated_response(evaluated_response)
+                accuracy = score == 1.0
                 return {
                     "prompt": entity.prompt,
                     "predicted_value": entity.predicted_result.response,
@@ -228,7 +227,7 @@ class SgFactCheckAdapter(MetricPort):
                 evaluated = entity.evaluated_result or {}
                 cat = evaluated.get("evaluated_response", self.RESULT_UNKNOWN)
                 total += 1
-                if cat == self.RESULT_TRUE:
+                if cat == self.RESULT_PASS:
                     number_of_true += 1
 
             true_rate = (number_of_true / total * 100) if total else 0.0
