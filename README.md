@@ -72,7 +72,7 @@ A web app that maps test evidence from this toolkit against 11 internationally r
 - **Extensible** — bring your own connectors, datasets, evaluation metrics without being limited to the built-in test bundles.
 ## Quick start with Docker (AI Verify Evals Toolkit)
 ```bash
-docker run --detach --name moonshot-web --platform linux/amd64 -p 8000:8000 -v moonshot-cicd-data-volume:/var/lib/moonshot -e MOONSHOT_DB_PATH=/var/lib/moonshot/moonshot.db -e MOONSHOT_BENCHMARK_RESULTS_DIR=/var/lib/moonshot/results ghcr.io/aiverify-foundation/moonshot:latest moonshot-web
+docker run --detach --name aiverify-evals-toolkit --platform linux/amd64 -p 8000:8000 -v moonshot-cicd-data-volume:/var/lib/moonshot -e MOONSHOT_DB_PATH=/var/lib/moonshot/moonshot.db -e MOONSHOT_BENCHMARK_RESULTS_DIR=/var/lib/moonshot/results ghcr.io/aiverify-foundation/aiverify-evals-toolkit:latest moonshot-web
 ```
 Lood the homepage via `localhost:8000`
 
