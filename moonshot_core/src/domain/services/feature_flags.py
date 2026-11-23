@@ -2,12 +2,84 @@
 
 from __future__ import annotations
 
-OPENROUTER_ADAPTER_SYSTEM_NAME = "openrouter_adapter"
+from typing import Optional
 
-# Flip to False to disable the OpenRouter provider.
-ENABLE_OPENROUTER = True
+from adapters.feature_flag.env_feature_flag_adapter import EnvFeatureFlagAdapter
+from domain.services.enums.feature_flag_names import FeatureFlagNames
+from domain.services.loader.factory.feature_flag_adapter_factory import (
+    FeatureFlagAdapterFactory,
+)
+from domain.services.logger import configure_logger
+
+logger = configure_logger(__name__)
+
+__all__ = ["FeatureFlagNames", "FeatureFlags"]
 
 
-def is_openrouter_enabled() -> bool:
-    """Whether the OpenRouter provider is enabled via ``ENABLE_OPENROUTER``."""
-    return ENABLE_OPENROUTER
+class FeatureFlags:
+    """
+    Loads feature flags from the configured base adapter (file today), then applies
+    environment overrides from EnvFeatureFlagAdapter for keys present in the base load result.
+    """
+
+    LOG_ERROR_LOADING = "[FeatureFlags] Error loading feature flags: {error}"
+
+    _instance: Optional[FeatureFlags] = None
+    _flags: Optional[dict[str, bool]] = None
+
+    def __new__(cls) -> FeatureFlags:
+        if cls._instance is None:
+            cls._instance = super().__new__(cls)
+            cls._flags = None
+        return cls._instance
+
+    @classmethod
+    def reset(cls) -> None:
+        """Clear the cached instance and loaded flags (for tests)."""
+        cls._instance = None
+        cls._flags = None
+
+    def is_enabled(self, name: str | FeatureFlagNames) -> bool:
+        """
+        Return whether the named flag is enabled.
+
+        Missing keys and load failures are treated as False.
+        """
+        return bool(self._load().get(str(name), False))
+
+    def get_all(self) -> dict[str, bool]:
+        """
+        Return all loaded flags.
+
+        Load failures are treated as an empty mapping (fail-closed).
+        """
+        return dict(self._load())
+
+    def _load(self) -> dict[str, bool]:
+        if FeatureFlags._flags is not None:
+            return FeatureFlags._flags
+        try:
+            base_data = FeatureFlagAdapterFactory.get_adapter().load_flags()
+            if not isinstance(base_data, dict):
+                FeatureFlags._flags = {}
+                return FeatureFlags._flags
+            base_flags = {str(key): bool(value) for key, value in base_data.items()}
+            env_data = EnvFeatureFlagAdapter().load_flags()
+            FeatureFlags._flags = self._apply_env_overrides(base_flags, env_data)
+            return FeatureFlags._flags
+        except Exception as error:
+            logger.error(self.LOG_ERROR_LOADING.format(error=error))
+            FeatureFlags._flags = {}
+            return FeatureFlags._flags
+
+    @staticmethod
+    def _apply_env_overrides(
+        base_flags: dict[str, bool], env_flags: dict[str, bool]
+    ) -> dict[str, bool]:
+        merged = dict(base_flags)
+        if not isinstance(env_flags, dict):
+            return merged
+        for name in merged:
+            if name in env_flags:
+                merged[name] = env_flags[name]
+        return merged

@@ -48,5 +48,14 @@ describe('evaluationDisplayHelpers', () => {
     it('returns Agree for score 1', () => {
       expect(evaluationDisplayLabel("{'score': 1}", 1)).toBe('Agree');
     });
+
+    it('returns Running when prompt is regenerating', () => {
+      expect(
+        evaluationDisplayLabel('{"evaluated_response": "unknown"}', 0, {
+          isPromptRunning: true,
+        })
+      ).toBe('Running');
+      expect(evaluationDisplayLabel('running', 0)).toBe('Running');
+    });
   });
 });

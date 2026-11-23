@@ -2,6 +2,7 @@ import type { BundleTest } from '@/lib/api';
 import type { Provider } from '@/app/benchmark/types/modelSelection';
 import {
   collectAajProviderSystemNames,
+  groupAajTestsByProviderSystemName,
   resolveAajEndpointCardLabel,
   resolveAajProviderDisplayName,
   resolveModelNameLabel,
@@ -84,6 +85,38 @@ describe('aajProviderResolution', () => {
       expect(
         resolveModelNameLabel({ ...aajTest, metric_grader_model_name: '   ' })
       ).toBe('—');
+    });
+  });
+
+  describe('groupAajTestsByProviderSystemName', () => {
+    it('groups test display names by provider system_name', () => {
+      const tests: BundleTest[] = [
+        {
+          name: 'A',
+          requires_llm_aaj: true,
+          metric_provider_system_name: 'together_adapter',
+          dataset: { id: '1', name: '1', description: '', num_of_dataset_prompts: 1 },
+        },
+        {
+          name: 'B',
+          requires_llm_aaj: true,
+          metric_provider_system_name: 'together_adapter',
+          dataset: { id: '2', name: '2', description: '', num_of_dataset_prompts: 1 },
+        },
+      ];
+      const grouped = groupAajTestsByProviderSystemName(tests);
+      expect(grouped.get('together_adapter')).toEqual(new Set(['A', 'B']));
+    });
+
+    it('skips non-AAJ tests', () => {
+      const grouped = groupAajTestsByProviderSystemName([
+        {
+          name: 'X',
+          requires_llm_aaj: false,
+          dataset: { id: '1', name: '1', description: '', num_of_dataset_prompts: 1 },
+        },
+      ]);
+      expect(grouped.size).toBe(0);
     });
   });
 

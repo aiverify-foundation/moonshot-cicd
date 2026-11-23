@@ -24,6 +24,7 @@ export type ApiKeyAuthScheme =
   | 'authorization_api_key'
   | 'x_api_key'
   | 'x_api_key_lower'
+  | 'x_goog_api_key'
   | 'custom';
 
 export const DEFAULT_API_KEY_AUTH_SCHEME: ApiKeyAuthScheme = 'bearer';
@@ -36,8 +37,34 @@ export const API_KEY_AUTH_SCHEME_OPTIONS: Array<{
   { value: 'authorization_api_key', label: 'Authorization: ApiKey' },
   { value: 'x_api_key', label: 'X-API-Key' },
   { value: 'x_api_key_lower', label: 'x-api-key (Anthropic)' },
+  {
+    value: 'x_goog_api_key',
+    label: 'x-goog-api-key (Google Gemini)',
+  },
   { value: 'custom', label: 'Custom header' },
 ];
+
+/**
+ * Native Gemini REST generateContent defaults (Custom API connector).
+ * If connection test still returns 401 with API_KEY_SERVICE_BLOCKED after using
+ * x_goog_api_key auth only: enable Generative Language API in Google Cloud,
+ * allow that API on the key, and set application restrictions to None for
+ * server-side Moonshot.
+ */
+export const DEFAULT_GEMINI_API_URL =
+  'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent';
+export const DEFAULT_GEMINI_RESPONSE_PATH = 'candidates[0].content.parts[0].text';
+export const DEFAULT_GEMINI_API_BODY = `{
+  "contents": [
+    {
+      "parts": [
+        {
+          "text": "{{prompt}}"
+        }
+      ]
+    }
+  ]
+}`;
 
 export function parseApiKeyAuthScheme(value: string | undefined): ApiKeyAuthScheme {
   const normalized = (value ?? '').trim().toLowerCase();
@@ -46,6 +73,7 @@ export function parseApiKeyAuthScheme(value: string | undefined): ApiKeyAuthSche
     normalized === 'authorization_api_key' ||
     normalized === 'x_api_key' ||
     normalized === 'x_api_key_lower' ||
+    normalized === 'x_goog_api_key' ||
     normalized === 'custom'
   ) {
     return normalized;
@@ -74,7 +102,61 @@ export const DEFAULT_CUSTOM_API_BODY = `{
   ]
 }`;
 export const DEFAULT_CONNECTOR_ADAPTER = 'custom_api_connector_adapter';
+export const AWS_BEDROCK_API_APP_NAME = 'AWS Bedrock API Connector';
+export const BEDROCK_API_CONNECTOR_ADAPTER = 'bedrock_api_connector_adapter';
+
+export function isBedrockApiCustomApp(appName: string | undefined): boolean {
+  return appName === AWS_BEDROCK_API_APP_NAME;
+}
+export const DEFAULT_BEDROCK_API_URL =
+  'https://bedrock-runtime.us-east-1.amazonaws.com/model/openai.gpt-oss-20b-1:0/converse';
+export const DEFAULT_BEDROCK_RESPONSE_PATH = 'output.message.content[0].text';
+/** Bedrock Converse request body; {{prompt}} is replaced per benchmark prompt. */
+export const DEFAULT_BEDROCK_API_BODY = `{
+  "messages": [
+    {
+      "role": "user",
+      "content": [
+        {
+          "text": "{{prompt}}"
+        }
+      ]
+    }
+  ]
+}`;
 export const CUSTOM_APP_PROVIDER_PREFIX = 'custom-app:';
+
+export type CustomAppConnectorDefaults = {
+  connectorAdapter: string;
+  apiType: string;
+  apiUrl: string;
+  apiBody: string;
+  responsePath: string;
+  apiKeyAuthScheme: ApiKeyAuthScheme;
+};
+
+export function getCustomAppConnectorDefaults(
+  appName: string | undefined
+): CustomAppConnectorDefaults {
+  if (appName === AWS_BEDROCK_API_APP_NAME) {
+    return {
+      connectorAdapter: BEDROCK_API_CONNECTOR_ADAPTER,
+      apiType: DEFAULT_CUSTOM_API_TYPE,
+      apiUrl: DEFAULT_BEDROCK_API_URL,
+      apiBody: DEFAULT_BEDROCK_API_BODY,
+      responsePath: DEFAULT_BEDROCK_RESPONSE_PATH,
+      apiKeyAuthScheme: 'bearer',
+    };
+  }
+  return {
+    connectorAdapter: DEFAULT_CONNECTOR_ADAPTER,
+    apiType: DEFAULT_CUSTOM_API_TYPE,
+    apiUrl: DEFAULT_CUSTOM_API_URL,
+    apiBody: DEFAULT_CUSTOM_API_BODY,
+    responsePath: DEFAULT_RESPONSE_PATH,
+    apiKeyAuthScheme: DEFAULT_API_KEY_AUTH_SCHEME,
+  };
+}
 
 export function encodeCustomAppProviderId(appId: number | string): string {
   return `${CUSTOM_APP_PROVIDER_PREFIX}${String(appId)}`;

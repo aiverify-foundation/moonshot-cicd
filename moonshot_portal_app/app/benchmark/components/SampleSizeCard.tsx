@@ -266,22 +266,27 @@ export default function SampleSizeCard() {
   } = sampleSizeValues;
 
   const sampleSizeToggleOptions = React.useMemo(
-    () =>
-      [
-        {
-          value: "calculated",
-          label: "Calculated",
-          count: `(${adjustedCalculatedSampleSize})`,
-          selectable: true,
-        },
-        {
-          value: "all",
-          label: "All prompts",
-          count: `(${totalPromptsFromSelectedTests})`,
-          selectable: true,
-        },
-      ],
-    [adjustedCalculatedSampleSize, totalPromptsFromSelectedTests]
+    () => [
+      {
+        value: "calculated",
+        label: "Calculated",
+        count: `(${adjustedCalculatedSampleSize})`,
+        selectable: true,
+      },
+      {
+        value: "all",
+        label: "All prompts",
+        count: `(${totalPromptsFromSelectedTests})`,
+        selectable: true,
+      },
+      {
+        value: "quick",
+        label: "Quick test",
+        count: `(${numberOfSelectedTests})`,
+        selectable: true,
+      },
+    ],
+    [adjustedCalculatedSampleSize, totalPromptsFromSelectedTests, numberOfSelectedTests]
   );
 
   // Handle toggle selection
@@ -549,6 +554,19 @@ export default function SampleSizeCard() {
                       <AlertDescription className="text-yellow-900">
                         Some test(s) contain fewer prompts than recommended. If you proceed, the full
                         prompt dataset for the affected test(s) will be used.
+                      </AlertDescription>
+                    </Alert>
+                  </div>
+                )}
+
+                {selectedToggleValue === "quick" && (
+                  <div className="mt-4">
+                    <Alert
+                      className="border-yellow-200 bg-yellow-50"
+                      data-testid="sample-size-quick-test-warning"
+                    >
+                      <AlertDescription className="text-yellow-900">
+                        Only 1 prompt will be run for each test.
                       </AlertDescription>
                     </Alert>
                   </div>

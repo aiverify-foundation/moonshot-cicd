@@ -2,11 +2,17 @@ import {
   BenchmarkRunTestPrompt,
   BenchmarkRunTestStatusSummary,
 } from "@/lib/api";
+import {
+  evaluationDisplayLabel,
+  extractEvaluatedResponse,
+} from "./evaluationDisplayHelpers";
 
 export type TestCompletionState =
   | "fully_complete"
   | "completed_with_errors"
   | "incomplete";
+
+const ACTIVE_PROMPT_STATUSES = new Set(["pending", "running"]);
 
 export function testStatusByTestId(
   rows: BenchmarkRunTestStatusSummary[]
@@ -31,6 +37,57 @@ export function isPromptErrored(p: BenchmarkRunTestPrompt): boolean {
 
 export function runHasPromptErrors(prompts: BenchmarkRunTestPrompt[]): boolean {
   return prompts.some(isPromptErrored);
+}
+
+/** Completed (non-active) prompt whose metric evaluation displays as unknown. */
+export function isPromptUnknownEvaluation(p: BenchmarkRunTestPrompt): boolean {
+  const status = p.status?.toLowerCase() ?? "";
+  if (status === "error" || ACTIVE_PROMPT_STATUSES.has(status)) return false;
+
+  const evaluated = extractEvaluatedResponse(p.evaluation_prediction_result);
+  if (evaluated?.trim().toLowerCase() === "unknown") return true;
+
+  // Align with the Evaluation column so odd blob shapes still count.
+  const label = evaluationDisplayLabel(
+    p.evaluation_prediction_result ?? "",
+    p.score ?? 0,
+    { isPromptError: false, errorSource: p.error_source }
+  );
+  return label.trim().toLowerCase() === "unknown";
+}
+
+/** Eligible for bulk regenerate: status=error or non-error unknown evaluation. */
+export function isPromptBulkRegeneratable(p: BenchmarkRunTestPrompt): boolean {
+  return isPromptErrored(p) || isPromptUnknownEvaluation(p);
+}
+
+export function runHasBulkRegenerateTargets(
+  prompts: BenchmarkRunTestPrompt[]
+): boolean {
+  return prompts.some(isPromptBulkRegeneratable);
+}
+
+const NON_TERMINAL_TEST_STATUSES = new Set([
+  "not_started",
+  "in_progress",
+  "running",
+]);
+
+/** True when the run still has unfinished tests or pending/running prompts. */
+export function runHasIncompleteWork(
+  prompts: BenchmarkRunTestPrompt[],
+  testRunStatus: BenchmarkRunTestStatusSummary[]
+): boolean {
+  if (
+    prompts.some((p) =>
+      ACTIVE_PROMPT_STATUSES.has(p.status?.toLowerCase() ?? "")
+    )
+  ) {
+    return true;
+  }
+  return testRunStatus.some((t) =>
+    NON_TERMINAL_TEST_STATUSES.has(t.status?.toLowerCase() ?? "")
+  );
 }
 
 export function classifyTest(

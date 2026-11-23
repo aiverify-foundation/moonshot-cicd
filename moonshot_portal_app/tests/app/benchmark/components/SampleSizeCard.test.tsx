@@ -324,4 +324,41 @@ describe('SampleSizeCard', () => {
       screen.getByRole('button', { name: /Calculated \(427\)/i })
     ).toBeInTheDocument();
   });
+
+  it('shows Quick test toggle with selected test count', () => {
+    render(<SampleSizeCard />, {
+      preloadedState: {
+        bundles: { data: mockBundlesMultiTest, loading: false, error: null },
+        bundleSelection: { 'safety-bundle': true },
+        testSelection: {
+          'safety-bundle': { 'Test One': true, 'Test Two': true },
+        },
+      },
+    });
+
+    expect(
+      screen.getByRole('button', { name: /Quick test \(2\)/i })
+    ).toBeInTheDocument();
+  });
+
+  it('selects Quick test mode and shows warning', async () => {
+    const { store } = render(<SampleSizeCard />, {
+      preloadedState: {
+        bundles: { data: mockBundles, loading: false, error: null },
+        bundleSelection: { 'safety-bundle': true },
+        testSelection: { 'safety-bundle': { 'Test One': true } },
+      },
+    });
+
+    const quickTestToggle = screen.getByRole('button', {
+      name: /Quick test \(1\)/i,
+    });
+    await userEvent.click(quickTestToggle);
+
+    expect(quickTestToggle).toHaveAttribute('data-state', 'on');
+    expect(store.getState().sampleSizeSelection.mode).toBe('quick');
+    expect(screen.getByTestId('sample-size-quick-test-warning')).toHaveTextContent(
+      'Only 1 prompt will be run for each test.'
+    );
+  });
 });

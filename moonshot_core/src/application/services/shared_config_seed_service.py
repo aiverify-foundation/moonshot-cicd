@@ -8,10 +8,9 @@ benchmark_test_dataset (e.g. seeded via BenchmarkDatasetSeedService).
 
 When moonshot_config_repository, shared_config_repository, and benchmark_dataset_seed_service
 are provided at construction, seed_if_test_file_changed() can be used to seed only when the
-config file has changed (mtime check), seeding datasets first then bundles/tests/groupings.
+built-in config file or the benchmark-extensions overlay has changed, seeding datasets
+first then bundles/tests/groupings.
 """
-
-from domain.services.logger import get_logger
 
 import re
 from pathlib import Path
@@ -19,11 +18,16 @@ from typing import TYPE_CHECKING, Any, Optional
 
 import yaml
 
-from domain.services.app_config import AppConfig
-from application.services.utils import get_application_root_path
 from adapters.driven.repository.sqlalchemy.benchmark_test_config_adapter import (
     BenchmarkTestConfigAdapter,
 )
+from application.services.startup_config_warnings import (
+    report_duplicate_test_display_names,
+)
+from application.services.utils import get_application_root_path
+from domain.services import benchmark_extensions
+from domain.services.app_config import AppConfig
+from domain.services.logger import get_logger
 
 if TYPE_CHECKING:
     from application.ports.moonshot_config_repository import MoonshotConfigRepository
@@ -87,7 +91,14 @@ class SharedConfigSeedService:
         if source.endswith(".yaml") or source.endswith(".yml"):
             config_dir = root / AppConfig.DEFAULT_DATA_PATH / "test_configs"
             return config_dir / source
-        return Path(source) if source else root / AppConfig.DEFAULT_DATA_PATH / "test_configs" / AppConfig.DEFAULT_BENCHMARK_SOURCE
+        return (
+            Path(source)
+            if source
+            else root
+            / AppConfig.DEFAULT_DATA_PATH
+            / "test_configs"
+            / AppConfig.DEFAULT_BENCHMARK_SOURCE
+        )
 
     def _load_config(self, config_path: Path) -> dict[str, Any]:
         """Load and parse YAML from config_path. Raises on invalid structure."""
@@ -96,8 +107,82 @@ class SharedConfigSeedService:
         with open(config_path, encoding="utf-8") as f:
             data = yaml.safe_load(f)
         if not isinstance(data, dict):
-            raise ValueError(f"Expected top-level dict in {config_path}, got {type(data).__name__}")
+            raise ValueError(
+                f"Expected top-level dict in {config_path}, got {type(data).__name__}"
+            )
         return data
+
+    def _load_effective_shared_config(self, path: Path) -> dict[str, Any]:
+        """Load built-in shared config and merge an optional benchmark-extensions overlay.
+
+        The repository (or file) result stays the base dict. ``load_merged_shared_config``
+        is not used here because it re-reads the base file and would ignore a mocked
+        repository.
+        """
+        if self._shared_config_repo is not None:
+            base = self._shared_config_repo.get_config(path)
+        else:
+            base = self._load_config(path)
+
+        extensions_dir = benchmark_extensions.resolve_extensions_dir()
+        if extensions_dir is None:
+            return base
+
+        benchmark_extensions.validate_extension_dataset_ids(
+            extensions_dir,
+            get_application_root_path() / benchmark_extensions.BUILTIN_DATASETS_REL,
+        )
+
+        ext_path = benchmark_extensions.extensions_shared_config_path(extensions_dir)
+        if not ext_path.is_file():
+            return base
+
+        overlay = benchmark_extensions.load_yaml_dict(ext_path)
+        self.logger.info("Merging benchmark extension shared config from %s", ext_path)
+        return benchmark_extensions.merge_shared_config(base, overlay)
+
+    def _extension_fingerprint_requires_seed(self, path: Path) -> bool:
+        """Return True when the extension overlay fingerprint is missing or changed.
+
+        A missing stored fingerprint forces a reseed only when an extension
+        shared.yaml is present, so an already-seeded database picks up the overlay
+        without a change to the built-in file.
+        """
+        extensions_dir = benchmark_extensions.resolve_extensions_dir()
+        if extensions_dir is None:
+            return False
+
+        current = benchmark_extensions.compute_shared_config_fingerprint(path)
+        entity = self._moonshot_config.get_by_key(
+            benchmark_extensions.SHARED_CONFIG_SEED_FINGERPRINT_KEY
+        )
+        stored = ""
+        if entity is not None and entity.value is not None and entity.value.strip():
+            stored = entity.value.strip()
+        if stored == current:
+            return False
+        if not stored:
+            return benchmark_extensions.extensions_shared_config_path(
+                extensions_dir
+            ).is_file()
+        return True
+
+    def _store_extension_fingerprint(self, path: Path) -> None:
+        """Persist the shared-config fingerprint when an extensions directory is active."""
+        if benchmark_extensions.resolve_extensions_dir() is None:
+            return
+        fingerprint = benchmark_extensions.compute_shared_config_fingerprint(path)
+        self._moonshot_config.set(
+            benchmark_extensions.SHARED_CONFIG_SEED_FINGERPRINT_KEY,
+            fingerprint,
+        )
+
+    def _report_duplicate_test_names(
+        self,
+        config: dict[str, Any],
+        config_path: Optional[Path],
+    ) -> None:
+        report_duplicate_test_display_names(config, config_path)
 
     def seed_from_config(
         self,
@@ -120,7 +205,7 @@ class SharedConfigSeedService:
         """
         path = config_path or self._default_config_path()
         self.logger.info("Seeding shared config from %s", path)
-        data = self._load_config(path)
+        data = self._load_effective_shared_config(path)
         self._seed_from_data(data, path, version)
 
     def seed_from_data(
@@ -154,8 +239,9 @@ class SharedConfigSeedService:
         version: int = DEFAULT_VERSION,
     ) -> bool:
         """
-        If the test config file is newer than the stored last-modified value,
-        seed datasets then bundles/tests/groupings and update the stored value.
+        If the built-in test config file is newer than the stored last-modified
+        value, or the benchmark-extensions shared.yaml fingerprint changed, seed
+        datasets then bundles/tests/groupings and update the stored values.
         Bundle/test version is auto-incremented each time (stored in moonshot_config
         under shared_config_seed_version) so existing rows are not replaced.
         Otherwise do nothing. Requires moonshot_config_repository,
@@ -189,24 +275,34 @@ class SharedConfigSeedService:
             return False
 
         entity = self._moonshot_config.get_by_key(TEST_FILE_LAST_MODIFIED_KEY)
+        base_unchanged = False
         if entity and entity.value is not None and entity.value.strip():
             try:
                 stored = float(entity.value)
             except ValueError:
                 stored = 0.0
             if stored >= mtime:
-                self.logger.debug(
-                    "Test config file unchanged (stored=%s >= mtime=%s), skip seed",
-                    stored,
-                    mtime,
-                )
-                return False
+                base_unchanged = True
+
+        if base_unchanged and not self._extension_fingerprint_requires_seed(path):
+            self.logger.debug(
+                "Test config file unchanged (stored=%s >= mtime=%s), skip seed",
+                stored,
+                mtime,
+            )
+            return False
 
         self.logger.info("Test config file changed or first run, seeding from %s", path)
-        config = self._shared_config_repo.get_config(path)
+        config = self._load_effective_shared_config(path)
 
-        version_entity = self._moonshot_config.get_by_key(SHARED_CONFIG_SEED_VERSION_KEY)
-        if version_entity and version_entity.value is not None and version_entity.value.strip():
+        version_entity = self._moonshot_config.get_by_key(
+            SHARED_CONFIG_SEED_VERSION_KEY
+        )
+        if (
+            version_entity
+            and version_entity.value is not None
+            and version_entity.value.strip()
+        ):
             try:
                 seed_version = int(version_entity.value) + 1
             except ValueError:
@@ -228,6 +324,7 @@ class SharedConfigSeedService:
         self._seed_from_data(config, path, seed_version)
         self._moonshot_config.set(TEST_FILE_LAST_MODIFIED_KEY, str(mtime))
         self._moonshot_config.set(SHARED_CONFIG_SEED_VERSION_KEY, str(seed_version))
+        self._store_extension_fingerprint(path)
         self.logger.info("Seeding complete, updated %s", TEST_FILE_LAST_MODIFIED_KEY)
         return True
 
@@ -238,6 +335,8 @@ class SharedConfigSeedService:
         version: int,
     ) -> None:
         """Common logic: metrics, then bundles, tests, and groupings from data."""
+        self._report_duplicate_test_names(data, config_path)
+
         # Collect all unique metric names and ensure metrics exist
         metric_names: set[str] = set()
         for bundle_key, bundle_data in data.items():
@@ -294,7 +393,9 @@ class SharedConfigSeedService:
                     continue
                 test_name = test.get("name")
                 if not test_name:
-                    self.logger.warning("Test missing 'name' in bundle %r, skipping", bundle_key)
+                    self.logger.warning(
+                        "Test missing 'name' in bundle %r, skipping", bundle_key
+                    )
                     continue
                 dataset_system_name = test.get("dataset")
                 if not dataset_system_name:
@@ -319,10 +420,14 @@ class SharedConfigSeedService:
                 test_system_name = f"{bundle_key}__{_slug(test_name)}"
                 type_ = test.get("type", "benchmark")
                 test_description = test.get("description")
-                if test_description is not None and not isinstance(test_description, str):
+                if test_description is not None and not isinstance(
+                    test_description, str
+                ):
                     test_description = str(test_description)
 
-                test_id = self.adapter.get_test_id(version=version, system_name=test_system_name)
+                test_id = self.adapter.get_test_id(
+                    version=version, system_name=test_system_name
+                )
                 if test_id is None:
                     test_id = self.adapter.insert_test(
                         version=version,
@@ -333,8 +438,12 @@ class SharedConfigSeedService:
                         metric_id=metric_id,
                         description=test_description,
                     )
-                if not self.adapter.grouping_exists(test_bundle_id=bundle_id, test_id=test_id):
-                    self.adapter.insert_grouping(test_bundle_id=bundle_id, test_id=test_id)
+                if not self.adapter.grouping_exists(
+                    test_bundle_id=bundle_id, test_id=test_id
+                ):
+                    self.adapter.insert_grouping(
+                        test_bundle_id=bundle_id, test_id=test_id
+                    )
 
         if config_path is not None:
             self.logger.info("Finished seeding shared config from %s", config_path)

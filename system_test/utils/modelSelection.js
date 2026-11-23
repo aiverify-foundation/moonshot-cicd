@@ -51,11 +51,26 @@ async function getToModelSelectionCard(page) {
   await expandModelSelectionCard(page);
 }
 
+function providerOptionByName(page, namePattern) {
+  return page.locator('[data-testid^="provider-option-"]').filter({ hasText: namePattern }).first();
+}
+
+async function expandStandardProvidersIfNeeded(page, namePattern) {
+  const option = providerOptionByName(page, namePattern);
+  if (await option.isVisible().catch(() => false)) {
+    return option;
+  }
+  const viewAll = page.locator('[data-testid="view-all-standard-providers"]');
+  if (await viewAll.isVisible().catch(() => false)) {
+    await viewAll.click();
+    await page.waitForTimeout(300);
+  }
+  return providerOptionByName(page, namePattern);
+}
+
+/** E2E seed creates model configs for OpenAI (see seed_e2e_data.py). */
 async function selectStandardProviderWithModels(page) {
-  await page.click('[data-testid="provider-combobox-trigger"]');
-  await page.waitForSelector('[data-testid^="provider-option-"]', { timeout: 5000 });
-  await page.locator('[data-testid^="provider-option-"]').first().click();
-  await page.waitForTimeout(500);
+  await selectProviderByName(page, /OpenAI/i);
 }
 
 /**
@@ -66,18 +81,25 @@ async function selectStandardProviderWithModels(page) {
 async function selectProviderByName(page, namePattern) {
   await page.click('[data-testid="provider-combobox-trigger"]');
   await page.waitForSelector('[data-testid^="provider-option-"]', { timeout: 5000 });
-  const option = page
-    .locator('[data-testid^="provider-option-"]')
-    .filter({ hasText: namePattern })
-    .first();
+  const option = await expandStandardProvidersIfNeeded(page, namePattern);
+  const detailsPromise = page.waitForResponse(
+    (response) =>
+      response.request().method() === 'GET' &&
+      /\/api\/providers\/by-system-name\/.+\/latest-details/.test(response.url()) &&
+      response.ok(),
+    { timeout: 15000 }
+  );
   await expect(option).toBeVisible({ timeout: 10000 });
   await option.click();
+  await detailsPromise.catch(() => {});
   await page.waitForTimeout(500);
 }
 
 async function openModelDropdownWithOptions(page) {
   await page.click('[data-testid="model-combobox-trigger"]');
-  await page.waitForSelector('[data-testid^="model-option-"]', { timeout: 10000 });
+  await expect(page.locator('[data-testid^="model-option-"]').first()).toBeVisible({
+    timeout: 15000,
+  });
 }
 
 async function selectFirstCustomConnector(page) {
@@ -140,6 +162,8 @@ async function mockCustomAppsForViewAll(page, count = 4) {
 /**
  * Route-mock GET /api/providers with enough rows for View All Standard Providers.
  * E2E seed only creates OpenAI + Together, so View All never appears without a mock.
+ * Also mocks GET /api/custom-apps as [] so Bedrock rows (MOON-803) do not inflate
+ * provider-option counts in the model-providers group.
  * Call before navigating to model selection.
  */
 async function mockProvidersForViewAll(page, count = 4) {
@@ -164,6 +188,20 @@ async function mockProvidersForViewAll(page, count = 4) {
       status: 200,
       contentType: 'application/json',
       body: JSON.stringify(providers),
+    });
+  });
+  await page.route('**/api/custom-apps**', async (route) => {
+    const url = new URL(route.request().url());
+    const isList =
+      route.request().method() === 'GET' && /\/api\/custom-apps\/?$/.test(url.pathname);
+    if (!isList) {
+      await route.continue();
+      return;
+    }
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify([]),
     });
   });
   return providers;
@@ -371,7 +409,7 @@ async function selectFirstSeededModel(page) {
   await page.waitForTimeout(500);
 }
 
-/** Expand Connect LLM-as-judge Models if the Connect controls are collapsed. */
+/** Expand Configure LLM-as-judge Models if the Configure controls are collapsed. */
 async function expandRequiredEndpointsCard(page) {
   const cardTitle = page.locator('[data-testid="required-endpoints-card-title"]');
   await expect(cardTitle).toBeVisible({ timeout: 15000 });

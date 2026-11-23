@@ -1,4 +1,5 @@
 from pathlib import Path
+from unittest.mock import MagicMock, patch
 
 import pytest
 
@@ -11,10 +12,13 @@ from application.dto.custom_app_config_dto import (
 from application.services.custom_app_config_secret_service import (
     CustomAppConfigSecretService,
 )
+from application.services.custom_app_seed_service import AWS_BEDROCK_API_APP_NAME
 from application.services.database_custom_app_config_service import (
     DatabaseCustomAppConfigService,
     DatabaseCustomAppService,
 )
+from domain.services.enums.feature_flag_names import FeatureFlagNames
+from domain.services.feature_flags import FeatureFlags
 
 
 @pytest.fixture(scope="function")
@@ -83,3 +87,40 @@ class TestDatabaseCustomAppConfigServiceApiKeyConfigured:
 
         listed = cfg_svc.list_configs(app.id)
         assert listed[0].api_key_configured is True
+
+
+def _patch_moon803(enabled: bool):
+    adapter = MagicMock()
+    adapter.load_flags.return_value = {FeatureFlagNames.AIVET_OCT2026_MOON803: enabled}
+    return patch(
+        "domain.services.feature_flags.FeatureFlagAdapterFactory.get_adapter",
+        return_value=adapter,
+    )
+
+
+class TestDatabaseCustomAppServiceListApps:
+    def test_hides_bedrock_app_when_moon803_disabled(self, test_db_env):
+        FeatureFlags.reset()
+        sm = SessionManager.get_instance()
+        app_svc = DatabaseCustomAppService(session_manager=sm)
+        app_svc.create_app(CreateCustomAppBody(name=AWS_BEDROCK_API_APP_NAME))
+        app_svc.create_app(CreateCustomAppBody(name="API Connector"))
+
+        with _patch_moon803(False):
+            names = [app.name for app in app_svc.list_apps()]
+
+        assert AWS_BEDROCK_API_APP_NAME not in names
+        assert "API Connector" in names
+        FeatureFlags.reset()
+
+    def test_lists_bedrock_app_when_moon803_enabled(self, test_db_env):
+        FeatureFlags.reset()
+        sm = SessionManager.get_instance()
+        app_svc = DatabaseCustomAppService(session_manager=sm)
+        app_svc.create_app(CreateCustomAppBody(name=AWS_BEDROCK_API_APP_NAME))
+
+        with _patch_moon803(True):
+            names = [app.name for app in app_svc.list_apps()]
+
+        assert AWS_BEDROCK_API_APP_NAME in names
+        FeatureFlags.reset()

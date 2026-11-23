@@ -2,11 +2,24 @@ import json
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
+from aiohttp import ClientConnectorError
 
 from adapters.connector.custom_api_connector_adapter import CustomApiConnectorAdapter
 
 CONNECTION_TEST_PROMPT = "Hase the connection passed ? "
 from domain.entities.connector_entity import ConnectorEntity
+
+
+def _mock_client_session(mock_response) -> MagicMock:
+    mock_request_ctx = MagicMock()
+    mock_request_ctx.__aenter__ = AsyncMock(return_value=mock_response)
+    mock_request_ctx.__aexit__ = AsyncMock(return_value=None)
+
+    mock_session = MagicMock()
+    mock_session.request = MagicMock(return_value=mock_request_ctx)
+    mock_session.__aenter__ = AsyncMock(return_value=mock_session)
+    mock_session.__aexit__ = AsyncMock(return_value=None)
+    return mock_session
 
 
 def _configured_adapter(**params: str) -> CustomApiConnectorAdapter:
@@ -99,6 +112,7 @@ class TestCustomApiConnectorAdapter:
             ("authorization_api_key", "", ("Authorization", "ApiKey sk-test")),
             ("x_api_key", "", ("X-API-Key", "sk-test")),
             ("x_api_key_lower", "", ("x-api-key", "sk-test")),
+            ("x_goog_api_key", "", ("x-goog-api-key", "sk-test")),
             ("custom", "X-Auth-Token", ("X-Auth-Token", "sk-test")),
         ],
     )
@@ -142,6 +156,25 @@ class TestCustomApiConnectorAdapter:
         assert headers["X-Custom"] == "value"
         assert headers["Authorization"] == "Bearer sk-test"
 
+    def test_build_request_headers_x_goog_api_key_strips_duplicate_auth_headers(self):
+        adapter = _configured_adapter(
+            api_key="AQ.test-key",
+            api_key_auth_scheme="x_goog_api_key",
+            headers=json.dumps(
+                {
+                    "Authorization": "Bearer AQ.test-key",
+                    "X-goog-api-key": "AQ.test-key",
+                    "Accept": "application/json",
+                }
+            ),
+        )
+        headers = adapter._build_request_headers()
+
+        assert headers["Accept"] == "application/json"
+        assert headers["x-goog-api-key"] == "AQ.test-key"
+        assert "Authorization" not in headers
+        assert "X-goog-api-key" not in headers
+
     @pytest.mark.asyncio
     async def test_probe_returns_raw_status_and_body(self):
         adapter = _configured_adapter(
@@ -177,6 +210,63 @@ class TestCustomApiConnectorAdapter:
         assert (
             request_kwargs["json"]["messages"][0]["content"] == CONNECTION_TEST_PROMPT
         )
+
+    @pytest.mark.asyncio
+    async def test_probe_http_error_dumps_redacted_failure(self, tmp_path, monkeypatch):
+        log_path = tmp_path / "api_failures.log"
+        monkeypatch.setenv("MS_API_FAILURE_LOG_PATH", str(log_path))
+
+        adapter = _configured_adapter(
+            api_key="sk-secret-probe",
+            api_url="https://bedrock-runtime.us-east-1.amazonaws.com/model/foo/converse",
+        )
+
+        error_body = json.dumps(
+            {"message": "Forbidden", "__type": "AccessDeniedException"}
+        )
+        mock_response = AsyncMock()
+        mock_response.status = 403
+        mock_response.text = AsyncMock(return_value=error_body)
+
+        with patch(
+            "adapters.connector.custom_api_connector_adapter.aiohttp.ClientSession",
+            return_value=_mock_client_session(mock_response),
+        ):
+            status, body = await adapter.probe(CONNECTION_TEST_PROMPT)
+
+        assert status == 403
+        assert body == error_body
+        text = log_path.read_text(encoding="utf-8")
+        assert "CustomApiConnectorAdapter" in text
+        assert "sk-secret-probe" not in text
+        assert "***REDACTED***" in text
+        record = json.loads(text.split("=" * 72, 1)[1].strip())
+        assert record["adapter"] == "CustomApiConnectorAdapter"
+        assert record["error"]["status_code"] == 403
+        assert record["extra"]["http_status"] == 403
+
+    @pytest.mark.asyncio
+    async def test_probe_transport_error_dumps_and_raises(self, tmp_path, monkeypatch):
+        log_path = tmp_path / "api_failures.log"
+        monkeypatch.setenv("MS_API_FAILURE_LOG_PATH", str(log_path))
+
+        adapter = _configured_adapter(api_key="sk-test")
+        connector_error = ClientConnectorError(MagicMock(), OSError("Connection refused"))
+
+        mock_session = MagicMock()
+        mock_session.__aenter__ = AsyncMock(return_value=mock_session)
+        mock_session.__aexit__ = AsyncMock(return_value=None)
+        mock_session.request = MagicMock(side_effect=connector_error)
+
+        with patch(
+            "adapters.connector.custom_api_connector_adapter.aiohttp.ClientSession",
+            return_value=mock_session,
+        ):
+            with pytest.raises(ClientConnectorError):
+                await adapter.probe(CONNECTION_TEST_PROMPT)
+
+        text = log_path.read_text(encoding="utf-8")
+        assert "CustomApiConnectorAdapter" in text
 
     def test_extract_response_value_default_path(self):
         adapter = _configured_adapter()
@@ -250,3 +340,129 @@ class TestCustomApiConnectorAdapter:
             result = await adapter.get_response("prompt")
 
         assert result.response == "benchmark result"
+
+    @pytest.mark.asyncio
+    async def test_get_response_extraction_failure_dumps_response_json_once(self):
+        adapter = _configured_adapter(api_key="sk-test", response_path="output")
+
+        mock_response = AsyncMock()
+        mock_response.raise_for_status = MagicMock()
+        mock_response.status = 200
+        mock_response.content_type = "application/json"
+        mock_response.json = AsyncMock(return_value={"unexpected": "shape"})
+
+        with (
+            patch(
+                "adapters.connector.custom_api_connector_adapter.aiohttp.ClientSession",
+                return_value=_mock_client_session(mock_response),
+            ),
+            patch(
+                "adapters.connector.custom_api_connector_adapter.dump_api_failure"
+            ) as mock_dump,
+            pytest.raises(ValueError, match="No value found at response_path"),
+        ):
+            await adapter.get_response("prompt")
+
+        # Exactly one dump: _process_response dumps, the outer handler in
+        # get_response must not add a second, poorer record.
+        mock_dump.assert_called_once()
+        kwargs = mock_dump.call_args.kwargs
+        assert kwargs["adapter_name"] == "CustomApiConnectorAdapter"
+        assert kwargs["request"]["url"] == "https://api.together.xyz/v1/chat/completions"
+        assert isinstance(kwargs["error"], ValueError)
+        assert kwargs["extra"] == {
+            "http_status": 200,
+            "response_path": "output",
+            "content_type": "application/json",
+            "response_json": {"unexpected": "shape"},
+        }
+
+    @pytest.mark.asyncio
+    async def test_get_response_json_parse_failure_dumps_raw_text_once(self):
+        adapter = _configured_adapter(api_key="sk-test", response_path="output")
+
+        mock_response = AsyncMock()
+        mock_response.raise_for_status = MagicMock()
+        mock_response.status = 200
+        mock_response.content_type = "text/html"
+        mock_response.json = AsyncMock(
+            side_effect=json.JSONDecodeError("Expecting value", "<html>", 0)
+        )
+        mock_response.text = AsyncMock(return_value="<html>not json</html>")
+
+        with (
+            patch(
+                "adapters.connector.custom_api_connector_adapter.aiohttp.ClientSession",
+                return_value=_mock_client_session(mock_response),
+            ),
+            patch(
+                "adapters.connector.custom_api_connector_adapter.dump_api_failure"
+            ) as mock_dump,
+            pytest.raises(json.JSONDecodeError),
+        ):
+            await adapter.get_response("prompt")
+
+        mock_dump.assert_called_once()
+        kwargs = mock_dump.call_args.kwargs
+        assert isinstance(kwargs["error"], json.JSONDecodeError)
+        assert kwargs["extra"] == {
+            "http_status": 200,
+            "response_path": "output",
+            "content_type": "text/html",
+            "response_text": "<html>not json</html>",
+        }
+        assert "response_json" not in kwargs["extra"]
+
+    @pytest.mark.asyncio
+    async def test_get_response_json_parse_failure_when_text_also_fails(self):
+        adapter = _configured_adapter(api_key="sk-test", response_path="output")
+        parse_error = json.JSONDecodeError("Expecting value", "<html>", 0)
+
+        mock_response = AsyncMock()
+        mock_response.raise_for_status = MagicMock()
+        mock_response.status = 502
+        mock_response.content_type = "text/html"
+        mock_response.json = AsyncMock(side_effect=parse_error)
+        mock_response.text = AsyncMock(side_effect=RuntimeError("stream closed"))
+
+        with (
+            patch(
+                "adapters.connector.custom_api_connector_adapter.aiohttp.ClientSession",
+                return_value=_mock_client_session(mock_response),
+            ),
+            patch(
+                "adapters.connector.custom_api_connector_adapter.dump_api_failure"
+            ) as mock_dump,
+            pytest.raises(json.JSONDecodeError) as excinfo,
+        ):
+            await adapter.get_response("prompt")
+
+        # The original parse error propagates, not the text() failure.
+        assert excinfo.value is parse_error
+        mock_dump.assert_called_once()
+        assert mock_dump.call_args.kwargs["extra"]["response_text"] is None
+        assert mock_dump.call_args.kwargs["extra"]["http_status"] == 502
+
+    @pytest.mark.asyncio
+    async def test_get_response_success_does_not_dump(self):
+        adapter = _configured_adapter(api_key="sk-test", response_path="output")
+
+        mock_response = AsyncMock()
+        mock_response.raise_for_status = MagicMock()
+        mock_response.status = 200
+        mock_response.content_type = "application/json"
+        mock_response.json = AsyncMock(return_value={"output": "benchmark result"})
+
+        with (
+            patch(
+                "adapters.connector.custom_api_connector_adapter.aiohttp.ClientSession",
+                return_value=_mock_client_session(mock_response),
+            ),
+            patch(
+                "adapters.connector.custom_api_connector_adapter.dump_api_failure"
+            ) as mock_dump,
+        ):
+            result = await adapter.get_response("prompt")
+
+        assert result.response == "benchmark result"
+        mock_dump.assert_not_called()

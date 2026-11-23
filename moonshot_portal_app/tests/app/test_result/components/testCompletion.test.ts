@@ -1,7 +1,11 @@
 import {
   classifyTest,
   filterPromptsForFullyCompleteTests,
+  isPromptBulkRegeneratable,
   isPromptErrored,
+  isPromptUnknownEvaluation,
+  runHasBulkRegenerateTargets,
+  runHasIncompleteWork,
   runHasPromptErrors,
   testStatusByTestId,
 } from "@/app/test_result/components/testCompletion";
@@ -73,5 +77,101 @@ describe("runHasPromptErrors", () => {
     expect(isPromptErrored(prompt({ run_test_id: 1, prompt_id: 1, status: "error" }))).toBe(
       true
     );
+  });
+
+  it("does not treat completed unknown evaluation as an error", () => {
+    expect(
+      runHasPromptErrors([
+        prompt({
+          run_test_id: 1,
+          prompt_id: 1,
+          status: "completed",
+          evaluation_prediction_result:
+            '{"score": 0, "evaluated_response": "unknown"}',
+        }),
+      ])
+    ).toBe(false);
+  });
+});
+
+describe("runHasBulkRegenerateTargets", () => {
+  it("detects error prompts", () => {
+    expect(
+      isPromptBulkRegeneratable(
+        prompt({ run_test_id: 1, prompt_id: 1, status: "error" })
+      )
+    ).toBe(true);
+  });
+
+  it("detects completed unknown evaluations", () => {
+    const unknown = prompt({
+      run_test_id: 1,
+      prompt_id: 1,
+      status: "completed",
+      evaluation_prediction_result:
+        '{"score": 0, "evaluated_response": "unknown"}',
+    });
+    expect(isPromptUnknownEvaluation(unknown)).toBe(true);
+    expect(isPromptBulkRegeneratable(unknown)).toBe(true);
+    expect(runHasBulkRegenerateTargets([unknown])).toBe(true);
+  });
+
+  it("detects unknown from Python dict-repr evaluation blobs", () => {
+    const unknown = prompt({
+      run_test_id: 1,
+      prompt_id: 1,
+      status: "completed",
+      score: 0,
+      evaluation_prediction_result:
+        "{'score': 0.0, 'evaluated_response': 'unknown', 'accuracy': False}",
+    });
+    expect(isPromptUnknownEvaluation(unknown)).toBe(true);
+    expect(runHasBulkRegenerateTargets([unknown])).toBe(true);
+  });
+
+  it("ignores completed non-unknown evaluations", () => {
+    const safe = prompt({
+      run_test_id: 1,
+      prompt_id: 1,
+      status: "completed",
+      evaluation_prediction_result: '{"score": 1, "evaluated_response": "safe"}',
+    });
+    expect(isPromptUnknownEvaluation(safe)).toBe(false);
+    expect(runHasBulkRegenerateTargets([safe])).toBe(false);
+  });
+});
+
+describe("runHasIncompleteWork", () => {
+  it("is true when any prompt is pending or running", () => {
+    expect(
+      runHasIncompleteWork(
+        [prompt({ run_test_id: 1, prompt_id: 1, status: "pending" })],
+        []
+      )
+    ).toBe(true);
+    expect(
+      runHasIncompleteWork(
+        [prompt({ run_test_id: 1, prompt_id: 1, status: "running" })],
+        []
+      )
+    ).toBe(true);
+  });
+
+  it("is true when a test is non-terminal", () => {
+    expect(
+      runHasIncompleteWork(
+        [prompt({ run_test_id: 1, prompt_id: 1, status: "completed" })],
+        [{ test_id: 10, status: "in_progress" }]
+      )
+    ).toBe(true);
+  });
+
+  it("is false when everything is terminal", () => {
+    expect(
+      runHasIncompleteWork(
+        [prompt({ run_test_id: 1, prompt_id: 1, status: "completed" })],
+        [{ test_id: 10, status: "completed" }]
+      )
+    ).toBe(false);
   });
 });

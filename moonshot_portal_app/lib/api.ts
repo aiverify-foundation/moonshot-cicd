@@ -2,6 +2,8 @@
  * API service for communicating with the Moonshot CI/CD backend
  */
 
+import type { FeatureFlagName } from '@/lib/featureFlags';
+
 const API_BASE_URL = 'http://localhost:8000';
 
 /** Prompt-level row from test_details.csv (GET /api/bundles → tests[].details). */
@@ -54,6 +56,15 @@ export interface Bundle {
 
 export interface BundlesResponse {
   bundles: Bundle[];
+}
+
+/** Binary score labels owned by a metric adapter (GET /api/metrics/{name}/score-result-names). */
+export interface MetricScoreResultNames {
+  metric_name: string;
+  /** Label for score 1 (RESULT_PASS), e.g. "safe" or "True". */
+  result_pass: string;
+  /** Label for score 0 (RESULT_FAIL), e.g. "unsafe" or "False". */
+  result_fail: string;
 }
 
 export class ApiError extends Error {
@@ -109,6 +120,48 @@ export async function fetchBundles(): Promise<Bundle[]> {
     throw new ApiError(
       `Network error: ${error instanceof Error ? error.message : 'Unknown error'}`
     );
+  }
+}
+
+/** MetricPort defaults when the API is older or the metric cannot be resolved. */
+const DEFAULT_METRIC_SCORE_RESULT_NAMES = {
+  result_pass: 'True',
+  result_fail: 'False',
+} as const;
+
+/**
+ * Fetch RESULT_PASS / RESULT_FAIL labels for a metric adapter by name.
+ *
+ * Soft-fails to MetricPort defaults (True / False) when the endpoint is missing
+ * (older API versions), the metric is unknown, or the request fails — labels are
+ * non-critical UI chrome.
+ */
+export async function fetchMetricScoreResultNames(
+  metricName: string
+): Promise<MetricScoreResultNames> {
+  const defaults: MetricScoreResultNames = {
+    metric_name: metricName,
+    ...DEFAULT_METRIC_SCORE_RESULT_NAMES,
+  };
+  const encoded = encodeURIComponent(metricName);
+  try {
+    const response = await fetch(
+      `${API_BASE_URL}/api/metrics/${encoded}/score-result-names`,
+      {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      }
+    );
+
+    if (!response.ok) {
+      return defaults;
+    }
+
+    return (await response.json()) as MetricScoreResultNames;
+  } catch {
+    return defaults;
   }
 }
 
@@ -265,6 +318,8 @@ export interface BenchmarkRunTestPrompt {
   user_notes?: string | null;
   /** Display name of the test this prompt belongs to (benchmark_test.name). */
   test_name?: string;
+  /** Metric adapter module name for this prompt's test (API-enriched). */
+  metric_name?: string | null;
   /** Latest per-prompt error message from benchmark_run_test_error. */
   error_message?: string | null;
   /** Latest per-prompt error source: "connector" or "metric". */
@@ -351,6 +406,22 @@ function handleConnectError(error: unknown, label: string): never {
   throw new ApiError(
     `${label}: ${error instanceof Error ? error.message : 'Unknown error'}`
   );
+}
+
+/** GET /api/feature-flags */
+export interface FeatureFlagsResponse {
+  flags: Partial<Record<FeatureFlagName, boolean>>;
+}
+
+export async function getFeatureFlags(): Promise<FeatureFlagsResponse> {
+  try {
+    return await handleJsonGet<FeatureFlagsResponse>(
+      `${API_BASE_URL}/api/feature-flags`,
+      'fetch feature flags'
+    );
+  } catch (error) {
+    handleConnectError(error, 'Network error');
+  }
 }
 
 /** GET /api/providers */
@@ -878,6 +949,125 @@ export async function patchBenchmarkRunPromptUserFeedback(
       );
     }
     return response.json() as Promise<BenchmarkRunTestPrompt>;
+  } catch (error) {
+    if (error instanceof ApiError) throw error;
+    if (error instanceof TypeError && error.message.includes('fetch')) {
+      throw new ApiError(
+        `Cannot connect to API server at ${API_BASE_URL}. Please ensure the backend is running on port 8000.`
+      );
+    }
+    throw new ApiError(
+      `Network error: ${error instanceof Error ? error.message : 'Unknown error'}`
+    );
+  }
+}
+
+/**
+ * Re-run SUT response and metric (LLMAAJ) judgement for one benchmark_run_test_prompt row.
+ * Gated by feature flag AIVET_OCT2026_MOON793 on the API.
+ */
+export async function regenerateBenchmarkRunPrompt(
+  promptId: number
+): Promise<BenchmarkRunTestPrompt> {
+  try {
+    const response = await fetch(
+      `${API_BASE_URL}/api/benchmark-run-test-prompts/${promptId}/regenerate`,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+      }
+    );
+    if (!response.ok) {
+      const errorText = await response.text().catch(() => 'Unknown error');
+      console.error(`API Error: ${response.status} - ${errorText}`);
+      const detail = parseErrorDetail(errorText);
+      throw new ApiError(
+        `Failed to regenerate prompt: ${detail}`,
+        response.status,
+        response.statusText
+      );
+    }
+    return response.json() as Promise<BenchmarkRunTestPrompt>;
+  } catch (error) {
+    if (error instanceof ApiError) throw error;
+    if (error instanceof TypeError && error.message.includes('fetch')) {
+      throw new ApiError(
+        `Cannot connect to API server at ${API_BASE_URL}. Please ensure the backend is running on port 8000.`
+      );
+    }
+    throw new ApiError(
+      `Network error: ${error instanceof Error ? error.message : 'Unknown error'}`
+    );
+  }
+}
+
+/** Response from POST /api/benchmark-runs/{runId}/regenerate-failed-prompts */
+export interface StartRegenerateFailedPromptsResponse {
+  message: string;
+  total: number;
+}
+
+/** Response from GET /api/benchmark-runs/{runId}/regenerate-failed-prompts/progress */
+export interface RegenerateFailedPromptsProgress {
+  run_id: number;
+  status: 'idle' | 'in_progress' | 'completed' | 'failed' | string;
+  total: number;
+  done: number;
+  failed: number;
+}
+
+/**
+ * Start regenerating all errored prompts for a run (background job).
+ * Does not flip the parent run to running; poll progress separately.
+ * Gated by feature flag AIVET_OCT2026_MOON793 on the API.
+ */
+export async function startRegenerateFailedBenchmarkRunPrompts(
+  runId: number
+): Promise<StartRegenerateFailedPromptsResponse> {
+  try {
+    const response = await fetch(
+      `${API_BASE_URL}/api/benchmark-runs/${runId}/regenerate-failed-prompts`,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+      }
+    );
+    if (!response.ok) {
+      const errorText = await response.text().catch(() => 'Unknown error');
+      console.error(`API Error: ${response.status} - ${errorText}`);
+      const detail = parseErrorDetail(errorText);
+      throw new ApiError(
+        `Failed to start regenerating failed prompts: ${detail}`,
+        response.status,
+        response.statusText
+      );
+    }
+    return response.json() as Promise<StartRegenerateFailedPromptsResponse>;
+  } catch (error) {
+    if (error instanceof ApiError) throw error;
+    if (error instanceof TypeError && error.message.includes('fetch')) {
+      throw new ApiError(
+        `Cannot connect to API server at ${API_BASE_URL}. Please ensure the backend is running on port 8000.`
+      );
+    }
+    throw new ApiError(
+      `Network error: ${error instanceof Error ? error.message : 'Unknown error'}`
+    );
+  }
+}
+
+/**
+ * Poll progress for a bulk regenerate job.
+ * Gated by feature flag AIVET_OCT2026_MOON793 on the API.
+ */
+export async function fetchRegenerateFailedPromptsProgress(
+  runId: number
+): Promise<RegenerateFailedPromptsProgress> {
+  try {
+    return await handleJsonGet<RegenerateFailedPromptsProgress>(
+      `${API_BASE_URL}/api/benchmark-runs/${runId}/regenerate-failed-prompts/progress`,
+      'fetch regenerate-failed prompts progress'
+    );
   } catch (error) {
     if (error instanceof ApiError) throw error;
     if (error instanceof TypeError && error.message.includes('fetch')) {

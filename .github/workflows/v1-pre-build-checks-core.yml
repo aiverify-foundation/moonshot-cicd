@@ -21,9 +21,18 @@ on:
         required: true
         default: 'dev_main'
         type: string
+  workflow_call:
+    inputs:
+      checkout_ref:
+        description: 'Git ref or SHA to checkout. Empty = current run SHA.'
+        required: false
+        type: string
+        default: ''
 
+# Do not use github.workflow here: under workflow_call it resolves to the caller's
+# name and collides with dev-docker-e2e-and-pytest.yml (concurrency deadlock).
 concurrency:
-  group: ${{ github.repository }}-${{ github.workflow }}
+  group: ${{ github.repository }}-v1-pre-build-checks-core-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true
 
 jobs:
@@ -34,6 +43,7 @@ jobs:
       contents: read
     steps:
       - name: Set env variables
+        if: github.event_name != 'workflow_call'
         run: |
           if [ "${{ github.event_name }}" == "pull_request" ]; then
             echo "MS_BRANCH=${{ github.event.pull_request.head.ref }}" >> $GITHUB_ENV
@@ -44,6 +54,14 @@ jobs:
           fi
 
       - name: Checkout code
+        if: github.event_name == 'workflow_call'
+        uses: actions/checkout@v3
+        with:
+          ref: ${{ inputs.checkout_ref || github.sha }}
+          submodules: recursive
+
+      - name: Checkout code
+        if: github.event_name != 'workflow_call'
         uses: actions/checkout@v3
         with:
           ref: ${{ env.MS_BRANCH }}

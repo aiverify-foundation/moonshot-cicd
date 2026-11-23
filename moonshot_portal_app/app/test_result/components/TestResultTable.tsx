@@ -16,6 +16,8 @@ import { Checkbox } from "@/components/ui/checkbox"
 import { Input } from "@/components/ui/input"
 import TestResultSheet from "./TestResultSheet"
 import { evaluationDisplayLabel } from "./evaluationDisplayHelpers"
+import { getFacetedFilterCounts } from "./getFilterCounts"
+import type { BenchmarkRunTestPrompt } from "@/lib/api"
 
 export interface TestResultTableRow {
     id: string
@@ -34,6 +36,8 @@ export interface TestResultTableRow {
     bundle: string
     /** True when benchmark_run_test_prompt.status is "error". */
     isPromptError?: boolean
+    /** True when prompt status is running or pending (e.g. regenerating). */
+    isPromptRunning?: boolean
     /** Latest per-prompt error source: "connector" or "metric". */
     errorSource?: string | null
     evaluatorInfo?: {
@@ -48,20 +52,34 @@ interface TestResultTableProps {
     data: TestResultTableRow[]
     pageSize?: number
     onDataChange?: (id: string, updates: Partial<TestResultTableRow>) => void
+    onPromptRegenerated?: (updated: BenchmarkRunTestPrompt) => void
+    isBulkRegenerating?: boolean
 }
 
-export default function TestResultTable({ data, pageSize = 10, onDataChange }: TestResultTableProps) {
+export default function TestResultTable({
+    data,
+    pageSize = 10,
+    onDataChange,
+    onPromptRegenerated,
+    isBulkRegenerating = false,
+}: TestResultTableProps) {
     const [currentPage, setCurrentPage] = useState(1)
     const [sortColumn, setSortColumn] = useState<"evaluation" | null>("evaluation")
     const [sortDirection, setSortDirection] = useState<"asc" | "desc">("desc")
     const [sheetOpen, setSheetOpen] = useState(false)
     const [selectedRowIndex, setSelectedRowIndex] = useState(0)
     const [searchTerm, setSearchTerm] = useState("")
-
     const evaluationDisplayLabelById = useMemo(() => {
         const m = new Map<string, string>()
         for (const row of data) {
-            m.set(row.id, evaluationDisplayLabel(row.evaluation, row.score, { isPromptError: row.isPromptError, errorSource: row.errorSource }))
+            m.set(
+                row.id,
+                evaluationDisplayLabel(row.evaluation, row.score, {
+                    isPromptError: row.isPromptError,
+                    isPromptRunning: row.isPromptRunning,
+                    errorSource: row.errorSource,
+                })
+            )
         }
         return m
     }, [data])
@@ -241,34 +259,16 @@ export default function TestResultTable({ data, pageSize = 10, onDataChange }: T
         }
     }
 
-    // Calculate counts for each filter option
-    const getFilterCounts = () => {
-        const testCounts = new Map<string, number>()
-        const evaluationCounts = new Map<string, number>()
-        const yourVerdictCounts = new Map<string | null, number>()
-        const adjustedCounts = new Map<string, number>()
-
-        data.forEach((row) => {
-            // Test counts
-            testCounts.set(row.test, (testCounts.get(row.test) || 0) + 1)
-
-            // Evaluation counts (display label)
-            const evLabel = evaluationDisplayLabelById.get(row.id) ?? ""
-            evaluationCounts.set(evLabel, (evaluationCounts.get(evLabel) || 0) + 1)
-
-            // Your verdict counts
-            yourVerdictCounts.set(row.yourVerdict, (yourVerdictCounts.get(row.yourVerdict) || 0) + 1)
-
-            // Adjusted counts
-            const isAdjusted = row.yourVerdict === "disagree"
-            const adjustedKey = isAdjusted ? "adjusted" : "not adjusted"
-            adjustedCounts.set(adjustedKey, (adjustedCounts.get(adjustedKey) || 0) + 1)
-        })
-
-        return { testCounts, evaluationCounts, yourVerdictCounts, adjustedCounts }
-    }
-
-    const filterCounts = getFilterCounts()
+    const filterCounts = useMemo(
+        () =>
+            getFacetedFilterCounts(
+                data,
+                filters,
+                searchTerm,
+                evaluationDisplayLabelById
+            ),
+        [data, filters, searchTerm, evaluationDisplayLabelById]
+    )
 
     // Filter dropdown component
     const FilterDropdown = <T extends string | null>({
@@ -499,10 +499,18 @@ export default function TestResultTable({ data, pageSize = 10, onDataChange }: T
                                 <TableCell className="px-0 py-2 align-top">
                                     <div className="flex gap-1.5 items-start">
                                         <div
-                                            className={`inline-flex items-center justify-center px-1 py-1 rounded-[6px] border ${row.score === 1 ? "bg-green-100 border-green-200" : "bg-red-100 border-red-200"}`}
+                                            className={`inline-flex items-center justify-center px-1 py-1 rounded-[6px] border ${
+                                                !row.isPromptRunning && row.score === 1
+                                                    ? "bg-green-100 border-green-200"
+                                                    : "bg-red-100 border-red-200"
+                                            }`}
                                         >
                                             <p
-                                                className={`font-semibold text-[12px] leading-normal whitespace-pre text-nowrap ${row.score === 1 ? "text-green-800" : "text-red-800"}`}
+                                                className={`font-semibold text-[12px] leading-normal whitespace-pre text-nowrap ${
+                                                    !row.isPromptRunning && row.score === 1
+                                                        ? "text-green-800"
+                                                        : "text-red-800"
+                                                }`}
                                             >
                                                 {evaluationDisplayLabelById.get(row.id)!}
                                             </p>
@@ -626,6 +634,8 @@ export default function TestResultTable({ data, pageSize = 10, onDataChange }: T
                 currentIndex={selectedRowIndex}
                 onIndexChange={handleSheetIndexChange}
                 onDataChange={onDataChange}
+                onPromptRegenerated={onPromptRegenerated}
+                isBulkRegenerating={isBulkRegenerating}
             />
         </div>
     )

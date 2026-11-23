@@ -119,6 +119,53 @@ class StartBenchmarkRunResponseDTO(BaseModel):
     message: str
 
 
+class StartRegenerateFailedPromptsResponseDTO(BaseModel):
+    """
+    Response after starting a bulk regenerate of errored prompts for a run.
+
+    Attributes:
+        message: Human-readable start acknowledgement.
+        total: Number of errored prompts queued for regeneration.
+    """
+
+    message: str
+    total: int
+
+
+class ResumeBenchmarkRunResponseDTO(BaseModel):
+    """
+    Response after starting a resume of an incomplete benchmark run.
+
+    Attributes:
+        message: Human-readable start acknowledgement.
+        run_id: Benchmark run id that was resumed.
+        resumed_test_count: Number of incomplete tests re-queued for execution.
+    """
+
+    message: str
+    run_id: int
+    resumed_test_count: int
+
+
+class RegenerateFailedPromptsProgressDTO(BaseModel):
+    """
+    Progress for a bulk regenerate job (polled by the results UI).
+
+    Attributes:
+        run_id: Benchmark run id.
+        status: idle | in_progress | completed | failed.
+        total: Snapshot size of prompts queued for regeneration.
+        done: Prompts among the snapshot that left running/pending.
+        failed: Prompts among the snapshot currently in error.
+    """
+
+    run_id: int
+    status: str
+    total: int
+    done: int
+    failed: int
+
+
 class CheckBenchmarkRunNameResponseDTO(BaseModel):
     """
     Response DTO for benchmark run name availability check.
@@ -241,6 +288,8 @@ class BenchmarkRunTestPromptResponseDTO(BaseModel):
     user_notes: Optional[str] = None
     #: benchmark_test.name (display name) for the run-test this prompt belongs to (API-enriched).
     test_name: str = ""
+    #: Metric adapter module name for the run-test (API-enriched), e.g. sg_uc_classifier_adapter.
+    metric_name: Optional[str] = None
     #: Latest per-prompt error message from benchmark_run_test_error (API-enriched).
     error_message: Optional[str] = None
     #: Latest per-prompt error source: "connector" or "metric" (API-enriched).

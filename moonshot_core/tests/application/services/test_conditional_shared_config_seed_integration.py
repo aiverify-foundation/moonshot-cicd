@@ -12,43 +12,50 @@ from pathlib import Path
 import pytest
 import yaml
 
+from adapters.driven.repository.sqlalchemy.dataset_adapter import (
+    SqlAlchemyDatasetRepository,
+)
 from adapters.driven.repository.sqlalchemy.llm_provider_models import (
-    BenchmarkTestDatasetModel,
     BenchmarkTestBundleModel,
+    BenchmarkTestDatasetModel,
     BenchmarkTestModel,
     MoonshotConfigModel,
-)
-from adapters.driven.repository.sqlalchemy.session_manager import SessionManager
-from application.services.shared_config_seed_service import (
-    SharedConfigSeedService,
-    SHARED_CONFIG_SEED_VERSION_KEY,
-    TEST_FILE_LAST_MODIFIED_KEY,
-)
-from application.services.file_shared_config_repository import (
-    FileSharedConfigRepository,
-)
-from application.services.file_dataset_repository import FileDatasetRepository
-from application.services.benchmark_dataset_seed_service import (
-    BenchmarkDatasetSeedService,
 )
 from adapters.driven.repository.sqlalchemy.moonshot_config_adapter import (
     MoonshotConfigAdapter,
 )
-from adapters.driven.repository.sqlalchemy.dataset_adapter import (
-    SqlAlchemyDatasetRepository,
+from adapters.driven.repository.sqlalchemy.session_manager import SessionManager
+from application.services.benchmark_dataset_seed_service import (
+    BenchmarkDatasetSeedService,
+)
+from application.services.file_dataset_repository import FileDatasetRepository
+from application.services.file_shared_config_repository import (
+    FileSharedConfigRepository,
+)
+from application.services.shared_config_seed_service import (
+    SHARED_CONFIG_SEED_VERSION_KEY,
+    TEST_FILE_LAST_MODIFIED_KEY,
+    SharedConfigSeedService,
 )
 
 
 @pytest.fixture(scope="function")
 def test_db_path():
     """Temporary database path for integration tests."""
-    moonshot_core_root = (
-        Path(__file__).resolve().parent.parent.parent.parent
-    )
+    moonshot_core_root = Path(__file__).resolve().parent.parent.parent.parent
     db_path = moonshot_core_root / "data" / "database" / "moonshot_pytest.db"
     if db_path.exists():
         db_path.unlink()
     yield str(db_path)
+
+
+@pytest.fixture(autouse=True)
+def _no_local_benchmark_extensions(monkeypatch):
+    """These fixtures describe only their own YAML, not benchmark-extensions overlays."""
+    monkeypatch.setattr(
+        "domain.services.benchmark_extensions.resolve_extensions_dir",
+        lambda: None,
+    )
 
 
 @pytest.fixture(scope="function")
@@ -64,11 +71,7 @@ def test_db_env(test_db_path, monkeypatch):
 @pytest.fixture
 def config_path():
     """Path to minimal shared config that references only test_sample_dataset."""
-    return (
-        Path(__file__).resolve().parent
-        / "fixtures"
-        / "shared_minimal.yaml"
-    )
+    return Path(__file__).resolve().parent / "fixtures" / "shared_minimal.yaml"
 
 
 @pytest.fixture
@@ -174,9 +177,7 @@ class TestSharedConfigSeedServiceConditionalIntegration:
             session_manager
         ), "Expected at least one benchmark_test with non-null dataset_id"
         assert (
-            _get_moonshot_config_value(
-                session_manager, TEST_FILE_LAST_MODIFIED_KEY
-            )
+            _get_moonshot_config_value(session_manager, TEST_FILE_LAST_MODIFIED_KEY)
             is not None
         ), "Expected moonshot_config to have test_file_last_modified set"
 
@@ -236,9 +237,7 @@ class TestSharedConfigSeedServiceConditionalIntegration:
                 session_manager, name
             ), f"Expected benchmark_test_dataset row with system_name={name!r}"
         assert (
-            _get_moonshot_config_value(
-                session_manager, TEST_FILE_LAST_MODIFIED_KEY
-            )
+            _get_moonshot_config_value(session_manager, TEST_FILE_LAST_MODIFIED_KEY)
             is not None
         ), "Expected moonshot_config to have test_file_last_modified set"
 

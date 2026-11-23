@@ -6,7 +6,9 @@ import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, Command
 import { Card, CardContent, CardDescription, CardTitle } from "@/components/ui/card";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { Check, ChevronsUpDown, Edit, Plus, CircleAlert, CircleCheckBig } from "lucide-react";
-import type { Provider, ModelConfig, Config, ModelApp } from "../types/modelSelection";
+import { Badge } from "@/components/ui/badge";
+import { isBedrockWebSearchProvider } from "@/lib/bedrockWebSearch";
+import type { Provider, ModelConfig, Config, ModelApp, ProviderListEntry } from "../types/modelSelection";
 import type { CustomAppConfigDTO, DatabaseModelConfigDTO } from "@/lib/api";
 import { useAppDispatch, useAppSelector } from "@/hooks/reduxHooks";
 import {
@@ -16,9 +18,11 @@ import {
   setBenchmarkRunFks,
   updateConfigValidity,
 } from "@/store";
-import { decodeCustomAppProviderId } from "../constants/customAppConfig";
+import { decodeCustomAppProviderId, isBedrockApiCustomApp } from "../constants/customAppConfig";
+import { getModelAppConfigInfo } from "./customApplicationSheetShared";
 import EditModelSheet from "./EditModelSheet";
 import EditCustomApplicationSheet from "./EditCustomApplicationSheet";
+import EditBedrockApplicationSheet from "./EditBedrockApplicationSheet";
 
 interface SelectAppOrModelCardProps {
   // Raw data
@@ -57,6 +61,13 @@ export default function SelectAppOrModelCard({
   const [editingDatabaseConfigId, setEditingDatabaseConfigId] = useState<string | null>(null);
   const [customSheetOpen, setCustomSheetOpen] = useState(false);
   const [editingConfig, setEditingConfig] = useState<string>("");
+
+  const editingModelApp = useMemo(() => {
+    if (!editingConfig) return undefined;
+    return getModelAppConfigInfo(editingConfig, custom_connectors, configs).currentModelApp;
+  }, [editingConfig, custom_connectors, configs]);
+
+  const isBedrockEditing = isBedrockApiCustomApp(editingModelApp?.name);
   
   // Track config validity when selections change
   useEffect(() => {
@@ -77,6 +88,21 @@ export default function SelectAppOrModelCard({
   const isCustomConnector = useMemo(() => 
     custom_connectors.some(connector => connector.id === selectedProvider),
     [custom_connectors, selectedProvider]
+  );
+
+  const bedrockAsModelProviders = useMemo(
+    () => custom_connectors.filter((c) => isBedrockApiCustomApp(c.name)),
+    [custom_connectors]
+  );
+
+  const applicationConnectors = useMemo(
+    () => custom_connectors.filter((c) => !isBedrockApiCustomApp(c.name)),
+    [custom_connectors]
+  );
+
+  const modelProviderRows = useMemo(
+    (): ProviderListEntry[] => [...providers, ...bedrockAsModelProviders],
+    [providers, bedrockAsModelProviders]
   );
   
   // Sheet handlers
@@ -180,24 +206,34 @@ export default function SelectAppOrModelCard({
                       <CommandList className="max-h-[300px] overflow-y-auto">
                         <CommandEmpty>No provider found.</CommandEmpty>
                         <CommandGroup heading="Model Providers" data-testid="model-providers-group">
-                          {providers.slice(0, showAllStandardProviders ? providers.length : 3).map((provider) => (
+                          {modelProviderRows
+                            .slice(0, showAllStandardProviders ? modelProviderRows.length : 3)
+                            .map((row) => (
                             <CommandItem
-                              key={provider.id}
-                              value={provider.id}
+                              key={row.id}
+                              value={row.id}
                               onSelect={(currentValue) => {
                                 const newProvider = currentValue === selectedProvider ? "" : currentValue;
                                 dispatch(setSelectedProvider(newProvider));
                                 setProviderOpen(false);
                               }}
-                              data-testid={`provider-option-${provider.id}`}
+                              data-testid={`provider-option-${row.id}`}
                             >
                               <Check
-                                className={`mr-2 h-4 w-4 ${selectedProvider === provider.id ? "opacity-100" : "opacity-0"}`}
+                                className={`mr-2 h-4 w-4 ${selectedProvider === row.id ? "opacity-100" : "opacity-0"}`}
                               />
-                              {provider.name}
+                              <span className="flex items-center gap-2">
+                                {row.name}
+                                {'system_name' in row &&
+                                  isBedrockWebSearchProvider(row.system_name) && (
+                                  <Badge variant="secondary" className="text-[10px] px-1 py-0">
+                                    Web search enabled
+                                  </Badge>
+                                )}
+                              </span>
                             </CommandItem>
                           ))}
-                          {!showAllStandardProviders && providers.length > 3 && (
+                          {!showAllStandardProviders && modelProviderRows.length > 3 && (
                             <CommandItem
                               value="view-all-standard"
                               onSelect={() => {
@@ -206,7 +242,7 @@ export default function SelectAppOrModelCard({
                               data-testid="view-all-standard-providers"
                             >
                               <Check className="mr-2 h-4 w-4 opacity-0" />
-                              View All Standard Providers ({providers.length - 3})
+                              View All Standard Providers ({modelProviderRows.length - 3})
                             </CommandItem>
                           )}
                           {showAllStandardProviders && (
@@ -223,7 +259,9 @@ export default function SelectAppOrModelCard({
                           )}
                         </CommandGroup>
                         <CommandGroup heading="Application Connectors" data-testid="custom-applications-group">
-                          {custom_connectors.slice(0, showAllCustomConnectors ? custom_connectors.length : 3).map((connector) => (
+                          {applicationConnectors
+                            .slice(0, showAllCustomConnectors ? applicationConnectors.length : 3)
+                            .map((connector) => (
                             <CommandItem
                               key={connector.id}
                               value={connector.id}
@@ -240,7 +278,7 @@ export default function SelectAppOrModelCard({
                               {connector.name}
                             </CommandItem>
                           ))}
-                          {!showAllCustomConnectors && custom_connectors.length > 3 && (
+                          {!showAllCustomConnectors && applicationConnectors.length > 3 && (
                             <CommandItem
                               value="view-all-custom"
                               onSelect={() => {
@@ -249,7 +287,7 @@ export default function SelectAppOrModelCard({
                               data-testid="view-all-custom-connectors"
                             >
                               <Check className="mr-2 h-4 w-4 opacity-0" />
-                              View All Custom Connectors ({custom_connectors.length - 3})
+                              View All Custom Connectors ({applicationConnectors.length - 3})
                             </CommandItem>
                           )}
                           {showAllCustomConnectors && (
@@ -455,15 +493,25 @@ export default function SelectAppOrModelCard({
       onSaved={onModelsSaved}
     />
     
-    {/* Edit Custom Application Sheet */}
-    <EditCustomApplicationSheet
-      open={customSheetOpen}
-      onOpenChange={setCustomSheetOpen}
-      editingConfig={editingConfig}
-      modelApps={custom_connectors}
-      configs={configs}
-      onSaved={onConfigsSaved}
-    />
+    {isBedrockEditing ? (
+      <EditBedrockApplicationSheet
+        open={customSheetOpen}
+        onOpenChange={setCustomSheetOpen}
+        editingConfig={editingConfig}
+        modelApps={custom_connectors}
+        configs={configs}
+        onSaved={onConfigsSaved}
+      />
+    ) : (
+      <EditCustomApplicationSheet
+        open={customSheetOpen}
+        onOpenChange={setCustomSheetOpen}
+        editingConfig={editingConfig}
+        modelApps={custom_connectors}
+        configs={configs}
+        onSaved={onConfigsSaved}
+      />
+    )}
   </>
   );
 }

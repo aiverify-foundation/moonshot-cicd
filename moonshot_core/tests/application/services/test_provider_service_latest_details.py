@@ -3,6 +3,7 @@ import pytest
 from datetime import datetime, timezone
 from pathlib import Path
 
+from adapters.connector.aws_bedrock_adapter import AWSBedrockAdapter
 from adapters.connector.openai_adapter import OpenAIAdapter
 from adapters.connector.together_adapter import TogetherAdapter
 from adapters.driven.repository.sqlalchemy.llm_provider_models import (
@@ -15,6 +16,14 @@ from adapters.driven.repository.sqlalchemy.llm_provider_models import (
 )
 from adapters.driven.repository.sqlalchemy.session_manager import SessionManager
 from application.services.provider_service import ProviderService
+from domain.services.feature_flags import FeatureFlags
+
+
+@pytest.fixture(autouse=True)
+def reset_feature_flags():
+    FeatureFlags.reset()
+    yield
+    FeatureFlags.reset()
 
 
 @pytest.fixture(scope="function")
@@ -338,4 +347,24 @@ class TestProviderServiceAdapterDefaults:
         assert details is not None
         assert details.provider.defaultConfigPairs == OpenAIAdapter.DEFAULT_CONFIG_PAIRS
         assert details.provider.defaultModel == OpenAIAdapter.DEFAULT_MODEL
+
+    def test_list_providers_includes_bedrock(self, provider_service: ProviderService):
+        session_manager = SessionManager.get_instance()
+        with session_manager.get_session() as session:
+            session.add(
+                LLMProviderModel(
+                    name=AWSBedrockAdapter.PROVIDER_NAME,
+                    system_name=AWSBedrockAdapter.SYSTEM_NAME,
+                    version=1,
+                )
+            )
+            session.commit()
+
+        rows = provider_service.list_providers()
+
+        by_sys = {p.system_name: p for p in rows}
+        assert AWSBedrockAdapter.SYSTEM_NAME in by_sys
+        bedrock = by_sys[AWSBedrockAdapter.SYSTEM_NAME]
+        assert bedrock.defaultModel == AWSBedrockAdapter.DEFAULT_MODEL
+        assert bedrock.defaultConfigPairs == AWSBedrockAdapter.DEFAULT_CONFIG_PAIRS
 

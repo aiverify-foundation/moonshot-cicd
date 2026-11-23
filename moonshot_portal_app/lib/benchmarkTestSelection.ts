@@ -63,6 +63,20 @@ export function hasAnySelectedTestsInBundle(
   return Object.values(bundleTests).some(Boolean);
 }
 
+/** Selected tests across bundles whose bundle checkbox is on (same identity as checkboxes). */
+export function selectedTestsAcrossSelectedBundles(
+  bundles: Bundle[],
+  testSelection: TestSelectionState,
+  bundleSelection: Record<string, boolean>
+): BundleTest[] {
+  const result: BundleTest[] = [];
+  for (const bundle of bundles) {
+    if (!bundleSelection[bundle.id]) continue;
+    result.push(...selectedTestsInBundle(testSelection, bundle.id, bundle.tests));
+  }
+  return result;
+}
+
 /** Build prompts_by_test for POST /api/start-benchmark-run when using calculated sample size. */
 export function buildPromptsByTest(
   bundles: Bundle[],

@@ -5,6 +5,11 @@ const {
   selectBundleById,
   sidebarBundleLabel,
 } = require('../utils/bundleSelection');
+const {
+  expandModelSelectionCard,
+  selectProviderByName,
+  selectFirstSeededModel,
+} = require('../utils/modelSelection');
 
 async function navigateToBenchmark(page) {
   await page.goto('/');
@@ -96,32 +101,9 @@ async function configureRunPrerequisites(page) {
   await expect(testNameInput).toBeVisible();
   await testNameInput.fill(runName);
 
-  const providerCombobox = page.locator('[data-testid="provider-combobox-trigger"]');
-  await expect(providerCombobox).toBeVisible();
-  await providerCombobox.click();
-  const providerOptions = page.locator('[data-testid^="provider-option-"]');
-  const customOptions = page.locator('[data-testid^="custom-connector-option-"]');
-
-  if (await providerOptions.count()) {
-    await providerOptions.first().click();
-  } else {
-    expect(await customOptions.count()).toBeGreaterThan(0);
-    await customOptions.first().click();
-  }
-
-  await page.waitForTimeout(300);
-  const modelCombobox = page.locator('[data-testid="model-combobox-trigger"]');
-  await expect(modelCombobox).toBeVisible();
-  await modelCombobox.click();
-
-  const modelOptions = page.locator('[data-testid^="model-option-"]');
-  const configOptions = page.locator('[data-testid^="config-option-"]');
-  if (await modelOptions.count()) {
-    await modelOptions.first().click();
-  } else {
-    expect(await configOptions.count()).toBeGreaterThan(0);
-    await configOptions.first().click();
-  }
+  await expandModelSelectionCard(page);
+  await selectProviderByName(page, /OpenAI/i);
+  await selectFirstSeededModel(page);
 
   await expect(page.locator('[data-testid="run-benchmark-tests"]')).toBeEnabled();
 }

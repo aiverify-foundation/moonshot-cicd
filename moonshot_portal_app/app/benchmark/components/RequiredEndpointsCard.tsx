@@ -11,8 +11,8 @@ import {
     AccordionTrigger,
   } from "@/components/ui/accordion"
 import EditLlmAajProviderSheet from './EditLlmAajProviderSheet';
-import { useCheckedTestNames } from '../../../hooks/useTestSelection';
 import { useAppSelector } from '../../../hooks/reduxHooks';
+import { selectedTestsAcrossSelectedBundles } from '../../../lib/benchmarkTestSelection';
 import {
   ApiError,
   Bundle,
@@ -20,6 +20,7 @@ import {
   fetchProviders,
 } from '../../../lib/api';
 import {
+  groupAajTestsByProviderSystemName,
   mapLlmProviderDtoToProvider,
   resolveAajEndpointCardLabel,
 } from '../../../lib/aajProviderResolution';
@@ -172,9 +173,18 @@ export default function RequiredEndpointsCard() {
   >({});
   const [keysLoading, setKeysLoading] = useState(false);
 
-  const selectedTestNames = useCheckedTestNames();
   const bundles = useAppSelector((state) => state.bundles.data) as Bundle[];
+  const testSelection = useAppSelector((state) => state.testSelection);
+  const bundleSelection = useAppSelector((state) => state.bundleSelection);
   const endpointStatuses = useAppSelector((state) => state.endpointStatus) as Record<string, string>;
+
+  const aajTestsByProvider = useMemo(
+    () =>
+      groupAajTestsByProviderSystemName(
+        selectedTestsAcrossSelectedBundles(bundles, testSelection, bundleSelection)
+      ),
+    [bundles, testSelection, bundleSelection]
+  );
 
   useEffect(() => {
     let cancelled = false;
@@ -208,27 +218,15 @@ export default function RequiredEndpointsCard() {
   }, [sheet, apiProviders]);
 
   const systemNamesToFetch = useMemo((): string[] => {
-    const bySystem = new Map<string, Set<string>>();
-    bundles.forEach((bundle) => {
-      bundle.tests.forEach((test) => {
-        if (!selectedTestNames.includes(test.name)) return;
-        if (!test.requires_llm_aaj || !test.metric_provider_system_name?.trim()) return;
-        const sn = test.metric_provider_system_name.trim();
-        if (!bySystem.has(sn)) {
-          bySystem.set(sn, new Set());
-        }
-        bySystem.get(sn)!.add(test.name);
-      });
-    });
     const names: string[] = [];
-    for (const systemName of bySystem.keys()) {
+    for (const systemName of aajTestsByProvider.keys()) {
       const provider = apiProviders.find((p) => p.system_name === systemName);
       if (provider) {
         names.push(systemName);
       }
     }
     return names.sort((a, b) => a.localeCompare(b));
-  }, [bundles, selectedTestNames, apiProviders]);
+  }, [aajTestsByProvider, apiProviders]);
 
   useEffect(() => {
     if (systemNamesToFetch.length === 0) {
@@ -260,21 +258,8 @@ export default function RequiredEndpointsCard() {
   }, [systemNamesToFetch]);
 
   const endpoints = useMemo((): AajEndpointRow[] => {
-    const bySystem = new Map<string, Set<string>>();
-    bundles.forEach((bundle) => {
-      bundle.tests.forEach((test) => {
-        if (!selectedTestNames.includes(test.name)) return;
-        if (!test.requires_llm_aaj || !test.metric_provider_system_name?.trim()) return;
-        const sn = test.metric_provider_system_name.trim();
-        if (!bySystem.has(sn)) {
-          bySystem.set(sn, new Set());
-        }
-        bySystem.get(sn)!.add(test.name);
-      });
-    });
-
     const rows: AajEndpointRow[] = [];
-    for (const [systemName, testSet] of bySystem) {
+    for (const [systemName, testSet] of aajTestsByProvider) {
       const provider = apiProviders.find((p) => p.system_name === systemName);
       const statusKey = aajEndpointStatusKey(systemName);
       const storedStatus = endpointStatuses[statusKey];
@@ -299,7 +284,7 @@ export default function RequiredEndpointsCard() {
     }
     rows.sort((a, b) => a.systemName.localeCompare(b.systemName));
     return rows;
-  }, [bundles, selectedTestNames, apiProviders, endpointStatuses, apiKeyConfiguredBySystem]);
+  }, [aajTestsByProvider, apiProviders, endpointStatuses, apiKeyConfiguredBySystem]);
 
   const overallStatus = useMemo(() => {
     if (endpoints.length === 0) {

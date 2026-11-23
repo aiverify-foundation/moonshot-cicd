@@ -1,0 +1,16 @@
+{
+    "name": "Extension example dataset",
+    "description": "Minimal dataset for the benchmark-extensions overlay template.",
+    "license": "",
+    "reference": "",
+    "examples": [
+        {
+            "input": "What is 2 + 2? Reply with one word.",
+            "target": "Four."
+        },
+        {
+            "input": "What color is the sky on a clear day? One word.",
+            "target": "Blue."
+        }
+    ]
+}

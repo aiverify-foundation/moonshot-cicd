@@ -79,11 +79,14 @@ export default function BenchmarkFooter({
       return { map: undefined } as const;
     }
     try {
-      const perTestSampleSize = calculateSampleSize(
-        parseInt(confidenceLevel, 10),
-        parseInt(marginOfError, 10),
-        parseInt(populationMean, 10) / 100
-      );
+      const perTestSampleSize =
+        sampleSizeMode === 'quick'
+          ? 1
+          : calculateSampleSize(
+              parseInt(confidenceLevel, 10),
+              parseInt(marginOfError, 10),
+              parseInt(populationMean, 10) / 100
+            );
       if (perTestSampleSize < 1) {
         return { error: 'Calculated sample size must be at least 1 prompt per test.' } as const;
       }

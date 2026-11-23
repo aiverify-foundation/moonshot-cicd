@@ -7,6 +7,7 @@ import aiohttp
 from jsonpath_ng.ext import parse
 from jsonpath_ng.exceptions import JsonPathParserError
 
+from adapters.connector.api_failure_dump import dump_api_failure
 from domain.entities.connector_entity import ConnectorEntity
 from domain.entities.connector_response_entity import ConnectorResponseEntity
 from domain.ports.connector_port import ConnectorPort
@@ -26,6 +27,7 @@ DEFAULT_API_BODY = json.dumps(
 )
 DEFAULT_API_SECRET_ENV = "TOGETHER_API_KEY"
 DEFAULT_API_KEY_AUTH_SCHEME = "bearer"
+GOOGLE_GEMINI_API_KEY_HEADER = "x-goog-api-key"
 DEFAULT_RESPONSE_PATH = "choices[0].message.content"
 PROMPT_PLACEHOLDER = "{{prompt}}"
 
@@ -37,8 +39,11 @@ class CustomApiConnectorAdapter(ConnectorPort):
     Configuration is read from ConnectorEntity.params (populated from
     custom_app_config_parameters and custom_app_config_secrets in the DB).
     Supported param keys: api_type, api_url, api_body, response_path, api_key,
-    api_key_auth_scheme, api_key_auth_custom_header, headers (JSON object of extra
-    request headers).
+    api_key_auth_scheme (including ``x_goog_api_key`` for Google Gemini native REST),
+    api_key_auth_custom_header, headers (JSON object of extra request headers).
+
+    For Gemini, use ``x_goog_api_key`` and do not send ``Authorization: Bearer``;
+    duplicate auth headers in ``headers`` are stripped when using ``x_goog_api_key``.
 
     ``response_path`` is a JSONPath expression used to read the model reply from
     the API JSON response (default: ``choices[0].message.content``).
@@ -206,52 +211,153 @@ class CustomApiConnectorAdapter(ConnectorPort):
                 )
                 return None
             return header_name, self.api_secret
+        if scheme == "x_goog_api_key":
+            return GOOGLE_GEMINI_API_KEY_HEADER, self.api_secret
 
         return "Authorization", f"Bearer {self.api_secret}"
 
+    def _filtered_custom_headers(self) -> dict[str, str]:
+        """Drop auth headers from extras when the API key secret supplies auth."""
+        if not self.api_secret:
+            return dict(self._custom_headers)
+
+        scheme = self.api_key_auth_scheme or DEFAULT_API_KEY_AUTH_SCHEME
+        strip_lower = set()
+        auth_header = self._build_auth_header()
+        if auth_header:
+            strip_lower.add(auth_header[0].lower())
+
+        if scheme == "x_goog_api_key":
+            strip_lower.update({"authorization", GOOGLE_GEMINI_API_KEY_HEADER})
+        elif scheme == "custom":
+            custom_name = self.api_key_auth_custom_header.lstrip().lower()
+            if custom_name == GOOGLE_GEMINI_API_KEY_HEADER:
+                strip_lower.add("authorization")
+
+        filtered: dict[str, str] = {}
+        for key, value in self._custom_headers.items():
+            if key.lower() in strip_lower:
+                continue
+            filtered[key] = value
+        return filtered
+
     def _build_request_headers(self) -> dict[str, str]:
         headers = {"Content-Type": "application/json"}
-        headers.update(self._custom_headers)
+        headers.update(self._filtered_custom_headers())
         auth_header = self._build_auth_header()
         if auth_header:
             header_name, header_value = auth_header
             headers[header_name] = header_value
         return headers
 
-    async def probe(self, prompt: Any) -> tuple[int, str]:
+    def _prepare_request(
+        self, prompt: Any
+    ) -> tuple[dict[str, str], dict[str, Any], dict[str, Any]]:
         headers = self._build_request_headers()
         body = self._build_request_body(prompt)
+        request_dump = {
+            "method": self.api_type,
+            "url": self.api_url,
+            "headers": headers,
+            "body": body,
+        }
+        return headers, body, request_dump
+
+    async def probe(self, prompt: Any) -> tuple[int, str]:
+        headers, body, request_dump = self._prepare_request(prompt)
+        adapter_name = type(self).__name__
         logger.info(
             self.INFO_MAKING_REQUEST.format(method=self.api_type, url=self.api_url)
         )
 
-        async with aiohttp.ClientSession() as session:
-            async with session.request(
-                method=self.api_type,
-                url=self.api_url,
-                headers=headers,
-                json=body,
-            ) as response:
-                return response.status, await response.text()
+        try:
+            async with aiohttp.ClientSession() as session:
+                async with session.request(
+                    method=self.api_type,
+                    url=self.api_url,
+                    headers=headers,
+                    json=body,
+                ) as response:
+                    text = await response.text()
+                    status = response.status
+                    if not (200 <= status < 300):
+                        http_error = RuntimeError(f"HTTP {status}")
+                        http_error.status_code = status  # type: ignore[attr-defined]
+                        dump_api_failure(
+                            adapter_name=adapter_name,
+                            request=request_dump,
+                            error=http_error,
+                            extra={
+                                "http_status": status,
+                                "response_body": text,
+                            },
+                        )
+                    return status, text
+        except aiohttp.ClientError as exc:
+            dump_api_failure(
+                adapter_name=adapter_name,
+                request=request_dump,
+                error=exc,
+            )
+            raise
+        except Exception as exc:
+            dump_api_failure(
+                adapter_name=adapter_name,
+                request=request_dump,
+                error=exc,
+            )
+            raise
 
     async def get_response(self, prompt: Any) -> ConnectorResponseEntity:
-        headers = self._build_request_headers()
-        body = self._build_request_body(prompt)
+        headers, body, request_dump = self._prepare_request(prompt)
         logger.info(
             self.INFO_MAKING_REQUEST.format(method=self.api_type, url=self.api_url)
         )
 
-        async with aiohttp.ClientSession() as session:
-            async with session.request(
-                method=self.api_type,
-                url=self.api_url,
-                headers=headers,
-                json=body,
-            ) as response:
-                response.raise_for_status()
-                return ConnectorResponseEntity(
-                    response=await self._process_response(response)
+        try:
+            async with aiohttp.ClientSession() as session:
+                async with session.request(
+                    method=self.api_type,
+                    url=self.api_url,
+                    headers=headers,
+                    json=body,
+                ) as response:
+                    try:
+                        response.raise_for_status()
+                    except aiohttp.ClientResponseError as http_error:
+                        error_text: str | None = None
+                        try:
+                            error_text = await response.text()
+                        except Exception:
+                            pass
+                        dump_api_failure(
+                            adapter_name="CustomApiConnectorAdapter",
+                            request=request_dump,
+                            error=http_error,
+                            extra=(
+                                {"response_body": error_text}
+                                if error_text is not None
+                                else None
+                            ),
+                        )
+                        raise
+                    return ConnectorResponseEntity(
+                        response=await self._process_response(
+                            response, request=request_dump
+                        )
+                    )
+        except aiohttp.ClientResponseError:
+            raise
+        except Exception as e:
+            # _process_response already dumped failures it handled; avoid a
+            # second, poorer record for the same error.
+            if not getattr(e, "_api_failure_dumped", False):
+                dump_api_failure(
+                    adapter_name="CustomApiConnectorAdapter",
+                    request=request_dump,
+                    error=e,
                 )
+            raise
 
     def _extract_response_value(self, json_response: Any) -> str:
         if json_response is None or json_response == "":
@@ -272,13 +378,36 @@ class CustomApiConnectorAdapter(ConnectorPort):
             return value
         return json.dumps(value)
 
-    async def _process_response(self, response: aiohttp.ClientResponse) -> str:
+    async def _process_response(
+        self, response: aiohttp.ClientResponse, request: Any = None
+    ) -> str:
+        # Stage 1: parse the body as JSON. Split from extraction because
+        # json.JSONDecodeError is a ValueError subclass, so a single
+        # ``except ValueError`` would conflate a malformed body with a
+        # response_path miss. Dump here, while the raw body still exists.
         try:
             json_response = await response.json()
-            return self._extract_response_value(json_response)
-        except ValueError:
-            raise
         except Exception as exc:
+            raw_text: str | None = None
+            try:
+                # aiohttp caches the body after the first read, so this is
+                # safe after a failed json() call; guard regardless so a
+                # text() failure cannot mask the original parse error.
+                raw_text = await response.text()
+            except Exception:
+                pass
+            dump_api_failure(
+                adapter_name="CustomApiConnectorAdapter",
+                request=request,
+                error=exc,
+                extra={
+                    "http_status": getattr(response, "status", None),
+                    "response_path": self.response_path,
+                    "content_type": getattr(response, "content_type", None),
+                    "response_text": raw_text,
+                },
+            )
+            self._mark_dumped(exc)
             logger.error(
                 "%s Exception type: %s, Error: %s",
                 self.ERROR_PROCESSING_RESPONSE,
@@ -286,3 +415,29 @@ class CustomApiConnectorAdapter(ConnectorPort):
                 exc,
             )
             raise
+
+        # Stage 2: extract the model reply via the configured JSONPath.
+        try:
+            return self._extract_response_value(json_response)
+        except ValueError as exc:
+            dump_api_failure(
+                adapter_name="CustomApiConnectorAdapter",
+                request=request,
+                error=exc,
+                extra={
+                    "http_status": getattr(response, "status", None),
+                    "response_path": self.response_path,
+                    "content_type": getattr(response, "content_type", None),
+                    "response_json": json_response,
+                },
+            )
+            self._mark_dumped(exc)
+            raise
+
+    @staticmethod
+    def _mark_dumped(exc: BaseException) -> None:
+        """Tag an exception whose failure has already been dumped."""
+        try:
+            setattr(exc, "_api_failure_dumped", True)
+        except Exception:
+            pass
