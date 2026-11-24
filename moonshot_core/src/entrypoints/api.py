@@ -17,7 +17,7 @@ from domain.services.logger import configure_logger
 
 logger = configure_logger(__name__)
 
-from typing import List
+from typing import List, Union
 
 from adapters.driven.repository.sqlalchemy.benchmark_run_test_status_adapter import (
     SqlAlchemyBenchmarkRunTestStatusRepository,
@@ -27,6 +27,10 @@ from adapters.driven.repository.sqlalchemy.dataset_adapter import (
 )
 from adapters.driven.repository.sqlalchemy.sqlalchemy_benchmark_repository import (
     SqlAlchemyBenchmarkRepository,
+)
+from application.dto.adapter_not_found_dto import (
+    adapter_not_found_detail,
+    find_adapter_not_found,
 )
 from application.dto.custom_app_config_dto import (
     CreateCustomAppBody,
@@ -178,6 +182,22 @@ app = FastAPI(
 
 # Comment out this import to disable CORS middleware ( This is used for local development only)
 configure_cors_middleware(app)
+
+
+def _adapter_aware_detail(exc: Exception) -> Union[dict, str]:
+    """
+    HTTP ``detail`` for a service error.
+
+    A missing adapter file gives the structured, path-free ``adapter_not_found`` detail, and the
+    full message (with file paths) is logged instead. Any other error keeps its message.
+    """
+    detail = adapter_not_found_detail(exc)
+    if detail is None:
+        return str(exc)
+    logger.error(
+        "Adapter file not found: %s", find_adapter_not_found(exc), exc_info=exc
+    )
+    return detail
 
 
 def get_build_directory() -> Path:
@@ -348,7 +368,10 @@ async def get_metric_score_result_names(metric_name: str):
     try:
         return metric_score_label_service.get_score_result_names(metric_name)
     except MetricScoreLabelNotFoundError as e:
-        raise HTTPException(status_code=404, detail=str(e))
+        # A missing adapter file gets a structured detail without server paths.
+        raise HTTPException(
+            status_code=404, detail=_adapter_aware_detail(e)
+        )
     except Exception as e:
         logger.error(
             "Error fetching score result names for metric_name=%s: %s",
@@ -907,7 +930,9 @@ async def export_benchmark_run_results(run_id: int) -> Response:
             },
         )
     except BenchmarkRunResultsExportError as e:
-        raise HTTPException(status_code=409, detail=str(e)) from e
+        raise HTTPException(
+            status_code=409, detail=_adapter_aware_detail(e)
+        ) from e
     except HTTPException:
         raise
     except Exception as e:
@@ -982,7 +1007,9 @@ async def regenerate_benchmark_run_test_prompt(
     except BenchmarkRunPromptNotFoundError as e:
         raise HTTPException(status_code=404, detail=str(e)) from e
     except BenchmarkRunPromptRegenerationConflictError as e:
-        raise HTTPException(status_code=409, detail=str(e)) from e
+        raise HTTPException(
+            status_code=409, detail=_adapter_aware_detail(e)
+        ) from e
     except (
         DatabaseConnectorConfigError,
         DatabaseCustomAppConnectorConfigError,
@@ -1060,7 +1087,9 @@ async def regenerate_failed_benchmark_run_prompts(
     except BenchmarkRunPromptNotFoundError as e:
         raise HTTPException(status_code=404, detail=str(e)) from e
     except BenchmarkRunPromptRegenerationConflictError as e:
-        raise HTTPException(status_code=409, detail=str(e)) from e
+        raise HTTPException(
+            status_code=409, detail=_adapter_aware_detail(e)
+        ) from e
     except (
         DatabaseConnectorConfigError,
         DatabaseCustomAppConnectorConfigError,

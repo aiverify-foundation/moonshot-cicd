@@ -25,6 +25,9 @@ class MetricScoreLabelService:
         try:
             adapter_instance, _ = ModuleLoader.load(name, ModuleTypes.METRIC)
         except Exception as exc:
+            # The full cause, including any file paths, is logged here. The message below
+            # is path-free; a missing adapter file is reported to clients through the
+            # chained cause (see adapter_not_found_detail).
             logger.error("Failed to load metric '%s': %s", name, exc)
             raise MetricScoreLabelNotFoundError(
                 f"Metric '{name}' was not found."

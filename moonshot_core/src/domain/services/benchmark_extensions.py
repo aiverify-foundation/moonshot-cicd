@@ -35,6 +35,27 @@ class BenchmarkExtensionError(ValueError):
     """Invalid or conflicting benchmark extension content."""
 
 
+class AdapterNotFoundError(FileNotFoundError):
+    """
+    A metric or connector adapter file that a run needs is not on disk.
+
+    ``str(exc)`` is the full message, including file paths, and is meant for logs. Callers
+    that report to a client use ``module_type`` and ``adapter_name`` instead, so paths on
+    the server are not sent out.
+    """
+
+    def __init__(
+        self,
+        message: str,
+        *,
+        module_type: Optional[ModuleTypes] = None,
+        adapter_name: Optional[str] = None,
+    ) -> None:
+        super().__init__(message)
+        self.module_type = module_type
+        self.adapter_name = adapter_name
+
+
 # Errors that mean "the overlay is unusable". Anything else (for example a broken
 # built-in config) is not an overlay problem and must not be swallowed.
 OVERLAY_ERRORS: tuple[type[BaseException], ...] = (
@@ -515,6 +536,49 @@ def resolve_adapter_module_path(module_type: ModuleTypes, loader_name: str) -> s
             return str(ext_path)
 
     return builtin_path
+
+
+def adapter_not_found_error(
+    module_type: ModuleTypes, loader_name: str
+) -> AdapterNotFoundError:
+    """
+    Build the error for a metric/connector adapter whose file is missing.
+
+    The message names the adapter and every location that was checked, and says when the
+    extensions directory is not in use, so an operator can tell a missing overlay file
+    from an overlay that was never applied.
+    """
+    type_dirname = module_type.name.lower()
+    filename = f"{loader_name}.py"
+    message = (
+        f"{type_dirname} adapter {loader_name!r} not found: no file at "
+        f"{_builtin_adapter_file(type_dirname, filename)}"
+    )
+    extensions_dir = resolve_extensions_dir()
+    if extensions_dir is None:
+        message += (
+            ". The benchmark extensions directory is not in use (flag off, no directory "
+            "configured, or overlay ignored), so only built-in adapters were checked."
+        )
+    else:
+        ext_path = extensions_adapter_dir(extensions_dir, module_type) / filename
+        message += f". The extensions directory was also checked at {ext_path}."
+    return AdapterNotFoundError(
+        message, module_type=module_type, adapter_name=loader_name
+    )
+
+
+def ensure_adapter_available(module_type: ModuleTypes, loader_name: str) -> str:
+    """
+    Return the adapter path that would be loaded, or raise AdapterNotFoundError.
+
+    Existence check only (``os.path.exists``). It does not import the module, so it is
+    meant for preflight checks that run before any database row is changed.
+    """
+    path = resolve_adapter_module_path(module_type, loader_name)
+    if not os.path.exists(path):
+        raise adapter_not_found_error(module_type, loader_name)
+    return path
 
 
 def apply_app_config_extensions(base_config: AppConfigEntity) -> AppConfigEntity:

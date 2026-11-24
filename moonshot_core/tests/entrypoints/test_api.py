@@ -390,6 +390,150 @@ def test_export_benchmark_run_incomplete_returns_409(
     assert "not completed" in response.json()["detail"]
 
 
+_ADAPTER_PATH = "/srv/moonshot/src/adapters/metric/gone_metric.py"
+_ADAPTER_NOT_FOUND_DETAIL = {
+    "code": "adapter_not_found",
+    "message": "The metric adapter 'gone_metric' is not available on the server.",
+    "adapter_type": "metric",
+    "adapter_name": "gone_metric",
+}
+
+
+def _chained_to_missing_adapter(error: Exception) -> Exception:
+    """Chain *error* to an AdapterNotFoundError, as the services do with ``raise ... from``."""
+    from domain.services.benchmark_extensions import AdapterNotFoundError
+    from domain.services.enums.module_types import ModuleTypes
+
+    error.__cause__ = AdapterNotFoundError(
+        f"metric adapter 'gone_metric' not found: no file at {_ADAPTER_PATH}.",
+        module_type=ModuleTypes.METRIC,
+        adapter_name="gone_metric",
+    )
+    return error
+
+
+@patch("entrypoints.api.BenchmarkRunResultsExportService")
+@patch("entrypoints.api.BenchmarkRunService")
+def test_export_benchmark_run_missing_adapter_returns_structured_409(
+    mock_run_service_class, mock_export_service_class
+):
+    """A missing adapter gives a structured 409 detail that has no server path."""
+    from application.services.benchmark_run_results_export_service import (
+        BenchmarkRunResultsExportError,
+    )
+
+    t = datetime.now(timezone.utc)
+    mock_run_service_class.return_value.get_run_by_id.return_value = BenchmarkRunEntity(
+        id=7,
+        name="finished-run",
+        status="completed",
+        endpoint_type="LLM_Provider",
+        start_time=t,
+        end_time=t,
+    )
+    mock_export_service_class.return_value.export_run_json.side_effect = (
+        _chained_to_missing_adapter(
+            BenchmarkRunResultsExportError(
+                f"Benchmark run 'finished-run' cannot be exported: test_id=3. {_ADAPTER_PATH}"
+            )
+        )
+    )
+
+    response = client.get("/api/benchmark-runs/7/export")
+    assert response.status_code == 409
+    assert response.json()["detail"] == _ADAPTER_NOT_FOUND_DETAIL
+    assert _ADAPTER_PATH not in response.text
+
+
+@patch("entrypoints.api.metric_score_label_service")
+def test_metric_score_result_names_missing_adapter_returns_structured_404(mock_service):
+    from application.services.metric_score_label_service import (
+        MetricScoreLabelNotFoundError,
+    )
+
+    mock_service.get_score_result_names.side_effect = _chained_to_missing_adapter(
+        MetricScoreLabelNotFoundError("Metric 'gone_metric' was not found.")
+    )
+
+    response = client.get("/api/metrics/gone_metric/score-result-names")
+    assert response.status_code == 404
+    assert response.json()["detail"] == _ADAPTER_NOT_FOUND_DETAIL
+    assert _ADAPTER_PATH not in response.text
+
+
+@patch("entrypoints.api.logger")
+@patch("entrypoints.api.BenchmarkRunPromptRegenerationService")
+@patch("entrypoints.api.FeatureFlags")
+def test_missing_adapter_full_message_is_logged_not_returned(
+    mock_feature_flags_class, mock_regen_service_class, mock_logger
+):
+    from application.services.benchmark_run_prompt_regeneration_service import (
+        BenchmarkRunPromptRegenerationConflictError,
+    )
+
+    mock_feature_flags_class.return_value.is_enabled.return_value = True
+    mock_regen_service_class.return_value.regenerate = AsyncMock(
+        side_effect=_chained_to_missing_adapter(
+            BenchmarkRunPromptRegenerationConflictError("Cannot regenerate")
+        )
+    )
+
+    response = client.post("/api/benchmark-run-test-prompts/42/regenerate")
+
+    assert response.status_code == 409
+    assert _ADAPTER_PATH not in response.text
+    mock_logger.error.assert_called_once()
+    assert _ADAPTER_PATH in str(mock_logger.error.call_args)
+
+
+@patch("entrypoints.api.BenchmarkRunPromptRegenerationService")
+@patch("entrypoints.api.FeatureFlags")
+def test_regenerate_prompt_missing_adapter_returns_structured_409(
+    mock_feature_flags_class, mock_regen_service_class
+):
+    from application.services.benchmark_run_prompt_regeneration_service import (
+        BenchmarkRunPromptRegenerationConflictError,
+    )
+
+    mock_feature_flags_class.return_value.is_enabled.return_value = True
+    mock_regen_service_class.return_value.regenerate = AsyncMock(
+        side_effect=_chained_to_missing_adapter(
+            BenchmarkRunPromptRegenerationConflictError(
+                f"Cannot regenerate: no file at {_ADAPTER_PATH}"
+            )
+        )
+    )
+
+    response = client.post("/api/benchmark-run-test-prompts/42/regenerate")
+    assert response.status_code == 409
+    assert response.json()["detail"] == _ADAPTER_NOT_FOUND_DETAIL
+    assert _ADAPTER_PATH not in response.text
+
+
+@patch("entrypoints.api.BenchmarkRunPromptRegenerationService")
+@patch("entrypoints.api.FeatureFlags")
+def test_regenerate_failed_prompts_missing_adapter_returns_structured_409(
+    mock_feature_flags_class, mock_regen_service_class
+):
+    from application.services.benchmark_run_prompt_regeneration_service import (
+        BenchmarkRunPromptRegenerationConflictError,
+    )
+
+    mock_feature_flags_class.return_value.is_enabled.return_value = True
+    mock_regen_service_class.return_value.prepare_regenerate_failed_for_run.side_effect = (
+        _chained_to_missing_adapter(
+            BenchmarkRunPromptRegenerationConflictError(
+                f"Cannot regenerate: no file at {_ADAPTER_PATH}"
+            )
+        )
+    )
+
+    response = client.post("/api/benchmark-runs/12/regenerate-failed-prompts")
+    assert response.status_code == 409
+    assert response.json()["detail"] == _ADAPTER_NOT_FOUND_DETAIL
+    assert _ADAPTER_PATH not in response.text
+
+
 @patch("entrypoints.api.get_build_directory")
 def test_static_files_with_referer(mock_get_build_dir):
     """Test that static files are served when accessed with proper referer header."""

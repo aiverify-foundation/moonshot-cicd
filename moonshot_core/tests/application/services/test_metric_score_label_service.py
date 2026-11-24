@@ -12,6 +12,8 @@ from application.services.metric_score_label_service import (
     MetricScoreLabelService,
 )
 from domain.ports.metric_port import MetricPort
+from domain.services.benchmark_extensions import AdapterNotFoundError
+from domain.services.enums.module_types import ModuleTypes
 
 
 class _FakeMetric(MetricPort):
@@ -128,3 +130,25 @@ def test_load_failure_raises_not_found(monkeypatch, service):
 def test_empty_metric_name_raises(service):
     with pytest.raises(MetricScoreLabelNotFoundError, match="required"):
         service.get_score_result_names("  ")
+
+
+def test_missing_adapter_keeps_cause_and_message_has_no_path(monkeypatch, service):
+    cause = AdapterNotFoundError(
+        "metric adapter 'gone_metric' not found: no file at /tmp/gone_metric.py.",
+        module_type=ModuleTypes.METRIC,
+        adapter_name="gone_metric",
+    )
+
+    def mock_load(name, module_type):
+        raise cause
+
+    monkeypatch.setattr(
+        "application.services.metric_score_label_service.ModuleLoader.load",
+        mock_load,
+    )
+
+    with pytest.raises(MetricScoreLabelNotFoundError) as excinfo:
+        service.get_score_result_names("gone_metric")
+    # The message is path-free; the API reads the adapter details from the cause.
+    assert "/tmp" not in str(excinfo.value)
+    assert excinfo.value.__cause__ is cause

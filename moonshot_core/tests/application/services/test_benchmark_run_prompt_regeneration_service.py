@@ -64,6 +64,29 @@ def _status(
     )
 
 
+def _connector() -> MagicMock:
+    connector = MagicMock(spec=ConnectorEntity)
+    connector.connector_adapter = "openai_adapter"
+    return connector
+
+
+def _stub_adapter_preflight(
+    monkeypatch, metric_name: str = "ailuminate_safety_classifier_adapter"
+) -> None:
+    """Stub the test-config and connector lookups used by the adapter preflight."""
+    module = "application.services.benchmark_run_prompt_regeneration_service."
+    test_config = MagicMock()
+    test_config.return_value.get_test_info.return_value = (
+        "Safety",
+        "ds",
+        metric_name,
+    )
+    connector_service = MagicMock()
+    connector_service.return_value.build_connector_entity.return_value = _connector()
+    monkeypatch.setattr(module + "BenchmarkTestConfigAdapter", test_config)
+    monkeypatch.setattr(module + "DatabaseConnectorConfigService", connector_service)
+
+
 def _run(*, status: str = "completed") -> BenchmarkRunEntity:
     return BenchmarkRunEntity(
         id=1,
@@ -139,7 +162,7 @@ async def test_regenerate_success_updates_and_returns_dto(
         "ds",
         "ailuminate_safety_classifier_adapter",
     )
-    connector = MagicMock(spec=ConnectorEntity)
+    connector = _connector()
     mock_connector_service_class.return_value.build_connector_entity.return_value = (
         connector
     )
@@ -287,7 +310,7 @@ async def test_regenerate_allows_when_target_prompt_already_running(
         "ailuminate_safety_classifier_adapter",
     )
     mock_connector_service_class.return_value.build_connector_entity.return_value = (
-        MagicMock(spec=ConnectorEntity)
+        _connector()
     )
     mock_processor = MagicMock()
     mock_processor.process_prompts = AsyncMock(return_value=([], {}))
@@ -367,7 +390,7 @@ async def test_regenerate_allows_when_sibling_prompt_running(
         "ailuminate_safety_classifier_adapter",
     )
     mock_connector_service_class.return_value.build_connector_entity.return_value = (
-        MagicMock(spec=ConnectorEntity)
+        _connector()
     )
     mock_processor = MagicMock()
     mock_processor.process_prompts = AsyncMock(return_value=([], {}))
@@ -413,7 +436,9 @@ def test_prepare_regenerate_failed_marks_run_and_prompts_running(
     mock_run_service_class,
     mock_prompt_service_class,
     service,
+    monkeypatch,
 ):
+    _stub_adapter_preflight(monkeypatch)
     errored_a = _prompt(prompt_id=1, run_test_id=7, status="error")
     errored_b = _prompt(prompt_id=2, run_test_id=8, status="error")
     completed = _prompt(prompt_id=3, run_test_id=7, status="completed")
@@ -524,7 +549,9 @@ def test_prepare_regenerate_failed_includes_unknown_evaluation(
     mock_run_service_class,
     mock_prompt_service_class,
     service,
+    monkeypatch,
 ):
+    _stub_adapter_preflight(monkeypatch)
     unknown = _prompt(
         prompt_id=1, run_test_id=7, status="completed", evaluated_response="unknown"
     )
@@ -686,7 +713,7 @@ async def test_regenerate_failed_for_run_groups_and_refreshes_once(
         "ailuminate_safety_classifier_adapter",
     )
     mock_connector_service_class.return_value.build_connector_entity.return_value = (
-        MagicMock(spec=ConnectorEntity)
+        _connector()
     )
     mock_processor = MagicMock()
     mock_processor.process_prompts = AsyncMock(return_value=([], {}))
@@ -748,3 +775,83 @@ def test_get_regenerate_failed_progress_counts_done(
     assert progress.total == 3
     assert progress.done == 2
     assert progress.failed == 1
+
+
+@pytest.mark.asyncio
+async def test_regenerate_missing_metric_adapter_conflicts_before_row_changes(
+    monkeypatch, service
+):
+    module = "application.services.benchmark_run_prompt_regeneration_service."
+    entity = _prompt()
+    prompt_repo = MagicMock()
+    prompt_repo.get_by_id.return_value = entity
+    status_repo = MagicMock()
+    status_repo.get_by_id.return_value = _status()
+    run_service = MagicMock()
+    run_service.get_run_by_id.return_value = _run()
+    processor = MagicMock()
+    processor.process_prompts = AsyncMock()
+
+    monkeypatch.setattr(
+        module + "SqlAlchemyBenchmarkRunTestPromptRepository",
+        MagicMock(return_value=prompt_repo),
+    )
+    monkeypatch.setattr(
+        module + "SqlAlchemyBenchmarkRunTestStatusRepository",
+        MagicMock(return_value=status_repo),
+    )
+    monkeypatch.setattr(module + "BenchmarkRunService", MagicMock(return_value=run_service))
+    monkeypatch.setattr(module + "AsyncioPromptProcessor", MagicMock(return_value=processor))
+    _stub_adapter_preflight(monkeypatch, metric_name="no_such_metric_adapter_for_regen")
+
+    with pytest.raises(
+        BenchmarkRunPromptRegenerationConflictError,
+        match="no_such_metric_adapter_for_regen",
+    ):
+        await service.regenerate(42)
+
+    assert entity.status == "completed"
+    prompt_repo.update.assert_not_called()
+    processor.process_prompts.assert_not_called()
+
+
+def test_prepare_regenerate_failed_missing_metric_adapter_leaves_rows_unchanged(
+    monkeypatch, service
+):
+    module = "application.services.benchmark_run_prompt_regeneration_service."
+    errored = _prompt(prompt_id=1, run_test_id=7, status="error")
+    prompt_repo = MagicMock()
+    prompt_repo.get_all_by_run_test_id.return_value = [errored]
+    prompt_repo.update.side_effect = lambda e: e
+    status_repo = MagicMock()
+    status_repo.get_all_by_run_id.return_value = [
+        _status(status_id=7, test_id=99, status="completed_with_errors")
+    ]
+    prompt_service = MagicMock()
+    prompt_service.get_all_prompts_by_run_id.return_value = [errored]
+    run_service = MagicMock()
+    run_service.get_run_by_id.return_value = _run()
+
+    monkeypatch.setattr(
+        module + "SqlAlchemyBenchmarkRunTestPromptRepository",
+        MagicMock(return_value=prompt_repo),
+    )
+    monkeypatch.setattr(
+        module + "SqlAlchemyBenchmarkRunTestStatusRepository",
+        MagicMock(return_value=status_repo),
+    )
+    monkeypatch.setattr(module + "BenchmarkRunService", MagicMock(return_value=run_service))
+    monkeypatch.setattr(
+        module + "BenchmarkRunPromptService", MagicMock(return_value=prompt_service)
+    )
+    _stub_adapter_preflight(monkeypatch, metric_name="no_such_metric_adapter_for_bulk")
+
+    with pytest.raises(
+        BenchmarkRunPromptRegenerationConflictError,
+        match="no_such_metric_adapter_for_bulk",
+    ):
+        service.prepare_regenerate_failed_for_run(1)
+
+    assert errored.status == "error"
+    prompt_repo.update.assert_not_called()
+    assert service.get_regenerate_failed_progress(1).status == "idle"

@@ -65,13 +65,33 @@ export interface MetricScoreResultNames {
   result_pass: string;
   /** Label for score 0 (RESULT_FAIL), e.g. "unsafe" or "False". */
   result_fail: string;
+  /**
+   * Set client-side (never by the API) when the metric adapter file is missing on the server,
+   * so the labels above are the MetricPort defaults rather than the metric's own.
+   */
+  adapter_missing?: boolean;
+}
+
+/** Error code the API uses when an adapter file is gone (see AdapterNotFoundDetailDTO). */
+export const ADAPTER_NOT_FOUND_CODE = 'adapter_not_found';
+
+/** Structured `detail` the API returns when a metric or connector adapter file is missing. */
+export interface AdapterNotFoundInfo {
+  code: typeof ADAPTER_NOT_FOUND_CODE;
+  message: string;
+  adapter_type: string;
+  adapter_name: string;
 }
 
 export class ApiError extends Error {
   constructor(
     message: string,
     public status?: number,
-    public statusText?: string
+    public statusText?: string,
+    /** Machine-readable error code, e.g. `adapter_not_found`. */
+    public code?: string,
+    /** Set when `code` is `adapter_not_found`. */
+    public adapter?: { type: string; name: string }
   ) {
     super(message);
     this.name = 'ApiError';
@@ -156,6 +176,13 @@ export async function fetchMetricScoreResultNames(
     );
 
     if (!response.ok) {
+      if (response.status === 404) {
+        // The body may be absent or not JSON (older API); only the structured code matters here.
+        const errorText = await response.text().catch(() => '');
+        if (parseAdapterNotFound(errorText)) {
+          return { ...defaults, adapter_missing: true };
+        }
+      }
       return defaults;
     }
 
@@ -385,15 +412,83 @@ function parseErrorDetail(errorText: string): string {
   try {
     const parsed = JSON.parse(errorText) as { detail?: string | unknown };
     if (parsed?.detail != null) {
-      detail =
-        typeof parsed.detail === 'string'
-          ? parsed.detail
-          : JSON.stringify(parsed.detail);
+      if (typeof parsed.detail === 'string') {
+        detail = parsed.detail;
+      } else if (
+        typeof parsed.detail === 'object' &&
+        typeof (parsed.detail as { message?: unknown }).message === 'string'
+      ) {
+        detail = (parsed.detail as { message: string }).message;
+      } else {
+        detail = JSON.stringify(parsed.detail);
+      }
     }
   } catch {
     /* use raw errorText */
   }
   return detail;
+}
+
+/**
+ * Returns the structured adapter-not-found detail from an API error body, or null
+ * when the body is not that error (plain-string detail, other JSON, or not JSON).
+ */
+export function parseAdapterNotFound(errorText: string): AdapterNotFoundInfo | null {
+  try {
+    const detail = (JSON.parse(errorText) as { detail?: unknown })?.detail as
+      | Partial<AdapterNotFoundInfo>
+      | null
+      | undefined;
+    if (
+      detail &&
+      typeof detail === 'object' &&
+      detail.code === ADAPTER_NOT_FOUND_CODE &&
+      typeof detail.adapter_type === 'string' &&
+      typeof detail.adapter_name === 'string'
+    ) {
+      return detail as AdapterNotFoundInfo;
+    }
+  } catch {
+    /* not JSON */
+  }
+  return null;
+}
+
+/**
+ * User-facing text for a missing adapter. `action` completes "so ... is unavailable",
+ * for example "exporting results".
+ */
+export function adapterNotFoundMessage(
+  info: Pick<AdapterNotFoundInfo, 'adapter_type' | 'adapter_name'>,
+  action: string
+): string {
+  return (
+    `The ${info.adapter_type} adapter "${info.adapter_name}" used by this run is no longer ` +
+    `installed on the server, so ${action} is unavailable. Ask an administrator to restore it.`
+  );
+}
+
+/**
+ * Builds the ApiError for a failed response. A structured adapter-not-found body gets a
+ * friendly message and `code: 'adapter_not_found'`; anything else keeps `fallbackMessage`.
+ */
+function buildApiError(
+  response: Response,
+  errorText: string,
+  fallbackMessage: string,
+  adapterAction: string
+): ApiError {
+  const adapter = parseAdapterNotFound(errorText);
+  if (adapter) {
+    return new ApiError(
+      adapterNotFoundMessage(adapter, adapterAction),
+      response.status,
+      response.statusText,
+      ADAPTER_NOT_FOUND_CODE,
+      { type: adapter.adapter_type, name: adapter.adapter_name }
+    );
+  }
+  return new ApiError(fallbackMessage, response.status, response.statusText);
 }
 
 function handleConnectError(error: unknown, label: string): never {
@@ -904,10 +999,11 @@ export async function downloadBenchmarkRunResults(
     if (!response.ok) {
       const errorText = await response.text().catch(() => 'Unknown error');
       const detail = parseErrorDetail(errorText);
-      throw new ApiError(
+      throw buildApiError(
+        response,
+        errorText,
         detail || `Failed to download run results: ${response.statusText} (${response.status})`,
-        response.status,
-        response.statusText
+        'exporting results'
       );
     }
 
@@ -981,10 +1077,11 @@ export async function regenerateBenchmarkRunPrompt(
       const errorText = await response.text().catch(() => 'Unknown error');
       console.error(`API Error: ${response.status} - ${errorText}`);
       const detail = parseErrorDetail(errorText);
-      throw new ApiError(
+      throw buildApiError(
+        response,
+        errorText,
         `Failed to regenerate prompt: ${detail}`,
-        response.status,
-        response.statusText
+        're-running this prompt'
       );
     }
     return response.json() as Promise<BenchmarkRunTestPrompt>;
@@ -1036,10 +1133,11 @@ export async function startRegenerateFailedBenchmarkRunPrompts(
       const errorText = await response.text().catch(() => 'Unknown error');
       console.error(`API Error: ${response.status} - ${errorText}`);
       const detail = parseErrorDetail(errorText);
-      throw new ApiError(
+      throw buildApiError(
+        response,
+        errorText,
         `Failed to start regenerating failed prompts: ${detail}`,
-        response.status,
-        response.statusText
+        're-running failed prompts'
       );
     }
     return response.json() as Promise<StartRegenerateFailedPromptsResponse>;

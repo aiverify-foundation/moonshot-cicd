@@ -59,6 +59,11 @@ from domain.entities.benchmark_run_test_status_entity import (
 )
 from domain.entities.prompt_entity import PromptEntity
 from domain.ports.metric_port import MetricPort
+from domain.services.benchmark_extensions import (
+    AdapterNotFoundError,
+    ensure_adapter_available,
+)
+from domain.services.enums.module_types import ModuleTypes
 from domain.services.logger import configure_logger
 
 logger = configure_logger(__name__)
@@ -166,6 +171,7 @@ class BenchmarkRunPromptRegenerationService:
             )
 
         connector_entity = self._build_connector_entity(run)
+        self._assert_adapters_available([metric_name], connector_entity)
 
         entity.status = "running"
         entity.prediction_result = None
@@ -265,6 +271,20 @@ class BenchmarkRunPromptRegenerationService:
 
         self._assert_bulk_not_conflicting(
             targets, statuses_by_id, prompt_repo, target_ids
+        )
+
+        # Check adapters before any target row is marked running.
+        config_adapter = BenchmarkTestConfigAdapter()
+        metric_names: set[str] = set()
+        for run_test_id in {p.run_test_id for p in targets}:
+            status_entity = statuses_by_id.get(run_test_id)
+            if status_entity is None:
+                continue
+            _, _, metric_name = config_adapter.get_test_info(status_entity.test_id)
+            if metric_name:
+                metric_names.add(metric_name)
+        self._assert_adapters_available(
+            sorted(metric_names), self._build_connector_entity(run)
         )
 
         for entity in targets:
@@ -544,6 +564,25 @@ class BenchmarkRunPromptRegenerationService:
                 raise BenchmarkRunPromptRegenerationConflictError(
                     "Cannot regenerate while another prompt in this test is running."
                 )
+
+    @staticmethod
+    def _assert_adapters_available(metric_names: list[str], connector_entity) -> None:
+        """
+        Raise a conflict error when a metric or the connector adapter file is missing.
+
+        Runs before any prompt row is changed, so a missing adapter leaves the rows as they
+        were. The API maps this conflict to HTTP 409.
+        """
+        try:
+            ensure_adapter_available(
+                ModuleTypes.CONNECTOR, connector_entity.connector_adapter
+            )
+            for metric_name in metric_names:
+                ensure_adapter_available(ModuleTypes.METRIC, metric_name)
+        except AdapterNotFoundError as exc:
+            raise BenchmarkRunPromptRegenerationConflictError(
+                f"Cannot regenerate: {exc}"
+            ) from exc
 
     @staticmethod
     def _assert_not_conflicting(

@@ -540,6 +540,8 @@ export default function TestResultBundle({
         score1Label: string
         score0Label: string
     }>({ ...DEFAULT_POLARITY_LABELS })
+    // Name of the metric whose adapter file is gone from the server (labels fell back to defaults).
+    const [missingMetricAdapter, setMissingMetricAdapter] = useState<string | null>(null)
 
     const tableDataRef = useRef<TestResultTableRow[]>([])
     const noteDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
@@ -616,6 +618,7 @@ export default function TestResultBundle({
     useEffect(() => {
         let cancelled = false
 
+        setMissingMetricAdapter(null)
         if (!singleMetricName) {
             setPolarityLabels({ ...DEFAULT_POLARITY_LABELS })
             return
@@ -625,6 +628,7 @@ export default function TestResultBundle({
         fetchMetricScoreResultNames(singleMetricName).then((dto) => {
             if (!cancelled) {
                 setPolarityLabels(polarityLabelsFromMetricScoreNames(dto))
+                setMissingMetricAdapter(dto.adapter_missing ? singleMetricName : null)
             }
         })
 
@@ -754,6 +758,17 @@ export default function TestResultBundle({
                     falseToTruePercentage={falseToTruePercentage}
                 />
             </div>
+            {missingMetricAdapter ? (
+                <div
+                    role="status"
+                    className="w-full rounded-md border border-amber-300 bg-amber-50 px-3 py-2 text-sm text-amber-950"
+                    data-testid="metric-adapter-missing-notice"
+                >
+                    The metric adapter &quot;{missingMetricAdapter}&quot; is no longer installed on
+                    the server, so the verdict labels show the default True / False instead of the
+                    metric&apos;s own labels. Ask an administrator to restore the adapter.
+                </div>
+            ) : null}
             {showMarginDebug ? (
                 <div
                     className="w-full rounded-md border border-amber-300 bg-amber-50 px-2 py-1 font-mono text-[10px] leading-snug text-amber-950"

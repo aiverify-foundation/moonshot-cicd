@@ -34,6 +34,7 @@ from domain.entities.benchmark_run_test_status_entity import (
 from domain.entities.connector_entity import ConnectorEntity
 from domain.entities.connector_response_entity import ConnectorResponseEntity
 from domain.entities.metric_individual_entity import MetricIndividualEntity
+from domain.services.benchmark_extensions import AdapterNotFoundError
 from domain.services.enums.module_types import ModuleTypes
 from domain.services.ga_results_formatter import (
     add_timing_to_metadata,
@@ -89,13 +90,19 @@ class BenchmarkRunResultsExportService:
         for status in sorted(statuses, key=lambda s: s.id or 0):
             if status.id is None:
                 continue
-            entry = self._build_run_result_entry(
-                status=status,
-                prompts=prompts_by_run_test.get(status.id, []),
-                base_connector=base_connector,
-                config_adapter=config_adapter,
-                redact_secrets=redact_secrets,
-            )
+            try:
+                entry = self._build_run_result_entry(
+                    status=status,
+                    prompts=prompts_by_run_test.get(status.id, []),
+                    base_connector=base_connector,
+                    config_adapter=config_adapter,
+                    redact_secrets=redact_secrets,
+                )
+            except AdapterNotFoundError as exc:
+                raise BenchmarkRunResultsExportError(
+                    f"Benchmark run {run_entity.name!r} cannot be exported: "
+                    f"test_id={status.test_id}. {exc}"
+                ) from exc
             run_results.append(entry)
 
         run_results.sort(key=lambda item: item["metadata"]["test_name"])

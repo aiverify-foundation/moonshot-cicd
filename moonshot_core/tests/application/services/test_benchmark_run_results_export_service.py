@@ -17,6 +17,7 @@ from domain.entities.benchmark_run_test_status_entity import (
     BenchmarkRunTestStatusEntity,
 )
 from domain.entities.connector_entity import ConnectorEntity
+from domain.services.benchmark_extensions import AdapterNotFoundError
 
 
 def _evaluated_result(prompt: str, response: str, category: str = "safe") -> str:
@@ -422,3 +423,69 @@ class TestExportRun:
         assert len(all_results) == 2
         states = {row["state"] for row in all_results}
         assert states == {"completed", "error"}
+
+
+def _class_returning(instance):
+    """Mock class whose call returns *instance* (for patching service collaborators)."""
+    return MagicMock(return_value=instance)
+
+
+def test_export_names_run_and_test_when_metric_adapter_is_missing(monkeypatch, service):
+    """A metric adapter file removed after a run must give a clear export error."""
+    module = "application.services.benchmark_run_results_export_service."
+    run = _completed_run()
+    status = BenchmarkRunTestStatusEntity(
+        id=100,
+        run_id=1,
+        test_id=20,
+        status="completed",
+        start_dt=run.start_time,
+        end_dt=run.end_time,
+    )
+    run_service = MagicMock()
+    run_service.get_run_by_id.return_value = run
+    status_repo = MagicMock()
+    status_repo.get_all_by_run_id.return_value = [status]
+    prompt_service = MagicMock()
+    prompt_service.get_all_prompts_by_run_id.return_value = [
+        _prompt_row(run_test_id=100, prompt_id=1, prompt="p", response="r")
+    ]
+    test_config = MagicMock()
+    test_config.get_test_info.return_value = (
+        "Missing metric test",
+        "dataset-one",
+        "no_such_metric_adapter_for_export",
+    )
+    connector_service = MagicMock()
+    connector_service.build_connector_entity.return_value = ConnectorEntity(
+        connector_adapter="openai_adapter",
+        model="gpt-4o-mini",
+        model_endpoint="",
+        params={},
+    )
+
+    monkeypatch.setattr(module + "BenchmarkRunService", _class_returning(run_service))
+    monkeypatch.setattr(
+        module + "SqlAlchemyBenchmarkRunTestStatusRepository", _class_returning(status_repo)
+    )
+    monkeypatch.setattr(
+        module + "BenchmarkRunPromptService", _class_returning(prompt_service)
+    )
+    monkeypatch.setattr(module + "BenchmarkTestConfigAdapter", _class_returning(test_config))
+    monkeypatch.setattr(
+        module + "DatabaseConnectorConfigService", _class_returning(connector_service)
+    )
+    monkeypatch.setattr(
+        BenchmarkRunResultsExportService,
+        "_get_test_type",
+        staticmethod(lambda test_id: "benchmark"),
+    )
+
+    with pytest.raises(BenchmarkRunResultsExportError) as excinfo:
+        service.export_run(1)
+
+    message = str(excinfo.value)
+    assert "my-sample-run-3" in message
+    assert "test_id=20" in message
+    assert "no_such_metric_adapter_for_export" in message
+    assert isinstance(excinfo.value.__cause__, AdapterNotFoundError)

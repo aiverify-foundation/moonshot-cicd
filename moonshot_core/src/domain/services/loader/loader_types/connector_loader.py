@@ -1,8 +1,12 @@
+import os
 from typing import Tuple
 
 from domain.ports.connector_port import ConnectorPort
 from domain.ports.storage_provider_port import StorageProviderPort
-from domain.services.benchmark_extensions import resolve_adapter_module_path
+from domain.services.benchmark_extensions import (
+    adapter_not_found_error,
+    resolve_adapter_module_path,
+)
 from domain.services.enums.module_types import ModuleTypes
 from domain.services.loader.factory.storage_provider_factory import (
     StorageProviderFactory,
@@ -61,9 +65,10 @@ class ConnectorLoader(Loader):
             )
 
             # Check if the current storage adapter is the fallback adapter
-            if isinstance(
+            is_local_fallback = isinstance(
                 self.storage_adapter, StorageProviderFactory._fallback_adapter
-            ):
+            )
+            if is_local_fallback:
                 # Prefer an extension adapter, then the built-in connector module.
                 complete_path = resolve_adapter_module_path(
                     ModuleTypes.CONNECTOR, loader_name
@@ -72,9 +77,15 @@ class ConnectorLoader(Loader):
                 complete_path = f"{loader_name}.py"
 
             # Use the storage adapter to load the module
-            return self.storage_adapter.load_module(
-                loader_name, ModuleTypes.CONNECTOR, complete_path
-            )
+            try:
+                return self.storage_adapter.load_module(
+                    loader_name, ModuleTypes.CONNECTOR, complete_path
+                )
+            except FileNotFoundError as e:
+                # Only a missing adapter file is reported as AdapterNotFoundError.
+                if not is_local_fallback or os.path.exists(complete_path):
+                    raise
+                raise adapter_not_found_error(ModuleTypes.CONNECTOR, loader_name) from e
         except Exception as e:
             # Log the error if loading fails
             logger.error(
