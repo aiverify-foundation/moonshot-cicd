@@ -496,7 +496,7 @@ export default function TestResultTable({
                                         </p>
                                     </div>
                                 </TableCell>
-                                <TableCell className="px-0 py-2 align-top">
+                                {/* <TableCell className="px-0 py-2 align-top">
                                     <div className="flex gap-1.5 items-start">
                                         <div
                                             className={`inline-flex items-center justify-center px-1 py-1 rounded-[6px] border ${
@@ -516,7 +516,34 @@ export default function TestResultTable({
                                             </p>
                                         </div>
                                     </div>
+                                </TableCell> */}
+                                <TableCell className="px-0 py-2 align-top">
+                                    <div
+                                        className={`w-[150px] h-[116px] overflow-y-auto rounded-[6px] border px-1 py-1 ${
+                                            row.score === 1
+                                                ? "bg-green-100 border-green-200"
+                                                : "bg-red-100 border-red-200"
+                                        }`}
+                                    >
+                                        <p
+                                            className={`font-semibold text-[12px] leading-normal whitespace-pre-wrap break-words ${
+                                                row.score === 1 ? "text-green-800" : "text-red-800"
+                                            }`}
+                                        >
+                                            {evaluationDisplayLabelById.get(row.id)!}
+                                        </p>
+                                    </div>
                                 </TableCell>
+
+                                {/* <TableCell className="px-0 py-2 align-top">
+                                    <div
+                                    className="w-[90px] h-[116px] overflow-y-auto rounded-[6px] border bg-green-100 border-green-200 px-1 py-1"
+                                    >
+                                    <p className="font-semibold text-[12px] leading-normal whitespace-pre-wrap break-words text-green-800">
+                                        {evaluationDisplayLabelById.get(row.id)!}
+                                    </p>
+                                    </div>
+                                </TableCell> */}
                                 <TableCell className="px-0 py-2 align-top">
                                     <div className="flex flex-col items-start">
                                         <ToggleGroup
