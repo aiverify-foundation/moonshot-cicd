@@ -87,11 +87,13 @@ class AppConfig:
         """
         config_path = os.getenv(self.CONFIG_PATH_ENV_VAR, self.DEFAULT_CONFIG_PATH)
         try:
+            from domain.services.benchmark_extensions import apply_app_config_extensions
             from domain.services.enums.file_types import FileTypes
             from domain.services.loader.file_loader import FileLoader
 
-            # Load the configuration file
+            # Load the configuration file, then merge an optional extension overlay.
             self._config = FileLoader.load(config_path, FileTypes.CONFIG)
+            self._config = apply_app_config_extensions(self._config)
             logger.info(self.LOG_CONFIG_LOADED.format(config_path=config_path))
 
         except FileNotFoundError:

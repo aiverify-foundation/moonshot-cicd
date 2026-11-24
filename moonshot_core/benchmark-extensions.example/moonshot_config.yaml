@@ -1,0 +1,7 @@
+---
+# Optional fragment merged into the image moonshot_config.yaml.
+# Connector ids must not duplicate built-in ids.
+connectors_configurations:
+  - id: benchmark-extension-openai
+    connector_adapter: benchmark_extension_openai_adapter
+    model: gpt-4o-mini

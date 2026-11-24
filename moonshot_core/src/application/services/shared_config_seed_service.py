@@ -128,30 +128,59 @@ class SharedConfigSeedService:
         if extensions_dir is None:
             return base
 
-        benchmark_extensions.validate_extension_dataset_ids(
-            extensions_dir,
-            get_application_root_path() / benchmark_extensions.BUILTIN_DATASETS_REL,
+        builtin_datasets_dir = (
+            get_application_root_path() / benchmark_extensions.BUILTIN_DATASETS_REL
         )
-
         ext_path = benchmark_extensions.extensions_shared_config_path(extensions_dir)
-        if not ext_path.is_file():
+        try:
+            benchmark_extensions.validate_extension_dataset_ids(
+                extensions_dir, builtin_datasets_dir
+            )
+            if not ext_path.is_file():
+                return base
+
+            overlay = benchmark_extensions.load_yaml_dict(ext_path)
+            merged = benchmark_extensions.merge_shared_config(base, overlay)
+            benchmark_extensions.validate_overlay_bundles(
+                overlay, extensions_dir, builtin_datasets_dir
+            )
+        except benchmark_extensions.OVERLAY_ERRORS as exc:
+            # Drop the whole overlay (config, datasets, adapters too) and seed the
+            # built-in bundles only. Errors in the built-in config are not caught here.
+            benchmark_extensions.mark_extensions_invalid(
+                extensions_dir,
+                f"shared.yaml overlay is unusable: {exc}",
+            )
             return base
 
-        overlay = benchmark_extensions.load_yaml_dict(ext_path)
         self.logger.info("Merging benchmark extension shared config from %s", ext_path)
-        return benchmark_extensions.merge_shared_config(base, overlay)
+        return merged
+
+    def _validate_overlay_before_skip(self, path: Path) -> None:
+        """Decide overlay validity before the skip checks, so it is the same every start.
+
+        The skip checks return early when nothing changed, which would otherwise leave
+        an unchanged-but-invalid overlay half-applied (for example config merged by
+        AppConfig while its bundles were never seeded). Errors reading the built-in
+        config are left for the seed itself to report.
+        """
+        if benchmark_extensions.resolve_extensions_dir() is None:
+            return
+        try:
+            self._load_effective_shared_config(path)
+        except Exception as exc:  # noqa: BLE001 - surfaced later by the seed itself
+            self.logger.debug("Overlay pre-validation skipped: %s", exc)
 
     def _extension_fingerprint_requires_seed(self, path: Path) -> bool:
-        """Return True when the extension overlay fingerprint is missing or changed.
+        """Return True when the stored shared-config fingerprint is missing or changed.
 
         A missing stored fingerprint forces a reseed only when an extension
         shared.yaml is present, so an already-seeded database picks up the overlay
-        without a change to the built-in file.
+        without a change to the built-in file. A stored fingerprint that no longer
+        matches, including when the overlay is gone (``ext:none``), forces one
+        reseed so bundles that left the effective config drop off the current
+        seed version.
         """
-        extensions_dir = benchmark_extensions.resolve_extensions_dir()
-        if extensions_dir is None:
-            return False
-
         current = benchmark_extensions.compute_shared_config_fingerprint(path)
         entity = self._moonshot_config.get_by_key(
             benchmark_extensions.SHARED_CONFIG_SEED_FINGERPRINT_KEY
@@ -162,15 +191,16 @@ class SharedConfigSeedService:
         if stored == current:
             return False
         if not stored:
+            extensions_dir = benchmark_extensions.resolve_extensions_dir()
+            if extensions_dir is None:
+                return False
             return benchmark_extensions.extensions_shared_config_path(
                 extensions_dir
             ).is_file()
         return True
 
     def _store_extension_fingerprint(self, path: Path) -> None:
-        """Persist the shared-config fingerprint when an extensions directory is active."""
-        if benchmark_extensions.resolve_extensions_dir() is None:
-            return
+        """Persist the shared-config fingerprint, including ``ext:none``."""
         fingerprint = benchmark_extensions.compute_shared_config_fingerprint(path)
         self._moonshot_config.set(
             benchmark_extensions.SHARED_CONFIG_SEED_FINGERPRINT_KEY,
@@ -273,6 +303,8 @@ class SharedConfigSeedService:
         except FileNotFoundError:
             self.logger.warning("Config file not found: %s, skipping seed", path)
             return False
+
+        self._validate_overlay_before_skip(path)
 
         entity = self._moonshot_config.get_by_key(TEST_FILE_LAST_MODIFIED_KEY)
         base_unchanged = False

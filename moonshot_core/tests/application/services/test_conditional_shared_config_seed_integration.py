@@ -315,3 +315,71 @@ class TestSharedConfigSeedServiceConditionalIntegration:
         assert set(visible_by_name) == {"listed-bundle", "new-bundle"}
         assert visible_by_name["listed-bundle"] is False
         assert visible_by_name["new-bundle"] is True
+
+    def test_reseed_drops_extension_bundle_when_overlay_unresolved(
+        self,
+        shared_config_seed_service,
+        test_db_env,
+        tmp_path,
+        monkeypatch,
+    ):
+        """An overlay bundle leaves the current seed version once extensions resolve to None."""
+        base = {
+            "listed-bundle": {
+                "name": "Listed",
+                "category": "c",
+                "tests": [
+                    {
+                        "name": "T1",
+                        "type": "benchmark",
+                        "dataset": "test_sample_dataset",
+                        "metric": {"name": "refusal_adapter"},
+                    },
+                ],
+            },
+        }
+        path = tmp_path / "shared.yaml"
+        path.write_text(yaml.dump(base))
+        extensions_dir = tmp_path / "benchmark-extensions"
+        shared_dir = extensions_dir / "test_configs"
+        shared_dir.mkdir(parents=True)
+        overlay = {
+            "extension-bundle": {
+                "name": "Extension",
+                "category": "c",
+                "tests": [
+                    {
+                        "name": "T2",
+                        "type": "benchmark",
+                        "dataset": "test_sample_dataset",
+                        "metric": {"name": "refusal_adapter"},
+                    },
+                ],
+            },
+        }
+        (shared_dir / "shared.yaml").write_text(yaml.dump(overlay))
+        monkeypatch.setattr(
+            "domain.services.benchmark_extensions.resolve_extensions_dir",
+            lambda: extensions_dir,
+        )
+        assert shared_config_seed_service.seed_if_test_file_changed(config_path=path)
+
+        monkeypatch.setattr(
+            "domain.services.benchmark_extensions.resolve_extensions_dir",
+            lambda: None,
+        )
+        assert shared_config_seed_service.seed_if_test_file_changed(config_path=path)
+
+        session_manager = SessionManager.get_instance()
+        seed_version = int(
+            _get_moonshot_config_value(session_manager, SHARED_CONFIG_SEED_VERSION_KEY)
+        )
+        with session_manager.get_session() as session:
+            rows = (
+                session.query(BenchmarkTestBundleModel)
+                .filter(BenchmarkTestBundleModel.version == seed_version)
+                .all()
+            )
+            names = {row.system_name for row in rows}
+        assert names == {"listed-bundle"}
+        assert seed_version == 2

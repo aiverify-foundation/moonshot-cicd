@@ -89,16 +89,24 @@ class TestSharedConfigSeedServiceSeedIfTestFileChanged:
         config_path,
     ):
         shared_config_repo_mock.get_last_modified.return_value = 100.0
-        moonshot_config_mock.get_by_key.return_value = MoonshotConfigEntity(
-            id=1, key=TEST_FILE_LAST_MODIFIED_KEY, value="150"
+        moonshot_config_mock.get_by_key.side_effect = lambda key: (
+            MoonshotConfigEntity(
+                id=1, key=TEST_FILE_LAST_MODIFIED_KEY, value="150"
+            )
+            if key == TEST_FILE_LAST_MODIFIED_KEY
+            else None
         )
         result = service.seed_if_test_file_changed(config_path=config_path)
         assert result is False
         service._dataset_seed_service.seed_benchmark_dataset.assert_not_called()
         service._moonshot_config.set.assert_not_called()
-        moonshot_config_mock.get_by_key.assert_called_once_with(
-            TEST_FILE_LAST_MODIFIED_KEY
-        )
+        looked_up = [
+            call.args[0] for call in moonshot_config_mock.get_by_key.call_args_list
+        ]
+        assert looked_up == [
+            TEST_FILE_LAST_MODIFIED_KEY,
+            SHARED_CONFIG_SEED_FINGERPRINT_KEY,
+        ]
 
     def test_returns_true_and_seeds_when_first_run(
         self,
@@ -126,9 +134,16 @@ class TestSharedConfigSeedServiceSeedIfTestFileChanged:
         assert result is True
         dataset_seed_service_mock.seed_benchmark_dataset.assert_called_once_with("foo")
         service._seed_from_data.assert_called_once_with(minimal_config, config_path, 1)
-        assert moonshot_config_mock.set.call_count == 2
+        assert moonshot_config_mock.set.call_count == 3
         moonshot_config_mock.set.assert_any_call(TEST_FILE_LAST_MODIFIED_KEY, "200.0")
         moonshot_config_mock.set.assert_any_call(SHARED_CONFIG_SEED_VERSION_KEY, "1")
+        fingerprint_calls = [
+            call
+            for call in moonshot_config_mock.set.call_args_list
+            if call.args[0] == SHARED_CONFIG_SEED_FINGERPRINT_KEY
+        ]
+        assert len(fingerprint_calls) == 1
+        assert len(fingerprint_calls[0].args[1]) == 64
 
     def test_returns_true_when_stored_less_than_mtime(
         self,
@@ -158,9 +173,16 @@ class TestSharedConfigSeedServiceSeedIfTestFileChanged:
         assert call_args[0] == minimal_config
         assert call_args[1] == config_path
         assert call_args[2] == 51
-        assert moonshot_config_mock.set.call_count == 2
+        assert moonshot_config_mock.set.call_count == 3
         moonshot_config_mock.set.assert_any_call(TEST_FILE_LAST_MODIFIED_KEY, "100.0")
         moonshot_config_mock.set.assert_any_call(SHARED_CONFIG_SEED_VERSION_KEY, "51")
+        fingerprint_calls = [
+            call
+            for call in moonshot_config_mock.set.call_args_list
+            if call.args[0] == SHARED_CONFIG_SEED_FINGERPRINT_KEY
+        ]
+        assert len(fingerprint_calls) == 1
+        assert len(fingerprint_calls[0].args[1]) == 64
 
     def test_collects_all_dataset_names_from_config(
         self,
@@ -245,8 +267,12 @@ class TestSharedConfigSeedServiceSeedIfTestFileChanged:
         config_path,
     ):
         shared_config_repo_mock.get_last_modified.return_value = 100.0
-        moonshot_config_mock.get_by_key.return_value = MoonshotConfigEntity(
-            id=1, key=TEST_FILE_LAST_MODIFIED_KEY, value="150"
+        moonshot_config_mock.get_by_key.side_effect = lambda key: (
+            MoonshotConfigEntity(
+                id=1, key=TEST_FILE_LAST_MODIFIED_KEY, value="150"
+            )
+            if key == TEST_FILE_LAST_MODIFIED_KEY
+            else None
         )
 
         with patch(
@@ -272,6 +298,8 @@ class TestSharedConfigSeedServiceSeedIfTestFileChanged:
         extensions_dir = tmp_path / "benchmark-extensions"
         shared_dir = extensions_dir / "test_configs"
         shared_dir.mkdir(parents=True)
+        (extensions_dir / "datasets").mkdir()
+        (extensions_dir / "datasets" / "ext_ds.json").write_text("{}")
         (shared_dir / "shared.yaml").write_text(
             "extension-bundle:\n"
             "  tests:\n"
@@ -316,4 +344,51 @@ class TestSharedConfigSeedServiceSeedIfTestFileChanged:
             if call.args[0] == SHARED_CONFIG_SEED_FINGERPRINT_KEY
         ]
         assert len(fingerprint_calls) == 1
+        assert len(fingerprint_calls[0].args[1]) == 64
+
+    def test_reseeds_base_only_when_stored_fingerprint_and_overlay_gone(
+        self,
+        service,
+        moonshot_config_mock,
+        shared_config_repo_mock,
+        dataset_seed_service_mock,
+        tmp_path,
+    ):
+        """A stored overlay fingerprint reseeds built-in bundles once the overlay is gone."""
+        base_path = tmp_path / "shared.yaml"
+        base_path.write_text("base: {}\n")
+        mtime = base_path.stat().st_mtime
+        shared_config_repo_mock.get_last_modified.return_value = mtime
+
+        def _by_key(key):
+            if key == TEST_FILE_LAST_MODIFIED_KEY:
+                return MoonshotConfigEntity(id=1, key=key, value=str(mtime + 10))
+            if key == SHARED_CONFIG_SEED_FINGERPRINT_KEY:
+                return MoonshotConfigEntity(id=2, key=key, value="a" * 64)
+            return None
+
+        moonshot_config_mock.get_by_key.side_effect = _by_key
+        base_config = {
+            "base-bundle": {
+                "tests": [
+                    {"name": "Base", "dataset": "foo", "metric": {"name": "acc"}},
+                ],
+            }
+        }
+        shared_config_repo_mock.get_config.return_value = base_config
+        service._seed_from_data = MagicMock()
+
+        result = service.seed_if_test_file_changed(config_path=base_path)
+
+        assert result is True
+        seeded = service._seed_from_data.call_args[0][0]
+        assert set(seeded) == {"base-bundle"}
+        dataset_seed_service_mock.seed_benchmark_dataset.assert_called_once_with("foo")
+        fingerprint_calls = [
+            call
+            for call in moonshot_config_mock.set.call_args_list
+            if call.args[0] == SHARED_CONFIG_SEED_FINGERPRINT_KEY
+        ]
+        assert len(fingerprint_calls) == 1
+        assert fingerprint_calls[0].args[1] != "a" * 64
         assert len(fingerprint_calls[0].args[1]) == 64

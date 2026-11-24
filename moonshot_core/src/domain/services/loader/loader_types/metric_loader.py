@@ -1,9 +1,8 @@
-import os
 from typing import Tuple
 
 from domain.ports.metric_port import MetricPort
 from domain.ports.storage_provider_port import StorageProviderPort
-from domain.services.app_config import AppConfig
+from domain.services.benchmark_extensions import resolve_adapter_module_path
 from domain.services.enums.module_types import ModuleTypes
 from domain.services.loader.factory.storage_provider_factory import (
     StorageProviderFactory,
@@ -69,11 +68,9 @@ class MetricLoader(Loader):
             if isinstance(
                 self.storage_adapter, StorageProviderFactory._fallback_adapter
             ):
-                # Construct the complete path to the metric module file
-                complete_path = os.path.join(
-                    AppConfig.DEFAULT_ADAPTERS_PATH,
-                    ModuleTypes.METRIC.name.lower(),
-                    f"{loader_name}.py",
+                # Prefer an extension adapter, then the built-in metric module.
+                complete_path = resolve_adapter_module_path(
+                    ModuleTypes.METRIC, loader_name
                 )
             else:
                 complete_path = f"{loader_name}.py"

@@ -1,8 +1,0 @@
----
-# Optional fragment merged into the image moonshot_config.yaml.
-# Example: add a connector entry (uncomment and set your endpoint id).
-#
-# connectors_configurations:
-#   - id: my-custom-endpoint
-#     connector_adapter: openai_adapter
-#     model: gpt-4o-mini

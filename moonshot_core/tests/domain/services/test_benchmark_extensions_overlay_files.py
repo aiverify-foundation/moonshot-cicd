@@ -1,11 +1,11 @@
-"""Static checks for the committed benchmark-extensions overlay files."""
+"""Static checks for the committed benchmark-extensions.example overlay files."""
 
 import json
 from pathlib import Path
 
 import yaml
 
-_OVERLAY_ROOT = Path(__file__).resolve().parents[3] / "benchmark-extensions"
+_OVERLAY_ROOT = Path(__file__).resolve().parents[3] / "benchmark-extensions.example"
 
 
 def test_overlay_paths_exist():
@@ -15,6 +15,9 @@ def test_overlay_paths_exist():
     assert (_OVERLAY_ROOT / "datasets/custom_extension_sample.json").is_file()
     assert (
         _OVERLAY_ROOT / "adapters/metric/extension_example_metric_adapter.py"
+    ).is_file()
+    assert (
+        _OVERLAY_ROOT / "adapters/connector/benchmark_extension_openai_adapter.py"
     ).is_file()
 
 
@@ -31,7 +34,10 @@ def test_overlay_shared_yaml_references_sample_ids():
 def test_overlay_moonshot_config_parses():
     with open(_OVERLAY_ROOT / "moonshot_config.yaml", encoding="utf-8") as f:
         config = yaml.safe_load(f)
-    assert config is None or isinstance(config, dict)
+    assert isinstance(config, dict)
+    connectors = config["connectors_configurations"]
+    assert connectors[0]["id"] == "benchmark-extension-openai"
+    assert connectors[0]["connector_adapter"] == "benchmark_extension_openai_adapter"
 
 
 def test_overlay_dataset_json_shape():
