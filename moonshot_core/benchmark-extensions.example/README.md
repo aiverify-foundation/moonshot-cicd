@@ -11,8 +11,9 @@ Copy this directory layout into your extensions root and customize. Built-in ben
 | `datasets/<id>.json` | Dataset files referenced by `shared.yaml` (`dataset: <id>`) |
 | `adapters/metric/<name>.py` | Custom metric adapters |
 | `adapters/connector/<name>.py` | Custom connector adapters |
+| `adapters/connector/providers.json` | Optional: lists connector adapters as LLM providers in the portal (see below) |
 
-Duplicate IDs/names that already exist in the shipped product are rejected at startup or seed time.
+Duplicate connector ids, metric names, attack module names, `common` keys, bundle keys and dataset ids are rejected at startup or seed time. An adapter file with the same name as a built-in adapter is not rejected; see below.
 
 Extensions are applied only when feature flag **`AIVET_OCT2026_MOON807=true`** in `moonshot_core/data/feature_flags.txt` (restart the API after changing flags).
 

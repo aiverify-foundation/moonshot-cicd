@@ -11,6 +11,7 @@ from adapters.driven.repository.sqlalchemy.llm_provider_models import (
     LLMProviderModelModel,
 )
 from adapters.driven.repository.sqlalchemy.session_manager import SessionManager
+from application.services.extension_provider_service import ExtensionProviderService
 from application.services.provider_connector_env_key_service import ProviderConnectorEnvKeyService
 from domain.entities.connector_entity import ConnectorEntity
 from domain.services.enums.module_types import ModuleTypes
@@ -98,7 +99,10 @@ class DatabaseConnectorConfigService:
                     f"belong to llm_provider_model {llm_provider_model_id}"
                 )
 
-            adapter_module = SYSTEM_NAME_TO_ADAPTER_MODULE.get(provider.system_name)
+            # Built-in providers win; extension providers (providers.json) are the fallback.
+            adapter_module = SYSTEM_NAME_TO_ADAPTER_MODULE.get(
+                provider.system_name
+            ) or ExtensionProviderService().get_adapter_module(provider.system_name)
             if adapter_module is None:
                 raise DatabaseConnectorConfigError(
                     f"No connector adapter mapping for provider system_name={provider.system_name!r}"

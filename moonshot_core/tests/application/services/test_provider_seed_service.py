@@ -1,3 +1,4 @@
+import json
 from typing import List
 
 import pytest
@@ -10,6 +11,7 @@ from adapters.connector.together_adapter import TogetherAdapter
 from adapters.driven.repository.sqlalchemy.llm_provider_adapter import LLMProviderAdapter
 from adapters.driven.repository.sqlalchemy.llm_provider_models import LLMProviderModel
 from adapters.driven.repository.sqlalchemy.session_manager import SessionManager
+from application.services.extension_provider_service import ExtensionProviderService
 from application.services.provider_seed_service import ProviderSeedService
 from domain.entities.provider_entity import ProviderEntity
 from domain.services.feature_flags import FeatureFlags
@@ -145,6 +147,72 @@ def test_scenario_4_provider_exists_with_higher_version(provider_seed_service):
     providers = _get_providers_for_system_name(system_name)
     assert len(providers) == 1
     assert providers[0].version == hardcoded_version + 1
+
+
+# --- Extension providers (providers.json in the benchmark-extensions overlay) ---
+
+EXTENSION_SYSTEM_NAME = "seed_test_extension_provider"
+
+
+@pytest.fixture
+def extension_providers(tmp_path, monkeypatch):
+    """Activate an extensions overlay and return a function that writes its providers.json."""
+    root = tmp_path / "ext"
+    (root / "adapters" / "connector").mkdir(parents=True)
+    monkeypatch.setenv("MOONSHOT_BENCHMARK_EXTENSIONS_DIR", str(root))
+    ExtensionProviderService.reset()
+
+    def _write(version: int) -> None:
+        entry = {
+            "name": "Seed Test Extension",
+            "system_name": EXTENSION_SYSTEM_NAME,
+            "version": version,
+            "adapter_module": "seed_test_extension_adapter",
+        }
+        (root / "adapters" / "connector" / "providers.json").write_text(json.dumps({"providers": [entry]}))
+        ExtensionProviderService.reset()
+
+    yield _write
+    ExtensionProviderService.reset()
+
+
+def test_extension_provider_is_seeded(provider_seed_service, extension_providers):
+    extension_providers(version=1)
+
+    provider_seed_service.seed_hardcoded_providers()
+
+    providers = _get_providers_for_system_name(EXTENSION_SYSTEM_NAME)
+    assert len(providers) == 1
+    assert providers[0].name == "Seed Test Extension"
+    assert providers[0].version == 1
+
+
+def test_extension_provider_is_skipped_on_rerun_at_same_version(provider_seed_service, extension_providers):
+    extension_providers(version=1)
+
+    provider_seed_service.seed_hardcoded_providers()
+    provider_seed_service.seed_hardcoded_providers()
+
+    assert len(_get_providers_for_system_name(EXTENSION_SYSTEM_NAME)) == 1
+
+
+def test_extension_provider_is_inserted_when_json_version_is_higher(provider_seed_service, extension_providers):
+    extension_providers(version=1)
+    provider_seed_service.seed_hardcoded_providers()
+
+    extension_providers(version=2)
+    provider_seed_service.seed_hardcoded_providers()
+
+    versions = sorted(p.version for p in _get_providers_for_system_name(EXTENSION_SYSTEM_NAME))
+    assert versions == [1, 2]
+
+
+def test_built_in_providers_are_still_seeded_with_extension_provider(provider_seed_service, extension_providers):
+    extension_providers(version=1)
+
+    provider_seed_service.seed_hardcoded_providers()
+
+    assert len(_get_providers_for_system_name(OpenAIAdapter.SYSTEM_NAME)) == 1
 
 
 def test_scenario_5_service_run_multiple_times(provider_seed_service):

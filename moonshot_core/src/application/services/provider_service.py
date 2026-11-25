@@ -3,7 +3,7 @@ from domain.services.logger import get_logger
 ##TODO: Remove this service and use the SQLAlchemy implementation instead
 ## THIS IS MARKED FOR DELETION
 
-from typing import Dict, List, Optional, Type
+from typing import Dict, List, Optional, Set, Type
 from datetime import datetime
 
 from adapters.connector.aws_bedrock_adapter import AWSBedrockAdapter
@@ -33,6 +33,7 @@ from application.dto.model_config_dto import (
     LLMProviderModelInfoDTO,
     ProviderDatabaseConfigsDTO,
 )
+from application.services.extension_provider_service import ExtensionProviderService
 from application.services.sqlite_adapter import SQLiteAdapter
 from domain.ports.connector_port import ConnectorPort
 from domain.services.enums.feature_flag_names import FeatureFlagNames
@@ -51,10 +52,22 @@ def _is_bedrock_web_search_portal_provider_enabled() -> bool:
     return FeatureFlags().is_enabled(FeatureFlagNames.AIVET_OCT2026_MOON812)
 
 
-def _is_portal_visible_provider_system_name(system_name: str) -> bool:
-    """Hide Bedrock Web Search from portal APIs when AIVET_OCT2026_MOON812 is off."""
+def _is_portal_visible_provider_system_name(
+    system_name: str,
+    hidden_extension_system_names: Optional[Set[str]] = None,
+) -> bool:
+    """
+    Hide providers from portal APIs that are not currently available.
+
+    - Bedrock Web Search is hidden when AIVET_OCT2026_MOON812 is off.
+    - Extension providers (providers.json) are hidden when the extensions overlay is not
+      active. ``hidden_extension_system_names`` is computed once per request by the caller
+      (``ExtensionProviderService.hidden_system_names()``).
+    """
     if system_name == BedrockMantleWebSearchAdapter.SYSTEM_NAME:
         return _is_bedrock_web_search_portal_provider_enabled()
+    if hidden_extension_system_names and system_name in hidden_extension_system_names:
+        return False
     return True
 
 
@@ -96,9 +109,13 @@ class ProviderService:
         matching ConnectorPort class metadata when DB-derived values are empty.
         """
         adapter_cls = _ADAPTER_BY_SYSTEM_NAME.get(dto.system_name)
-        if adapter_cls is None:
-            return dto
-        seed = adapter_cls.provider_seed_definition()
+        if adapter_cls is not None:
+            seed = adapter_cls.provider_seed_definition()
+        else:
+            # Not a built-in adapter: use the defaults declared in an extension providers.json.
+            seed = ExtensionProviderService().get_seed_defaults(dto.system_name)
+            if seed is None:
+                return dto
         if not dto.defaultModel:
             dto.defaultModel = str(seed.get("defaultModel", "") or "")
         if not dto.modelTextboxExplanation:
@@ -215,10 +232,11 @@ class ProviderService:
         """
         self.logger.info("Listing all providers")
         entities = self.provider_repository.list_providers()
+        hidden = ExtensionProviderService().hidden_system_names()
         return [
             self._enrich_dto_with_adapter_defaults(self._provider_entity_to_dto(entity))
             for entity in entities
-            if _is_portal_visible_provider_system_name(entity.system_name)
+            if _is_portal_visible_provider_system_name(entity.system_name, hidden)
         ]
 
     def add_provider(self, provider: ProviderDTO) -> ProviderDTO:
@@ -320,9 +338,12 @@ class ProviderService:
         self.logger.info(
             "Fetching latest provider details for system_name=%s", system_name
         )
-        if not _is_portal_visible_provider_system_name(system_name):
+        if not _is_portal_visible_provider_system_name(
+            system_name, ExtensionProviderService().hidden_system_names()
+        ):
             self.logger.info(
-                "Provider system_name=%s is hidden by feature flag", system_name
+                "Provider system_name=%s is hidden (feature flag or inactive extension)",
+                system_name,
             )
             return None
         try:
@@ -419,12 +440,15 @@ class ProviderService:
         self.logger.info("Listing providers with database-backed model configs")
         out: List[ProviderDatabaseConfigsDTO] = []
 
+        hidden = ExtensionProviderService().hidden_system_names()
         with self._session_manager.get_session() as session:
             providers: List[LLMProviderModel] = (
                 session.query(LLMProviderModel).order_by(LLMProviderModel.id).all()
             )
             for provider in providers:
-                if not _is_portal_visible_provider_system_name(provider.system_name):
+                if not _is_portal_visible_provider_system_name(
+                    provider.system_name, hidden
+                ):
                     continue
                 config_dtos = self._database_model_config_dtos_for_provider(
                     session, provider

@@ -2,6 +2,7 @@ from domain.services.logger import get_logger
 from typing import List, Optional
 
 from application.ports.provider_repository import ProviderRepository
+from application.services.extension_provider_service import ExtensionProviderService
 from adapters.connector.aws_bedrock_adapter import AWSBedrockAdapter
 from adapters.connector.bedrock_mantle_web_search_adapter import BedrockMantleWebSearchAdapter
 from adapters.connector.openai_adapter import OpenAIAdapter
@@ -23,9 +24,16 @@ class ProviderSeedService:
     - Otherwise (equal or lower): skip.
     """
 
-    def __init__(self, provider_repository: Optional[ProviderRepository] = None) -> None:
+    def __init__(
+        self,
+        provider_repository: Optional[ProviderRepository] = None,
+        extension_provider_service: Optional[ExtensionProviderService] = None,
+    ) -> None:
         self.logger = get_logger(__name__)
         self.provider_repository: ProviderRepository = provider_repository or LLMProviderAdapter()
+        self.extension_provider_service: ExtensionProviderService = (
+            extension_provider_service or ExtensionProviderService()
+        )
 
     def _get_adapter_provider_definitions(self) -> list[dict]:
         """
@@ -39,11 +47,20 @@ class ProviderSeedService:
         ]
         if FeatureFlags().is_enabled(FeatureFlagNames.AIVET_OCT2026_MOON812):
             definitions.append(BedrockMantleWebSearchAdapter.provider_seed_definition())
+        # Providers declared by benchmark extensions (providers.json). Empty when the
+        # extensions overlay is not in use.
+        definitions.extend(self.extension_provider_service.load_seed_definitions())
         return definitions
 
     def seed_hardcoded_providers(self) -> None:
         """Seed providers from adapter metadata with version-aware logic."""
         self.logger.info("Seeding hardcoded LLM providers")
+
+        # Remember which providers came from an extension, so they can be hidden from the
+        # portal when the overlay is not active. Recorded before the rows are inserted.
+        self.extension_provider_service.record_seeded_system_names(
+            [d["system_name"] for d in self.extension_provider_service.load_definitions()]
+        )
 
         existing_providers: List[ProviderEntity] = self.provider_repository.list_providers()
         providers_by_system_name: dict[str, List[ProviderEntity]] = {}

@@ -1,0 +1,13 @@
+{
+  "providers": [
+    {
+      "name": "Benchmark Extension OpenAI",
+      "system_name": "benchmark_extension_openai_adapter",
+      "version": 1,
+      "adapter_module": "benchmark_extension_openai_adapter",
+      "defaultModel": "gpt-4o-mini",
+      "modelTextboxExplanation": "Enter an OpenAI model name, e.g. gpt-4o-mini",
+      "defaultConfigPairs": { "temperature": "1.0" }
+    }
+  ]
+}
