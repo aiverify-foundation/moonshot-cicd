@@ -1,5 +1,6 @@
 import json
 from typing import List
+from unittest.mock import MagicMock
 
 import pytest
 from pathlib import Path
@@ -14,6 +15,7 @@ from adapters.driven.repository.sqlalchemy.session_manager import SessionManager
 from application.services.extension_provider_service import ExtensionProviderService
 from application.services.provider_seed_service import ProviderSeedService
 from domain.entities.provider_entity import ProviderEntity
+from domain.services.enums.feature_flag_names import FeatureFlagNames
 from domain.services.feature_flags import FeatureFlags
 
 
@@ -156,7 +158,18 @@ EXTENSION_SYSTEM_NAME = "seed_test_extension_provider"
 
 @pytest.fixture
 def extension_providers(tmp_path, monkeypatch):
-    """Activate an extensions overlay and return a function that writes its providers.json."""
+    """Activate an extensions overlay and return a function that writes its providers.json.
+
+    The overlay is gated by AIVET_OCT2026_MOON807, so the flag is forced on here to keep
+    these tests independent of ``data/feature_flags.txt``.
+    """
+    adapter = MagicMock()
+    adapter.load_flags.return_value = {FeatureFlagNames.AIVET_OCT2026_MOON807: True}
+    monkeypatch.setattr(
+        "domain.services.feature_flags.FeatureFlagAdapterFactory.get_adapter",
+        lambda *args, **kwargs: adapter,
+    )
+    FeatureFlags.reset()
     root = tmp_path / "ext"
     (root / "adapters" / "connector").mkdir(parents=True)
     monkeypatch.setenv("MOONSHOT_BENCHMARK_EXTENSIONS_DIR", str(root))
